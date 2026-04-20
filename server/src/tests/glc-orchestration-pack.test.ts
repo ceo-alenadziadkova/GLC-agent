@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../schemas/glc-orchestration-pack.js';
-import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
+import { StrategyInitiativeSchema, type StrategyInitiative } from '../schemas/domain-output.js';
+import type { AuditExecutionPlan } from '../types/audit.js';
 import { buildOrchestrationGraph } from '../services/orchestration/orchestration-graph-builder.js';
 import type { OrchestrationActionNode } from '../types/orchestration/index.js';
 import {
@@ -56,6 +57,14 @@ describe('GlcOrchestrationPackSchema', () => {
       critical_path: ['a'],
       conflicts_resolved: [],
       manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      phase_diagnostic: {
+        dominant_constraint: 'capacity',
+        constraint_chain: ['capacity'],
+      },
+      routing_profile: {
+        strategy: 'toc_dynamic_routing_v1',
+        domain_weights: { marketing_utp: 1 },
+      },
     };
     const parsed = GlcOrchestrationPackSchema.safeParse(raw);
     expect(parsed.success).toBe(true);
@@ -69,8 +78,44 @@ describe('GlcOrchestrationPackSchema', () => {
       critical_path: [],
       conflicts_resolved: [],
       manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      phase_diagnostic: {
+        dominant_constraint: 'capacity',
+        constraint_chain: ['capacity'],
+      },
+      routing_profile: {
+        strategy: 'toc_dynamic_routing_v1',
+        domain_weights: {},
+      },
     };
     expect(GlcOrchestrationPackSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('adapts v1 payload into v2 contract', () => {
+    const rawV1 = {
+      version: 1,
+      graph: {
+        nodes: [
+          {
+            id: 'a',
+            title: 'A',
+            domain: 'marketing_utp',
+            lane: 'marketing_narrative',
+          },
+        ],
+        edges: [],
+      },
+      lanes: Object.fromEntries(ORCHESTRATION_LANE_IDS.map((l) => [l, l === 'marketing_narrative' ? ['a'] : []])) as Record<
+        (typeof ORCHESTRATION_LANE_IDS)[number],
+        string[]
+      >,
+      critical_path: ['a'],
+      conflicts_resolved: [],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+    };
+    const parsed = GlcOrchestrationPackSchema.parse(rawV1);
+    expect(parsed.version).toBe(GLC_ORCHESTRATION_PACK_SCHEMA_VERSION);
+    expect(parsed.phase_diagnostic.dominant_constraint).toBe('capacity');
+    expect(parsed.routing_profile.strategy).toBe('toc_dynamic_routing_v1');
   });
 });
 
@@ -84,8 +129,8 @@ describe('buildOrchestrationGraph', () => {
     expect(r.critical_path[0]).toBe('a');
     expect(r.critical_path[r.critical_path.length - 1]).toBe('c');
     expect(r.graph.edges).toEqual([
-      { from: 'a', to: 'b', weight: 1 },
-      { from: 'b', to: 'c', weight: 1 },
+      { from: 'a', to: 'b', relation: 'direct_blocker', weight: 1 },
+      { from: 'b', to: 'c', relation: 'direct_blocker', weight: 1 },
     ]);
   });
 
@@ -154,7 +199,7 @@ describe('roadmap manifest vs execution_plan', () => {
       depth: 'standard' as const,
       source: 'user_selected' as const,
       include_strategy: true,
-    };
+    } satisfies AuditExecutionPlan;
     expect(manifestSelectedDomainsMatchExecutionPlan(manifest, plan)).toBe(true);
     expect(() => assertManifestMatchesExecutionPlan(manifest, plan)).not.toThrow();
   });
@@ -170,7 +215,7 @@ describe('roadmap manifest vs execution_plan', () => {
       depth: 'standard' as const,
       source: 'user_selected' as const,
       include_strategy: true,
-    };
+    } satisfies AuditExecutionPlan;
     expect(() => assertManifestMatchesExecutionPlan(manifest, plan)).toThrow();
   });
 });
@@ -240,6 +285,7 @@ describe('mapStrategyInitiativesToActionNodes initiative cap', () => {
     const pack = buildGlcOrchestrationPackFromInitiatives({
       initiatives,
       manifestSnapshotId: '00000000-0000-4000-8000-000000000077',
+      seasonPreset: 'rolling_90d',
     });
     expect(pack.graph.nodes).toHaveLength(ORCHESTRATION_GRAPH_MAX_NODES);
     expect(pack.conflicts_resolved.some((c) => c.id.startsWith('initiative-cap-drop:'))).toBe(true);
@@ -268,9 +314,11 @@ describe('mapStrategyInitiativeToActionNode + buildGlcOrchestrationPackFromIniti
     });
     const action = mapStrategyInitiativeToActionNode(initiative);
     expect(action.lane).toBe('tech_delivery');
+    expect(action.source).toBe('strategy');
     const pack = buildGlcOrchestrationPackFromInitiatives({
       initiatives: [initiative],
       manifestSnapshotId: '00000000-0000-4000-8000-000000000099',
+      seasonPreset: 'rolling_90d',
     });
     expect(pack.version).toBe(GLC_ORCHESTRATION_PACK_SCHEMA_VERSION);
     expect(pack.critical_path).toContain('i1');
@@ -299,6 +347,7 @@ describe('mapStrategyInitiativeToActionNode + buildGlcOrchestrationPackFromIniti
     const pack = buildGlcOrchestrationPackFromInitiatives({
       initiatives: [first, second],
       manifestSnapshotId: '00000000-0000-4000-8000-000000000088',
+      seasonPreset: 'rolling_90d',
     });
     expect(pack.graph.nodes).toHaveLength(1);
     expect(pack.graph.nodes[0]!.title).toBe('Kept title');

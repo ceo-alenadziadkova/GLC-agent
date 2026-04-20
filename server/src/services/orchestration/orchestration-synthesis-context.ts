@@ -1,4 +1,5 @@
 import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
+import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 import { ORCHESTRATION_SYNTHESIS_CONTEXT_LIMITS } from '../../config/orchestration-synthesis-policy.js';
 
 const L = ORCHESTRATION_SYNTHESIS_CONTEXT_LIMITS;
@@ -53,7 +54,8 @@ export function buildOrchestrationDomainSignals(
     }
 
     const score = typeof row.score === 'number' && Number.isFinite(row.score) ? row.score : undefined;
-    const label = typeof row.label === 'string' ? truncateStr(row.label, 80) : undefined;
+    const label =
+      typeof row.label === 'string' ? truncateStr(row.label, L.maxDomainLabelChars) : undefined;
 
     out.push({ domain_key: domainKey, score, label, issue_titles: titles });
     n += 1;
@@ -65,6 +67,8 @@ export function buildOrchestrationSynthesisUserJson(args: {
   pack: GlcOrchestrationPack;
   normalizedStrategy: Record<string, unknown>;
   domainRows: Array<Record<string, unknown>>;
+  /** Persisted roadmap manifest (same snapshot as pack.manifest_snapshot_id). */
+  roadmapManifest?: RoadmapManifestPayload;
 }): string {
   const scorecardRaw = args.normalizedStrategy.scorecard;
   const scorecard = Array.isArray(scorecardRaw) ? scorecardRaw : [];
@@ -85,6 +89,16 @@ export function buildOrchestrationSynthesisUserJson(args: {
     strategy_scorecard: { overall_score: overallScore, rows: scorecard },
     domain_signals: buildOrchestrationDomainSignals(args.domainRows),
     executive_summary_excerpt: executiveExcerpt,
+    ...(args.roadmapManifest
+      ? {
+          roadmap_input_manifest: {
+            change_scenario: args.roadmapManifest.change_scenario,
+            season_preset: args.roadmapManifest.season_preset,
+            selected_domains: args.roadmapManifest.selected_domains,
+            priority_weights: args.roadmapManifest.priority_weights ?? null,
+          },
+        }
+      : {}),
   };
 
   let json = JSON.stringify(body);
@@ -107,6 +121,9 @@ export function buildOrchestrationSynthesisUserJson(args: {
     strategy_scorecard: body.strategy_scorecard,
     domain_signals: body.domain_signals,
     executive_summary_excerpt: body.executive_summary_excerpt,
+    ...(typeof body.roadmap_input_manifest === 'object' && body.roadmap_input_manifest !== null
+      ? { roadmap_input_manifest: body.roadmap_input_manifest }
+      : {}),
     _note: 'full_pack_omitted_due_to_size_cap',
   };
 
@@ -120,6 +137,9 @@ export function buildOrchestrationSynthesisUserJson(args: {
     strategy_scorecard: { overall_score: (summaryBody.strategy_scorecard as { overall_score?: number | null }).overall_score ?? null, rows: [] },
     domain_signals: [],
     executive_summary_excerpt: summaryBody.executive_summary_excerpt,
+    ...(typeof summaryBody.roadmap_input_manifest === 'object' && summaryBody.roadmap_input_manifest !== null
+      ? { roadmap_input_manifest: summaryBody.roadmap_input_manifest }
+      : {}),
     _note: 'payload_minimal_due_to_size_cap',
   };
   return JSON.stringify(minimal);

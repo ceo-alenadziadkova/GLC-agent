@@ -14,6 +14,7 @@
 - Human orchestrator prompt canon (operational text): `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`
 - Client-facing roadmap and timeline UX (lanes, seasons, lab vs timeline): `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`
 - Per-phase quality gate (domain phases): `ADR-CONTROL-OBJECT-V1.md`, `ADR-DECISION-LAYER-GATES.md`
+- Plan-level orchestration governance canon: `ADR-ORCHESTRATION-PLAN-GOVERNANCE-CANON.md`
 - Cross-domain two-stage pattern for domain deep audits: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
 - Domain Director ADRs (examples):
   - `ADR-MARKETING-DIRECTOR-TWO-STAGE.md`
@@ -274,11 +275,15 @@ Minimum sections:
 
 Persist orchestrator output as `glc_orchestration_pack` (versioned JSON), separate from domain rows.
 
-### Endpoints (proposed)
+### Endpoints (implemented v1 deterministic)
 
-- `POST /api/audits/:id/orchestrator/preview` — routing + required directors + missing inputs
-- `POST /api/audits/:id/orchestrator/run` — compute unified plan
-- `GET /api/audits/:id/orchestrator/latest`
+- `POST /api/audits/:id/roadmap/manifest-preview` — manifest pre-check (coverage contract, lane hints, waiting list)
+- `POST /api/audits/:id/roadmap/manifest-snapshots` + `GET .../manifest-snapshots` — immutable manifest inputs
+- `POST /api/audits/:id/orchestration/pack` — compute + persist orchestrator pack from strategy/director structured outputs
+- `GET /api/audits/:id/orchestration/pack` — latest persisted orchestration pack
+
+Endpoint naming differs from the original proposal but preserves the same layering:
+manifest-first commitment, deterministic orchestration build, and versioned persisted read model.
 
 ---
 

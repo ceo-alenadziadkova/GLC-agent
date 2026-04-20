@@ -1,4 +1,8 @@
 import { SYSTEM_DEFAULTS } from './system-defaults.js';
+import {
+  ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES,
+  type OrchestrationPlanGovernanceRolloutMode,
+} from './orchestration-plan-governance-rollout-policy.js';
 
 /**
  * Server feature flags — single facade for product toggles.
@@ -102,4 +106,44 @@ export function isBenchmarksEnabled(): boolean {
 /** Strategy Lab on-demand execution pack (extra Claude call). Env: FEATURE_STRATEGY_EXECUTION_PACK=false to disable. */
 export function isStrategyExecutionPackEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_STRATEGY_EXECUTION_PACK, FF.strategyExecutionPackEnabled);
+}
+
+/**
+ * Optional orchestration conflict synthesis (LLM). Env: FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS=true
+ * Default off; deterministic graph build does not require this.
+ */
+export function isOrchestrationConflictSynthesisEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS,
+    FF.orchestrationConflictSynthesisEnabled,
+  );
+}
+
+/**
+ * Persisted orchestration pack HTTP API. Env: FEATURE_ORCHESTRATION_PACK_API=false to disable.
+ */
+export function isOrchestrationPackApiEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_ORCHESTRATION_PACK_API, FF.orchestrationPackApiEnabled);
+}
+
+function readEnumFeatureFlag<T extends string>(
+  env: string | undefined,
+  allowed: readonly T[],
+  defaultValue: T,
+): T {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  return (allowed as readonly string[]).includes(raw) ? (raw as T) : defaultValue;
+}
+
+/**
+ * Plan-level governance rollout mode for orchestration persistence gate.
+ * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
+ */
+export function getOrchestrationPlanGovernanceRolloutMode(): OrchestrationPlanGovernanceRolloutMode {
+  return readEnumFeatureFlag(
+    process.env.FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE,
+    ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES,
+    FF.orchestrationPlanGovernanceRolloutMode,
+  );
 }

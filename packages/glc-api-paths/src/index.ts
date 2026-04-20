@@ -128,6 +128,40 @@ export function apiAuditsStrategyLabContext(auditId: string): string {
   return `${apiAuditsPath(auditId)}/strategy/lab-context`;
 }
 
+export function apiAuditsRoadmapManifestPreview(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest-preview`;
+}
+
+export function apiAuditsRoadmapManifestSnapshots(
+  auditId: string,
+  query?: { limit?: number },
+): string {
+  const base = `${apiAuditsPath(auditId)}/roadmap/manifest-snapshots`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsOrchestrationPack(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/pack`;
+}
+
+export function apiAuditsOrchestrationPackDiffHistory(
+  auditId: string,
+  query?: { limit?: number },
+): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/pack-diff-history`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsOrchestrationCommercialOffer(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/commercial-offer`;
+}
+
 /** Platform admin: clear `cancelled` so the audit owner can retry or continue. */
 export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string {
   return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;

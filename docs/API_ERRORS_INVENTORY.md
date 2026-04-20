@@ -21,6 +21,12 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 | `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `platform` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
 | `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
 | `AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID`, `AUDITS_STRATEGY_LAB_CONTEXT_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/strategy/lab-context` |
+| `AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED` | 400 / 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-snapshots` |
+| `AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED` | 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview` |
+| `AUDITS_ROADMAP_MANIFEST_LIST_FAILED` | 500 | Same JSON | `GET /api/audits/:id/roadmap/manifest-snapshots` |
+| `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `AUDITS_ORCHESTRATION_PACK_NOT_READY`, `AUDITS_ORCHESTRATION_PACK_FAILED` | 400 / 409 / 500 | Same JSON | `POST /api/audits/:id/orchestration/pack` |
+| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
+| `AUDITS_NOT_FOUND`, `AUDITS_FETCH_FAILED` | 404 / 500 | Same JSON | `GET /api/audits/:id/orchestration/pack` |
 
 ---
 

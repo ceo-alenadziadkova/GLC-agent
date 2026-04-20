@@ -121,6 +121,10 @@ export interface Database {
           scorecard: Record<string, unknown>[];
           schema_version: number;
           strategy_lab_context: Record<string, unknown>;
+          glc_orchestration_pack: Record<string, unknown> | null;
+          orchestration_pack_version: number;
+          glc_orchestration_last_revision_diff: Record<string, unknown> | null;
+          glc_orchestration_revision_history: Record<string, unknown>[];
           created_at: string;
         };
         Insert: {
@@ -135,8 +139,28 @@ export interface Database {
           scorecard?: Record<string, unknown>[];
           schema_version?: number;
           strategy_lab_context?: Record<string, unknown>;
+          glc_orchestration_pack?: Record<string, unknown> | null;
+          orchestration_pack_version?: number;
+          glc_orchestration_last_revision_diff?: Record<string, unknown> | null;
+          glc_orchestration_revision_history?: Record<string, unknown>[];
         };
         Update: Partial<Database['public']['Tables']['audit_strategy']['Insert']>;
+      };
+      audit_roadmap_manifest_snapshots: {
+        Row: {
+          id: string;
+          audit_id: string;
+          created_by_user_id: string;
+          payload: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          created_by_user_id: string;
+          payload: Record<string, unknown>;
+        };
+        Update: Partial<Database['public']['Tables']['audit_roadmap_manifest_snapshots']['Insert']>;
       };
       audit_strategy_execution_packs: {
         Row: {

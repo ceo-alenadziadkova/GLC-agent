@@ -9,6 +9,11 @@ export const SETTINGS_PAGE_COPY = {
   appearance: {
     title: 'Appearance',
   },
+  designSystem: {
+    title: 'Design system',
+    description: 'Open the internal design system workspace from settings.',
+    open: 'Open design system',
+  },
   tokenUsage: {
     title: 'LLM token usage',
     description:

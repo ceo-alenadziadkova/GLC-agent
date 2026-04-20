@@ -3,9 +3,9 @@ const STRATEGY_LAB_EMPTY_FIELD = '—' as const;
 
 export const STRATEGY_LAB_COPY = {
   tabLabels: {
-    quick: 'Quick Wins',
-    medium: 'Core Growth',
-    strategic: 'Strategic',
+    quick: 'Legacy Quick Wins',
+    medium: 'Legacy Core Growth',
+    strategic: 'Legacy Strategic',
   },
   orchestratorTabs: {
     now: 'Now',

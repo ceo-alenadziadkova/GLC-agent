@@ -71,6 +71,12 @@ Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist b
 63. `063_platform_llm_token_pool_and_totals_rpc.sql` — **`platform_settings.llm_token_pool_cap`**; RPC **`audit_token_totals_for_user`**, **`audit_token_totals_global`** (service role) for token usage summary API
 64. `064_evaluation_datasets_expires_at_trigger_guard.sql` — fixes **`set_evaluation_datasets_expires_at`** when **`platform_settings` id=1** is missing (avoids NULL **`expires_at`** on insert)
 65. `065_audits_status_add_strategy.sql` — **`audits.status`** CHECK adds **`strategy`** (phase 7 lock status; aligns DB with `pipelineStatusForPhase(7)`)
+66. `066_audit_strategy_v2_execution_packs.sql` — **`audit_strategy.schema_version`**; **`audit_strategy_execution_packs`** (Strategy Lab on-demand execution plans)
+67. `067_audit_strategy_strategy_lab_context.sql` — **`audit_strategy.strategy_lab_context`** (consultant constraint overrides)
+68. `067_legal_consent_events.sql` — **`legal_consent_events`** append-only consent log
+69. `068_legal_consent_source_audit_create.sql` — expands **`legal_consent_events.source`** enum (e.g. **`audit_create`**)
+70. `069_glc_orchestration_pack.sql` — **`audit_strategy.glc_orchestration_pack`**, **`orchestration_pack_version`**; **`audit_roadmap_manifest_snapshots`** (roadmap manifest + GLC orchestration pack persistence)
+71. `070_glc_orchestration_last_revision_diff.sql` — **`audit_strategy.glc_orchestration_last_revision_diff`** (JSON diff from previous pack to current when version ≥ 2)
 
 **Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, **`public_brief_sessions`**, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 

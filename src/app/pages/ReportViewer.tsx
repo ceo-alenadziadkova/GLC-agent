@@ -14,7 +14,11 @@ import { CoverageCard } from '../features/report-viewer/components/CoverageCard'
 import { DomainScorecard } from '../features/report-viewer/components/DomainScorecard';
 import { ReportFindings } from '../features/report-viewer/components/ReportFindings';
 import { FollowUpCard } from '../features/report-viewer/components/FollowUpCard';
+import { ReportOrchestrationRoadmapSection } from '../features/report-viewer/components/ReportOrchestrationRoadmapSection';
+import { ReportRoadmapCockpitSection } from '../features/report-viewer/components/ReportRoadmapCockpitSection';
 import { Button } from '../components/ui/button';
+import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
+import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { REPORT_VIEWER_COPY } from '../features/report-viewer/config/report-viewer.copy.en';
 import { REPORT_VIEWER_CONSTANTS } from '../features/report-viewer/config/report-viewer.constants';
 import {
@@ -89,6 +93,7 @@ export function ReportViewer() {
   const maxItems = REPORT_VIEWER_CONSTANTS.profileMaxItems[profile];
   const isPortalReport = pathname.startsWith('/portal/reports/');
   const strategyPath = isPortalReport ? `/portal/strategy/${id}` : `/strategy/${id}`;
+  const hasOrchestrationPack = isGlcOrchestrationPackView(audit.strategy?.glc_orchestration_pack);
 
   return (
     <AppShell
@@ -154,6 +159,22 @@ export function ReportViewer() {
         <FollowUpCard
           followUpQuestionsCount={reportVm.followUpQuestions.length}
           answeredFollowUps={reportVm.answeredFollowUps}
+        />
+
+        {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && (
+          <ReportRoadmapCockpitSection
+            audit={audit}
+            reportVm={reportVm}
+            strategyLabHref={strategyPath}
+            hasOrchestrationPack={hasOrchestrationPack}
+          />
+        )}
+
+        <ReportOrchestrationRoadmapSection
+          strategy={audit.strategy}
+          strategyLabHref={strategyPath}
+          laneDisplayPreset={isPortalReport ? 'client_mvp' : 'full'}
+          selectedDomains={audit.meta.execution_plan?.selected_domains ?? null}
         />
 
         {/* Strategy link */}

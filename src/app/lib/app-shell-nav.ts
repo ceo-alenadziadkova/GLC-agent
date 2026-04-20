@@ -11,7 +11,6 @@ import {
   Eye,
   Tray,
   PlusCircle,
-  Palette,
 } from '@phosphor-icons/react';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
@@ -30,7 +29,6 @@ export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
     { to: APP_ROUTE_PATHS.adminRequests,                      icon: Tray,           label: n.requestQueue,   badge: null },
     { to: APP_ROUTE_PATHS.adminSnapshots,                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
     { to: APP_ROUTE_PATHS.adminDiscovery,                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
-    { to: APP_ROUTE_PATHS.adminDesignSystem,                 icon: Palette,        label: n.designSystem,   badge: null },
     // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
     { to: auditId ? buildAppRoute.audit(auditId) : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },

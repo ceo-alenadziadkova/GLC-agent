@@ -43,6 +43,7 @@ export function DomainScorecard({
 }: DomainScorecardProps) {
   return (
     <motion.div
+      id={REPORT_VIEWER_CONSTANTS.roadmapCockpit.anchors.domainScorecard}
       variants={listVariants}
       initial="hidden"
       animate="visible"

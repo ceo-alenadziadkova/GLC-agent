@@ -9,4 +9,8 @@ export const ADMIN_SNAPSHOT_QUEUE_COPY = {
   clientPrefix: 'client',
   snapshotResultPrefix: 'Snapshot result:',
   openAudit: 'Open audit',
+  deleteSnapshot: 'Delete',
+  deleting: 'Deleting…',
+  deleteConfirm: 'Delete this snapshot entry?',
+  deleteFailed: 'Failed to delete snapshot.',
 } as const;

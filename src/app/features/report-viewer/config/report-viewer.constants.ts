@@ -1,3 +1,4 @@
+import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../../config/orchestration-ui-limits';
 import { REPORT_VIEWER_UI } from '../../../config/report-viewer-ui';
 
 export const REPORT_VIEWER_CONSTANTS = {
@@ -19,6 +20,19 @@ export const REPORT_VIEWER_CONSTANTS = {
   },
   followUp: {
     estimatedMinutes: 3,
+  },
+  orchestration: {
+    maxDependencyLinksDisplayed: ORCHESTRATION_UI_LIMITS.maxDependencyLinksDisplayed,
+  },
+  roadmapCockpit: {
+    /** Max critical issues considered for the cockpit “primary focus” line. */
+    maxDiagnosisIssues: 1,
+    /** In-page anchors for cockpit CTAs (must match corresponding `id` attributes). */
+    anchors: {
+      cockpit: 'glc-roadmap-cockpit',
+      domainScorecard: 'report-domain-scorecard',
+      executionRoadmap: ORCHESTRATION_PANEL_DOM_ID,
+    },
   },
   motion: {
     heroEnterOffsetY: 14,

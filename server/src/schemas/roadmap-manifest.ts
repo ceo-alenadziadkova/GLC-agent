@@ -1,9 +1,9 @@
-import { DOMAIN_KEYS } from '@glc/intake-core';
+import { DOMAIN_KEYS, type DomainKey } from '@glc/intake-core';
 import { z } from 'zod';
 
 import { ROADMAP_CHANGE_SCENARIOS, ROADMAP_SEASON_PRESETS } from '../config/orchestration-roadmap-presets.js';
 
-const domainKeyEnum = [...DOMAIN_KEYS] as [string, ...string[]];
+const domainKeyEnum = [...DOMAIN_KEYS] as [DomainKey, ...DomainKey[]];
 
 const changeScenarioEnum = [...ROADMAP_CHANGE_SCENARIOS] as [
   (typeof ROADMAP_CHANGE_SCENARIOS)[number],

@@ -179,19 +179,7 @@ Modifiers:
   - medium → 1.0
   - slow → 1.3
 
-## PHASE 6 — Execution compression
-
-If resources are low or urgency is high:
-
-- remove low-impact actions
-- merge duplicates
-- prefer fewer, higher-leverage actions
-
-Output:
-
-`Compressed Plan: YES | NO`
-
-## PHASE 7 — Conflict resolution (enhanced)
+## PHASE 6 — Conflict resolution (enhanced)
 
 Detect and resolve cross-domain conflicts:
 
@@ -205,6 +193,18 @@ If a conflict cannot be fully resolved, output a phased solution:
 
 - Phase 1 (fast): minimum viable compliance/stability
 - Phase 2 (scale): growth/automation expansion
+
+## PHASE 7 — Execution compression
+
+If resources are low or urgency is high:
+
+- remove low-impact actions
+- merge duplicates
+- prefer fewer, higher-leverage actions
+
+Output:
+
+`Compressed Plan: YES | NO`
 
 ## PHASE 8 — Final unified output (single artifact)
 

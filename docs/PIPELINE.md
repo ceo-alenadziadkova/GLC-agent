@@ -97,6 +97,8 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 **Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
 
+**Failure safety note**: if `DecisionLayer.decide(...)` throws, pipeline execution remains non-fatal and the orchestrator applies a **configured safe fallback** from `SYSTEM_DEFAULTS.decisionLayer.onErrorFallback` (currently `accept_with_warnings`). The emitted `control_object` event includes fallback metadata (`decision_fallback_applied`, `decision_fallback_reason_code`, `decision_fallback_error`) so downstream consumers can distinguish fallback decisions from normal routing.
+
 **Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `GLC_DEPLOYMENT_PROFILE` (see `getAutoLoopExecutionProfile()` in `feature-flags.ts`) is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from `rule-engine.ts` (via `dynamic-adjustment.ts`). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
 
 ### CONTROL_OBJECT contract (v1.0 through v2.0)
@@ -241,3 +243,13 @@ See [AGENTS.md#industry-weights](./AGENTS.md#industry-weights) for weight tables
 - `server/src/config/feature-flags.ts`
 - `server/src/config/rule-engine.ts`
 - `server/src/services/dynamic-adjustment.ts`
+
+## Orchestrator Status Matrix
+
+Current implementation baseline for GLC Orchestrator runtime:
+
+- `FULL` manifest-first contract (`selected_domains` must match `execution_plan`) and snapshot persistence.
+- `FULL` deterministic pack build (graph, lanes, critical path, structural conflict handling) with optional synthesis behind feature flags.
+- `FULL` pack versioning and revision diff APIs.
+- `PARTIAL` timeline-first migration (legacy initiative buckets still available as fallback/deep-dive paths).
+- `PARTIAL` business-scenario test depth (scenario/regeneration coverage is improved but still integration-focused, not full browser E2E).

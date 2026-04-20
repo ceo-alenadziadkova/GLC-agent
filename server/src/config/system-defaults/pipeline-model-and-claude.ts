@@ -8,6 +8,8 @@ export const SYSTEM_DEFAULTS_PIPELINE_MODEL = {
   maxTokensStrategy: 8192,
   /** On-demand Strategy Lab execution pack (single Claude tool call). */
   maxTokensStrategyExecutionPack: 6144,
+  /** Optional GLC orchestration pack conflict synthesis (single Claude tool call). */
+  maxTokensOrchestrationSynthesis: 4096,
   maxTokensRecon: 4096,
 } as const;
 

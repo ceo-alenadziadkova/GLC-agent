@@ -352,11 +352,10 @@ export function StrategyLab() {
   }
 
   const orchestrationUiEnabled = APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
-  const strategyLabOrchestratorTabsEnabled = APP_FEATURE_FLAGS.strategyLabOrchestratorDetailTabsEnabled;
+  const orchestratorDetailTabsEnabled = APP_FEATURE_FLAGS.strategyLabOrchestratorDetailTabsEnabled;
   const clientOrchestrationLabReadOnlyEnabled = APP_FEATURE_FLAGS.clientOrchestrationLabReadOnlyEnabled;
   const orchestrationPackReady = glcPackView != null;
-  const useOrchestratorPrimaryNav =
-    orchestrationUiEnabled && strategyLabOrchestratorTabsEnabled && orchestrationPackReady;
+  const useOrchestratorPrimaryNav = orchestrationUiEnabled && orchestratorDetailTabsEnabled;
   const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
   const reportBasePath = isClient ? '/portal/reports' : '/reports';
   const reportHref = id ? `${reportBasePath}/${id}` : reportBasePath;
@@ -381,29 +380,31 @@ export function StrategyLab() {
       title={STRATEGY_LAB_COPY.appShell.title}
       subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
       actions={
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="text-success text-xs font-mono font-semibold">
-            {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
-          </span>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={selected.size === 0 || executionLoading}
-            className={cn(selected.size === 0 ? 'opacity-40' : '')}
-            onClick={handleGenerateExecutionPlan}
-          >
-            <ListBullets className="w-4 h-4" />
-            {executionLoading ? STRATEGY_LAB_COPY.panel.executionPlanRunning : STRATEGY_LAB_COPY.panel.generateExecutionPlan}
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            disabled={selected.size === 0}
-            className={cn(selected.size === 0 ? 'opacity-40' : '')}
-            onClick={handleGenerateRoadmap}
-          >{STRATEGY_LAB_COPY.panel.generateRoadmap}
-          </Button>
-        </div>
+        !useOrchestratorPrimaryNav ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-success text-xs font-mono font-semibold">
+              {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={selected.size === 0 || executionLoading}
+              className={cn(selected.size === 0 ? 'opacity-40' : '')}
+              onClick={handleGenerateExecutionPlan}
+            >
+              <ListBullets className="w-4 h-4" />
+              {executionLoading ? STRATEGY_LAB_COPY.panel.executionPlanRunning : STRATEGY_LAB_COPY.panel.generateExecutionPlan}
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={selected.size === 0}
+              className={cn(selected.size === 0 ? 'opacity-40' : '')}
+              onClick={handleGenerateRoadmap}
+            >{STRATEGY_LAB_COPY.panel.generateRoadmap}
+            </Button>
+          </div>
+        ) : null
       }
     >
       {orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled ? (
@@ -647,13 +648,21 @@ export function StrategyLab() {
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2"
               >
-                {useOrchestratorPrimaryNav && glcPackView ? (
-                  <StrategyLabOrchestratorListBody
-                    pack={glcPackView}
-                    tab={orchestratorTab}
-                    selectedNodeId={selectedPackNodeId}
-                    onSelectNode={setSelectedPackNodeId}
-                  />
+                {useOrchestratorPrimaryNav ? (
+                  glcPackView ? (
+                    <StrategyLabOrchestratorListBody
+                      pack={glcPackView}
+                      tab={orchestratorTab}
+                      selectedNodeId={selectedPackNodeId}
+                      onSelectNode={setSelectedPackNodeId}
+                    />
+                  ) : (
+                    <div className="rounded-xl border border-dashed p-4 text-center">
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        {ORCHESTRATION_UI_COPY.noPackYet}
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <>
                     {filteredVisible.length === 0 && (
@@ -829,29 +838,32 @@ export function StrategyLab() {
               ))}
             </div>
 
-            <div className="space-y-2">
-              <SectionLabel className="mb-1">{STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}</SectionLabel>
-              <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.panel.roadmapPreviewHint}</p>
-              {roadmapMarkdownPreview ? (
-                <div
-                  className="bg-background max-h-[min(50vh,26rem)] overflow-auto rounded-lg border"
-                  role="region"
-                  aria-label={STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}
-                >
-                  <pre className="text-foreground whitespace-pre-wrap break-words p-3 font-mono text-[length:var(--text-2xs)] leading-relaxed">
-                    {roadmapMarkdownPreview}
-                  </pre>
-                </div>
-              ) : (
-                <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
-                  {STRATEGY_LAB_COPY.panel.roadmapPreviewEmpty}
-                </p>
-              )}
-            </div>
+            {!useOrchestratorPrimaryNav ? (
+              <div className="space-y-2">
+                <SectionLabel className="mb-1">{STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}</SectionLabel>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.panel.roadmapPreviewHint}</p>
+                {roadmapMarkdownPreview ? (
+                  <div
+                    className="bg-background max-h-[min(50vh,26rem)] overflow-auto rounded-lg border"
+                    role="region"
+                    aria-label={STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}
+                  >
+                    <pre className="text-foreground whitespace-pre-wrap break-words p-3 font-mono text-[length:var(--text-2xs)] leading-relaxed">
+                      {roadmapMarkdownPreview}
+                    </pre>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
+                    {STRATEGY_LAB_COPY.panel.roadmapPreviewEmpty}
+                  </p>
+                )}
+              </div>
+            ) : null}
 
             {/* Effort mix */}
-            <div>
-              <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.effortMix}</SectionLabel>
+            {!useOrchestratorPrimaryNav ? (
+              <div>
+                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.effortMix}</SectionLabel>
               {(['low', 'medium', 'high'] as const).map(effort => {
                 const count = allSelected.filter(i => i.effort === effort).length;
                 const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
@@ -871,9 +883,10 @@ export function StrategyLab() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            ) : null}
 
-            {lastPack ? (
+            {!useOrchestratorPrimaryNav && lastPack ? (
               <div>
                 <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.lastExecutionPlan}</SectionLabel>
                 <div className="space-y-3">
@@ -893,7 +906,7 @@ export function StrategyLab() {
             ) : null}
 
             {/* Selected list */}
-            {allSelected.length > 0 && (
+            {!useOrchestratorPrimaryNav && allSelected.length > 0 && (
               <div>
                 <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.selectedTitle}</SectionLabel>
                 <div className="space-y-1.5">
@@ -918,20 +931,22 @@ export function StrategyLab() {
 
           {/* CTA */}
           <div className="space-y-2 border-t p-4">
-            <motion.div
-              whileHover={selected.size > 0 ? { scale: 1.01 } : {}}
-              whileTap={selected.size  > 0 ? { scale: 0.99 } : {}}
-            >
-              <Button
-                type="button"
-                variant="default"
-                className={cn('w-full justify-center py-2.5', selected.size === 0 ? 'opacity-40' : '')}
-                disabled={selected.size === 0}
-                onClick={handleGenerateRoadmap}
+            {!useOrchestratorPrimaryNav ? (
+              <motion.div
+                whileHover={selected.size > 0 ? { scale: 1.01 } : {}}
+                whileTap={selected.size  > 0 ? { scale: 0.99 } : {}}
               >
-                {STRATEGY_LAB_COPY.panel.generateRoadmap}
-              </Button>
-            </motion.div>
+                <Button
+                  type="button"
+                  variant="default"
+                  className={cn('w-full justify-center py-2.5', selected.size === 0 ? 'opacity-40' : '')}
+                  disabled={selected.size === 0}
+                  onClick={handleGenerateRoadmap}
+                >
+                  {STRATEGY_LAB_COPY.panel.generateRoadmap}
+                </Button>
+              </motion.div>
+            ) : null}
             <Button asChild variant="ghost" className="w-full justify-center py-2">
               <Link to={reportHref}>
                 {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="ml-1 inline h-3.5 w-3.5" />

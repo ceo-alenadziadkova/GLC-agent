@@ -4,6 +4,7 @@ import { isOrchestrationConflictSynthesisEnabled } from '../../config/feature-fl
 import { ORCHESTRATION_SYNTHESIS_CONFLICT_ID_PREFIX } from '../../config/orchestration-synthesis-policy.js';
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import type { GlcOrchestrationSynthesisToolOutput } from '../../schemas/glc-orchestration-synthesis-tool.js';
+import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 import { logger } from '../logger.js';
 import { TokenTracker } from '../token-tracker.js';
 
@@ -52,6 +53,7 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
   deterministicPack: GlcOrchestrationPack;
   normalizedStrategy: Record<string, unknown>;
   domainRows: Array<Record<string, unknown>>;
+  roadmapManifest?: RoadmapManifestPayload;
 }): Promise<GlcOrchestrationPack> {
   if (!isOrchestrationConflictSynthesisEnabled()) {
     return args.deterministicPack;
@@ -78,6 +80,7 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
     pack: args.deterministicPack,
     normalizedStrategy: args.normalizedStrategy,
     domainRows: args.domainRows,
+    roadmapManifest: args.roadmapManifest,
   });
 
   try {

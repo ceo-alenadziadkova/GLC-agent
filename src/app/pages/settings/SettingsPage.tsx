@@ -11,6 +11,7 @@ import { useSettingsPageController } from './hooks/useSettingsPageController';
 import { useSettingsTabs } from './hooks/useSettingsTabs';
 import { ProfileSection } from './sections/ProfileSection';
 import { AppearanceSection } from './sections/AppearanceSection';
+import { DesignSystemSection } from './sections/DesignSystemSection';
 import { SelfServeSection } from './sections/SelfServeSection';
 import { BriefLayoutSection } from './sections/BriefLayoutSection';
 import { NotificationsSection } from './sections/NotificationsSection';
@@ -33,6 +34,7 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
         disabled={!controller.nameChanged}
       />
       <AppearanceSection mode={controller.mode} onModeChange={controller.setMode} />
+      {controller.isConsultant ? <DesignSystemSection /> : null}
       {controller.isConsultant ? <TokenUsageSection enabled /> : null}
       {controller.profile && controller.isConsultant && (
         <SelfServeSection

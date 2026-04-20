@@ -63,6 +63,14 @@ function minimalPack(overrides?: Partial<GlcOrchestrationPack>): GlcOrchestratio
     critical_path: ['a'],
     conflicts_resolved: [{ id: 'det-1', summary: 'Deterministic', resolution: 'deterministic' }],
     manifest_snapshot_id: MANIFEST_ID,
+    phase_diagnostic: {
+      dominant_constraint: 'capacity',
+      constraint_chain: ['capacity'],
+    },
+    routing_profile: {
+      strategy: 'toc_dynamic_routing_v1',
+      domain_weights: { marketing_utp: 1 },
+    },
   };
   return { ...base, ...overrides };
 }
@@ -115,6 +123,25 @@ describe('buildOrchestrationSynthesisUserJson', () => {
     });
     const parsed = JSON.parse(json) as { deterministic_orchestration_pack?: GlcOrchestrationPack };
     expect(parsed.deterministic_orchestration_pack?.critical_path).toEqual(['a']);
+  });
+
+  it('includes roadmap_input_manifest when roadmapManifest is provided', () => {
+    const pack = minimalPack();
+    const json = buildOrchestrationSynthesisUserJson({
+      pack,
+      normalizedStrategy: {},
+      domainRows: [],
+      roadmapManifest: {
+        selected_domains: ['marketing_utp'],
+        change_scenario: 'hybrid',
+        season_preset: 'rolling_90d',
+      },
+    });
+    const parsed = JSON.parse(json) as {
+      roadmap_input_manifest?: { change_scenario: string; season_preset: string };
+    };
+    expect(parsed.roadmap_input_manifest?.change_scenario).toBe('hybrid');
+    expect(parsed.roadmap_input_manifest?.season_preset).toBe('rolling_90d');
   });
 });
 

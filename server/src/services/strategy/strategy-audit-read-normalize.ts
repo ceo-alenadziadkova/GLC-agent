@@ -1,4 +1,5 @@
 import { STRATEGY_INITIATIVE_SCHEMA_VERSION } from '../../config/strategy-initiative-policy.js';
+import type { StrategyInitiative } from '../../schemas/domain-output.js';
 import { StrategyInitiativeSchema } from '../../schemas/domain-output.js';
 import { parseStoredStrategyLabContext } from '../../config/strategy-lab-context-policy.js';
 import {
@@ -25,6 +26,18 @@ function mapInitiativeArray(
     })
     .filter((x): x is NonNullable<typeof x> => x != null);
   return postProcessStrategyInitiatives(parsedList, briefSnapshot, issueIndex);
+}
+
+/**
+ * Flatten initiative buckets after `normalizeAuditStrategyRowForReadModel` (arrays are already parsed).
+ */
+export function flattenNormalizedStrategyInitiativeBuckets(strategy: Record<string, unknown>): StrategyInitiative[] {
+  const buckets: unknown[] = [];
+  for (const key of ['quick_wins', 'medium_term', 'strategic'] as const) {
+    const arr = strategy[key];
+    if (Array.isArray(arr)) buckets.push(...arr);
+  }
+  return buckets as StrategyInitiative[];
 }
 
 /**
@@ -62,6 +75,16 @@ export function normalizeAuditStrategyRowForReadModel(args: {
   strategy.medium_term = mapInitiativeArray(strategy.medium_term, mergedSnapshot, issueIndex);
   strategy.strategic = mapInitiativeArray(strategy.strategic, mergedSnapshot, issueIndex);
   strategy.schema_version = schemaVersionFromRow;
+
+  if ('glc_orchestration_pack' in args.strategy) {
+    strategy.glc_orchestration_pack = args.strategy.glc_orchestration_pack;
+  }
+  if ('orchestration_pack_version' in args.strategy) {
+    strategy.orchestration_pack_version = args.strategy.orchestration_pack_version;
+  }
+  if ('glc_orchestration_last_revision_diff' in args.strategy) {
+    strategy.glc_orchestration_last_revision_diff = args.strategy.glc_orchestration_last_revision_diff;
+  }
 
   return strategy;
 }

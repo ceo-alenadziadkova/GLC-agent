@@ -12,6 +12,13 @@ import { tokenUsageSummaryController } from './controllers/token-usage-summary.c
 import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
 import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
 import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
+import { postRoadmapManifestSnapshotController } from './controllers/post-roadmap-manifest-snapshot.controller.js';
+import { getRoadmapManifestSnapshotsController } from './controllers/get-roadmap-manifest-snapshots.controller.js';
+import { postRoadmapManifestPreviewController } from './controllers/post-roadmap-manifest-preview.controller.js';
+import { postOrchestrationPackController } from './controllers/post-orchestration-pack.controller.js';
+import { getOrchestrationPackController } from './controllers/get-orchestration-pack.controller.js';
+import { getOrchestrationPackDiffHistoryController } from './controllers/get-orchestration-pack-diff-history.controller.js';
+import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -53,6 +60,48 @@ auditsRouter.patch(
   attachProfile,
   rejectGuestFromPortal,
   patchStrategyLabContextController,
+);
+auditsRouter.post(
+  '/:id/roadmap/manifest-preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestPreviewController,
+);
+auditsRouter.post(
+  '/:id/roadmap/manifest-snapshots',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestSnapshotController,
+);
+auditsRouter.get(
+  '/:id/roadmap/manifest-snapshots',
+  attachProfile,
+  rejectGuestFromPortal,
+  getRoadmapManifestSnapshotsController,
+);
+auditsRouter.post(
+  '/:id/orchestration/pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationPackController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack-diff-history',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackDiffHistoryController,
+);
+auditsRouter.post(
+  '/:id/orchestration/commercial-offer',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationCommercialOfferController,
 );
 auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, getAuditController);
 auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPortal, upgradeFromSnapshotController);

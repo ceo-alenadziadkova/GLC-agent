@@ -1,5 +1,7 @@
 import type { DomainKey } from '@glc/intake-core';
 
+import type { GlcOrchestrationPackRevisionDiffView, GlcOrchestrationPackView } from './orchestration-pack.types';
+
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
 
@@ -132,4 +134,11 @@ export interface StrategyRoadmap {
   /** Persisted manual overrides (subset of constraint axes). */
   strategy_lab_context?: Partial<StrategyEffectiveConstraints>;
   effective_constraints?: StrategyEffectiveConstraints;
+  /** GLC Orchestrator cross-domain pack when generated (see docs/ARCHITECTURE.md). */
+  glc_orchestration_pack?: GlcOrchestrationPackView | null;
+  orchestration_pack_version?: number;
+  /** Last vN→vN+1 diff when pack was regenerated (server JSON). */
+  glc_orchestration_last_revision_diff?: GlcOrchestrationPackRevisionDiffView | null;
 }
+
+export type { GlcOrchestrationPackRevisionDiffView, GlcOrchestrationPackView } from './orchestration-pack.types';

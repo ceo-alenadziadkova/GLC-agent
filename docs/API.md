@@ -337,6 +337,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS; `strategy` initiatives are normalized to **v2** (decision/evidence/execution_paths) when possible |
 | `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
 | `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
+| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **GET pack** is a thin read of `audit_strategy` after access check) |
 | `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
@@ -523,6 +524,79 @@ Generates a persisted **execution pack** (tasks, architecture, optional prompts)
 ### `GET /api/audits/:id/strategy/execution-packs`
 
 Lists recent execution-pack rows for the audit (metadata only: ids, initiative ids, timestamps). Full payload is returned from the **POST** response and stored in `audit_strategy_execution_packs.payload`.
+
+---
+
+### `POST /api/audits/:id/roadmap/manifest-preview`
+
+Computes a **deterministic preview** of what the roadmap manifest implies (lanes in scope vs cut, waiting-list domains, compression/density hints, confidence callouts). Does **not** persist a snapshot. **Body** is the same JSON shape as **`POST .../manifest-snapshots`**. **`selected_domains`** must match **`audits.execution_plan.selected_domains`**.
+
+**Response `200`:** `{ "preview": { "lanes_included": [...], "lanes_cut": [...], "waiting_list_domains": [...], "execution_compression_hint": "...", "lane_density_band": "...", "confidence_callouts": ["..."] } }`
+
+**Errors:** `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED`, `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED`.
+
+---
+
+### `POST /api/audits/:id/roadmap/manifest-snapshots`
+
+Persists an immutable **roadmap input manifest** row. **`selected_domains`** must match **`audits.execution_plan.selected_domains`** (same set as the audit’s coverage contract).
+
+**Request body (JSON):**
+
+```json
+{
+  "selected_domains": ["tech_infrastructure", "ux_conversion"],
+  "change_scenario": "hybrid",
+  "season_preset": "rolling_90d"
+}
+```
+
+**Response `201`:** `{ "id": "<uuid>" }` — use as **`manifest_snapshot_id`** when building the orchestration pack.
+
+**Errors:** `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED`.
+
+---
+
+### `GET /api/audits/:id/roadmap/manifest-snapshots`
+
+Lists recent **roadmap manifest** snapshot rows for the audit (newest first). Optional query: **`limit`** (integer, clamped between server defaults from `SYSTEM_DEFAULTS.routeQueries.orchestrationRoadmapManifestSnapshotsList`).
+
+**Response `200`:** `{ "snapshots": [ { "id": "<uuid>", "created_at": "<iso>", "payload": { ...same shape as POST body... } } ] }`
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_LIST_FAILED`.
+
+---
+
+### `POST /api/audits/:id/orchestration/pack`
+
+Builds and saves **`glc_orchestration_pack`** on **`audit_strategy`** from finalized strategy initiatives, optional **Director** bundles under **`audit_domains.raw_data.glc_director_execution`** (baseline/deep `actions[]` per in-scope domain), and the given manifest snapshot (deterministic graph; optional LLM pass is server-flagged separately). Pack graph nodes may include **`source`** (`strategy` \| `director`) and **`analysis_depth`** (`baseline` \| `deep`) for client badges.
+
+`glc_orchestration_pack` now uses **schema version 2** and includes deterministic PHASE 0/1 metadata:
+- `phase_diagnostic` (`dominant_constraint`, `constraint_chain`)
+- `routing_profile` (`strategy=weighted_domain_balance`, `domain_weights`)
+- `graph.edges[].relation` (`direct_blocker` \| `strong` \| `medium` \| `weak`) and `weight`
+
+Historical schema v1 rows are read through a server adapter and normalized to v2 on read.
+
+**Request body (JSON):**
+
+```json
+{ "manifest_snapshot_id": "<uuid from manifest-snapshots POST>" }
+```
+
+**Response `200`:** `{ "pack": { ... }, "orchestration_pack_version": <number>, "roadmap_version": <number>, "last_revision_diff": <object | null> }`. **`roadmap_version`** mirrors **`orchestration_pack_version`** (ADR naming). **`last_revision_diff`** is **`null`** on the first saved pack (v1); on later versions it is the structured vN→vN+1 diff persisted on **`audit_strategy.glc_orchestration_last_revision_diff`**. Pack persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` (retry budget from server config). Subsequent **`GET /api/audits/:id`** includes **`strategy.glc_orchestration_pack`**, **`strategy.orchestration_pack_version`**, and **`strategy.glc_orchestration_last_revision_diff`** on the read model when present.
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `409 AUDITS_ORCHESTRATION_PACK_NOT_READY`, `500 AUDITS_ORCHESTRATION_PACK_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/pack`
+
+Returns the latest persisted **`glc_orchestration_pack`** and **`orchestration_pack_version`** for the audit (same JSON shape as in **`GET /api/audits/:id`** `strategy` when present). **`pack`** may be **`null`** when no pack has been saved yet.
+
+**Response `200`:** `{ "pack": <object | null>, "orchestration_pack_version": <number>, "roadmap_version": <number>, "last_revision_diff": <object | null> }` — same fields as **`POST .../orchestration/pack`** success body for the latest row.
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND` (audit missing or no access), `500 AUDITS_FETCH_FAILED` (read failure).
 
 ---
 

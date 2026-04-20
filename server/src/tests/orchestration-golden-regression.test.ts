@@ -32,6 +32,7 @@ describe('orchestration golden regression fixtures', () => {
         nodes: fixture.nodes,
         preGraphConflicts: [],
         manifestSnapshotId: fixture.manifestSnapshotId,
+        seasonPreset: 'rolling_90d',
       });
 
       expect(pack.critical_path).toEqual(fixture.expected.critical_path);

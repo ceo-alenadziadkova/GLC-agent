@@ -11,12 +11,15 @@ export type RoadmapChangeScenario = (typeof ROADMAP_CHANGE_SCENARIOS)[number];
  * Planning window presets for execution compression and lane density (product-defined).
  */
 export const ROADMAP_SEASON_PRESETS = [
-  'q1_90d',
-  'q2_90d',
-  'q3_90d',
-  'q4_90d',
+  'rolling_30d',
   'rolling_90d',
-  'milestone_phased',
+  'rolling_180d',
 ] as const;
 
 export type RoadmapSeasonPreset = (typeof ROADMAP_SEASON_PRESETS)[number];
+
+export const ROADMAP_SEASON_TARGET_WINDOW_DAYS: Record<RoadmapSeasonPreset, number> = {
+  rolling_30d: 30,
+  rolling_90d: 90,
+  rolling_180d: 180,
+};

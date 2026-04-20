@@ -17,6 +17,7 @@
  */
 
 import { logger } from './logger.js';
+import { isNarrowGovernanceProfile } from '../lib/control-object-governance-profile.js';
 import type { ControlObjectV1, DecisionHint } from '../schemas/control-object/index.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
@@ -24,6 +25,11 @@ import {
   formatDecisionAcceptReasoning,
   formatDecisionAcceptWithWarningsReasoning,
   formatDecisionFeasibilityRefineReasoning,
+  DECISION_NARROW_NOTES_ADVISORY_SIGNALS_DEFAULT,
+  DECISION_NARROW_REASON_GOVERNANCE_INVARIANT_FAILED,
+  formatDecisionNarrowAcceptReasoning,
+  formatDecisionNarrowAcceptWithWarningsReasoning,
+  formatDecisionNarrowRefineSummary,
   formatDecisionRefineHallucinationCount,
   formatDecisionRefineLowConfidence,
   formatDecisionRefineStructuralErrors,
@@ -55,6 +61,18 @@ export const DECISION_LAYER_THRESHOLDS = {
    * These are delivery-risk domains: a great analysis is useless if the recs can't be executed.
    */
   feasibility_gated_domains: [...SYSTEM_DEFAULTS.decisionLayer.feasibilityGatedDomains] as string[],
+  narrow: {
+    accept: {
+      min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.narrow.accept.minOverallConfidence,
+    },
+    accept_with_warnings: {
+      min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.narrow.acceptWithWarnings.minOverallConfidence,
+    },
+    max_structural_errors: SYSTEM_DEFAULTS.decisionLayer.narrow.maxStructuralErrors,
+    active_error_type_invariant_failed: SYSTEM_DEFAULTS.decisionLayer.narrow.activeErrorTypeInvariantFailed,
+    governance_incomplete_structural_code:
+      SYSTEM_DEFAULTS.strategyNarrowGovernance.errorCodes.governanceIncomplete,
+  },
 } as const;
 
 // ─── Result Shape ──────────────────────────────────────────
@@ -70,6 +88,129 @@ export interface DecisionResult {
 // ─── Decision Layer ─────────────────────────────────────────
 
 export class DecisionLayer {
+  /**
+   * Routes by `context.governance_profile`: narrow (recon/strategy Phase A) vs full (domain phases).
+   */
+  decideForControlObject(control: ControlObjectV1): DecisionResult {
+    if (isNarrowGovernanceProfile(control)) {
+      return this.decideNarrow(control);
+    }
+    return this.decide(control);
+  }
+
+  /**
+   * Narrow profile: confidence.overall, structural errors, human_attention, data_gaps / fixable only.
+   * Does not use claim buckets or feasibility.
+   */
+  decideNarrow(control: ControlObjectV1): DecisionResult {
+    if (control.context.governance_profile !== 'narrow') {
+      throw new Error('DecisionLayer.decideNarrow requires context.governance_profile === "narrow"');
+    }
+
+    const N = DECISION_LAYER_THRESHOLDS.narrow;
+    const { confidence, errors } = control;
+    const activeErrorTypes = [...errors.fixable, ...errors.structural, ...errors.data_gaps];
+
+    const invariantFailed =
+      typeof confidence.overall !== 'number' ||
+      !Number.isFinite(confidence.overall) ||
+      errors.structural.includes(N.governance_incomplete_structural_code);
+
+    if (invariantFailed) {
+      const result: DecisionResult = {
+        hint: 'refine',
+        reasoning: formatDecisionNarrowRefineSummary({
+          reasons: DECISION_NARROW_REASON_GOVERNANCE_INVARIANT_FAILED,
+        }),
+        active_error_types: [...activeErrorTypes, N.active_error_type_invariant_failed],
+      };
+      logger.warn('decision_layer.narrow_refine_invariant', {
+        component: 'decision_layer',
+        audit_id: control.context.audit_id,
+        phase_id: control.context.phase_id,
+      });
+      return result;
+    }
+
+    if (errors.structural.length > N.max_structural_errors) {
+      const result: DecisionResult = {
+        hint: 'refine',
+        reasoning: formatDecisionNarrowRefineSummary({
+          reasons: formatDecisionRefineStructuralErrors(errors.structural.join(', ')),
+        }),
+        active_error_types: activeErrorTypes,
+      };
+      logger.warn('decision_layer.narrow_refine_structural', {
+        component: 'decision_layer',
+        audit_id: control.context.audit_id,
+        phase_id: control.context.phase_id,
+        structural: errors.structural,
+      });
+      return result;
+    }
+
+    const ha = control.human_attention_required.required;
+    const warningNotes: string[] = [];
+    if (errors.data_gaps.length > 0) {
+      warningNotes.push(formatDecisionWarningDataGaps(errors.data_gaps.length));
+    }
+    if (errors.fixable.length > 0) {
+      warningNotes.push(formatDecisionWarningFixable(errors.fixable.length, errors.fixable.join(', ')));
+    }
+    if (ha) {
+      warningNotes.push(DECISION_WARNING_HUMAN_ATTENTION_FLAGGED);
+    }
+
+    if (confidence.overall >= N.accept.min_overall_confidence && !ha && warningNotes.length === 0) {
+      const result: DecisionResult = {
+        hint: 'accept',
+        reasoning: formatDecisionNarrowAcceptReasoning({ overall: confidence.overall }),
+        active_error_types: activeErrorTypes,
+      };
+      logger.info('decision_layer.narrow_accept', {
+        component: 'decision_layer',
+        audit_id: control.context.audit_id,
+        phase_id: control.context.phase_id,
+        confidence: confidence.overall,
+      });
+      return result;
+    }
+
+    if (confidence.overall >= N.accept_with_warnings.min_overall_confidence) {
+      const result: DecisionResult = {
+        hint: 'accept_with_warnings',
+        reasoning: formatDecisionNarrowAcceptWithWarningsReasoning({
+          overall: confidence.overall,
+          notes:
+            warningNotes.length > 0 ? warningNotes.join('; ') : DECISION_NARROW_NOTES_ADVISORY_SIGNALS_DEFAULT,
+        }),
+        active_error_types: activeErrorTypes,
+      };
+      logger.info('decision_layer.narrow_accept_with_warnings', {
+        component: 'decision_layer',
+        audit_id: control.context.audit_id,
+        phase_id: control.context.phase_id,
+        confidence: confidence.overall,
+      });
+      return result;
+    }
+
+    const result: DecisionResult = {
+      hint: 'refine',
+      reasoning: formatDecisionNarrowRefineSummary({
+        reasons: formatDecisionRefineLowConfidence(confidence.overall),
+      }),
+      active_error_types: activeErrorTypes,
+    };
+    logger.warn('decision_layer.narrow_refine_low_confidence', {
+      component: 'decision_layer',
+      audit_id: control.context.audit_id,
+      phase_id: control.context.phase_id,
+      confidence: confidence.overall,
+    });
+    return result;
+  }
+
   /**
    * Evaluates a CONTROL_OBJECT v1 and returns a decision.
    *

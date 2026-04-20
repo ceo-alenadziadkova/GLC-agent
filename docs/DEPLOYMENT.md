@@ -246,6 +246,35 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `PIPELINE_CLAUDE_MODEL_ID` | Optional infra override for the Anthropic model id used by the pipeline; falls back to **`SYSTEM_DEFAULTS`** (`model`). Alias: **`ANTHROPIC_MODEL`** |
 | `SNAPSHOT_OPERATOR_TOKEN` | Optional operator-only snapshot actions (see `snapshot`) |
 
+### ADR feature-flag runtime matrix
+
+`server/src/config/feature-flags.ts` is the only allowed facade for these toggles.  
+Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
+
+| ADR capability | Env key(s) | Code default (`SYSTEM_DEFAULTS`) | Sandbox/Internal (recommended) | Production (recommended) | Owner |
+|---|---|---|---|---|---|
+| Bandit variant selection | `FEATURE_BANDITS` | `false` | `true` after readiness gate check | `false` until calibration window is approved | Backend + Data |
+| Auto-loop rerun | `AUTO_LOOP_ENABLED`, `GLC_DEPLOYMENT_PROFILE`, `AUTO_LOOP_ALLOWED_MODES` | `false`, modes `sandbox,internal` | `true` (`GLC_DEPLOYMENT_PROFILE=sandbox`) | `false` (opt-in per incident/experiment) | Backend Platform |
+| Causal DAG + downstream invalidation | `FEATURE_CAUSAL_DAG` | `false` | `true` for integration testing | `false` by default; enable after migration + runbook signoff | Backend Platform |
+| Auto-remediation | `FEATURE_AUTO_REMEDIATION` | `false` | `true` for deterministic remediation validation | `false` by default; enable per domain-risk policy | Backend + Product |
+| Domain benchmarks | `FEATURE_BENCHMARKS`, `BENCHMARK_RECOMPUTE_SECRET` | `false` | `true` when recompute job exists | `false` until recompute scheduling/monitoring is live | Backend + Ops |
+| Strategy execution pack | `FEATURE_STRATEGY_EXECUTION_PACK` | `true` | `true` | `true` (set `false` only for emergency cost control) | Backend + Product |
+| Orchestration pack API | `FEATURE_ORCHESTRATION_PACK_API` | `true` | `true` | `true` (set `false` to disable POST/GET `/api/audits/:id/orchestration/pack` without redeploy; requires migration `069`) | Backend + Product |
+| Orchestration conflict synthesis (LLM) | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS` | `false` | `true` only when implemented + reviewed | `false` until second-stage copy is shipped | Backend + Product |
+
+### Runtime verification checklist (feature flags)
+
+Before promoting a release:
+
+1. Confirm Railway env values for each key in the matrix.
+2. Confirm required DB migrations are applied for enabled capabilities (`053`-`056` where relevant; **`069`** for orchestration pack / roadmap manifest snapshots).
+3. Run smoke tests for enabled capabilities:
+   - bandits (`bandit_arm_performance` reads/writes),
+   - causal DAG (`audit_claim_graph` edges/invalidation),
+   - remediation (`audit_remediations` rows),
+   - benchmarks (`domain_benchmark_snapshot` + reference attach/API reads).
+4. Record the runtime profile in release notes (what is enabled and why).
+
 **Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, default Claude model id (unless **`PIPELINE_CLAUDE_MODEL_ID`** / **`ANTHROPIC_MODEL`** is set), `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in **`system_defaults`** and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in **`@glc/intake-core`**.
 
 ### Minimum secure production baseline
@@ -320,6 +349,8 @@ Example on Railway:
 3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
 4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
 5. Expired idempotency keys are cleaned up by background worker automatically.
+6. `evaluation_datasets` TTL cleanup runs in the background worker (`expires_at < now()`), logging `Expired evaluation_datasets cleaned` with deleted row count.
+7. If logs show `evaluation_datasets cleanup failed` repeatedly, treat as an ops incident (check DB connectivity/permissions and migration `051_evaluation_datasets_and_execution_mode.sql`).
 
 ### SRE runbooks (security + reliability)
 

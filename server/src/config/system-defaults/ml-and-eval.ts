@@ -32,6 +32,8 @@ export const SYSTEM_DEFAULTS_BANDITS = {
 export const SYSTEM_DEFAULTS_EVALUATION_DATASETS = {
   /** Retry attempts for `(audit_id, phase_id, run_number)` insert conflicts in `evaluation_datasets`. */
   insertMaxRetries: 3,
+  /** Background cleanup interval for deleting rows where `expires_at < now()`. */
+  cleanupIntervalMs: 5 * 60 * 1000,
 } as const;
 
 /**

@@ -1,5 +1,7 @@
 import {
   ORCHESTRATION_CONFLICT_RESOLUTION_FOR_GRAPH_REPAIR,
+  ORCHESTRATION_DEPENDENCY_RELATION_WEIGHTS,
+  ORCHESTRATION_EXECUTION_MODES,
   ORCHESTRATION_GRAPH_MAX_CRITICAL_PATH_DEPTH,
   ORCHESTRATION_GRAPH_MAX_NODES,
 } from '../../config/orchestration-graph-policy.js';
@@ -8,15 +10,28 @@ import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.
 import type {
   OrchestrationActionNode,
   OrchestrationConflictResolvedEntry,
+  OrchestrationDomainInfluence,
   OrchestrationGraphEdge,
   OrchestrationGraphPayload,
+  OrchestrationPhaseDiagnostic,
+  OrchestrationRoutingProfile,
+  OrchestrationRiskLayer,
+  OrchestrationConfidenceMap,
 } from '../../types/orchestration/index.js';
+import { buildOrchestrationPhaseRouting } from './orchestration-phase-routing.js';
+import { computeOrchestrationPriorityScore } from './orchestration-priority-engine.js';
 
 export interface OrchestrationGraphBuildResult {
   graph: OrchestrationGraphPayload;
   lanes: GlcOrchestrationPack['lanes'];
   critical_path: string[];
   conflicts_resolved: OrchestrationConflictResolvedEntry[];
+  phase_diagnostic: OrchestrationPhaseDiagnostic;
+  routing_profile: OrchestrationRoutingProfile;
+  execution_mode: (typeof ORCHESTRATION_EXECUTION_MODES)[number];
+  confidence_map: OrchestrationConfidenceMap;
+  risk_layer: OrchestrationRiskLayer;
+  domain_influence: OrchestrationDomainInfluence;
 }
 
 /**
@@ -25,12 +40,41 @@ export interface OrchestrationGraphBuildResult {
  */
 export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): OrchestrationGraphBuildResult {
   const conflictsResolved: OrchestrationConflictResolvedEntry[] = [];
+  const outgoingDeps = new Map<string, number>();
+  for (const node of nodes) outgoingDeps.set(node.id, 0);
+  for (const node of nodes) {
+    for (const dep of node.dependencies) {
+      if (outgoingDeps.has(dep)) {
+        outgoingDeps.set(dep, (outgoingDeps.get(dep) ?? 0) + 1);
+      }
+    }
+  }
+  const { phase_diagnostic, routing_profile, domain_influence } = buildOrchestrationPhaseRouting(nodes);
+  const priorityScores = new Map<string, number>();
+  const nodesScored = nodes.map(node => {
+    const blocking_factor = Math.min(3, Math.max(0, outgoingDeps.get(node.id) ?? 0)) as 0 | 1 | 2 | 3;
+    const domain_weight = routing_profile.domain_weights[node.domain] ?? 1;
+    const priority_score = computeOrchestrationPriorityScore({
+      ...node,
+      blocking_factor,
+      domain_weight,
+    });
+    priorityScores.set(node.id, priority_score);
+    return {
+      ...node,
+      blocking_factor,
+      domain_weight,
+      priority_score,
+      weight: Math.max(node.weight, priority_score, 0.000001),
+    };
+  });
   const idSet = new Set(nodes.map(n => n.id));
+  const nodeById = new Map(nodesScored.map(n => [n.id, n] as const));
   const edges: OrchestrationGraphEdge[] = [];
   const droppedEdges: OrchestrationGraphEdge[] = [];
   let cyclesBroken = 0;
 
-  for (const node of nodes) {
+  for (const node of nodesScored) {
     for (const dep of node.dependencies) {
       if (!idSet.has(dep)) {
         conflictsResolved.push({
@@ -40,7 +84,21 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
         });
         continue;
       }
-      edges.push({ from: dep, to: node.id, weight: 1 });
+      const sourceNode = nodeById.get(dep);
+      const relation =
+        sourceNode?.domain === node.domain
+          ? 'direct_blocker'
+          : sourceNode?.lane === node.lane
+            ? 'strong'
+            : sourceNode?.source === 'director' || node.source === 'director'
+              ? 'medium'
+              : 'weak';
+      edges.push({
+        from: dep,
+        to: node.id,
+        relation,
+        weight: ORCHESTRATION_DEPENDENCY_RELATION_WEIGHTS[relation],
+      });
     }
   }
 
@@ -86,7 +144,7 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
     }
   }
 
-  const weightMap = new Map(nodes.map(n => [n.id, n.weight] as const));
+  const weightMap = new Map(nodesScored.map(n => [n.id, n.weight] as const));
 
   // Longest path in DAG: dp[node] = max(dp[pred] + weight(node)); track predecessor for reconstruction.
   const dp = new Map<string, number>();
@@ -124,29 +182,48 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
     depth += 1;
   }
 
-  const graphNodes = nodes.map(n => ({
+  const graphNodes = nodesScored.map(n => ({
     id: n.id,
     title: n.title,
     domain: n.domain,
     lane: n.lane,
+    ...(n.source !== undefined ? { source: n.source } : {}),
+    ...(n.analysis_depth !== undefined ? { analysis_depth: n.analysis_depth } : {}),
+    ...(n.season_index !== undefined ? { season_index: n.season_index } : {}),
+    ...(n.time_bucket !== undefined ? { time_bucket: n.time_bucket } : {}),
+    ...(n.target_window_days !== undefined ? { target_window_days: n.target_window_days } : {}),
+    ...(n.priority_score !== undefined ? { priority_score: n.priority_score } : {}),
   }));
 
   const graph: OrchestrationGraphPayload = {
     nodes: graphNodes,
     edges: workingEdges,
     meta:
-      cyclesBroken > 0 || droppedEdges.length > 0
-        ? { cycles_broken: cyclesBroken, dropped_edges: droppedEdges }
+      cyclesBroken > 0 || droppedEdges.length > 0 || priorityScores.size > 0
+        ? {
+            ...(cyclesBroken > 0 || droppedEdges.length > 0
+              ? { cycles_broken: cyclesBroken, dropped_edges: droppedEdges }
+              : {}),
+            priority_scores: Object.fromEntries(priorityScores),
+          }
         : undefined,
   };
 
   const lanes = buildLaneIndex(nodes);
+  const confidence_map = buildConfidenceMap(nodesScored);
+  const risk_layer = buildRiskLayer(nodesScored);
 
   return {
     graph,
     lanes,
     critical_path,
     conflicts_resolved: conflictsResolved,
+    phase_diagnostic,
+    routing_profile,
+    execution_mode: 'deterministic',
+    confidence_map,
+    risk_layer,
+    domain_influence,
   };
 }
 
@@ -160,10 +237,12 @@ function buildLaneIndex(nodes: OrchestrationActionNode[]): GlcOrchestrationPack[
     risk_compliance: [],
   };
   for (const n of nodes) {
-    lanes[n.lane].push(n.id);
+    const bucket = lanes[n.lane];
+    if (bucket) bucket.push(n.id);
   }
   for (const lane of ORCHESTRATION_LANE_IDS) {
-    lanes[lane].sort();
+    const col = lanes[lane];
+    if (col) col.sort();
   }
   return lanes;
 }
@@ -202,4 +281,24 @@ function findOneCycleEdge(nodeIds: string[], edges: OrchestrationGraphEdge[]): O
     }
   }
   return null;
+}
+
+function buildConfidenceMap(nodes: OrchestrationActionNode[]): OrchestrationConfidenceMap {
+  const node_confidence: OrchestrationConfidenceMap['node_confidence'] = {};
+  for (const node of nodes) {
+    if (node.confidence) {
+      node_confidence[node.id] = node.confidence;
+    }
+  }
+  return { node_confidence };
+}
+
+function buildRiskLayer(nodes: OrchestrationActionNode[]): OrchestrationRiskLayer {
+  const node_risk: OrchestrationRiskLayer['node_risk'] = {};
+  for (const node of nodes) {
+    if (typeof node.risk_score === 'number' && Number.isFinite(node.risk_score)) {
+      node_risk[node.id] = Math.max(1, Math.min(5, Math.round(node.risk_score)));
+    }
+  }
+  return { node_risk };
 }

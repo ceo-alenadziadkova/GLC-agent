@@ -9,7 +9,10 @@ import type { StrategyExecutionPackOutput, StrategyInitiative } from '../../sche
 import { StrategyInitiativeSchema } from '../../schemas/domain-output.js';
 import { supabase } from '../supabase.js';
 import { TokenTracker } from '../token-tracker.js';
-import { normalizeAuditStrategyRowForReadModel } from './strategy-audit-read-normalize.js';
+import {
+  flattenNormalizedStrategyInitiativeBuckets,
+  normalizeAuditStrategyRowForReadModel,
+} from './strategy-audit-read-normalize.js';
 import { invokeStrategyExecutionPackClaude } from './strategy-execution-pack-claude.js';
 
 const EP = STRATEGY_EXECUTION_PACK_LIMITS;
@@ -83,7 +86,7 @@ export async function createStrategyExecutionPack(args: {
     briefResponses,
   });
   const strategyRec = (normalized ?? strategy) as unknown as Record<string, unknown>;
-  const all = flattenInitiatives(strategyRec);
+  const all = normalized ? flattenNormalizedStrategyInitiativeBuckets(strategyRec) : flattenInitiatives(strategyRec);
   const idSet = new Set(initiativeIds);
   const selected = all.filter((i) => idSet.has(i.id));
   if (selected.length !== initiativeIds.length) {

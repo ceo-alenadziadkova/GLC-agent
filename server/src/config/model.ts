@@ -32,6 +32,7 @@ export const MODEL_MAX_TOKENS = {
   domain: P.maxTokensDomain,
   strategy: P.maxTokensStrategy,
   strategyExecutionPack: P.maxTokensStrategyExecutionPack,
+  orchestrationSynthesis: P.maxTokensOrchestrationSynthesis,
   recon: P.maxTokensRecon,
 } as const;
 

@@ -6,9 +6,14 @@ import {
   AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE,
   AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
   AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID_MESSAGE,
+  AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
-import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import {
+  getOrchestrationPlanGovernanceRolloutMode,
+  isOrchestrationPackApiEnabled,
+} from '../../../config/feature-flags.js';
+import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY } from '../../../config/orchestration-plan-governance-policy.js';
 import { AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE } from '../../../config/api-user-messages.en.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
@@ -17,6 +22,7 @@ import {
   persistGlcOrchestrationPack,
 } from '../../../services/orchestration/orchestration-read.service.js';
 import { RoadmapManifestMismatchError } from '../../../services/orchestration/roadmap-manifest.service.js';
+import { evaluateOrchestrationPlanGovernance } from '../../../services/orchestration/orchestration-plan-governance.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 const BodySchema = z.object({
@@ -69,6 +75,40 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       return;
     }
 
+    const governanceRolloutMode = getOrchestrationPlanGovernanceRolloutMode();
+    const plan_governance = evaluateOrchestrationPlanGovernance(pack, {
+      rolloutMode: governanceRolloutMode,
+    });
+    if (
+      governanceRolloutMode === 'shadow' &&
+      plan_governance.decision_hint === 'refine_plan'
+    ) {
+      logger.warn('route.orchestration_pack_governance_shadow_would_fail', {
+        component: 'audits',
+        metric: 'orchestration_pack_run.shadow_would_fail',
+        governance_reason_codes: plan_governance.reason_codes,
+      });
+    }
+    if (
+      ORCHESTRATION_PLAN_GOVERNANCE_POLICY.blockPersistOnRefinePlan &&
+      plan_governance.decision === 'reject'
+    ) {
+      logger.warn('route.orchestration_pack_rejected', {
+        component: 'audits',
+        reason: 'plan_requires_refinement',
+        metric: 'orchestration_pack_run.refine_required',
+        governance_reason_codes: plan_governance.reason_codes,
+      });
+      sendApiError(
+        res,
+        409,
+        API_ERROR_CODES.AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT,
+        AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
+        { plan_governance },
+      );
+      return;
+    }
+
     const { orchestration_pack_version, last_revision_diff, error: persistErr } = await persistGlcOrchestrationPack({
       auditId,
       userId: req.userId!,
@@ -91,12 +131,19 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       nodes_count: pack.graph.nodes.length,
       edges_count: pack.graph.edges.length,
       conflicts_count: pack.conflicts_resolved.length,
+      governance_decision_hint: plan_governance.decision_hint,
+      governance_status: plan_governance.status,
+      governance_rollout_mode: plan_governance.rollout_mode,
+      governance_reason_codes: plan_governance.reason_codes,
+      kpi_pack_refine_required: plan_governance.decision_hint === 'refine_plan' ? 1 : 0,
+      kpi_pack_lane_imbalance: computeLaneImbalance(pack),
     });
     res.json({
       pack,
       orchestration_pack_version,
       roadmap_version: orchestration_pack_version,
       last_revision_diff,
+      plan_governance,
     });
   } catch (err) {
     if (err instanceof RoadmapManifestMismatchError) {
@@ -121,4 +168,13 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
     });
     sendApiError(res, 500, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED, AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE);
   }
+}
+
+function computeLaneImbalance(pack: { lanes?: Record<string, string[]> }): number {
+  if (!pack?.lanes) return 0;
+  const counts = Object.values(pack.lanes).map(v => (Array.isArray(v) ? v.length : 0));
+  if (counts.length === 0) return 0;
+  const max = Math.max(...counts);
+  const min = Math.min(...counts);
+  return max - min;
 }

@@ -12,6 +12,7 @@ import { assertAuditNotCancelled, updateAuditIfNotCancelled as updateAuditIfNotC
 import { banditService, DEFAULT_VARIANT_ID } from '../../bandit.js';
 import type { BaseAgent } from '../../../agents/base.js';
 import { logger } from '../../logger.js';
+import type { PhaseId } from '../../../schemas/control-object/index.js';
 import { type DomainKey, type DomainResult, type FreeSnapshotPreview } from '../../../types/audit.js';
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
@@ -79,7 +80,7 @@ export class PipelineOrchestrator {
     phase: number,
     controlObject: ControlObjectV1,
     evaluationCapture?: {
-      phaseId: DomainKey;
+      phaseId: PhaseId;
       rawAgentOutput: Record<string, unknown> | null;
       cleanedOutput: DomainResult;
     },

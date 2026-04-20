@@ -6,8 +6,7 @@ import {
   isEvaluationDatasetsInsertEnabled,
 } from '../config/feature-flags.js';
 import { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
-import type { ControlObjectV1 } from '../schemas/control-object/index.js';
-import type { DomainKey } from '../types/audit.js';
+import type { ControlObjectV1, PhaseId } from '../schemas/control-object/index.js';
 import type { DomainResult } from '../types/audit.js';
 import type { RetentionPolicy } from '../types/evaluation-dataset.js';
 import {
@@ -47,7 +46,7 @@ async function nextRunNumber(auditId: string, phaseId: string): Promise<number> 
 
 export interface RecordEvaluationDatasetArgs {
   auditId: string;
-  phaseId: DomainKey;
+  phaseId: PhaseId;
   controlObject: ControlObjectV1;
   rawAgentOutput: Record<string, unknown> | null;
   cleanedOutput: DomainResult;

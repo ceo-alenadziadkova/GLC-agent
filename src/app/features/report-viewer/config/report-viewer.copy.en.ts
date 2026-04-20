@@ -3,6 +3,11 @@ import { REPORT_VIEWER_CONSTANTS } from './report-viewer.constants';
 
 const reportCopy = workspacePackaging.report;
 
+/** Human-readable coverage line for the roadmap cockpit (numeric values injected by caller). */
+export function formatRoadmapCockpitCoverageLine(inContract: number, totalDomains: number): string {
+  return `This audit includes ${inContract} of ${totalDomains} capability domains in contract.`;
+}
+
 export const REPORT_VIEWER_COPY = {
   pageTitle: reportCopy.title,
   loadingSubtitle: reportCopy.loading_subtitle,
@@ -50,5 +55,34 @@ export const REPORT_VIEWER_COPY = {
     noDataYet: 'No data yet',
     criticalIssuesSuffix: 'critical issues',
     quickWinsSuffix: 'quick wins',
+  },
+  orchestration: {
+    sectionTitle: 'Execution roadmap',
+    sectionHint:
+      'Cross-domain execution order from the orchestration pack. Open Strategy Lab for the full manifest, lanes, and updates.',
+    dependencyTitle: 'Key dependency links',
+    dependencyHint: 'Upstream work blocks downstream milestones.',
+    versionLabel: 'Roadmap version',
+    openStrategyLab: 'Open Strategy Lab',
+  },
+  roadmapCockpit: {
+    sectionTitle: 'What happens next',
+    sectionHint:
+      'Use Strategy Lab to lock a roadmap input manifest, then generate or refresh the cross-domain execution plan when your priorities change.',
+    diagnosisLabel: 'Primary focus',
+    diagnosisFallback:
+      'Review domain scores and findings below. When you are ready to sequence work across teams, open Strategy Lab.',
+    ctaManifest: 'Confirm roadmap manifest',
+    ctaTimeline: 'View execution timeline',
+    ctaScorecard: 'Domain scorecard',
+    latestPlanChangeLabel: 'Latest plan change',
+    latestPlanChangeFallback: 'No revision diff yet',
+    changedNodesLabel: 'Changed initiatives',
+    changedDependenciesLabel: 'Changed dependencies',
+    changedCriticalPathLabel: 'Critical path',
+    changedCriticalPathYes: 'changed',
+    changedCriticalPathNo: 'unchanged',
+    noPackCallout:
+      'No execution roadmap pack yet. After the audit completes, confirm your manifest in Strategy Lab to generate the timeline.',
   },
 } as const;

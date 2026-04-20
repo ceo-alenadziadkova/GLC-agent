@@ -17,4 +17,20 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
   benchmarksEnabled: false,
   /** POST /api/audits/:id/strategy/execution-pack — on-demand execution plan. Env: FEATURE_STRATEGY_EXECUTION_PACK */
   strategyExecutionPackEnabled: true,
+  /**
+   * Optional LLM pass for cross-domain conflict copy on orchestration pack (future).
+   * Env: FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS
+   */
+  orchestrationConflictSynthesisEnabled: false,
+  /**
+   * POST/GET `/api/audits/:id/orchestration/pack` — persisted GLC orchestration pack (Strategy Lab).
+   * Env: FEATURE_ORCHESTRATION_PACK_API=false to disable at runtime.
+   */
+  orchestrationPackApiEnabled: true,
+  /**
+   * Plan-level governance rollout mode for orchestration pack persistence.
+   * Allowed: shadow | hard_structure_soft_quality | tightened_quality.
+   * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
+   */
+  orchestrationPlanGovernanceRolloutMode: 'hard_structure_soft_quality',
 } as const;

@@ -4,7 +4,7 @@ import {
   pipelineStrategyEventCopy,
 } from '../config/pipeline-events-copy.js';
 import { STRATEGY_INITIATIVE_SCHEMA_VERSION } from '../config/strategy-initiative-policy.js';
-import { StrategyOutputSchema } from '../schemas/domain-output.js';
+import { type StrategyOutput, StrategyOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import {
   buildDomainIssueIdIndex,
@@ -15,6 +15,16 @@ import { postProcessStrategyInitiatives } from '../services/strategy/strategy-in
 import { calculateWeightedScore } from '../config/industry-weights.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
+import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
+import { buildStrategyNarrowControlObject } from '../services/governance/narrow/build-strategy-narrow-control-object.js';
+
+type StrategyPersistPayload = {
+  strategyResult: StrategyOutput;
+  weightedScore: number;
+  quick_wins: StrategyOutput['quick_wins'];
+  medium_term: StrategyOutput['medium_term'];
+  strategic: StrategyOutput['strategic'];
+};
 
 /**
  * Phase 7: Strategy & Roadmap Synthesis
@@ -29,18 +39,46 @@ export class StrategyAgent extends BaseAgent {
 
   get instructions() { return loadPrompt('strategy'); }
 
+  private pendingPersistence: StrategyPersistPayload | null = null;
+
   /**
-   * Override run() to handle strategy-specific saving.
+   * Persists strategy row + audit completion after narrow governance is published.
+   */
+  async finalizeStrategyPersistence(): Promise<void> {
+    const payload = this.pendingPersistence;
+    if (!payload) {
+      throw new Error('StrategyAgent.finalizeStrategyPersistence called without a completed run()');
+    }
+    this.pendingPersistence = null;
+
+    await supabase.from('audit_strategy').update({
+      status: 'completed',
+      executive_summary: payload.strategyResult.executive_summary,
+      overall_score: payload.weightedScore,
+      quick_wins: payload.quick_wins,
+      medium_term: payload.medium_term,
+      strategic: payload.strategic,
+      scorecard: payload.strategyResult.scorecard,
+      schema_version: STRATEGY_INITIATIVE_SCHEMA_VERSION.v2,
+    }).eq('audit_id', this.auditId);
+
+    await supabase.from('audits').update({
+      status: 'completed',
+      overall_score: payload.weightedScore,
+      current_phase: 7,
+    }).eq('id', this.auditId);
+  }
+
+  /**
+   * Override run() to handle strategy-specific flow (governance before DB finalize).
    */
   async run(): Promise<DomainResult> {
     const ev = pipelineStrategyEventCopy();
-    // Step 1: No collectors — go straight to context assembly
     await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId, 'strategy', {}, this.instructions
     );
 
-    // Step 2: Claude call
     await this.emit('analyzing', ev.analyzing);
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) throw new Error('Token budget exceeded');
@@ -57,9 +95,9 @@ export class StrategyAgent extends BaseAgent {
       );
     }
 
-    const strategyResult = await this.callClaudeWithRetry(context, StrategyOutputSchema, MODEL_MAX_TOKENS.strategy) as unknown as import('zod').infer<typeof StrategyOutputSchema>;
+    const rawStrategy = await this.callClaudeWithRetry(context, StrategyOutputSchema, MODEL_MAX_TOKENS.strategy);
+    const strategyResult = StrategyOutputSchema.parse(rawStrategy);
 
-    // Calculate weighted score from actual domain scores
     const { data: domains } = await supabase
       .from('audit_domains')
       .select('domain_key, score')
@@ -105,24 +143,27 @@ export class StrategyAgent extends BaseAgent {
     const medium_term = postProcessStrategyInitiatives(strategyResult.medium_term, briefSnapshot, issueIndex);
     const strategic = postProcessStrategyInitiatives(strategyResult.strategic, briefSnapshot, issueIndex);
 
-    // Save strategy
-    await supabase.from('audit_strategy').update({
-      status: 'completed',
-      executive_summary: strategyResult.executive_summary,
-      overall_score: weightedScore,
+    this.lastRawDomainResult = { ...strategyResult } as unknown as Record<string, unknown>;
+
+    const executionMode = await this.resolveExecutionMode();
+    const riskProfile = await fetchAuditGovernanceRiskProfile(this.auditId);
+
+    this.lastControlObject = buildStrategyNarrowControlObject({
+      auditId: this.auditId,
+      executionMode,
+      riskProfile,
+      strategyResult,
+      weightedOverallScore: weightedScore,
+      completedDomainCount: domainScores.length,
+    });
+
+    this.pendingPersistence = {
+      strategyResult,
+      weightedScore,
       quick_wins,
       medium_term,
       strategic,
-      scorecard: strategyResult.scorecard,
-      schema_version: STRATEGY_INITIATIVE_SCHEMA_VERSION.v2,
-    }).eq('audit_id', this.auditId);
-
-    // Update audit
-    await supabase.from('audits').update({
-      status: 'completed',
-      overall_score: weightedScore,
-      current_phase: 7,
-    }).eq('id', this.auditId);
+    };
 
     await this.emit('completed', ev.completed, {
       overall_score: weightedScore,

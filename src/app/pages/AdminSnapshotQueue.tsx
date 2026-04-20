@@ -26,6 +26,7 @@ function scoreText(score: number | null): string {
 
 export function AdminSnapshotQueue() {
   const [filter, setFilter] = useState<SnapshotStatusFilter>('all');
+  const [deleting, setDeleting] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ['glc', 'admin', 'snapshot-queue'],
     queryFn: async () => {
@@ -42,6 +43,23 @@ export function AdminSnapshotQueue() {
     () => (q.data ?? []).filter((audit) => matchesStatusFilter(audit, filter)),
     [q.data, filter],
   );
+
+  async function handleDelete(auditId: string) {
+    const confirmed = window.confirm(ADMIN_SNAPSHOT_QUEUE_COPY.deleteConfirm);
+    if (!confirmed) {
+      return;
+    }
+    setDeleting(auditId);
+    try {
+      await api.deleteAudit(auditId);
+      await q.refetch();
+    } catch {
+      // Keep UX simple: generic inline alert for destructive action failure.
+      window.alert(ADMIN_SNAPSHOT_QUEUE_COPY.deleteFailed);
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   return (
     <AppShell
@@ -129,6 +147,18 @@ export function AdminSnapshotQueue() {
                         <Link to={`/audit/${audit.id}`} className="text-info glc-touch-target -mx-1 rounded-md px-1 text-xs font-medium no-underline sm:min-h-0">
                           {ADMIN_SNAPSHOT_QUEUE_COPY.openAudit}
                         </Link>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={deleting === audit.id}
+                          onClick={() => void handleDelete(audit.id)}
+                          className="glc-touch-target text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive sm:min-h-0"
+                        >
+                          {deleting === audit.id
+                            ? ADMIN_SNAPSHOT_QUEUE_COPY.deleting
+                            : ADMIN_SNAPSHOT_QUEUE_COPY.deleteSnapshot}
+                        </Button>
                       </div>
                     </div>
                   </div>

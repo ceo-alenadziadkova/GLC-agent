@@ -1,6 +1,7 @@
 import type { DomainKey } from '../../types/audit.js';
 
 export type DecisionHint = 'accept' | 'accept_with_warnings' | 'refine';
+export type GovernanceProfile = 'narrow' | 'full';
 export type ExecutionMode = 'normal' | 'safe';
 export type TruthSource =
   | 'internal_metrics'

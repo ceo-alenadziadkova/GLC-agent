@@ -82,6 +82,27 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     title: 'Portal',
     missingId: 'Missing id.',
   },
+  cockpit: {
+    title: 'What you have now',
+    subtitle: 'Coverage, headline diagnosis, and clear next steps.',
+    diagnosisTitle: 'Headline diagnosis',
+    noSummaryYet: 'Your consultant can add a short executive summary to this audit.',
+    contextTitle: 'Operating context',
+    stageLabel: 'Company stage',
+    budgetLabel: 'Budget band',
+    teamLabel: 'Team scale',
+    openTimeline: 'Open execution timeline',
+    openTimelineHint: 'See the seasonal roadmap and lanes in your full report.',
+    roadmapVersionLabel: 'Roadmap version',
+    roadmapDiffHint: 'Latest update',
+    roadmapDiffNodesLabel: 'Initiatives changed',
+    roadmapDiffDependenciesLabel: 'Dependencies changed',
+    openFullReport: 'Full domain report',
+    openLab: 'Strategy Lab',
+    adjustScopeTitle: 'Change scope or regenerate the roadmap',
+    adjustScopeBody:
+      'Updating which domains run or refreshing the execution roadmap is handled with your GLC consultant so coverage stays accurate.',
+  },
   upgrade: {
     prefillTitle: 'We pre-fill your brief and recon notes from this quick scan:',
     prefillItems: {

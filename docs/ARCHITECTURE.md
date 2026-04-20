@@ -358,6 +358,29 @@ ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAY
 
 ---
 
+## GLC Orchestrator pack (cross-domain synthesis)
+
+**Purpose:** merge finalized strategy initiatives into a single dependency-aware **`glc_orchestration_pack`** (graph, lanes, critical path) for client roadmap projection. This layer is **not** a substitute for per-domain **FactChecker / CONTROL_OBJECT / DecisionLayer** (phases 1–6). It does not verify site facts; it sequences and groups already-accepted structured outputs.
+
+`glc_orchestration_pack` schema v2 adds deterministic orchestration metadata:
+- `phase_diagnostic` (`dominant_constraint`, `constraint_chain`) for PHASE 0 visibility.
+- `routing_profile.domain_weights` for PHASE 1 domain routing transparency.
+- `graph.edges[].relation` + `weight` for weighted dependency semantics in PHASE 3.
+
+**Persistence:**
+
+- `audit_strategy.glc_orchestration_pack` (JSONB) + `orchestration_pack_version` (monotonic counter when a new pack is saved) + optional `glc_orchestration_last_revision_diff` (JSONB diff from the prior pack when version ≥ 2).
+- `audit_roadmap_manifest_snapshots` — immutable manifest rows (`payload` JSON); `glc_orchestration_pack.manifest_snapshot_id` references the confirming snapshot.
+- `audits.execution_plan` stays the canonical **coverage** contract only ([partial audit ADR](./adrs/ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md)); manifest `selected_domains` must match `execution_plan.selected_domains` (same set).
+
+**Code:** `server/src/services/orchestration/` (see README there), schema `server/src/schemas/glc-orchestration-pack.ts`, feature flag `isOrchestrationConflictSynthesisEnabled()` (`FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS`, default off) for an optional single Claude tool call (`orchestration-pack-synthesis-claude.ts`) that appends `conflicts_resolved` rows (`synthesis_applied` / `synthesis_pending`) after the deterministic graph build, without changing per-domain FactChecker semantics. Persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` with bounded retries from config.
+
+**Checklist:** Orchestrator services must not import FactChecker for orchestration output; domain-phase CO semantics remain unchanged.
+
+ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md).
+
+---
+
 ## ADR — TypeScript-first (v1)
 
 

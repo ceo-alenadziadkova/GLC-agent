@@ -4,6 +4,7 @@
  */
 
 import type { StrategyInitiativeDomainKey } from './strategy-initiative-policy.js';
+import type { DomainKey } from '@glc/intake-core';
 
 export const ORCHESTRATION_LANE_IDS = [
   'product_change',
@@ -16,23 +17,32 @@ export const ORCHESTRATION_LANE_IDS = [
 
 export type OrchestrationLaneId = (typeof ORCHESTRATION_LANE_IDS)[number];
 
+const ORCHESTRATION_DOMAIN_LANE_MAP: Record<DomainKey, OrchestrationLaneId> = {
+  tech_infrastructure: 'tech_delivery',
+  security_compliance: 'risk_compliance',
+  seo_digital: 'seo',
+  marketing_utp: 'marketing_narrative',
+  ux_conversion: 'product_change',
+  automation_processes: 'processes_automation',
+};
+
 /**
  * Maps strategy initiative domain labels to a primary orchestration lane.
  */
 export function mapStrategyInitiativeDomainToLane(domain: StrategyInitiativeDomainKey): OrchestrationLaneId {
   switch (domain) {
     case 'tech_infrastructure':
-      return 'tech_delivery';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.tech_infrastructure;
     case 'security_compliance':
-      return 'risk_compliance';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.security_compliance;
     case 'seo_digital':
-      return 'seo';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.seo_digital;
     case 'marketing_utp':
-      return 'marketing_narrative';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.marketing_utp;
     case 'ux_conversion':
-      return 'product_change';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.ux_conversion;
     case 'automation_processes':
-      return 'processes_automation';
+      return ORCHESTRATION_DOMAIN_LANE_MAP.automation_processes;
     case 'cross_domain':
     case 'operations':
     case 'finance':
@@ -40,4 +50,12 @@ export function mapStrategyInitiativeDomainToLane(domain: StrategyInitiativeDoma
     case 'customer_success':
       return 'product_change';
   }
+}
+
+/**
+ * Director domain-to-lane mapping stays isolated from strategy mapping.
+ * This keeps director contracts extensible without touching strategy-specific labels.
+ */
+export function mapDirectorDomainToLane(domain: DomainKey): OrchestrationLaneId {
+  return ORCHESTRATION_DOMAIN_LANE_MAP[domain];
 }

@@ -18,6 +18,8 @@ export const ORCHESTRATION_SYNTHESIS_CONTEXT_LIMITS = {
   maxDomainRowsInContext: 12,
   maxIssuesPerDomain: 8,
   maxIssueTitleLength: 120,
+  /** Truncate domain row `label` in synthesis context JSON. */
+  maxDomainLabelChars: 80,
   /** Soft cap on serialized user JSON; payload is truncated with a marker when exceeded. */
   maxUserJsonChars: 100_000,
   maxDominantConstraintChars: 240,

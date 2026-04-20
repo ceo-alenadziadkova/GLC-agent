@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { createControlObjectV1 } from '../schemas/control-object.js';
 import { DecisionLayer } from '../services/decision-layer.js';
 
@@ -63,5 +64,45 @@ describe('DecisionLayer', () => {
     co.errors.data_gaps = ['c'];
     const r = dl.decide(co);
     expect(r.active_error_types).toEqual(expect.arrayContaining(['a', 'b', 'c']));
+  });
+
+  describe('decideNarrow / decideForControlObject', () => {
+    function narrowStrategyCo() {
+      const co = createControlObjectV1('a1', 'strategy');
+      co.context.governance_profile = 'narrow';
+      co.confidence = { overall: 90, factual: 90, strategic: 88, consistency: 90, feasibility: null };
+      co.errors = { fixable: [], structural: [], data_gaps: [] };
+      co.human_attention_required = { required: false, reasons: [], requirements_met: null };
+      return co;
+    }
+
+    it('decideForControlObject routes narrow profile to decideNarrow', () => {
+      const co = narrowStrategyCo();
+      const r = dl.decideForControlObject(co);
+      expect(r.hint).toBe('accept');
+    });
+
+    it('decideNarrow refines on structural errors', () => {
+      const co = narrowStrategyCo();
+      co.errors.structural = ['strategy_model_vs_weighted_score_mismatch'];
+      const r = dl.decideNarrow(co);
+      expect(r.hint).toBe('refine');
+    });
+
+    it('decideNarrow accepts_with_warnings when human_attention is required but confidence is sufficient', () => {
+      const co = narrowStrategyCo();
+      co.confidence.overall = 75;
+      co.human_attention_required = { required: true, reasons: ['review'], requirements_met: null };
+      const r = dl.decideNarrow(co);
+      expect(r.hint).toBe('accept_with_warnings');
+    });
+
+    it('decideNarrow refines when narrow_governance_incomplete is present', () => {
+      const co = narrowStrategyCo();
+      co.errors.structural = [SYSTEM_DEFAULTS.strategyNarrowGovernance.errorCodes.governanceIncomplete];
+      const r = dl.decideNarrow(co);
+      expect(r.hint).toBe('refine');
+      expect(r.active_error_types).toContain(SYSTEM_DEFAULTS.decisionLayer.narrow.activeErrorTypeInvariantFailed);
+    });
   });
 });

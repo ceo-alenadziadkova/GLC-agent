@@ -91,6 +91,11 @@ interface BaseCollector {
 
 **Claude task:** Score security posture — SSL config, HTTP security headers, cookie security, CORS policy, known vulnerability signals.
 
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `server/prompts/security_compliance.md` — externally observable security signals + intake-driven compliance scoping.
+- **Deep (optional, not part of the default single-phase call):** **CSO Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md` (client-selected “zones” split across **Compliance & privacy governance** vs **Security operations & engineering**, access-aware internal evidence depth).
+
 ---
 
 ### SeoAgent — Phase 3
@@ -106,6 +111,11 @@ interface BaseCollector {
 **Domain key:** `ux_conversion` | **Collectors:** `CrawlerCollector`, `AccessibilityCollector`
 
 **Claude task:** Evaluate UX and conversion optimisation — navigation clarity, CTA presence and quality, mobile viewport, form usability, accessibility basics.
+
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `server/prompts/ux_conversion.md` — structured `DomainOutputSchema` output from crawl + accessibility/UX signals, with lightweight **conversion economics** framing (directional only; no fabricated financial precision).
+- **Deep (optional, not part of the default single-phase call):** **CDO Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-CDO-DIRECTOR-TWO-STAGE.md`, with orchestration rubric in `docs/instructions/CDO-INSTRUCTIONS.md` (client-selected “zones”, access-aware analytics depth, prioritization + dependency graph + experimentation backlog).
 
 ---
 
@@ -123,6 +133,11 @@ interface BaseCollector {
 
 **Claude task:** Evaluate operational automation — existing integrations detected, manual process signals, CRM/email/booking tool presence, automation gaps and opportunities.
 
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `automation_processes` domain phase — intake/recon-driven diagnosis of operational bottlenecks and automation readiness.
+- **Deep (optional, not part of the default single-phase call):** **Automation & Processes Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md` (client-selected zones split across **Process governance & operating design** vs **Automation operations & implementation**, with access-aware depth, prioritization, dependency graph, build-vs-buy paths, and operational economics + risk/observability discipline).
+
 ---
 
 ### StrategyAgent — Phase 7
@@ -138,6 +153,11 @@ interface BaseCollector {
 - Cross-domain dependencies
 
 **Output saved to:** `audit_strategy`
+
+**Orchestration note (product direction, not the default pipeline call today):**
+
+- **GLC Orchestrator (Meta-Director)** is the cross-domain “decision graph engine” contract for turning multiple Director outputs into **one** dependency-aware execution plan (conflict resolution + global prioritization). See `docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md` and the human prompt canon in `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`.
+- **Pipeline today:** Phase 7 remains `StrategyAgent` synthesis into `audit_strategy`. The Orchestrator is the intended evolution once Director outputs are normalized into the machine-readable action graph contract.
 
 ---
 

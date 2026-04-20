@@ -71,10 +71,14 @@ function SessionCard({
   session,
   onConvert,
   converting,
+  onDelete,
+  deleting,
 }: {
   session: DiscoverySession;
   onConvert: (token: string) => void;
   converting: boolean;
+  onDelete: (token: string) => void;
+  deleting: boolean;
 }) {
   const highFindings = session.findings.filter(f => f.impact === 'high');
   const date = new Date(session.created_at).toLocaleDateString('en-GB', {
@@ -102,21 +106,34 @@ function SessionCard({
           </div>
         </div>
 
-        {!session.audit_id && (
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          {!session.audit_id && (
+            <Button
+              type="button"
+              disabled={converting || deleting}
+              onClick={() => onConvert(session.session_token)}
+              variant={converting ? 'secondary' : 'default'}
+              className={`glc-touch-target flex w-full flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-3 text-sm font-semibold sm:min-h-0 sm:w-auto sm:py-2 ${
+                converting ? 'cursor-not-allowed bg-muted text-muted-foreground' : ''
+              }`}
+            >
+              {converting
+                ? <><Spinner size={13} className="animate-spin" /> {DISCOVERY_QUEUE_COPY.creating}</>
+                : <>{DISCOVERY_QUEUE_COPY.convertToAudit} <ArrowRight size={13} /></>}
+            </Button>
+          )}
+
           <Button
             type="button"
-            disabled={converting}
-            onClick={() => onConvert(session.session_token)}
-            variant={converting ? 'secondary' : 'default'}
-            className={`glc-touch-target flex w-full flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-3 text-sm font-semibold sm:min-h-0 sm:w-auto sm:py-2 ${
-              converting ? 'cursor-not-allowed bg-muted text-muted-foreground' : ''
-            }`}
+            variant="outline"
+            size="sm"
+            disabled={converting || deleting}
+            onClick={() => onDelete(session.session_token)}
+            className="glc-touch-target text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive sm:min-h-0"
           >
-            {converting
-              ? <><Spinner size={13} className="animate-spin" /> {DISCOVERY_QUEUE_COPY.creating}</>
-              : <>{DISCOVERY_QUEUE_COPY.convertToAudit} <ArrowRight size={13} /></>}
+            {deleting ? DISCOVERY_QUEUE_COPY.deleting : DISCOVERY_QUEUE_COPY.deleteSession}
           </Button>
-        )}
+        </div>
 
         {session.audit_id && (
           <a
@@ -240,6 +257,7 @@ export function DiscoveryQueue() {
   const error = q.error ? DISCOVERY_QUEUE_COPY.loadError : null;
 
   const [converting, setConverting] = useState<string | null>(null); // token currently converting
+  const [deleting, setDeleting] = useState<string | null>(null); // token currently deleting
   const [convertError, setConvertError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'converted'>('all');
   const [linkCopied, setLinkCopied] = useState(false);
@@ -264,6 +282,26 @@ export function DiscoveryQueue() {
         ? DISCOVERY_QUEUE_COPY.convertAlreadyConverted
         : DISCOVERY_QUEUE_COPY.convertGenericFailure);
       setConverting(null);
+    }
+  }
+
+  async function handleDelete(token: string) {
+    const confirmed = window.confirm(DISCOVERY_QUEUE_COPY.deleteConfirm);
+    if (!confirmed) {
+      return;
+    }
+    setDeleting(token);
+    setConvertError(null);
+    try {
+      await api.deleteDiscoverySession(token);
+      queryClient.setQueryData<DiscoverySession[]>(
+        glcKeys.discoverySessions(),
+        (prev) => (prev ?? []).filter((s) => s.session_token !== token),
+      );
+    } catch {
+      setConvertError(DISCOVERY_QUEUE_COPY.deleteGenericFailure);
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -394,6 +432,8 @@ export function DiscoveryQueue() {
                 session={session}
                 onConvert={handleConvert}
                 converting={converting === session.session_token}
+                onDelete={handleDelete}
+                deleting={deleting === session.session_token}
               />
             ))}
           </div>

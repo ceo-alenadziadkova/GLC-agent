@@ -123,6 +123,10 @@ Trade-offs:
 4. Frontend package/domain selection with intake recommendations.
 5. Marketing/landing rewording to Starter/Pro/Complete (Snapshot/Discovery unchanged).
 
+## Related ADRs
+
+- Client unified roadmap UX (timeline lanes, pre-commit manifest, orchestrator projection): `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`
+
 ## Related files
 
 - `server/migrations/060_audits_execution_plan.sql`
