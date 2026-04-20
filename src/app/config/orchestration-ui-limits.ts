@@ -33,6 +33,22 @@ export const ORCHESTRATION_UI_LIMITS = {
   orchestratorDependenciesMaxEdges: 14,
   /** Strategy Lab orchestrator tab: conflict rows. */
   orchestratorRisksMaxItems: 12,
+  /** Portal execution timeline: pack graph panel dependency rows (V5). */
+  portalTimelinePackGraphMaxEdgesDisplayed: 24,
+  /** Portal execution timeline: DOT export edge budget from the same panel (V5). */
+  portalTimelinePackGraphExportMaxEdges: 64,
+  /** Portal execution timeline: interactive flow canvas edge budget (V5). */
+  portalTimelinePackGraphFlowMaxEdges: 40,
+  /** Portal execution timeline: max nodes in the interactive flow (critical path kept first). */
+  portalTimelinePackGraphFlowMaxNodes: 36,
+  /** Portal execution timeline: expanded interactive map — edge budget (aligns with DOT export cap). */
+  portalTimelinePackGraphFlowExpandedMaxEdges: 64,
+  /** Portal execution timeline: expanded interactive map — node cap. */
+  portalTimelinePackGraphFlowExpandedMaxNodes: 56,
+  /** Portal execution timeline: interactive graph min height (layout only; CSS uses same token). */
+  portalTimelinePackGraphCanvasMinHeightPx: 260,
+  /** Portal execution timeline: expanded map min canvas height. */
+  portalTimelinePackGraphCanvasExpandedMinHeightPx: 320,
 } as const;
 
 /** Rolling timeline windows used by roadmap projection (days). */

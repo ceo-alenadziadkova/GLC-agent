@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
   Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
-  CalendarBlank, GitBranch, WarningCircle, Path,
+  Path,
 } from '@phosphor-icons/react';
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
@@ -41,14 +41,14 @@ import {
   ORCHESTRATION_LAB_FOCUS_QUERY_KEY,
   ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE,
   ORCHESTRATION_PANEL_DOM_ID,
-  ORCHESTRATION_UI_LIMITS,
 } from '../../config/orchestration-ui-limits';
 import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
-import {
-  orchestrationNodeTitleMap,
-} from '../../lib/orchestration-timeline-projection';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
+import {
+  StrategyLabOrchestratorListBody,
+  type StrategyLabOrchestratorTabId,
+} from './StrategyLabOrchestratorListBody';
 import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
@@ -98,6 +98,7 @@ export function StrategyLab() {
   const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
   const [sortMode, setSortMode] = useState<StrategyLabSortMode>('roi');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
   const [executionLoading, setExecutionLoading] = useState(false);
   const [lastPack, setLastPack] = useState<StrategyExecutionPackResponse | null>(null);
   const [domainBenchmarks, setDomainBenchmarks] = useState<
@@ -170,10 +171,10 @@ export function StrategyLab() {
     setConstraintStageDraft('growth');
     setConstraintBudgetDraft('unknown');
     setConstraintTeamDraft('unknown');
-  }, [audit?.strategy]);
+  }, [audit?.strategy, isClient]);
 
   useEffect(() => {
-    if (!audit?.strategy) return;
+    if (!audit?.strategy || isClient) return;
     let cancelled = false;
     const ind = normalizeAuditIndustryKey(audit.meta?.industry);
     void (async () => {
@@ -785,25 +786,73 @@ export function StrategyLab() {
             </div>
           ) : (
             <div className="p-4">
-              <div className="bg-background rounded-xl border p-4">
-                <p className="text-foreground text-sm font-semibold">
-                  {ORCHESTRATION_UI_COPY.timelineTitle}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                  {ORCHESTRATION_UI_COPY.timelineHint}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm" className="no-underline">
-                    <Link to={timelineHref}>
-                      <Path className="h-4 w-4" />
-                      {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
-                    </Link>
-                  </Button>
-                  <Button asChild variant="ghost" size="sm" className="no-underline">
-                    <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
-                  </Button>
+              {glcPackView && !isClient ? (
+                <div className="space-y-4">
+                  <div
+                    role="tablist"
+                    aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
+                    className="flex flex-wrap gap-2 border-b border-border pb-3"
+                  >
+                    {(
+                      [
+                        ['now', STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
+                        ['next', STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
+                        [
+                          'dependencies',
+                          STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
+                          STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
+                        ],
+                        ['risks', STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
+                      ] as const
+                    ).map(([key, label, desc]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="tab"
+                        aria-selected={orchestratorTab === key}
+                        onClick={() => setOrchestratorTab(key)}
+                        className={cn(
+                          'flex min-w-[5.5rem] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-colors sm:min-w-0 sm:flex-none',
+                          orchestratorTab === key
+                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                            : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        <span className="font-semibold">{label}</span>
+                        <span className="text-[length:var(--text-2xs)] leading-snug opacity-90">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div role="tabpanel" aria-label={STRATEGY_LAB_COPY.orchestratorTabs[orchestratorTab]}>
+                    <StrategyLabOrchestratorListBody
+                      pack={glcPackView}
+                      tab={orchestratorTab}
+                      selectedNodeId={selectedPackNodeId}
+                      onSelectNode={setSelectedPackNodeId}
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-background rounded-xl border p-4">
+                  <p className="text-foreground text-sm font-semibold">
+                    {ORCHESTRATION_UI_COPY.timelineTitle}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                    {ORCHESTRATION_UI_COPY.timelineHint}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild variant="outline" size="sm" className="no-underline">
+                      <Link to={timelineHref}>
+                        <Path className="h-4 w-4" />
+                        {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
+                      </Link>
+                    </Button>
+                    <Button asChild variant="ghost" size="sm" className="no-underline">
+                      <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

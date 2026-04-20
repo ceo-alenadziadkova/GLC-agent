@@ -21,6 +21,16 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// React Flow / @xyflow uses ResizeObserver on the graph pane.
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  },
+);
+
 // Framer Motion in-view and similar features use IntersectionObserver.
 vi.stubGlobal(
   'IntersectionObserver',

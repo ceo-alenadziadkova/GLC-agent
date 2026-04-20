@@ -14,6 +14,62 @@ export type OrchestrationNodeProvenance = {
 /**
  * Provenance badges for timeline / portal lists (labels from `ORCHESTRATION_UI_COPY`).
  */
+export type OrchestrationEvidenceTaxonomy = {
+  observed: number;
+  derived: number;
+  assumed: number;
+  missing: number;
+};
+
+/**
+ * Director evidence taxonomy (Observed / Derived / Assumed / Missing) as compact count badges.
+ */
+export function OrchestrationEvidenceTaxonomyBadges({
+  taxonomy,
+}: {
+  taxonomy?: OrchestrationEvidenceTaxonomy | null;
+}) {
+  if (!taxonomy) return null;
+  const { observed, derived, assumed, missing } = taxonomy;
+  if (observed + derived + assumed + missing === 0) return null;
+  const C = ORCHESTRATION_UI_COPY;
+  return (
+    <span
+      className="inline-flex flex-wrap items-center gap-1 align-middle"
+      aria-label={C.evidenceTaxonomyGroupAriaLabel}
+    >
+      {observed > 0 ? (
+        <Badge
+          variant="secondary"
+          className="text-[length:var(--text-2xs)] font-normal"
+          title={C.evidenceTaxonomyObservedTitle}
+        >
+          {observed} {C.evidenceTaxonomyObservedAbbr}
+        </Badge>
+      ) : null}
+      {derived > 0 ? (
+        <Badge
+          variant="secondary"
+          className="text-[length:var(--text-2xs)] font-normal"
+          title={C.evidenceTaxonomyDerivedTitle}
+        >
+          {derived} {C.evidenceTaxonomyDerivedAbbr}
+        </Badge>
+      ) : null}
+      {assumed > 0 ? (
+        <Badge variant="outline" className="text-[length:var(--text-2xs)] font-normal" title={C.evidenceTaxonomyAssumedTitle}>
+          {assumed} {C.evidenceTaxonomyAssumedAbbr}
+        </Badge>
+      ) : null}
+      {missing > 0 ? (
+        <Badge variant="outline" className="text-[length:var(--text-2xs)] font-normal" title={C.evidenceTaxonomyMissingTitle}>
+          {missing} {C.evidenceTaxonomyMissingAbbr}
+        </Badge>
+      ) : null}
+    </span>
+  );
+}
+
 export function OrchestrationTimelineProvenanceBadges({
   source,
   analysis_depth,
@@ -58,4 +114,16 @@ export function OrchestrationNodeBadgesInline({
   const node = findOrchestrationNode(pack, nodeId);
   if (!node || node.source !== 'director') return null;
   return <OrchestrationTimelineProvenanceBadges source="director" analysis_depth={node.analysis_depth} />;
+}
+
+/** Evidence taxonomy from pack graph node (V6). */
+export function OrchestrationEvidenceTaxonomyBadgesInline({
+  pack,
+  nodeId,
+}: {
+  pack: GlcOrchestrationPackView;
+  nodeId: string;
+}) {
+  const node = findOrchestrationNode(pack, nodeId);
+  return <OrchestrationEvidenceTaxonomyBadges taxonomy={node?.evidence_taxonomy} />;
 }

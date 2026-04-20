@@ -46,4 +46,17 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     bodyMaxHeightDefault: 'max-h-[440px]',
     bodyMaxHeightWithRecon: 'max-h-[min(72vh,36rem)]',
   },
+  /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `components.css`). */
+  clientPortal: {
+    headerProgressTrackClassName: 'h-[var(--space-1)] min-w-[7rem] flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)] sm:w-40 sm:flex-none',
+    headerProgressFillClassName: 'ds-pipeline-client-header-progress-fill',
+    headerPercentClassName: 'text-xs font-mono font-medium tabular-nums text-[var(--text-secondary)]',
+    phaseCardCurrentClassName: 'ds-pipeline-phase-card-current',
+    /**
+     * Narrow `/portal/pipeline`: detail panel is stacked above the steps column.
+     * Caps steps height so the primary column keeps room in the fixed viewport shell.
+     */
+    mobileStackedStepsAsideClassName:
+      'w-full max-h-[min(45vh,24rem)] min-h-0 shrink-0 overflow-y-auto border-t-[length:var(--border-width-default)] border-t-[var(--border-subtle)]',
+  },
 } as const;

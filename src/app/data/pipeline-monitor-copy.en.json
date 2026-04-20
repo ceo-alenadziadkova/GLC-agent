@@ -132,5 +132,111 @@
     "savedConsultantNotes": "Consultant notes (saved)",
     "savedInterviewNotes": "Client / interview notes (saved)",
     "noNotesSaved": "No notes were saved for this gate (optional)."
+  },
+  "clientPortal": {
+    "pageTitle": "Audit progress",
+    "auditRefPrefix": "Ref.",
+    "revBanner": {
+      "approved": "Checkpoint complete",
+      "waitingApproval": "Waiting for your consultant",
+      "qualityWarningsNotes": "Your consultant will review this before continuing",
+      "qualityWarningsTitle": "Needs consultant review",
+      "approve": "Approve",
+      "consultantApproval": "Handled by your consultant",
+      "savedConsultantNotes": "From your consultant",
+      "savedInterviewNotes": "From you or your team",
+      "noNotesSaved": "No extra notes were saved at this checkpoint."
+    },
+    "sidebar": {
+      "phases": "Steps",
+      "currentStepLabel": "Current step:",
+      "currentStepCollapsedHint": "The step running now is in this section — expand to see it.",
+      "sectionRecon": "Setup & website",
+      "foundation": "Automated setup",
+      "domains": "Domain analysis",
+      "synthesis": "Strategy & roadmap",
+      "resizeHandle": "Resize steps panel",
+      "resizeHint": "Drag to resize. Double-click to collapse or expand."
+    },
+    "completed": {
+      "bannerTitle": "Your audit is ready",
+      "bannerBody": "Open your report for full findings, or the strategy roadmap for planning next steps.",
+      "primaryCta": "View report",
+      "secondaryCta": "Strategy roadmap"
+    },
+    "reviewCheckpoints": {
+      "one": "After setup",
+      "two": "Mid-audit",
+      "twoFinal": "Mid-audit",
+      "three": "Final review"
+    },
+    "parallelWing": {
+      "autoName": "Automated checks",
+      "analyticName": "Domain analysis",
+      "runningSuffix": " · running at the same time"
+    },
+    "detail": {
+      "activityLogClientHint": "Plain-language notes from the live run.",
+      "agentLogPrefix": "Activity ·",
+      "agentRunning": "Working on this step…",
+      "waitingTitle": "Waiting for earlier steps",
+      "waitingSubtitle": "This step starts automatically when previous work finishes.",
+      "pipelineFailedPendingTitle": "This step did not finish",
+      "pipelineFailedPendingSubtitle": "The run paused because of a timeout or interruption. Your consultant can get it moving again — you do not need to take action on this screen.",
+      "domainUnavailableTitle": "This area could not be fully analysed",
+      "domainUnavailableBody": "The audit continued. Your roadmap will call out this gap clearly.",
+      "loadErrorPrefix": "We could not refresh this page:"
+    },
+    "activityLog": {
+      "hiddenEventTypes": ["token_usage", "control_object"],
+      "logMessageContains": [
+        { "contains": "Crawling company website", "text": "Scanning your public website…" },
+        { "contains": "No public website — skipping web crawl", "text": "Continuing without a site crawl, using your brief and form answers." },
+        { "contains": "✓ Crawled", "text": "Website scan finished." },
+        { "contains": "✓ No public website — recon", "text": "Setup without a public site is saved." },
+        { "contains": "✓ Collected:", "text": "Saved results from an automated check." },
+        { "contains": "⚠ Collector", "text": "One automated check failed; we continue where possible." },
+        { "contains": "⚠ Validation error", "text": "Re-checking an AI answer before continuing." },
+        { "contains": "⚠ API error", "text": "Retrying after a brief connection issue." },
+        { "contains": "Token budget at", "text": "Usage is high; the audit still continues." },
+        { "contains": "Context truncated", "text": "Large inputs were shortened for analysis." },
+        { "contains": "Recon crawled 0 pages", "text": "We could not reach pages on the site to scan." },
+        { "contains": "Parallel block:", "text": "Several steps are running at the same time." },
+        { "contains": "Gathering all domain results", "text": "Pulling together completed domain findings…" },
+        { "contains": "Synthesizing strategic roadmap", "text": "Building your strategy and roadmap…" },
+        { "contains": "Preparing analysis context", "text": "Preparing inputs for this step…" },
+        { "contains": "Building analysis context", "text": "Preparing inputs for this step…" },
+        { "contains": "Running AI analysis", "text": "Running the analysis for this step…" },
+        { "contains": "Analyzing company profile", "text": "Interpreting company profile signals…" }
+      ],
+      "byEventType": {
+        "collecting": "Gathering data for this step…",
+        "assembling_context": "Preparing inputs for analysis…",
+        "analyzing": "Running analysis for this step…",
+        "warning": "Heads-up: the run is using more resources; it continues.",
+        "fact_check": "Validating scores against raw signals…",
+        "phase-error": "This step reported a problem.",
+        "completed": "This step finished.",
+        "started": "This step started.",
+        "error": "This step stopped before it could finish.",
+        "review_needed": "Waiting for your consultant before the next step.",
+        "review_approved": "Checkpoint approved — continuing.",
+        "parallel_started": "Several steps are running together.",
+        "parallel_completed": "Parallel steps finished.",
+        "partial_failure": "Part of a parallel step did not finish. Your consultant will decide next steps.",
+        "llm_call_started": "Sending a focused analysis request…",
+        "llm_call_completed": "Analysis request completed.",
+        "llm_call_failed": "An analysis request failed; a retry may follow.",
+        "orchestration_started": "Updating roadmap packaging…",
+        "orchestration_completed": "Roadmap packaging updated.",
+        "orchestration_error": "Roadmap packaging hit an error.",
+        "refine_recommended": "Outputs may need a careful review before you rely on them.",
+        "quality_gate": "Quality checks ran on this step.",
+        "cancelled": "This audit run was stopped.",
+        "resumed_from_cancelled": "The audit run was reopened.",
+        "phase_stalled": "This step paused longer than expected."
+      },
+      "fallbackLog": "Progress update on this step."
+    }
   }
 }

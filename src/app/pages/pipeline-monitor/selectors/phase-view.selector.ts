@@ -9,7 +9,7 @@ import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-co
 import { PHASE_META } from '../phase-meta';
 import type { PhaseView } from '../types';
 import type { PipelineReview, PipelineStateLite } from '../types-pipeline-state';
-import { mapPhaseEventsToLogEntries } from '../mappers/pipeline-events.mapper';
+import { mapPhaseEventsToClientPortalLogEntries, mapPhaseEventsToLogEntries } from '../mappers/pipeline-events.mapper';
 
 type AuditLite = {
   meta?: {
@@ -30,8 +30,9 @@ export function selectPhaseViews(args: {
   pipelineState: PipelineStateLite | null;
   audit: AuditLite;
   isExpress: boolean;
+  isClientPortal?: boolean;
 }): PhaseView[] {
-  const { pipelineState, audit, isExpress } = args;
+  const { pipelineState, audit, isExpress, isClientPortal = false } = args;
   if (!pipelineState || !audit) {
     return PHASE_META.map(meta => ({
       id: meta.id,
@@ -63,6 +64,9 @@ export function selectPhaseViews(args: {
       domainStatus,
     );
     const phaseEvents = events.filter((event: PipelineEvent) => event.phase === meta.id);
+    const log = isClientPortal
+      ? mapPhaseEventsToClientPortalLogEntries(phaseEvents)
+      : mapPhaseEventsToLogEntries(phaseEvents);
 
     return {
       id: meta.id,
@@ -72,7 +76,7 @@ export function selectPhaseViews(args: {
       status,
       score: domainData?.score ?? null,
       wing: meta.wing,
-      log: mapPhaseEventsToLogEntries(phaseEvents),
+      log,
       skipped: status === 'skipped',
     };
   });

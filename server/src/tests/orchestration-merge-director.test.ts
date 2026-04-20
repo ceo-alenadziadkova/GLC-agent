@@ -106,6 +106,43 @@ describe('mapDirectorWaveBundleToActionNodes', () => {
     expect(r.nodes[0]!.domain).toBe('seo_digital');
   });
 
+  it('copies evidence taxonomy counts onto action nodes when director evidence is present', () => {
+    const bundle = GlcDirectorOrchestrationSliceSchema.parse({
+      schema_version: 1,
+      baseline: {
+        actions: [
+          {
+            id: 'with-evidence',
+            title: 'Has taxonomy',
+            impact: 3,
+            effort: 2,
+            risk: 2,
+            urgency: 3,
+            confidence: 'high',
+            dependencies: [],
+            evidence: {
+              observed: ['crawl showed thin content'],
+              derived: ['inferred from SERP'],
+              assumed: [],
+              missing: ['no GSC export'],
+            },
+          },
+        ],
+      },
+    });
+    const r = mapDirectorWaveBundleToActionNodes({
+      domainKey: 'seo_digital',
+      wave: 'baseline',
+      bundle: bundle.baseline!,
+    });
+    expect(r.nodes[0]!.evidence_taxonomy).toEqual({
+      observed: 1,
+      derived: 1,
+      assumed: 0,
+      missing: 1,
+    });
+  });
+
   it('emits conflict for missing evidence taxonomy in director action', () => {
     const bundle = GlcDirectorOrchestrationSliceSchema.parse({
       schema_version: 1,

@@ -59,6 +59,13 @@ const OrchestrationGraphEdgeSchema = z.object({
   weight: z.number().min(0).max(1),
 });
 
+const OrchestrationEvidenceTaxonomySchema = z.object({
+  observed: z.number().int().nonnegative(),
+  derived: z.number().int().nonnegative(),
+  assumed: z.number().int().nonnegative(),
+  missing: z.number().int().nonnegative(),
+});
+
 const OrchestrationGraphNodeSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -70,6 +77,7 @@ const OrchestrationGraphNodeSchema = z.object({
   time_bucket: z.enum(['now', 'next', 'later']).optional(),
   target_window_days: z.number().int().positive().optional(),
   priority_score: z.number().positive().optional(),
+  evidence_taxonomy: OrchestrationEvidenceTaxonomySchema.optional(),
 });
 
 const OrchestrationGraphPayloadSchema = z.object({

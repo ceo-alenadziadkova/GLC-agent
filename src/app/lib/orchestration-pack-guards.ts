@@ -40,6 +40,14 @@ export function isGlcOrchestrationPackView(raw: unknown): raw is GlcOrchestratio
     ) {
       return false;
     }
+    if (node.evidence_taxonomy !== undefined) {
+      const t = node.evidence_taxonomy;
+      if (!isObjectRecord(t)) return false;
+      for (const key of ['observed', 'derived', 'assumed', 'missing'] as const) {
+        const v = t[key];
+        if (typeof v !== 'number' || !Number.isInteger(v) || v < 0) return false;
+      }
+    }
     return true;
   });
   if (!nodesValid) return false;

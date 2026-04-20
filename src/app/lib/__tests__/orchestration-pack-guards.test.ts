@@ -18,4 +18,25 @@ describe('isGlcOrchestrationPackView', () => {
     expect(isGlcOrchestrationPackView({ version: 1 })).toBe(false);
     expect(isGlcOrchestrationPackView('x')).toBe(false);
   });
+
+  it('returns false when evidence_taxonomy is malformed', () => {
+    const raw = {
+      version: 1,
+      critical_path: ['a'],
+      graph: {
+        nodes: [
+          {
+            id: 'a',
+            title: 'T',
+            domain: 'seo_digital',
+            lane: 'seo',
+            evidence_taxonomy: { observed: 1, derived: 'x', assumed: 0, missing: 0 },
+          },
+        ],
+        edges: [],
+      },
+      lanes: { seo: ['a'], tech_delivery: [], product_change: [], marketing_narrative: [], processes_automation: [], risk_compliance: [] },
+    };
+    expect(isGlcOrchestrationPackView(raw)).toBe(false);
+  });
 });

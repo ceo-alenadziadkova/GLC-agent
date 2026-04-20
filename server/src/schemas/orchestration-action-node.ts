@@ -27,6 +27,14 @@ export const OrchestrationActionNodeSchema = z.object({
   season_index: z.number().int().min(1).max(3).optional(),
   time_bucket: z.enum(['now', 'next', 'later']).optional(),
   target_window_days: z.number().int().positive().max(366).optional(),
+  evidence_taxonomy: z
+    .object({
+      observed: z.number().int().nonnegative(),
+      derived: z.number().int().nonnegative(),
+      assumed: z.number().int().nonnegative(),
+      missing: z.number().int().nonnegative(),
+    })
+    .optional(),
 });
 
 export const OrchestrationActionNodeListSchema = z.array(OrchestrationActionNodeSchema);

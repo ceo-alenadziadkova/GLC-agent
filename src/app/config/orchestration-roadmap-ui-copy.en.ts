@@ -8,6 +8,7 @@ import type {
   OrchestrationPreviewLaneDensityBand,
   OrchestrationSeasonPreset,
 } from './orchestration-roadmap-manifest';
+import type { OrchestrationManifestState, OrchestrationTimelineStatus } from './orchestration-contract';
 
 export const ORCHESTRATION_UI_COPY = {
   sectionTitle: 'Roadmap input',
@@ -84,8 +85,30 @@ export const ORCHESTRATION_UI_COPY = {
   timelineStaleManifestClientHint:
     'The timeline you see may not match the latest roadmap manifest. Ask your consultant to confirm scope in Strategy Lab and rebuild the execution pack.',
   timelineStateRestricted: 'This view is restricted to client-safe roadmap fields.',
-  /** Machine-oriented reason from `GET /timeline` for support and clarity (paired with human message). */
-  timelineDiagnosticReasonLabel: 'Timeline status code',
+  /** Consultant-only: internal API status from `GET /timeline` (paired with human message in technical block). */
+  timelineDiagnosticReasonLabel: 'Timeline API status',
+  /** `<details>` summary for consultant diagnostics on the portal timeline. */
+  timelineConsultantTechnicalSummary: 'Internal diagnostics (consultant)',
+  /** Portal timeline — primary hero heading when the timeline is ready. */
+  portalTimelineHeroTitle: 'Your plan at a glance',
+  /** Client — short guidance under the hero when the timeline is ready. */
+  timelineNextStepReadyClient:
+    'Start with near-term priorities below. Open your full report anytime for evidence and scores.',
+  /** Consultant — short guidance under the hero when the timeline is ready. */
+  timelineNextStepReadyConsultant:
+    'Review buckets and dependencies, then adjust scope or rebuild the pack in Strategy Lab if needed.',
+  /** Portal timeline — tab labels (IA: fewer simultaneous panels). */
+  portalTimelineTabOverview: 'Overview',
+  portalTimelineTabWorkstreams: 'Workstreams',
+  portalTimelineTabDependencies: 'Dependencies',
+  portalTimelineTabPlanMap: 'Plan map',
+  /** Overview tab — compact plan metadata when the hero is not shown (non-ready timelines). */
+  portalTimelinePlanSnapshotTitle: 'Plan snapshot',
+  /** Plan map tab — no pack yet or timeline not ready. */
+  timelinePlanMapUnavailableHint: 'The interactive dependency map appears when a saved execution plan is available for this audit.',
+  /** Screen-reader-only legend for the interactive dependency map (keyboard and zoom). */
+  timelinePackGraphSrKeyboardHint:
+    'Interactive diagram: use mouse or trackpad to pan and zoom. Toolbar controls are reachable with Tab.',
   timelineWaitingListTitle: 'Waiting list',
   timelineDependenciesTitle: 'Cross-lane dependencies',
   timelineBlockingDepsTitle: 'Blocking dependencies',
@@ -98,13 +121,62 @@ export const ORCHESTRATION_UI_COPY = {
   timelineManifestFlowCta: 'Open manifest flow in Strategy Lab',
   timelineManifestStaleCta: 'Manifest is stale — open Strategy Lab to confirm and rebuild',
   timelineNoDeps: 'No dependencies in current projection.',
+  /** Portal timeline — pack-backed dependency map + DOT export (V5). */
+  timelinePackGraphSectionTitle: 'Plan dependency map',
+  timelinePackGraphSectionHint:
+    'From the saved orchestration pack: interactive map (pan and zoom), ordered critical path, then cross-lane links (prioritized). Copy Graphviz DOT to export.',
+  timelinePackGraphInteractiveTitle: 'Interactive map',
+  timelinePackGraphInteractiveHint:
+    'Drag the background to pan, use controls to zoom. Pick a step below or a node on the map to focus it — the view recenters on that initiative. Critical path links are highlighted; other links show cross-initiative dependencies.',
+  timelinePackGraphFlowEdgesTruncated:
+    'Some links are omitted from the interactive map for performance; the list and DOT export use separate budgets.',
+  timelinePackGraphFlowNodesTruncated:
+    'Some initiatives are hidden on the map due to the node budget; the critical path is always kept.',
+  timelinePackGraphCriticalPathBadge: 'Critical path',
+  timelinePackGraphHandleTargetAria: 'Dependency target',
+  timelinePackGraphHandleSourceAria: 'Dependency source',
+  timelinePackGraphInteractiveAriaLabel: 'Interactive plan dependency map',
+  timelinePackGraphExpandMap: 'Show more on map',
+  timelinePackGraphCollapseMap: 'Compact map',
+  timelinePackGraphExpandMapHint:
+    'Uses a larger node and link budget for the canvas (may be slower on very large plans). Lists below stay unchanged.',
+  timelinePackGraphFitViewControl: 'Fit map to view',
+  timelinePackGraphClearHighlight: 'Clear map selection',
+  timelinePackGraphListHighlightCpAria: 'Highlight on map',
+  timelinePackGraphListHighlightEdgeAria: 'Highlight endpoints on map',
+  timelinePackGraphCriticalPathTitle: 'Critical path',
+  timelinePackGraphEdgesTitle: 'Key dependency links',
+  timelinePackGraphEdgesTruncated: 'Some links are hidden here for readability; export uses a separate edge budget.',
+  timelinePackGraphCopyDot: 'Copy Graphviz DOT',
+  timelinePackGraphCopyDotSuccess: 'DOT copied to clipboard',
+  timelinePackGraphCopyDotFailed: 'Could not copy (browser blocked clipboard)',
   topActionsTitle: 'Top actions',
   topActions7dLabel: 'Next 7 days',
   topActions30dLabel: 'Next 30 days',
   /** Portal timeline — saved Strategy Lab execution packs (optional server feature). */
   executionPacksSectionTitle: 'Execution detail packs',
   executionPacksSectionHint:
-    'Deeper initiative breakdowns from Strategy Lab (extra AI pass). Open Lab to create or refresh packs for selected roadmap items.',
+    'Deeper initiative breakdowns from Strategy Lab (extra AI pass). Use Detail pack on “Top actions” for a one-click request, or open Lab for multi-select and path options.',
+  /** Portal timeline — one initiative per request; same server route as Strategy Lab execution pack. */
+  executionPackFromTopActionsHint:
+    'Each Detail pack request runs one on-demand AI pass (billed like Strategy Lab). One initiative per request from this view. You can start another request while one is running; each is processed separately.',
+  executionPackFromTimelineCta: 'Detail pack',
+  executionPackFromTimelineCtaBusy: 'Requesting…',
+  executionPackFromTimelineCtaAriaLabel: 'Request execution detail pack for',
+  executionPackFromTimelineSuccess: 'Detail pack saved. It appears in the list below.',
+  executionPackFromTimelineFailed: 'Could not generate detail pack',
+  executionPackFromTimelineErrorDisabled:
+    'Detail packs are turned off in this environment. Open your report or ask your consultant.',
+  executionPackFromTimelineErrorNotReady:
+    'Strategy is still finishing for this audit. Try again when the report is complete.',
+  executionPackFromTimelineErrorPayloadInvalid: 'This detail pack request could not be accepted.',
+  executionPackFromTimelineErrorNotFound: 'This audit was not found or you no longer have access.',
+  executionPackFromTimelineErrorFailedGeneric: 'Could not generate the detail pack.',
+  executionPackFromTimelineErrorRateLimited: 'Too many AI requests right now. Wait a moment and try again.',
+  /** Portal timeline — sync markers (V7): short cross-lane narrative when blocking cross-lane deps exist. */
+  timelineCrossLaneNarrativeTitle: 'Aligning lanes before you commit dates',
+  timelineCrossLaneNarrativeBody:
+    'Marketing, delivery, and operations often run on different clocks. The sync links below flag where one lane must wait on another—use them to line up owners and commitments.',
   executionPacksEmpty: 'No execution detail packs saved for this audit yet.',
   executionPacksLoadError: 'Execution pack history is unavailable (feature off or network error).',
   executionPacksRowInitiativesLabel: 'initiatives',
@@ -157,6 +229,16 @@ export const ORCHESTRATION_UI_COPY = {
   nodeBadgeDeep: 'Deep',
   nodeBadgeDirector: 'Director',
   nodeBadgeStrategy: 'Strategy',
+  /** Evidence taxonomy (director Layer 1); compact badges on timeline / pack panel (V6). */
+  evidenceTaxonomyGroupAriaLabel: 'Evidence taxonomy counts',
+  evidenceTaxonomyObservedAbbr: 'O',
+  evidenceTaxonomyDerivedAbbr: 'D',
+  evidenceTaxonomyAssumedAbbr: 'A',
+  evidenceTaxonomyMissingAbbr: 'M',
+  evidenceTaxonomyObservedTitle: 'Observed — site or collector-backed signals',
+  evidenceTaxonomyDerivedTitle: 'Derived — inferred from other evidence',
+  evidenceTaxonomyAssumedTitle: 'Assumed — working hypothesis without direct proof',
+  evidenceTaxonomyMissingTitle: 'Missing — explicit gap called out',
   /** Placeholder for empty season/lane/top lists */
   timelineEmptyListMarker: '—',
   timelineManifestStateLabel: 'Manifest state:',
@@ -166,11 +248,37 @@ export const ORCHESTRATION_UI_COPY = {
   dataGapsMissingConfidenceLabel: 'Missing confidence:',
   dataGapsMissingRiskLabel: 'Missing risk:',
   dataGapsDanglingDependenciesLabel: 'Dangling dependencies:',
+  /** Client label when manifest state is unknown to the UI mapping (legacy payloads). */
+  timelineManifestStateUnknown: 'Roadmap status: see your consultant if this looks wrong.',
 } as const;
+
+/** Client-facing manifest state line on the portal timeline (no internal enum names). */
+export const TIMELINE_MANIFEST_STATE_CLIENT: Record<OrchestrationManifestState, string> = {
+  draft: 'Roadmap draft — scope may still change.',
+  confirmed: 'Roadmap confirmed for this version.',
+  stale: 'A newer roadmap draft exists — your consultant should refresh the saved plan.',
+};
+
+export function formatManifestStateForClient(state: OrchestrationManifestState | string): string {
+  if (state in TIMELINE_MANIFEST_STATE_CLIENT) {
+    return TIMELINE_MANIFEST_STATE_CLIENT[state as OrchestrationManifestState];
+  }
+  return ORCHESTRATION_UI_COPY.timelineManifestStateUnknown;
+}
+
+/** Consultant-only: single line for support tickets. */
+export function formatTimelineApiStatusSupportLine(status: OrchestrationTimelineStatus): string {
+  return `${ORCHESTRATION_UI_COPY.timelineDiagnosticReasonLabel}: ${status}`;
+}
 
 /** Timeline banner when manifest carries `plan_horizon` (keep copy out of TSX). */
 export function formatTimelineCalendarPlanWindowLine(startIso: string, endIso: string): string {
   return `Calendar plan window: ${startIso} through ${endIso}. Near, mid, and later buckets follow this horizon.`;
+}
+
+/** Portal client — plainer wording for plan dates (keep copy out of TSX). */
+export function formatTimelineCalendarPlanWindowLineClient(startIso: string, endIso: string): string {
+  return `Dates on this plan: ${startIso} through ${endIso}. Near, mid, and later groups follow this range.`;
 }
 
 /**

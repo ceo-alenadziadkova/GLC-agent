@@ -6,6 +6,7 @@ import { StatusPill } from '../../../components/glc/StatusPill';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
 import { getPipelineMonitorHeaderPresentation } from '../../../lib/pipeline-monitor-helpers';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
+import { cn } from '../../../components/ui/utils';
 
 export function MonitorHeaderActions(props: {
   isExpress: boolean;
@@ -37,6 +38,26 @@ export function MonitorHeaderActions(props: {
   const headerPill = isAdvancingFromReview
     ? { status: 'running' as const, pulse: true }
     : getPipelineMonitorHeaderPresentation(auditStatus);
+
+  if (isClient) {
+    const cp = PIPELINE_MONITOR_UI_POLICY.clientPortal;
+    return (
+      <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex w-full max-w-[15rem] items-center justify-end gap-2.5 sm:w-auto sm:max-w-none">
+          <div className={cp.headerProgressTrackClassName}>
+            <motion.div
+              className={cn('h-full rounded-full', cp.headerProgressFillClassName)}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: PIPELINE_MONITOR_UI_POLICY.animation.progressDurationSec, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </div>
+          <span className={cp.headerPercentClassName}>{progressPct}%</span>
+        </div>
+        <StatusPill status={headerPill.status} pulse={headerPill.pulse} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3">
       {isExpress && (

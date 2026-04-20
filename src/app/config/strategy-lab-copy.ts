@@ -19,6 +19,7 @@ export const STRATEGY_LAB_COPY = {
     timelineVsLab: ORCHESTRATION_IA_COPY.timelineVsLabRole,
   },
   orchestratorTabs: {
+    tablistAriaLabel: 'Orchestrator: critical path, dependencies, and risks',
     now: 'Now',
     next: 'Next',
     dependencies: 'Dependencies',
@@ -26,6 +27,7 @@ export const STRATEGY_LAB_COPY = {
     nowDesc: 'Head of the critical path',
     nextDesc: 'Mid and later milestones',
     dependenciesDesc: 'Ordering links',
+    dependenciesListTitle: 'Dependency rows',
     risksDesc: 'Resolved planner trade-offs',
     emptyNow: 'No items in this bucket.',
     emptyNext: 'No further milestones on the critical path.',
@@ -37,6 +39,12 @@ export const STRATEGY_LAB_COPY = {
     domainLabel: 'Domain',
     unknownNode: 'This node is not in the current pack.',
     clearSelection: 'Clear',
+  },
+  /** Consultant copy for embedded pack graph (same component as portal timeline). */
+  packDependencyMap: {
+    sectionTitle: 'Plan dependency map',
+    sectionHint:
+      'Interactive view of the saved orchestration pack — same topology the client sees on the timeline. Use it while validating manifest scope and rebuilds.',
   },
   appShell: {
     title: 'Strategy Lab',

@@ -33,6 +33,13 @@ export interface GlcOrchestrationPackView {
       time_bucket?: 'now' | 'next' | 'later';
       target_window_days?: number;
       priority_score?: number;
+      /** Director evidence buckets (item counts); optional on strategy-sourced nodes. */
+      evidence_taxonomy?: {
+        observed: number;
+        derived: number;
+        assumed: number;
+        missing: number;
+      };
     }>;
     edges: Array<{ from: string; to: string; relation?: OrchestrationDependencyRelation; weight?: number }>;
     meta?: unknown;

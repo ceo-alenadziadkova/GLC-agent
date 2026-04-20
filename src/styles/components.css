@@ -3277,6 +3277,17 @@ html:not(.dark) .glc-hover-row:hover {
   margin-top: 3px;
 }
 
+/* Portal pipeline: current step emphasis (sidebar) */
+.ds-pipeline-phase-card-current {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--glc-blue) 20%, transparent);
+}
+
+/* Portal pipeline header: progress without glow */
+.ds-pipeline-client-header-progress-fill {
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--glc-green) 88%, var(--foreground));
+}
+
 .ds-rec-card-accent-border {
   border-left-width: 3px;
 }
@@ -3721,4 +3732,88 @@ html:not(.dark) .glc-hover-row:hover {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   word-break: break-word;
+}
+
+/* Portal timeline — orchestration pack interactive graph (React Flow, V5). */
+.ds-portal-pack-graph-flow {
+  --xy-background-color: var(--bg-muted);
+  --xy-background-pattern-color: var(--border-subtle);
+  --xy-edge-stroke-default: var(--border-strong);
+  --xy-handle-background-color: var(--bg-surface);
+  --xy-handle-border-color: var(--border-default);
+}
+
+.ds-portal-pack-graph-flow-bg {
+  --xy-background-pattern-color: var(--border-subtle);
+}
+
+.ds-portal-pack-graph-controls button {
+  background-color: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+  color: var(--text-secondary);
+}
+
+.ds-portal-pack-graph-controls button:hover {
+  background-color: var(--bg-muted);
+}
+
+.ds-portal-pack-graph-minimap {
+  background-color: var(--bg-muted);
+}
+
+.ds-portal-pack-graph-minimap .react-flow__minimap-mask {
+  fill: color-mix(in oklab, var(--bg-canvas) 60%, transparent);
+}
+
+.ds-portal-pack-graph-node {
+  width: 200px;
+  box-sizing: border-box;
+  background-color: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+}
+
+.ds-portal-pack-graph-cp-pill {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 40%, var(--bg-surface));
+  color: var(--text-secondary);
+  border: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-portal-pack-graph-handle {
+  width: var(--space-2);
+  height: var(--space-2);
+  border: var(--border-width-default) solid var(--border-default);
+  background-color: var(--bg-surface);
+}
+
+.ds-portal-pack-graph-edge--critical .react-flow__edge-path {
+  stroke: var(--glc-blue);
+  stroke-width: 2px;
+}
+
+.ds-portal-pack-graph-edge--default .react-flow__edge-path {
+  stroke: var(--border-strong);
+  stroke-width: 1.25px;
+}
+
+.ds-portal-pack-graph-edge--selected .react-flow__edge-path {
+  stroke: var(--glc-blue);
+  stroke-width: 2.75px;
+}
+
+.ds-portal-pack-graph-node--selected {
+  border-color: var(--glc-blue);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--glc-blue) 45%, transparent);
+}
+
+.ds-portal-pack-graph-list-hit-target:hover {
+  background-color: color-mix(in oklab, var(--bg-muted) 85%, var(--glc-blue-muted));
+}
+
+.ds-portal-pack-graph-list-hl {
+  background-color: color-mix(in oklab, var(--bg-muted) 70%, var(--glc-blue-muted));
+  outline: 1px solid var(--border-default);
+}
+
+.ds-portal-pack-graph-fit-control {
+  color: var(--text-secondary);
 }

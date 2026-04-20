@@ -54,6 +54,13 @@ export interface OrchestrationActionNode {
   season_index?: number;
   time_bucket?: 'now' | 'next' | 'later';
   target_window_days?: number;
+  /** Director Layer-1 evidence buckets (counts of string entries in director output). */
+  evidence_taxonomy?: {
+    observed: number;
+    derived: number;
+    assumed: number;
+    missing: number;
+  };
 }
 
 export interface OrchestrationGraphEdge {

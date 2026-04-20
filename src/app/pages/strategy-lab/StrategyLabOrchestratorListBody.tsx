@@ -1,13 +1,18 @@
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { PortalTimelinePackGraphPanel } from '../../components/glc/PortalTimelinePackGraphPanel';
 import { cn } from '../../components/ui/utils';
 import {
   orchestrationNodeTitleMap,
   partitionCriticalPathNodeIds,
   prioritizeCrossLaneEdges,
 } from '../../lib/orchestration-timeline-projection';
-import { OrchestrationNodeBadgesInline } from '../../lib/orchestration-node-badges';
+import {
+  OrchestrationEvidenceTaxonomyBadgesInline,
+  OrchestrationNodeBadgesInline,
+} from '../../lib/orchestration-node-badges';
 
 export type StrategyLabOrchestratorTabId = 'now' | 'next' | 'dependencies' | 'risks';
 
@@ -46,6 +51,7 @@ export function StrategyLabOrchestratorListBody({
               <span className="text-foreground font-medium">{titleById.get(nodeId) ?? nodeId}</span>
               <span className="mt-1 flex flex-wrap items-center gap-1">
                 <OrchestrationNodeBadgesInline pack={pack} nodeId={nodeId} />
+                <OrchestrationEvidenceTaxonomyBadgesInline pack={pack} nodeId={nodeId} />
               </span>
             </button>
           </li>
@@ -76,6 +82,7 @@ export function StrategyLabOrchestratorListBody({
               <span className="text-foreground font-medium">{titleById.get(nodeId) ?? nodeId}</span>
               <span className="mt-1 flex flex-wrap items-center gap-1">
                 <OrchestrationNodeBadgesInline pack={pack} nodeId={nodeId} />
+                <OrchestrationEvidenceTaxonomyBadgesInline pack={pack} nodeId={nodeId} />
               </span>
             </button>
           </li>
@@ -85,24 +92,64 @@ export function StrategyLabOrchestratorListBody({
   }
 
   if (tab === 'dependencies') {
-    const edges = prioritizeCrossLaneEdges(pack).slice(0, ORCHESTRATION_UI_LIMITS.orchestratorDependenciesMaxEdges);
-    if (edges.length === 0) {
-      return (
-        <div className="text-muted-foreground py-10 text-center text-sm">
-          {STRATEGY_LAB_COPY.orchestratorTabs.emptyDependencies}
-        </div>
-      );
-    }
+    const allEdges = prioritizeCrossLaneEdges(pack);
+    const edgeRows = allEdges.slice(0, ORCHESTRATION_UI_LIMITS.orchestratorDependenciesMaxEdges);
+    const showPackGraph = pack.graph.nodes.length > 0;
+
     return (
-      <ul className="text-muted-foreground space-y-2 text-xs">
-        {edges.map((e, i) => (
-          <li key={`${e.from}-${e.to}-${i}`} className="rounded-lg border border-border bg-card px-3 py-2">
-            <span className="text-foreground font-medium">{titleById.get(e.from) ?? e.from}</span>
-            <span className="text-[var(--text-tertiary)]"> → </span>
-            <span className="text-foreground font-medium">{titleById.get(e.to) ?? e.to}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-4">
+        {showPackGraph ? (
+          <PortalTimelinePackGraphPanel
+            pack={pack}
+            headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
+            headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
+            onConsultantSelectNode={onSelectNode}
+          />
+        ) : null}
+        {allEdges.length === 0 ? (
+          <div className="text-muted-foreground rounded-lg border border-dashed py-10 text-center text-sm">
+            {STRATEGY_LAB_COPY.orchestratorTabs.emptyDependencies}
+          </div>
+        ) : (
+          <div>
+            <div className="text-foreground mb-2 text-xs font-semibold">
+              {STRATEGY_LAB_COPY.orchestratorTabs.dependenciesListTitle}
+            </div>
+            <ul className="text-muted-foreground space-y-2 text-xs">
+              {edgeRows.map((e, i) => {
+                const fromTitle = titleById.get(e.from) ?? e.from;
+                const toTitle = titleById.get(e.to) ?? e.to;
+                return (
+                  <li key={`${e.from}-${e.to}-${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectNode(e.to)}
+                      className={cn(
+                        'w-full rounded-lg border px-3 py-2 text-left transition-all',
+                        selectedNodeId === e.to
+                          ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/10'
+                          : 'border-border bg-card',
+                      )}
+                      aria-pressed={selectedNodeId === e.to}
+                      aria-label={`${ORCHESTRATION_UI_COPY.timelinePackGraphListHighlightEdgeAria}: ${fromTitle} → ${toTitle}`}
+                    >
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="text-foreground font-medium">{fromTitle}</span>
+                        <OrchestrationEvidenceTaxonomyBadgesInline pack={pack} nodeId={e.from} />
+                      </span>
+                      <span className="text-[var(--text-tertiary)]"> → </span>
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="text-foreground font-medium">{toTitle}</span>
+                        <OrchestrationEvidenceTaxonomyBadgesInline pack={pack} nodeId={e.to} />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
     );
   }
 

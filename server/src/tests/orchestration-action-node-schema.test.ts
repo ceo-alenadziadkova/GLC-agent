@@ -26,6 +26,28 @@ describe('OrchestrationActionNodeListSchema', () => {
     expect(parsed[0]?.id).toBe('director:tech:baseline:improve-ci');
   });
 
+  it('accepts optional evidence_taxonomy counts', () => {
+    const parsed = OrchestrationActionNodeListSchema.parse([
+      {
+        id: 'director:seo:deep:fix-meta',
+        title: 'Fix meta descriptions',
+        domain: 'seo_digital',
+        lane: 'seo',
+        dependencies: [],
+        weight: 5,
+        source: 'director',
+        analysis_depth: 'deep',
+        evidence_taxonomy: { observed: 2, derived: 1, assumed: 0, missing: 1 },
+      },
+    ]);
+    expect(parsed[0]?.evidence_taxonomy).toEqual({
+      observed: 2,
+      derived: 1,
+      assumed: 0,
+      missing: 1,
+    });
+  });
+
   it('rejects nodes with unsupported lane ids', () => {
     const result = OrchestrationActionNodeListSchema.safeParse([
       {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
+import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import { OrchestrationNodeDetailCard } from '../OrchestrationNodeDetailCard';
 import { StrategyLabOrchestratorListBody } from '../StrategyLabOrchestratorListBody';
 
@@ -53,5 +54,20 @@ describe('strategy lab orchestrator ui', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('dependencies tab shows pack graph heading and list', () => {
+    const onSelectNode = vi.fn<(id: string | null) => void>();
+    render(
+      <StrategyLabOrchestratorListBody
+        pack={PACK_FIXTURE}
+        tab="dependencies"
+        selectedNodeId={null}
+        onSelectNode={onSelectNode}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: STRATEGY_LAB_COPY.packDependencyMap.sectionTitle })).toBeInTheDocument();
+    expect(screen.getByText(STRATEGY_LAB_COPY.orchestratorTabs.dependenciesListTitle)).toBeInTheDocument();
   });
 });

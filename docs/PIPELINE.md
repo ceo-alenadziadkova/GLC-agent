@@ -160,6 +160,22 @@ When a gate is reached:
 
 ---
 
+## Pipeline Monitor — terminal activity panel (deliberate product UX)
+
+The **phase activity log** in the pipeline monitor (`PipelineMonitorPage` → `PhaseDetailPanel`) is intentionally styled as a **terminal**: dark console surface, monospace lines, and window-style header chrome. That look is a **deliberate system feature** — it communicates *live operational progress* and a credible “engine room” feel for both **consultants** (`/pipeline/:id`) and **portal clients** (`/portal/pipeline/:id`). Do not replace it with a generic card or timeline without an explicit product decision.
+
+- **Consultants** see **raw** messages from `pipeline_events` in the log (plus token usage rows where applicable).
+- **Portal clients** keep the **same terminal chrome**; individual lines are rewritten to **plain-language** copy via `clientPortal.activityLog` in `src/app/data/pipeline-monitor-copy.en.json` and `mapPhaseEventsToClientPortalLogEntries`. Event types such as `token_usage` and `control_object` are omitted from the client-facing list.
+
+Code: `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`, mappers under `src/app/pages/pipeline-monitor/mappers/`.
+
+- **Portal sidebar:** step groups can be collapsed even when they contain `current_phase`; when collapsed, copy from `clientPortal.sidebar.currentStepCollapsedHint` explains that the live step is inside (`PhaseSidebar` → `ClientPortalPhaseSection`).
+- **Portal completed:** a prominent **View report** (primary) and **Strategy roadmap** (secondary) block appears in the detail panel when `audits.status === completed` (`clientPortal.completed` in `pipeline-monitor-copy.en.json`).
+
+*Future backlog (product only):* optional non-terminal “simple” activity presentation for a subset of portal users — only with an explicit spec; default remains the terminal panel above.
+
+---
+
 ## Retry & Recovery
 
 - **Phase-level retry**: A failed phase can be re-run without re-running previous phases

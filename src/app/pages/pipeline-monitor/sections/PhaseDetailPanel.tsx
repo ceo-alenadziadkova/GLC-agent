@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -20,7 +21,11 @@ import { Callout } from '../../../../design-system/ui';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
 import { ANALYTIC_WING_IDS, AUTO_WING_IDS } from '../../../lib/pipeline-monitor-helpers';
-import { getPhaseResultViewPath } from '../utils/pipeline-monitor-format';
+import {
+  buildPortalReportPath,
+  buildPortalStrategyLabPath,
+  getPhaseResultViewPath,
+} from '../utils/pipeline-monitor-format';
 import { STRATEGY_PHASE_ID } from '../phase-meta';
 import { ParallelWingBanner } from '../PipelineMonitorPhaseUi';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
@@ -88,6 +93,12 @@ export function PhaseDetailPanel(props: {
     runNextPhaseBusy,
     onRetryPhase,
   } = props;
+
+  const detailCopy = useMemo(
+    () => (isClient ? { ...PM.detail, ...PM.clientPortal.detail } : PM.detail),
+    [isClient],
+  );
+
   const currentPhase = pipelineState?.current_phase ?? -1;
   /** Mirrors server `fetchPendingReviewAfterPhase(auditId, current_phase)` — blocks Continue until this gate is approved. */
   const pendingReviewForCurrentPhase = pipelineState?.reviews?.find(
@@ -112,10 +123,10 @@ export function PhaseDetailPanel(props: {
   });
   const phaseResultLinkLabel =
     selectedPhase.id === STRATEGY_PHASE_ID
-      ? PM.detail.viewStrategyRoadmap
+      ? detailCopy.viewStrategyRoadmap
       : isClient && auditStatus === PIPELINE_MONITOR_UI_POLICY.status.completed
-        ? PM.detail.viewReport
-      : PM.detail.viewInWorkspace;
+        ? detailCopy.viewReport
+      : detailCopy.viewInWorkspace;
 
   /** Portal clients: no consultant-style workspace shortcut; keep Strategy Lab + finished report only. */
   const showPhaseResultLink =
@@ -130,7 +141,7 @@ export function PhaseDetailPanel(props: {
   );
 
   return (
-    <div className="bg-background flex-1 overflow-y-auto">
+    <div className="bg-background flex min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="max-w-2xl mx-auto ds-pattern-page-shell-body">
         {isCreated && (
           <div className="glc-card mb-6 rounded-xl p-8 text-center">
@@ -157,28 +168,59 @@ export function PhaseDetailPanel(props: {
         {pipeError && (
           <Callout intent="danger" className="mb-4 p-4">
             <p className="text-sm font-medium text-[var(--score-1)]">
-              {PM.errorPrefix} {pipeError}
+              {isClient ? PM.clientPortal.detail.loadErrorPrefix : PM.errorPrefix} {pipeError}
             </p>
           </Callout>
         )}
 
+        {isClient &&
+          auditStatus === PIPELINE_MONITOR_UI_POLICY.status.completed &&
+          !isCreated &&
+          auditId && (
+            <div className="mb-5 rounded-xl border border-success/35 bg-success/10 p-4">
+              <div className="flex gap-3">
+                <Check className="text-success mt-0.5 h-5 w-5 shrink-0" weight="bold" aria-hidden />
+                <div className="min-w-0">
+                  <h3 className="text-foreground text-base font-semibold tracking-tight">
+                    {PM.clientPortal.completed.bannerTitle}
+                  </h3>
+                  <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                    {PM.clientPortal.completed.bannerBody}
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button asChild size="sm" className="no-underline">
+                      <Link to={buildPortalReportPath(auditId)}>
+                        {PM.clientPortal.completed.primaryCta} <CaretRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="no-underline">
+                      <Link to={buildPortalStrategyLabPath(auditId)}>
+                        {PM.clientPortal.completed.secondaryCta} <CaretRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         {isClient && auditStatus === PIPELINE_MONITOR_UI_POLICY.status.review && (
-          <Callout intent="info" className="mb-4 p-4" title={PM.detail.clientReviewGateTitle}>
-            {PM.detail.clientReviewGateBody}
+          <Callout intent="info" className="mb-4 p-4" title={detailCopy.clientReviewGateTitle}>
+            {detailCopy.clientReviewGateBody}
           </Callout>
         )}
 
         {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.cancelled && !canManagePlatformSettings && !isClient && (
           <Callout intent="warning" className="mb-4 p-4">
-            <p className="text-foreground text-sm font-medium">{PM.detail.pipelineCancelledConsultantTitle}</p>
-            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{PM.detail.pipelineCancelledConsultantBody}</p>
+            <p className="text-foreground text-sm font-medium">{detailCopy.pipelineCancelledConsultantTitle}</p>
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{detailCopy.pipelineCancelledConsultantBody}</p>
           </Callout>
         )}
 
         {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.cancelled && canManagePlatformSettings && !isClient && (
           <Callout intent="warning" className="mb-4 p-4">
-            <p className="text-foreground mb-2 text-sm font-medium">{PM.detail.resumeCancelledPlatform}</p>
-            <p className="text-muted-foreground mb-3 text-xs">{PM.detail.resumeCancelledPlatformHint}</p>
+            <p className="text-foreground mb-2 text-sm font-medium">{detailCopy.resumeCancelledPlatform}</p>
+            <p className="text-muted-foreground mb-3 text-xs">{detailCopy.resumeCancelledPlatformHint}</p>
             <Button
               type="button"
               variant="outline"
@@ -188,11 +230,11 @@ export function PhaseDetailPanel(props: {
             >
               {resumeCancelledBusy ? (
                 <>
-                  <ArrowsClockwise className="w-4 h-4 animate-spin" /> {PM.detail.resumeCancelledPlatformBusy}
+                  <ArrowsClockwise className="w-4 h-4 animate-spin" /> {detailCopy.resumeCancelledPlatformBusy}
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4" /> {PM.detail.resumeCancelledPlatform}
+                  <Play className="w-4 h-4" /> {detailCopy.resumeCancelledPlatform}
                 </>
               )}
             </Button>
@@ -206,12 +248,17 @@ export function PhaseDetailPanel(props: {
 
         <AnimatePresence>
           {qualityRunningAuto && (
-            <ParallelWingBanner phases={phases.filter(phase => AUTO_WING_IDS.includes(phase.id))} wingName={PM.parallelWing.autoName} />
+            <ParallelWingBanner
+              phases={phases.filter(phase => AUTO_WING_IDS.includes(phase.id))}
+              wingName={isClient ? PM.clientPortal.parallelWing.autoName : PM.parallelWing.autoName}
+              runningSuffix={isClient ? PM.clientPortal.parallelWing.runningSuffix : undefined}
+            />
           )}
           {qualityRunningAnalytic && (
             <ParallelWingBanner
               phases={phases.filter(phase => ANALYTIC_WING_IDS.includes(phase.id))}
-              wingName={PM.parallelWing.analyticName}
+              wingName={isClient ? PM.clientPortal.parallelWing.analyticName : PM.parallelWing.analyticName}
+              runningSuffix={isClient ? PM.clientPortal.parallelWing.runningSuffix : undefined}
             />
           )}
         </AnimatePresence>
@@ -253,14 +300,14 @@ export function PhaseDetailPanel(props: {
 
             {selectedPhase.id === 0 && !isClient && !isCreated ? (
               <div className="space-y-3">
-                <SectionLabel>{PM.detail.reconPreviewSectionTitle}</SectionLabel>
+                <SectionLabel>{detailCopy.reconPreviewSectionTitle}</SectionLabel>
                 <ReconReviewSummary
                   recon={recon}
                   showCrawlerTruncationWarning={showReconCrawlerTruncationWarning}
                   copy={{
                     ...PM.reviewModal.recon,
-                    introTitle: PM.detail.reconPreviewIntroTitle,
-                    introBody: PM.detail.reconPreviewIntroBody,
+                    introTitle: detailCopy.reconPreviewIntroTitle,
+                    introBody: detailCopy.reconPreviewIntroBody,
                   }}
                 />
               </div>
@@ -275,7 +322,7 @@ export function PhaseDetailPanel(props: {
                 <div className="flex items-center gap-2 mb-3">
                   <ArrowsClockwise className="text-info h-4 w-4 animate-spin" />
                   <span className="text-info text-sm font-semibold">
-                    {PM.detail.agentRunning}
+                    {detailCopy.agentRunning}
                   </span>
                 </div>
                 <div className="bg-info/20 h-1 overflow-hidden rounded-full">
@@ -295,10 +342,10 @@ export function PhaseDetailPanel(props: {
                   <>
                     <WarningCircle className="text-destructive mx-auto mb-3 h-8 w-8" />
                     <p className="text-foreground text-sm font-medium">
-                      {PM.detail.pipelineFailedPendingTitle}
+                      {detailCopy.pipelineFailedPendingTitle}
                     </p>
                     <p className="text-muted-foreground mx-auto mt-2 max-w-md text-xs leading-relaxed">
-                      {PM.detail.pipelineFailedPendingSubtitle}
+                      {detailCopy.pipelineFailedPendingSubtitle}
                     </p>
                     {!isClient && pipelineState != null && (
                       <motion.button
@@ -316,10 +363,10 @@ export function PhaseDetailPanel(props: {
                   <>
                     <Clock className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
                     <p className="text-muted-foreground text-sm font-medium">
-                      {PM.detail.waitingTitle}
+                      {detailCopy.waitingTitle}
                     </p>
                     <p className="text-muted-foreground mt-1 text-xs">
-                      {PM.detail.waitingSubtitle}
+                      {detailCopy.waitingSubtitle}
                     </p>
                   </>
                 )}
@@ -340,16 +387,16 @@ export function PhaseDetailPanel(props: {
               </Callout>
             )}
 
-            {phaseHasAgentOutput && governance.refine && (
+            {!isClient && phaseHasAgentOutput && governance.refine && (
               <div className="bg-warning/10 border-warning/40 rounded-xl border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <WarningCircle className="text-warning h-4 w-4 flex-shrink-0" />
                   <span className="text-foreground text-sm font-semibold">
-                    {PM.detail.governanceRefineTitle}
+                    {detailCopy.governanceRefineTitle}
                   </span>
                 </div>
                 <p className="text-muted-foreground ml-6 mb-2 text-xs">
-                  {PM.detail.governanceRefineBody}
+                  {detailCopy.governanceRefineBody}
                 </p>
                 <p className="text-muted-foreground ml-6 text-xs leading-relaxed">
                   {governance.refine.reasoning}
@@ -357,7 +404,7 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
-            {phaseHasAgentOutput && !governance.refine && governance.controlObject?.decision_hint === 'accept_with_warnings' && (
+            {!isClient && phaseHasAgentOutput && !governance.refine && governance.controlObject?.decision_hint === 'accept_with_warnings' && (
               <div className="bg-info/10 border-info/40 rounded-xl border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="text-info h-4 w-4 flex-shrink-0" />
@@ -371,32 +418,32 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
-            {phaseHasAgentOutput && governance.controlObject && (
+            {!isClient && phaseHasAgentOutput && governance.controlObject && (
               <div className="glc-card rounded-xl p-4">
-                <SectionLabel className="mb-2">{PM.detail.governanceSummaryTitle}</SectionLabel>
+                <SectionLabel className="mb-2">{detailCopy.governanceSummaryTitle}</SectionLabel>
                 {(governance.controlObject.auto_remediation_applied_count ?? 0) > 0 && (
                   <div
                     className="text-success mb-3 inline-block rounded-lg border border-success/40 bg-success/10 px-2.5 py-1.5 text-xs font-semibold"
                   >
-                    {PM.detail.governanceAutoRemediationBadge.replace(
+                    {detailCopy.governanceAutoRemediationBadge.replace(
                       '{count}',
                       String(governance.controlObject.auto_remediation_applied_count),
                     )}
                   </div>
                 )}
                 <dl className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  <dt>{PM.detail.governanceConfidence}</dt>
+                  <dt>{detailCopy.governanceConfidence}</dt>
                   <dd className="font-mono text-right">{governance.controlObject.confidence.overall}</dd>
-                  <dt>{PM.detail.governanceClaims}</dt>
+                  <dt>{detailCopy.governanceClaims}</dt>
                   <dd className="font-mono text-right">{governance.controlObject.counts.total_claims}</dd>
-                  <dt>{PM.detail.governanceHallucination}</dt>
+                  <dt>{detailCopy.governanceHallucination}</dt>
                   <dd className="font-mono text-right">{governance.controlObject.counts.statuses.likely_hallucination}</dd>
-                  <dt>{PM.detail.governanceRiskyPromise}</dt>
+                  <dt>{detailCopy.governanceRiskyPromise}</dt>
                   <dd className="font-mono text-right">{governance.controlObject.counts.statuses.risky_promise}</dd>
                 </dl>
                 {governance.controlObject.human_attention_required.required && (
                   <p className="text-warning-foreground mt-3 text-xs">
-                    {PM.detail.governanceHumanAttention}
+                    {detailCopy.governanceHumanAttention}
                     {governance.controlObject.human_attention_required.reasons.length > 0
                       ? `: ${governance.controlObject.human_attention_required.reasons.join(', ')}`
                       : ''}
@@ -405,18 +452,26 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
+            {/* Terminal-style activity log is intentional product UX — see docs/PIPELINE.md (Pipeline Monitor — terminal activity panel). */}
             {selectedPhase.log.length > 0 && (
               <div className="overflow-hidden rounded-xl border shadow-md">
-                <div className="border-b border-[var(--overlay-white-20)] bg-[var(--ui-code-surface)] flex items-center gap-2 px-4 py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="bg-destructive h-2.5 w-2.5 rounded-full" />
-                    <span className="bg-warning h-2.5 w-2.5 rounded-full" />
-                    <span className="bg-success h-2.5 w-2.5 rounded-full" />
+                <div className="border-b border-[var(--overlay-white-20)] bg-[var(--ui-code-surface)] flex flex-col gap-1 px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-destructive h-2.5 w-2.5 rounded-full" />
+                      <span className="bg-warning h-2.5 w-2.5 rounded-full" />
+                      <span className="bg-success h-2.5 w-2.5 rounded-full" />
+                    </div>
+                    <Terminal className="ml-2 h-3.5 w-3.5 text-[var(--overlay-white-35)]" />
+                    <span className="text-[var(--overlay-white-30)] text-xs font-bold ds-pipeline-log-header-tracking uppercase">
+                      {detailCopy.agentLogPrefix} {selectedPhase.name}
+                    </span>
                   </div>
-                  <Terminal className="ml-2 h-3.5 w-3.5 text-[var(--overlay-white-35)]" />
-                  <span className="text-[var(--overlay-white-30)] text-xs font-bold ds-pipeline-log-header-tracking uppercase">
-                    {PM.detail.agentLogPrefix} {selectedPhase.name}
-                  </span>
+                  {isClient ? (
+                    <p className="text-[var(--overlay-white-30)] text-xs font-normal normal-case leading-snug tracking-normal">
+                      {PM.clientPortal.detail.activityLogClientHint}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="bg-[var(--glc-ink)] font-mono space-y-2 p-4 text-xs">
                   {selectedPhase.log.map((entry, index) => {
@@ -453,6 +508,7 @@ export function PhaseDetailPanel(props: {
                       animate={{ opacity: [1, 0] }}
                       transition={{ duration: PIPELINE_MONITOR_UI_POLICY.animation.cursorBlinkDurationSec, repeat: Infinity }}
                       className="text-info inline-block"
+                      aria-hidden
                     >
                       ▌
                     </motion.span>
@@ -464,7 +520,7 @@ export function PhaseDetailPanel(props: {
             {phaseHasAgentOutput && selectedPhase.score !== null && (
               <div className="glc-card rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <SectionLabel>{PM.detail.domainScore}</SectionLabel>
+                  <SectionLabel>{detailCopy.domainScore}</SectionLabel>
                   <ScoreBadge score={selectedPhase.score} showLabel size="lg" />
                 </div>
               </div>
@@ -486,7 +542,7 @@ export function PhaseDetailPanel(props: {
                   onClick={() => void onRetryPhase(selectedPhase.id)}
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
                 >
-                  <ArrowsClockwise className="w-4 h-4" /> {PM.detail.retryFailedPhase}
+                  <ArrowsClockwise className="w-4 h-4" /> {detailCopy.retryFailedPhase}
                 </motion.button>
               )}
               {showContinuePipeline && (
@@ -505,12 +561,12 @@ export function PhaseDetailPanel(props: {
                   {runNextPhaseBusy ? (
                     <>
                       <CircleNotch className="h-4 w-4 animate-spin" aria-hidden />
-                      {PM.detail.continuePipelineBusy}
+                      {detailCopy.continuePipelineBusy}
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4" aria-hidden />
-                      {PM.detail.continuePipeline}
+                      {detailCopy.continuePipeline}
                     </>
                   )}
                 </motion.button>
@@ -519,7 +575,7 @@ export function PhaseDetailPanel(props: {
           </motion.div>
         </AnimatePresence>
 
-        <PipelineSummaryFooter pipelineState={pipelineState} />
+        <PipelineSummaryFooter pipelineState={pipelineState} isClient={isClient} />
       </div>
     </div>
   );

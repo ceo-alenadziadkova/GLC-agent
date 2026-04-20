@@ -13,7 +13,20 @@ import type { PhaseView } from './types';
 import type { PipelineReview } from './types-pipeline-state';
 import { cn } from '../../components/ui/utils';
 
-export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
+export type PipelineRevBannerCopy = typeof PM.revBanner;
+
+export function PhCard({
+  ph,
+  active,
+  onSel,
+  currentHighlightClassName,
+}: {
+  ph: PhaseView;
+  active: boolean;
+  onSel: () => void;
+  /** Portal: subtle ring when this phase matches server `current_phase`. */
+  currentHighlightClassName?: string;
+}) {
   const I = ph.icon;
   const stIcon = {
     completed: <CheckCircle className="text-success h-3.5 w-3.5" />,
@@ -36,6 +49,7 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
       className={cn(
         'w-full rounded-xl border p-3 text-left transition-all',
         active ? 'ds-pipeline-phase-card-active' : 'bg-card',
+        !active && currentHighlightClassName,
         ph.status === 'pending' ? 'opacity-50' : ph.status === 'skipped' ? 'opacity-35' : '',
       )}
     >
@@ -83,12 +97,14 @@ export function RevBanner({
   onOpenModal,
   hasWarnings,
   canApprove,
+  copy = PM.revBanner,
 }: {
   review: PipelineReview;
   label: string;
   onOpenModal: () => void;
   hasWarnings?: boolean;
   canApprove: boolean;
+  copy?: PipelineRevBannerCopy;
 }) {
   const done = review.status === 'approved';
   const consultantSaved = (review.consultant_notes ?? '').trim();
@@ -103,20 +119,20 @@ export function RevBanner({
             {label}
           </span>
           {!done && hasWarnings && (
-            <span title={PM.revBanner.qualityWarningsTitle} className="inline-flex flex-shrink-0">
+            <span title={copy.qualityWarningsTitle} className="inline-flex flex-shrink-0">
               <WarningCircle size={12} weight="fill" className="text-warning flex-shrink-0" />
             </span>
           )}
         </div>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          {done ? PM.revBanner.approved : hasWarnings ? PM.revBanner.qualityWarningsNotes : PM.revBanner.waitingApproval}
+          {done ? copy.approved : hasWarnings ? copy.qualityWarningsNotes : copy.waitingApproval}
         </p>
         {hasSavedNotes ? (
           <div className="border-border/60 mt-2 max-h-28 space-y-2 overflow-y-auto border-t pt-2 text-left">
             {consultantSaved ? (
               <div>
                 <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
-                  {PM.revBanner.savedConsultantNotes}
+                  {copy.savedConsultantNotes}
                 </p>
                 <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
                   {consultantSaved}
@@ -126,7 +142,7 @@ export function RevBanner({
             {interviewSaved ? (
               <div>
                 <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
-                  {PM.revBanner.savedInterviewNotes}
+                  {copy.savedInterviewNotes}
                 </p>
                 <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
                   {interviewSaved}
@@ -135,7 +151,7 @@ export function RevBanner({
             ) : null}
           </div>
         ) : done ? (
-          <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] leading-snug">{PM.revBanner.noNotesSaved}</p>
+          <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] leading-snug">{copy.noNotesSaved}</p>
         ) : null}
       </div>
       {!done && canApprove && (
@@ -145,12 +161,12 @@ export function RevBanner({
           onClick={onOpenModal}
           className="ds-pipeline-approve-cta flex flex-shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold"
         >
-          {PM.revBanner.approve} <ArrowRight className="w-3 h-3" />
+          {copy.approve} <ArrowRight className="w-3 h-3" />
         </motion.button>
       )}
       {!done && !canApprove && (
         <span className="text-muted-foreground flex-shrink-0 rounded-md border px-2 py-1 text-[length:var(--text-2xs)] font-medium">
-          {PM.revBanner.consultantApproval}
+          {copy.consultantApproval}
         </span>
       )}
     </div>
@@ -211,7 +227,16 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
  * Shows a parallel execution overview with mini cards for each wing phase.
  * Displayed when any phase in the wing is currently running.
  */
-export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; wingName: string }) {
+export function ParallelWingBanner({
+  phases,
+  wingName,
+  runningSuffix = PM.parallelWing.runningSuffix,
+}: {
+  phases: PhaseView[];
+  wingName: string;
+  /** Override suffix after wing name (e.g. client portal copy). */
+  runningSuffix?: string;
+}) {
   const anyRunning = phases.some(p => p.status === 'running');
   if (!anyRunning) return null;
 
@@ -226,7 +251,8 @@ export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; 
       <div className="flex items-center gap-2 mb-3">
         <ArrowsClockwise className="text-info h-3.5 w-3.5 animate-spin" />
         <span className="text-info text-xs font-bold">
-          {wingName}{PM.parallelWing.runningSuffix}
+          {wingName}
+          {runningSuffix}
         </span>
       </div>
       <div className="flex gap-2">

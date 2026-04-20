@@ -3,8 +3,15 @@ import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-co
 import { formatAppInteger } from '../../../lib/number-format';
 import type { PipelineStateLite } from '../types-pipeline-state';
 
-export function PipelineSummaryFooter({ pipelineState }: { pipelineState: PipelineStateLite | null }) {
-  if (!pipelineState) return null;
+export function PipelineSummaryFooter({
+  pipelineState,
+  isClient = false,
+}: {
+  pipelineState: PipelineStateLite | null;
+  /** Portal clients do not see internal token budgets. */
+  isClient?: boolean;
+}) {
+  if (!pipelineState || isClient) return null;
   return (
     <Callout intent="neutral" className="mt-6">
       <div className="flex items-center gap-4 text-xs text-[var(--text-quaternary)]">

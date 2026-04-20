@@ -61,8 +61,9 @@ export function usePipelineMonitorController(id: string | undefined) {
         pipelineState,
         audit,
         isExpress,
+        isClientPortal: isClient,
       }),
-    [pipelineState, audit, isExpress],
+    [pipelineState, audit, isExpress, isClient],
   );
   const selectedPhase = phases.find(phase => phase.id === selectedPhaseId) ?? phases[0];
   const progressPct = selectPipelineProgressPct(phases);

@@ -36,6 +36,18 @@ function hasEvidenceShape(action: DirectorAction): boolean {
   return observed + derived + assumed + missing > 0;
 }
 
+function evidenceTaxonomyCounts(action: DirectorAction):
+  | { observed: number; derived: number; assumed: number; missing: number }
+  | undefined {
+  if (!action.evidence) return undefined;
+  const observed = action.evidence.observed?.length ?? 0;
+  const derived = action.evidence.derived?.length ?? 0;
+  const assumed = action.evidence.assumed?.length ?? 0;
+  const missing = action.evidence.missing?.length ?? 0;
+  if (observed + derived + assumed + missing === 0) return undefined;
+  return { observed, derived, assumed, missing };
+}
+
 function mapOneDirectorAction(args: {
   action: DirectorAction;
   domainKey: DomainKey;
@@ -67,6 +79,7 @@ function mapOneDirectorAction(args: {
     effort_score: effortScore,
     risk_score: normalizeDirectorRisk(args.action.risk),
     time_to_value: effortScore <= 2 ? 'fast' : effortScore >= 4 ? 'slow' : 'medium',
+    evidence_taxonomy: evidenceTaxonomyCounts(args.action),
   };
 }
 
