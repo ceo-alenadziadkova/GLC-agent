@@ -6,10 +6,15 @@ import {
   AUDITS_NOT_FOUND_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
-import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import {
+  getOrchestrationPlanGovernanceRolloutMode,
+  isOrchestrationPackApiEnabled,
+} from '../../../config/feature-flags.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
+import { evaluateOrchestrationPlanGovernance } from '../../../services/orchestration/orchestration-plan-governance.service.js';
+import { summarizeOrchestrationPackRevisionDiff } from '../../../services/orchestration/orchestration-pack-diff.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 export async function getOrchestrationPackController(req: AuthRequest, res: Response) {
@@ -50,11 +55,20 @@ export async function getOrchestrationPackController(req: AuthRequest, res: Resp
       has_pack: result.pack !== null,
       nodes_count: result.pack?.graph.nodes.length ?? 0,
     });
+    const plan_governance = result.pack
+      ? evaluateOrchestrationPlanGovernance(result.pack, {
+          rolloutMode: getOrchestrationPlanGovernanceRolloutMode(),
+        })
+      : null;
+    const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(result.last_revision_diff);
     res.json({
       pack: result.pack,
       orchestration_pack_version: result.orchestration_pack_version,
       roadmap_version: result.orchestration_pack_version,
       last_revision_diff: result.last_revision_diff,
+      last_revision_diff_summary,
+      revision_history: result.revision_history,
+      plan_governance,
     });
   } catch (err) {
     const error = err as Error;

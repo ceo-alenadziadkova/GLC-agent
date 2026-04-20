@@ -9,11 +9,14 @@ import type { PipelineNextResult } from '../domain/pipeline-route.types.js';
 import { claimPipelineFinalizeAfterLastGate, fetchAuditForNext, type AuditForNext } from '../repository/pipeline-audit.repository.js';
 import { fetchAnyPendingReviewForAudit } from '../repository/pipeline-review.repository.js';
 
-function completedOk(disableAutoRemediate: boolean): Extract<PipelineNextResult, { ok: true; outcome: 'completed' }> {
+function completedOk(
+  disableAutoRemediate: boolean,
+  phase: number,
+): Extract<PipelineNextResult, { ok: true; outcome: 'completed' }> {
   return {
     ok: true,
     outcome: 'completed',
-    response: { status: 'completed' },
+    response: { status: 'completed', phase },
     disableAutoRemediate,
   };
 }
@@ -42,7 +45,7 @@ export async function tryFinalizePipelineAtPlanEnd(params: {
   }
 
   if (audit.status === 'completed' && audit.current_phase >= maxPhase) {
-    return completedOk(disableAutoRemediate);
+    return completedOk(disableAutoRemediate, maxPhase);
   }
 
   if (audit.status !== 'review' || audit.current_phase < maxPhase) {
@@ -59,7 +62,7 @@ export async function tryFinalizePipelineAtPlanEnd(params: {
     });
     const maxFresh = maxPhaseForExecutionPlan(planFresh);
     if (fresh.status === 'completed' && fresh.current_phase >= maxFresh) {
-      return completedOk(disableAutoRemediate);
+      return completedOk(disableAutoRemediate, maxFresh);
     }
     if (fresh.status !== 'review' || fresh.current_phase < maxFresh) {
       return { ok: false, error: pipelineRouteErr.nextClaimConflict() };
@@ -67,5 +70,5 @@ export async function tryFinalizePipelineAtPlanEnd(params: {
     claimed = await claimPipelineFinalizeAfterLastGate(auditId, userId, fresh.updated_at);
   }
   if (!claimed) return { ok: false, error: pipelineRouteErr.nextClaimConflict() };
-  return completedOk(disableAutoRemediate);
+  return completedOk(disableAutoRemediate, maxPhase);
 }

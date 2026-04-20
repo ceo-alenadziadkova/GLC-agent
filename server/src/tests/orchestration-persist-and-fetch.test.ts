@@ -71,6 +71,16 @@ function minimalPack(): GlcOrchestrationPack {
       strategy: 'toc_dynamic_routing_v1',
       domain_weights: { marketing_utp: 1 },
     },
+    execution_mode: 'deterministic',
+    confidence_map: { node_confidence: {} },
+    risk_layer: { node_risk: {} },
+    domain_influence: { domain_weights: { marketing_utp: 1 } },
+    input_quality: {
+      input_mode: 'director_enriched',
+      director_coverage_ratio: 1,
+      director_input_coverage_ratio: 1,
+      degraded: false,
+    },
   };
 }
 

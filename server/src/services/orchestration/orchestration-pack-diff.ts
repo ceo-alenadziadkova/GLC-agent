@@ -114,3 +114,44 @@ export function buildOrchestrationPackRevisionDiff(args: {
   };
   return GlcOrchestrationPackRevisionDiffSchema.parse(raw);
 }
+
+/**
+ * Human-readable summary for UI copy and activity feeds.
+ */
+export function summarizeOrchestrationPackRevisionDiff(
+  diff: GlcOrchestrationPackRevisionDiff | null,
+): string | null {
+  if (!diff) return null;
+  const nodesAdded = Array.isArray((diff as { nodes_added?: unknown }).nodes_added)
+    ? diff.nodes_added.length
+    : 0;
+  const nodesRemoved = Array.isArray((diff as { nodes_removed?: unknown }).nodes_removed)
+    ? diff.nodes_removed.length
+    : 0;
+  const laneChanges = Array.isArray((diff as { nodes_lane_changed?: unknown }).nodes_lane_changed)
+    ? diff.nodes_lane_changed.length
+    : 0;
+  const edgesAdded = Array.isArray((diff as { edges_added?: unknown }).edges_added)
+    ? diff.edges_added.length
+    : 0;
+  const edgesRemoved = Array.isArray((diff as { edges_removed?: unknown }).edges_removed)
+    ? diff.edges_removed.length
+    : 0;
+  const parts: string[] = [];
+  if (nodesAdded > 0) parts.push(`+${nodesAdded} initiatives`);
+  if (nodesRemoved > 0) parts.push(`-${nodesRemoved} initiatives`);
+  if (laneChanges > 0) parts.push(`${laneChanges} lane changes`);
+  if (edgesAdded > 0 || edgesRemoved > 0) {
+    parts.push(`deps +${edgesAdded}/-${edgesRemoved}`);
+  }
+  if (diff.critical_path_changed) parts.push('critical path updated');
+  if (diff.execution_mode_changed) parts.push('execution mode updated');
+  if (diff.confidence_map_changed) parts.push('confidence model updated');
+  if (diff.risk_layer_changed) parts.push('risk layer updated');
+  if (diff.domain_influence_changed) parts.push('domain influence updated');
+  if (diff.conflicts_resolved_before !== diff.conflicts_resolved_after) {
+    parts.push(`conflicts ${diff.conflicts_resolved_before} -> ${diff.conflicts_resolved_after}`);
+  }
+  if (parts.length === 0) return `No structural changes (v${diff.from_version} -> v${diff.to_version})`;
+  return `v${diff.from_version} -> v${diff.to_version}: ${parts.join(', ')}`;
+}

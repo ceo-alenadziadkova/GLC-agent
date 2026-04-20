@@ -3,6 +3,12 @@ export const PIPELINE_EVENT_TYPES = {
   started: 'started',
   completed: 'completed',
   error: 'error',
+  llmCallStarted: 'llm_call_started',
+  llmCallCompleted: 'llm_call_completed',
+  llmCallFailed: 'llm_call_failed',
+  orchestrationStarted: 'orchestration_started',
+  orchestrationCompleted: 'orchestration_completed',
+  orchestrationError: 'orchestration_error',
   parallelStarted: 'parallel_started',
   parallelCompleted: 'parallel_completed',
   partialFailure: 'partial_failure',
@@ -17,6 +23,13 @@ export const PIPELINE_EVENT_TYPES = {
   reviewNeeded: 'review_needed',
   phaseStalled: 'phase_stalled',
 } as const;
+
+export const PIPELINE_LOG_DETAIL_LEVELS = {
+  default: 'default',
+  debug: 'debug',
+} as const;
+
+export type PipelineLogDetailLevel = (typeof PIPELINE_LOG_DETAIL_LEVELS)[keyof typeof PIPELINE_LOG_DETAIL_LEVELS];
 
 export const PIPELINE_LIFECYCLE_EVENT_TYPES = [
   PIPELINE_EVENT_TYPES.started,

@@ -4,7 +4,7 @@ import { api } from '../data/apiService';
 import { ApiError } from '../data/api-error';
 import type { PipelineEvent } from '../data/auditTypes';
 import { getGlcQueryClient } from '../lib/glc-query-client';
-import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
+import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../lib/glc-invalidate-queries';
 import { UI_POLICY } from '../config/ui-policy';
 import { toUiApiErrorMessage } from '../lib/api-error-ui';
 import { isPipelineAuditActiveStatus } from '../lib/pipeline-monitor-helpers';
@@ -26,9 +26,13 @@ interface PipelineState {
   } | null;
   events: PipelineEvent[];
   reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
+  event_page?: { limit: number; next_before: string | null; detail_level: 'default' | 'debug' };
 }
 
-export function usePipeline(auditId: string | undefined) {
+export function usePipeline(
+  auditId: string | undefined,
+  options?: { detailLevel?: 'default' | 'debug'; eventLimit?: number },
+) {
   const [state, setState] = useState<PipelineState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +53,10 @@ export function usePipeline(auditId: string | undefined) {
     if (initialEmpty) setLoading(true);
     try {
       const requestId = ++loadRequestIdRef.current;
-      const data = await api.getPipelineStatus(auditId);
+      const data = await api.getPipelineStatus(auditId, {
+        detail_level: options?.detailLevel ?? 'default',
+        limit: options?.eventLimit ?? UI_POLICY.pipeline.maxEventsInMemory,
+      });
       if (requestId !== loadRequestIdRef.current) return null;
       setState(data);
       setError(null);
@@ -60,7 +67,7 @@ export function usePipeline(auditId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [auditId]);
+  }, [auditId, options?.detailLevel, options?.eventLimit]);
 
   // Subscribe to realtime pipeline events
   useEffect(() => {
@@ -124,7 +131,9 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.startPipeline(auditId);
-      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
       setError(toUiApiErrorMessage(err));
@@ -138,7 +147,9 @@ export function usePipeline(auditId: string | undefined) {
     setRunNextPhaseBusy(true);
     try {
       await api.runNextPhase(auditId);
-      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
       const claimConflict =
@@ -148,7 +159,9 @@ export function usePipeline(auditId: string | undefined) {
       if (claimConflict) {
         const fresh = await load();
         if (fresh && isPipelineAuditActiveStatus(fresh.status)) {
-          invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+          const qc = getGlcQueryClient();
+          invalidateAuditRelatedQueries(qc, auditId);
+          invalidateAuditsListsAndDashboard(qc);
           return;
         }
       }
@@ -163,7 +176,9 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.stopPipeline(auditId);
-      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
       setError(toUiApiErrorMessage(err));
@@ -174,7 +189,9 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.retryPhase(auditId, phase);
-      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
       setError(toUiApiErrorMessage(err));
@@ -185,7 +202,9 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return false;
     try {
       await api.approveReview(auditId, phase, consultantNotes, interviewNotes);
-      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       await load();
       return true;
     } catch (err) {
@@ -193,6 +212,24 @@ export function usePipeline(auditId: string | undefined) {
       return false;
     }
   }, [auditId, load]);
+
+  const loadMoreEvents = useCallback(async () => {
+    if (!auditId || !stateRef.current?.event_page?.next_before) return;
+    const next = await api.getPipelineStatus(auditId, {
+      detail_level: options?.detailLevel ?? 'default',
+      limit: options?.eventLimit ?? UI_POLICY.pipeline.maxEventsInMemory,
+      before: stateRef.current.event_page.next_before,
+    });
+    setState(prev => {
+      if (!prev) return prev;
+      const merged = [...prev.events, ...next.events].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return {
+        ...prev,
+        ...next,
+        events: merged.slice(0, UI_POLICY.pipeline.maxEventsInMemory),
+      };
+    });
+  }, [auditId, options?.detailLevel, options?.eventLimit]);
 
   return {
     state,
@@ -205,5 +242,6 @@ export function usePipeline(auditId: string | undefined) {
     stopPipeline,
     retryPhase,
     approveReview,
+    loadMoreEvents,
   };
 }

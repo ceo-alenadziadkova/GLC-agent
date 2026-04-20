@@ -14,6 +14,7 @@ import type { BriefQuestion, BriefResponses, BriefResponseValue } from '../data/
 import { groupBriefQuestionsBySection, unwrapResponse, WEBSITE_PRESENCE_NO_SITE_LABEL } from '../data/briefQuestions';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import { Input } from '../../design-system/ui';
+import { formatAppMediumDateTime } from '../lib/date-format';
 
 type FormValues = {
   contact_name: string;
@@ -200,7 +201,7 @@ export function PublicBriefPage() {
             </p>
             {submittedAt && (
               <p className="text-muted-foreground mt-2 text-xs">
-                {PB.submittedAtPrefix} {new Date(submittedAt).toLocaleString()}
+                {PB.submittedAtPrefix} {formatAppMediumDateTime(submittedAt)}
               </p>
             )}
           </div>
@@ -284,7 +285,7 @@ export function PublicBriefPage() {
               </div>
               {savedAt && (
                 <p className="text-muted-foreground text-xs">
-                  {PB.savedAtPrefix} {new Date(savedAt).toLocaleString()}
+                  {PB.savedAtPrefix} {formatAppMediumDateTime(savedAt)}
                 </p>
               )}
             </div>

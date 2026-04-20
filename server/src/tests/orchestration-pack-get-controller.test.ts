@@ -43,6 +43,7 @@ describe('getOrchestrationPackController', () => {
       pack: null,
       orchestration_pack_version: 0,
       last_revision_diff: null,
+      revision_history: [],
     });
   });
 
@@ -84,6 +85,7 @@ describe('getOrchestrationPackController', () => {
       pack,
       orchestration_pack_version: 2,
       last_revision_diff: diff,
+      revision_history: [],
     });
     const req = { params: { id: 'audit-1' }, userId: 'user-1' } as unknown;
     const res = createRes();
@@ -95,6 +97,9 @@ describe('getOrchestrationPackController', () => {
       orchestration_pack_version: 2,
       roadmap_version: 2,
       last_revision_diff: diff,
+      last_revision_diff_summary: expect.any(String),
+      revision_history: [],
+      plan_governance: expect.any(Object),
     });
   });
 });

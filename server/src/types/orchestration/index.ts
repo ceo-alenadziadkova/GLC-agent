@@ -1,6 +1,8 @@
 import type {
   OrchestrationConstraintKey,
   OrchestrationConflictResolution,
+  OrchestrationFallbackReasonCode,
+  OrchestrationInputMode,
   OrchestrationDependencyRelationKind,
   OrchestrationExecutionMode,
   OrchestrationGraphNodeAnalysisDepth,
@@ -15,7 +17,9 @@ export type {
   OrchestrationConstraintKey,
   OrchestrationDependencyRelationKind,
   OrchestrationExecutionMode,
+  OrchestrationFallbackReasonCode,
   OrchestrationGraphNodeAnalysisDepth,
+  OrchestrationInputMode,
   OrchestrationGraphNodeSource,
 } from '../../config/orchestration-graph-policy.js';
 
@@ -111,4 +115,12 @@ export interface OrchestrationPackPolicyEnvelope {
   confidence_map: OrchestrationConfidenceMap;
   risk_layer: OrchestrationRiskLayer;
   domain_influence: OrchestrationDomainInfluence;
+}
+
+export interface OrchestrationInputQuality {
+  input_mode: OrchestrationInputMode;
+  director_coverage_ratio: number;
+  director_input_coverage_ratio: number;
+  degraded: boolean;
+  fallback_reason_code?: OrchestrationFallbackReasonCode;
 }

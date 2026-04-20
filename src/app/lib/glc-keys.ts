@@ -7,7 +7,8 @@ export const glcKeys = {
     detail: (id: string) => ['glc', 'brief', 'detail', id] as const,
   },
   audits: {
-    list: (limit: number, offset: number) => ['glc', 'audits', 'list', limit, offset] as const,
+    list: (limit: number, offset: number, userId: string | null) =>
+      ['glc', 'audits', 'list', userId ?? 'anonymous', limit, offset] as const,
     listsPrefix: ['glc', 'audits', 'list'] as const,
   },
   dashboard: () => ['glc', 'dashboard'] as const,

@@ -15,6 +15,7 @@ function plan(partial: Partial<AuditExecutionPlan> & Pick<AuditExecutionPlan, 's
 
 function manifest(payload: Partial<RoadmapManifestPayload> & Pick<RoadmapManifestPayload, 'selected_domains'>): RoadmapManifestPayload {
   return {
+    schema_version: 1,
     change_scenario: 'hybrid',
     season_preset: 'rolling_90d',
     ...payload,

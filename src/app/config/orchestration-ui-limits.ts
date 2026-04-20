@@ -5,6 +5,8 @@ import type { OrchestrationSeasonPreset } from './orchestration-roadmap-manifest
 
 /** DOM id for Strategy Lab orchestration block (same id on Report Viewer timeline for in-page anchors). */
 export const ORCHESTRATION_PANEL_DOM_ID = 'glc-execution-roadmap' as const;
+/** DOM id for manifest setup entry section within timeline page. */
+export const ORCHESTRATION_MANIFEST_SETUP_DOM_ID = 'manifest-setup' as const;
 
 export const ORCHESTRATION_UI_LIMITS = {
   /** Max dependency rows shown under timeline (Report + Lab). */

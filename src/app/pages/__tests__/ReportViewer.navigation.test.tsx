@@ -55,7 +55,7 @@ vi.mock('../../features/report-viewer/components/FollowUpCard', () => ({
   FollowUpCard: () => null,
 }));
 
-describe('ReportViewer strategy navigation', () => {
+describe('ReportViewer navigation targets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuditMock.mockReturnValue({
@@ -72,7 +72,7 @@ describe('ReportViewer strategy navigation', () => {
     });
   });
 
-  it('uses portal strategy path when opened from portal report', async () => {
+  it('uses portal timeline path when opened from portal report', async () => {
     render(
       <MemoryRouter initialEntries={['/portal/reports/audit-1']}>
         <Routes>
@@ -81,13 +81,15 @@ describe('ReportViewer strategy navigation', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /View Strategy Lab/i })).toHaveAttribute(
+    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
+    expect(timelineLinks.some(link => link.getAttribute('href') === '/portal/timeline/audit-1')).toBe(true);
+    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
       'href',
-      '/portal/strategy/audit-1',
+      '/portal/timeline/audit-1#manifest-setup',
     );
   });
 
-  it('uses consultant strategy path when opened from workspace report', async () => {
+  it('uses consultant timeline path when opened from workspace report', async () => {
     render(
       <MemoryRouter initialEntries={['/reports/audit-1']}>
         <Routes>
@@ -96,9 +98,11 @@ describe('ReportViewer strategy navigation', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /View Strategy Lab/i })).toHaveAttribute(
+    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline|View execution timeline/i });
+    expect(timelineLinks.some(link => link.getAttribute('href') === '/timeline/audit-1')).toBe(true);
+    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
       'href',
-      '/strategy/audit-1',
+      '/timeline/audit-1#manifest-setup',
     );
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CRAWLER_PHONE_PLAIN_MAX_DIGITS,
   crawlerContactPhoneDigitsLikelyYYYYMMDD,
+  crawlerContactPhoneDigitsLikelyUnixTimestamp,
 } from '../config/crawler-contact-extraction.js';
 
 describe('crawlerContactPhoneDigitsLikelyYYYYMMDD', () => {
@@ -21,5 +23,26 @@ describe('crawlerContactPhoneDigitsLikelyYYYYMMDD', () => {
   it('does not flag 8-digit numbers with impossible month/day fields', () => {
     expect(crawlerContactPhoneDigitsLikelyYYYYMMDD('20261301')).toBe(false);
     expect(crawlerContactPhoneDigitsLikelyYYYYMMDD('20260299')).toBe(false);
+  });
+});
+
+describe('crawlerContactPhoneDigitsLikelyUnixTimestamp', () => {
+  it('flags 10-digit unix second timestamps', () => {
+    expect(crawlerContactPhoneDigitsLikelyUnixTimestamp('1776690092')).toBe(true);
+  });
+
+  it('flags 13-digit unix millisecond timestamps', () => {
+    expect(crawlerContactPhoneDigitsLikelyUnixTimestamp('1776693600000')).toBe(true);
+  });
+
+  it('does not flag regular phone-like values', () => {
+    expect(crawlerContactPhoneDigitsLikelyUnixTimestamp('+375293022277')).toBe(false);
+    expect(crawlerContactPhoneDigitsLikelyUnixTimestamp('651765591')).toBe(false);
+  });
+});
+
+describe('crawler phone plain-number policy', () => {
+  it('keeps plain-digit local numbers bounded', () => {
+    expect(CRAWLER_PHONE_PLAIN_MAX_DIGITS).toBe(11);
   });
 });

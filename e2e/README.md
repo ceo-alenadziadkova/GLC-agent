@@ -21,6 +21,10 @@ These tests are **not** executed in GitHub Actions; run them locally (or in stag
 | `intake-public-mocked.spec.ts` | `IntakeBrief` shell with mocked `GET /api/intake/:token` |
 | `discovery-ui-fragment.spec.ts` | `GET /api/discover/ui-fragment` contract + both discovery URLs |
 | `staging-auth-claim.spec.ts` | Real Supabase staging: sign-in, sign-out, snapshot skeleton (skipped without env) |
+| `orchestration-timeline-manifest.spec.ts` | Protected orchestration manifest preview flow (coverage -> preview) |
+| `orchestration-snapshot-regenerate.spec.ts` | Protected orchestration snapshot -> pack regenerate -> diff history flow |
+| `orchestration-governance-conflicts.spec.ts` | Protected orchestration governance payload contract (`200/409`) |
+| `orchestration-depth-lanes-sync.spec.ts` | Protected orchestration pack contract for director depth/lane sync |
 
 ## Scope
 
@@ -51,3 +55,12 @@ The spec is skipped unless all required env vars are provided:
 Optional:
 
 - `E2E_STAGING_SNAPSHOT_URL` (defaults to `https://example.com`)
+
+## Orchestration protected E2E
+
+Orchestration specs are intentionally token-based and run only when env is provided:
+
+- `E2E_ORCHESTRATION_AUDIT_ID`
+- `E2E_ORCHESTRATION_AUTH_TOKEN`
+
+Without these env vars the specs are skipped (safe default for local smoke runs).

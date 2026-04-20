@@ -14,7 +14,8 @@ import {
   directorOrchestrationPersistenceModeForPhase,
   isDirectorOrchestrationPhaseAllowed,
 } from '../../config/director-orchestration-policy.js';
-import { extractGlcDirectorOrchestrationSliceFromAgentOutput } from '../orchestration/extract-glc-director-slice-from-agent-output.js';
+import { isDirectorOrchestrationAgentOutputEnabled } from '../../config/feature-flags.js';
+import { extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed } from '../orchestration/extract-glc-director-slice-from-agent-output.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -69,6 +70,16 @@ export async function runPhaseDomainExecution(
 
   const agent = new AgentClass(auditId);
 
+  if (domainKey !== 'recon' && domainKey !== 'strategy' && isDirectorOrchestrationPhaseAllowed(phase)) {
+    const persistenceMode = directorOrchestrationPersistenceModeForPhase(phase);
+    if (persistenceMode === 'strict_for_selected_domains' && !isDirectorOrchestrationAgentOutputEnabled()) {
+      throw new Error(
+        'Director orchestration strict mode is enabled, but agent-output slice is disabled by feature flag. ' +
+          'Set FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT=true only after the agent output contract is implemented.',
+      );
+    }
+  }
+
   if (domainKey !== 'recon' && domainKey !== 'strategy') {
     const banditResult = await banditService.selectVariant(domainKey as DomainKey);
     agent.selectedVariantId = banditResult.variant_id;
@@ -107,7 +118,10 @@ export async function runPhaseDomainExecution(
     }
 
     if (isDirectorOrchestrationPhaseAllowed(phase)) {
-      const directorSlice = extractGlcDirectorOrchestrationSliceFromAgentOutput(agent.lastRawDomainResult);
+      const directorExtraction = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed(
+        agent.lastRawDomainResult,
+      );
+      const directorSlice = directorExtraction.slice;
       const persistenceMode = directorOrchestrationPersistenceModeForPhase(phase);
       if (directorSlice) {
         const persistDirector = await persistGlcDirectorOrchestrationSliceForAuditOwner({
@@ -134,6 +148,18 @@ export async function runPhaseDomainExecution(
           phase,
           domainKey,
           mode: persistenceMode,
+          parse_mode: directorExtraction.mode,
+        });
+        throw new Error(
+          `Director orchestration slice is required in strict mode (parse_mode=${directorExtraction.mode})`,
+        );
+      } else if (directorExtraction.mode !== 'missing') {
+        logger.info('pipeline.director_orchestration_slice_degraded_legacy', {
+          auditId,
+          phase,
+          domainKey,
+          mode: persistenceMode,
+          parse_mode: directorExtraction.mode,
         });
       }
     }

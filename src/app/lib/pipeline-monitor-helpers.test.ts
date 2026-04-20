@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getAuditListPillPresentation,
   getPhaseStatus,
   getPipelineMonitorHeaderPresentation,
   isPipelineAuditActiveStatus,
@@ -70,5 +71,16 @@ describe('getPipelineMonitorHeaderPresentation', () => {
 
   it('maps failed audits to failed pill', () => {
     expect(getPipelineMonitorHeaderPresentation('failed')).toEqual({ status: 'failed', pulse: false });
+  });
+});
+
+describe('getAuditListPillPresentation', () => {
+  it('maps review and failed to distinct badges without running pulse', () => {
+    expect(getAuditListPillPresentation('review')).toEqual({ status: 'review', pulse: false });
+    expect(getAuditListPillPresentation('failed')).toEqual({ status: 'failed', pulse: false });
+  });
+
+  it('maps active orchestrator statuses to running pulse', () => {
+    expect(getAuditListPillPresentation('auto')).toEqual({ status: 'running', pulse: true });
   });
 });

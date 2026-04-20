@@ -36,3 +36,11 @@ export const pipelineReviewApproveBodySchema = z.object({
   consultant_notes: z.union([z.string(), z.null(), z.undefined()]).optional(),
   interview_notes: z.union([z.string(), z.null(), z.undefined()]).optional(),
 });
+
+export const pipelineStatusQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  before: z.string().datetime().optional(),
+  phase: z.coerce.number().int().min(-1).max(99).optional(),
+  event_type: z.string().trim().min(1).max(64).optional(),
+  detail_level: z.enum(['default', 'debug']).optional(),
+});

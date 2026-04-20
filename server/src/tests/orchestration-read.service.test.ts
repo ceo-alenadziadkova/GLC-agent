@@ -7,6 +7,7 @@ const auditRepoMocks = vi.hoisted(() => ({
 
 const roadmapMocks = vi.hoisted(() => ({
   fetchRoadmapManifestSnapshotForAudit: vi.fn(),
+  fetchLatestRoadmapManifestSnapshotIdForAudit: vi.fn(),
 }));
 
 vi.mock('../repositories/audits/audit-read-model.repository.js', () => ({
@@ -19,6 +20,7 @@ vi.mock('../services/orchestration/roadmap-manifest.service.js', async (importOr
   return {
     ...actual,
     fetchRoadmapManifestSnapshotForAudit: roadmapMocks.fetchRoadmapManifestSnapshotForAudit,
+    fetchLatestRoadmapManifestSnapshotIdForAudit: roadmapMocks.fetchLatestRoadmapManifestSnapshotIdForAudit,
   };
 });
 
@@ -58,6 +60,7 @@ function fulfilled<T>(data: T | null) {
 describe('buildOrchestrationPackForAudit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    roadmapMocks.fetchLatestRoadmapManifestSnapshotIdForAudit.mockResolvedValue({ id: SNAPSHOT_ID });
   });
 
   it('returns a pack when audit, manifest, and strategy initiatives are present', async () => {
@@ -108,6 +111,59 @@ describe('buildOrchestrationPackForAudit', () => {
     expect(pack!.graph.nodes.map((n) => n.id).sort()).toEqual(['read-1', 'read-2', 'read-3'].sort());
   });
 
+  it('is deterministic for identical inputs (idempotent build output)', async () => {
+    const initiative = minimalStrategyInitiative('stable-1');
+    auditRepoMocks.fetchAuditByIdForUser.mockResolvedValue({
+      data: {
+        id: AUDIT_ID,
+        product_mode: 'complete',
+        execution_plan: {
+          selected_domains: ['marketing_utp', 'ux_conversion'],
+          depth: 'standard',
+          source: 'user_selected',
+          include_strategy: true,
+        },
+      },
+      error: null,
+    });
+    roadmapMocks.fetchRoadmapManifestSnapshotForAudit.mockResolvedValue({
+      id: SNAPSHOT_ID,
+      payload: {
+        selected_domains: ['ux_conversion', 'marketing_utp'],
+        change_scenario: 'hybrid',
+        season_preset: 'rolling_90d',
+      },
+    });
+    auditRepoMocks.fetchAuditRelatedReadModel.mockResolvedValue([
+      fulfilled({}),
+      fulfilled([]),
+      fulfilled({
+        audit_id: AUDIT_ID,
+        quick_wins: [initiative],
+        medium_term: [minimalStrategyInitiative('stable-2')],
+        strategic: [minimalStrategyInitiative('stable-3')],
+        schema_version: 2,
+      }),
+      fulfilled([]),
+      fulfilled(null),
+    ]);
+
+    const first = await buildOrchestrationPackForAudit({
+      auditId: AUDIT_ID,
+      userId: USER_ID,
+      manifestSnapshotId: SNAPSHOT_ID,
+    });
+    const second = await buildOrchestrationPackForAudit({
+      auditId: AUDIT_ID,
+      userId: USER_ID,
+      manifestSnapshotId: SNAPSHOT_ID,
+    });
+
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(second).toEqual(first);
+  });
+
   it('returns null when manifest snapshot is missing', async () => {
     auditRepoMocks.fetchAuditByIdForUser.mockResolvedValue({
       data: {
@@ -123,6 +179,41 @@ describe('buildOrchestrationPackForAudit', () => {
       error: null,
     });
     roadmapMocks.fetchRoadmapManifestSnapshotForAudit.mockResolvedValue(null);
+
+    const pack = await buildOrchestrationPackForAudit({
+      auditId: AUDIT_ID,
+      userId: USER_ID,
+      manifestSnapshotId: SNAPSHOT_ID,
+    });
+
+    expect(pack).toBeNull();
+  });
+
+  it('returns null when manifest snapshot is stale (not latest)', async () => {
+    auditRepoMocks.fetchAuditByIdForUser.mockResolvedValue({
+      data: {
+        id: AUDIT_ID,
+        product_mode: 'complete',
+        execution_plan: {
+          selected_domains: ['marketing_utp'],
+          depth: 'standard',
+          source: 'user_selected',
+          include_strategy: true,
+        },
+      },
+      error: null,
+    });
+    roadmapMocks.fetchRoadmapManifestSnapshotForAudit.mockResolvedValue({
+      id: SNAPSHOT_ID,
+      payload: {
+        selected_domains: ['marketing_utp'],
+        change_scenario: 'hybrid',
+        season_preset: 'rolling_90d',
+      },
+    });
+    roadmapMocks.fetchLatestRoadmapManifestSnapshotIdForAudit.mockResolvedValue({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    });
 
     const pack = await buildOrchestrationPackForAudit({
       auditId: AUDIT_ID,

@@ -14,9 +14,12 @@ import { patchStrategyLabContextController } from './controllers/patch-strategy-
 import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
 import { postRoadmapManifestSnapshotController } from './controllers/post-roadmap-manifest-snapshot.controller.js';
 import { getRoadmapManifestSnapshotsController } from './controllers/get-roadmap-manifest-snapshots.controller.js';
+import { getRoadmapManifestSnapshotLatestController } from './controllers/get-roadmap-manifest-snapshot-latest.controller.js';
 import { postRoadmapManifestPreviewController } from './controllers/post-roadmap-manifest-preview.controller.js';
 import { postOrchestrationPackController } from './controllers/post-orchestration-pack.controller.js';
+import { postOrchestrationPackRegenerateController } from './controllers/post-orchestration-pack-regenerate.controller.js';
 import { getOrchestrationPackController } from './controllers/get-orchestration-pack.controller.js';
+import { getOrchestrationPackDiffController } from './controllers/get-orchestration-pack-diff.controller.js';
 import { getOrchestrationPackDiffHistoryController } from './controllers/get-orchestration-pack-diff-history.controller.js';
 import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
@@ -79,17 +82,35 @@ auditsRouter.get(
   rejectGuestFromPortal,
   getRoadmapManifestSnapshotsController,
 );
+auditsRouter.get(
+  '/:id/roadmap/manifest-snapshots/latest',
+  attachProfile,
+  rejectGuestFromPortal,
+  getRoadmapManifestSnapshotLatestController,
+);
 auditsRouter.post(
   '/:id/orchestration/pack',
   attachProfile,
   rejectGuestFromPortal,
   postOrchestrationPackController,
 );
+auditsRouter.post(
+  '/:id/orchestration/pack/regenerate',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationPackRegenerateController,
+);
 auditsRouter.get(
   '/:id/orchestration/pack',
   attachProfile,
   rejectGuestFromPortal,
   getOrchestrationPackController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack-diff',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackDiffController,
 );
 auditsRouter.get(
   '/:id/orchestration/pack-diff-history',

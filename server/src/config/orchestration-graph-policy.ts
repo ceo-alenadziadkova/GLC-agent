@@ -4,6 +4,31 @@
 
 export const GLC_ORCHESTRATION_PACK_SCHEMA_VERSION = 2 as const;
 
+/** Input provenance mode for pack build quality messaging. */
+export const ORCHESTRATION_INPUT_MODES = ['director_enriched', 'strategy_fallback'] as const;
+export type OrchestrationInputMode = (typeof ORCHESTRATION_INPUT_MODES)[number];
+
+export const ORCHESTRATION_FALLBACK_REASON_CODES = [
+  'director_slice_missing',
+  'director_slice_partial',
+  'director_slice_invalid',
+] as const;
+export type OrchestrationFallbackReasonCode = (typeof ORCHESTRATION_FALLBACK_REASON_CODES)[number];
+
+export const ORCHESTRATION_DEFAULT_INPUT_QUALITY = {
+  input_mode: 'strategy_fallback',
+  director_coverage_ratio: 0,
+  director_input_coverage_ratio: 0,
+  degraded: true,
+  fallback_reason_code: 'director_slice_missing',
+} as const satisfies {
+  input_mode: OrchestrationInputMode;
+  director_coverage_ratio: number;
+  director_input_coverage_ratio: number;
+  degraded: boolean;
+  fallback_reason_code: OrchestrationFallbackReasonCode;
+};
+
 /** Execution mode recorded in persisted pack for ADR-aligned client messaging. */
 export const ORCHESTRATION_EXECUTION_MODES = ['deterministic', 'hybrid', 'synthesis'] as const;
 export type OrchestrationExecutionMode = (typeof ORCHESTRATION_EXECUTION_MODES)[number];
@@ -43,6 +68,17 @@ export type OrchestrationDuplicateInitiativeIdPolicy =
 
 export const ORCHESTRATION_DUPLICATE_INITIATIVE_ID_POLICY: OrchestrationDuplicateInitiativeIdPolicy =
   'keep_first';
+
+/**
+ * Canonical merge precedence for action inputs:
+ * - domains covered by director slices use director actions as source of truth
+ * - strategy nodes remain as fallback for uncovered domains
+ * - dependency-linked strategy nodes can be retained to preserve graph continuity
+ */
+export const ORCHESTRATION_SOURCE_PRECEDENCE = {
+  canonical: ['director', 'strategy'] as const,
+  retainStrategyDependencyAnchors: true,
+} as const;
 
 /** Maximum initiatives folded into one graph (safety cap). */
 export const ORCHESTRATION_GRAPH_MAX_NODES = 64;

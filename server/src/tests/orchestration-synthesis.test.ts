@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const ffMock = vi.hoisted(() => ({ enabled: false }));
+const ffMock = vi.hoisted(() => ({ enabled: false, rolloutPercent: 0 }));
 const invokeMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../config/feature-flags.js', async (importOriginal) => {
@@ -8,6 +8,7 @@ vi.mock('../config/feature-flags.js', async (importOriginal) => {
   return {
     ...actual,
     isOrchestrationConflictSynthesisEnabled: () => ffMock.enabled,
+    getOrchestrationConflictSynthesisRolloutPercent: () => ffMock.rolloutPercent,
   };
 });
 
@@ -71,6 +72,16 @@ function minimalPack(overrides?: Partial<GlcOrchestrationPack>): GlcOrchestratio
       strategy: 'toc_dynamic_routing_v1',
       domain_weights: { marketing_utp: 1 },
     },
+    execution_mode: 'deterministic',
+    confidence_map: { node_confidence: {} },
+    risk_layer: { node_risk: {} },
+    domain_influence: { domain_weights: { marketing_utp: 1 } },
+    input_quality: {
+      input_mode: 'director_enriched',
+      director_coverage_ratio: 1,
+      director_input_coverage_ratio: 1,
+      degraded: false,
+    },
   };
   return { ...base, ...overrides };
 }
@@ -132,6 +143,7 @@ describe('buildOrchestrationSynthesisUserJson', () => {
       normalizedStrategy: {},
       domainRows: [],
       roadmapManifest: {
+        schema_version: 1,
         selected_domains: ['marketing_utp'],
         change_scenario: 'hybrid',
         season_preset: 'rolling_90d',
@@ -148,6 +160,7 @@ describe('buildOrchestrationSynthesisUserJson', () => {
 describe('runOrchestrationSynthesisIfEnabled', () => {
   beforeEach(() => {
     ffMock.enabled = false;
+    ffMock.rolloutPercent = 0;
     invokeMock.mockReset();
   });
 
@@ -165,6 +178,7 @@ describe('runOrchestrationSynthesisIfEnabled', () => {
 
   it('falls back to deterministic pack when Claude invoke fails', async () => {
     ffMock.enabled = true;
+    ffMock.rolloutPercent = 100;
     invokeMock.mockRejectedValue(new Error('upstream'));
     const det = minimalPack();
     const out = await runOrchestrationSynthesisIfEnabled({
@@ -179,6 +193,7 @@ describe('runOrchestrationSynthesisIfEnabled', () => {
 
   it('merges when Claude returns valid synthesis', async () => {
     ffMock.enabled = true;
+    ffMock.rolloutPercent = 100;
     invokeMock.mockResolvedValue(
       GlcOrchestrationSynthesisToolSchema.parse({
         dominant_constraint: 'CONVERSION constrained',
@@ -197,5 +212,19 @@ describe('runOrchestrationSynthesisIfEnabled', () => {
     });
     expect(out.conflicts_resolved.length).toBe(2);
     expect(out.conflicts_resolved.some((c) => c.resolution === 'synthesis_applied')).toBe(true);
+  });
+
+  it('skips synthesis when audit is outside rollout segment', async () => {
+    ffMock.enabled = true;
+    ffMock.rolloutPercent = 0;
+    const det = minimalPack();
+    const out = await runOrchestrationSynthesisIfEnabled({
+      auditId: 'audit-outside',
+      deterministicPack: det,
+      normalizedStrategy: {},
+      domainRows: [],
+    });
+    expect(out).toEqual(det);
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 });

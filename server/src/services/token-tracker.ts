@@ -4,12 +4,23 @@ import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 import { formatTokenUsagePipelineEventMessage } from '../config/token-usage-messages.en.js';
 import { logger } from './logger.js';
+import { getContext, updateContext } from './observability-context.js';
 
 interface TokenUsage {
   input_tokens: number;
   output_tokens: number;
   model: string;
 }
+
+type TokenLogMetadata = {
+  latency_ms?: number;
+  attempt?: number;
+  max_attempts?: number;
+  provider_status?: number | null;
+  status?: 'started' | 'completed' | 'failed';
+  call_type?: 'domain_agent' | 'strategy_execution_pack' | 'orchestration_synthesis';
+  detail_level?: 'default' | 'debug';
+};
 
 export interface BudgetStatus {
   within_budget: boolean;
@@ -24,10 +35,12 @@ export class TokenTracker {
   /**
    * Log token usage for a phase and update audit totals.
    */
-  async log(auditId: string, phase: number, usage: TokenUsage): Promise<void> {
+  async log(auditId: string, phase: number, usage: TokenUsage, metadata: TokenLogMetadata = {}): Promise<void> {
     const totalTokens = usage.input_tokens + usage.output_tokens;
     const pricing = getModelPricing(usage.model);
     const costUsd = (usage.input_tokens / 1_000_000) * pricing.input + (usage.output_tokens / 1_000_000) * pricing.output;
+    updateContext({ auditId });
+    const context = getContext();
 
     // Log event
     await supabase.from('pipeline_events').insert({
@@ -41,6 +54,15 @@ export class TokenTracker {
         total_tokens: totalTokens,
         model: usage.model,
         cost_usd: roundTokenCostUsd(costUsd),
+        latency_ms: metadata.latency_ms,
+        attempt: metadata.attempt,
+        max_attempts: metadata.max_attempts,
+        provider_status: metadata.provider_status ?? null,
+        status: metadata.status ?? 'completed',
+        call_type: metadata.call_type ?? 'domain_agent',
+        detail_level: metadata.detail_level ?? 'default',
+        trace_id: context?.traceId,
+        operation_id: context?.operationId,
       },
     });
 

@@ -149,5 +149,6 @@ export function useAdminRequestQueue() {
     setCopiedIntakeUrl,
     approve,
     reject,
+    retryLoad: refetchQueue,
   };
 }

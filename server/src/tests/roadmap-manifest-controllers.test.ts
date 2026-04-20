@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RoadmapManifestMismatchError } from '../services/orchestration/roadmap-manifest.service.js';
 
 const flagMocks = vi.hoisted(() => ({
   enabled: true,
@@ -166,6 +167,30 @@ describe('roadmap manifest controllers', () => {
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ id: '00000000-0000-4000-8000-000000000001' });
+  });
+
+  it('preview: returns 400 when manifest diverges from execution plan', async () => {
+    manifestMocks.assertManifestMatchesExecutionPlan.mockImplementation(() => {
+      throw new RoadmapManifestMismatchError('mismatch');
+    });
+    const req = { params: { id: 'audit-1' }, userId: 'user-1', body: validManifestPayload } as unknown;
+    const res = createRes();
+
+    await postRoadmapManifestPreviewController(req as never, res);
+
+    expect(sendApiErrorMock).toHaveBeenCalledWith(expect.anything(), 400, expect.any(String), expect.any(String));
+  });
+
+  it('snapshot: returns 400 when manifest diverges from execution plan', async () => {
+    manifestMocks.assertManifestMatchesExecutionPlan.mockImplementation(() => {
+      throw new RoadmapManifestMismatchError('mismatch');
+    });
+    const req = { params: { id: 'audit-1' }, userId: 'user-1', body: validManifestPayload } as unknown;
+    const res = createRes();
+
+    await postRoadmapManifestSnapshotController(req as never, res);
+
+    expect(sendApiErrorMock).toHaveBeenCalledWith(expect.anything(), 400, expect.any(String), expect.any(String));
   });
 
   it('snapshot list: returns 404 when audit missing', async () => {

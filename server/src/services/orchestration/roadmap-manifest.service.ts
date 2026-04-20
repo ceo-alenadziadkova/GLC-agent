@@ -78,6 +78,21 @@ export async function fetchRoadmapManifestSnapshotForAudit(args: {
   return { id: data.id, payload };
 }
 
+export async function fetchLatestRoadmapManifestSnapshotIdForAudit(args: {
+  auditId: string;
+}): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from('audit_roadmap_manifest_snapshots')
+    .select('id')
+    .eq('audit_id', args.auditId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+  return { id: data.id };
+}
+
 export type RoadmapManifestSnapshotRow = {
   id: string;
   created_at: string;

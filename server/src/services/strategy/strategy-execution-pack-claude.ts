@@ -26,6 +26,9 @@ import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { zodToJsonSchema, StrategyExecutionPackOutputSchema } from '../../schemas/domain-output.js';
 import { logger } from '../logger.js';
 import { TokenTracker } from '../token-tracker.js';
+import { supabase } from '../supabase.js';
+import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
+import { getContext, updateContext } from '../observability-context.js';
 
 import {
   getConsecutiveClaudeFailures,
@@ -54,8 +57,26 @@ export async function invokeStrategyExecutionPackClaude(args: {
   const toolName = STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME;
   const maxTokens = MODEL_MAX_TOKENS.strategyExecutionPack;
   const phaseNumber = STRATEGY_EXECUTION_PACK_TOKEN_PHASE;
+  updateContext({ auditId: args.auditId });
+  const context = getContext();
 
   for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
+    const callStartedAt = Date.now();
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: phaseNumber,
+      event_type: PIPELINE_EVENT_TYPES.llmCallStarted,
+      message: 'LLM call started',
+      data: {
+        detail_level: 'debug',
+        call_type: 'strategy_execution_pack',
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        model: CLAUDE_MODEL,
+        trace_id: context?.traceId,
+        operation_id: context?.operationId,
+      },
+    });
     try {
       const consecutiveFailures = await getConsecutiveClaudeFailures();
       if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
@@ -99,6 +120,28 @@ export async function invokeStrategyExecutionPackClaude(args: {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
         model: CLAUDE_MODEL,
+      }, {
+        latency_ms: Date.now() - callStartedAt,
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        status: 'completed',
+        call_type: 'strategy_execution_pack',
+        detail_level: 'debug',
+      });
+      await supabase.from('pipeline_events').insert({
+        audit_id: args.auditId,
+        phase: phaseNumber,
+        event_type: PIPELINE_EVENT_TYPES.llmCallCompleted,
+        message: 'LLM call completed',
+        data: {
+          detail_level: 'debug',
+          call_type: 'strategy_execution_pack',
+          attempt,
+          max_attempts: CLAUDE_MAX_RETRIES,
+          latency_ms: Date.now() - callStartedAt,
+          trace_id: context?.traceId,
+          operation_id: context?.operationId,
+        },
       });
 
       const parsed = schema.safeParse(toolBlock.input);
@@ -137,6 +180,22 @@ export async function invokeStrategyExecutionPackClaude(args: {
         attempt,
         status: error.status ?? null,
         error: error.message,
+      });
+      await supabase.from('pipeline_events').insert({
+        audit_id: args.auditId,
+        phase: phaseNumber,
+        event_type: PIPELINE_EVENT_TYPES.llmCallFailed,
+        message: 'LLM call failed',
+        data: {
+          detail_level: 'debug',
+          call_type: 'strategy_execution_pack',
+          attempt,
+          max_attempts: CLAUDE_MAX_RETRIES,
+          provider_status: status ?? null,
+          latency_ms: Date.now() - callStartedAt,
+          trace_id: context?.traceId,
+          operation_id: context?.operationId,
+        },
       });
       throw err;
     }

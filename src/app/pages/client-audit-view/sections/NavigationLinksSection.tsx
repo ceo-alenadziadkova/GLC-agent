@@ -1,9 +1,10 @@
-import { CaretRight, CheckCircle, FileText, Flask, Pulse } from '@phosphor-icons/react';
+import { CaretRight, CheckCircle, FileText, Flask, Path, Pulse } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { Callout } from '../../../components/ui/callout';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { COLOR_TOKENS } from '../../../../design-system/tokens/colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
+import { buildAppRoute } from '../../../config/route-paths';
 
 export function NavigationLinksSection({
   auditId,
@@ -25,7 +26,21 @@ export function NavigationLinksSection({
       {isCompleted && !isFreeSnapshot && (
         <>
           <Link
-            to={`/portal/reports/${auditId}`}
+            to={buildAppRoute.portalTimeline(auditId)}
+            className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 no-underline transition-all mobile:px-4"
+            style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
+          >
+            <div className="min-w-0 flex items-center gap-3">
+              <Path className="h-5 w-5 flex-shrink-0 ds-text-brand" />
+              <div>
+                <div className="font-medium text-sm ds-text-primary">{CLIENT_AUDIT_VIEW_COPY.links.viewTimeline}</div>
+                <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.timelineReady}</div>
+              </div>
+            </div>
+            <CheckCircle weight="fill" className="h-5 w-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />
+          </Link>
+          <Link
+            to={buildAppRoute.portalReports(auditId)}
             className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline transition-all"
             style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
           >
@@ -40,7 +55,7 @@ export function NavigationLinksSection({
           </Link>
           {hasStrategy && (
             <Link
-              to={`/portal/strategy/${auditId}`}
+              to={buildAppRoute.portalStrategy(auditId)}
               className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline transition-all"
               style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
             >
@@ -59,7 +74,7 @@ export function NavigationLinksSection({
 
       {canViewPipeline && (
         <Link
-          to={`/portal/pipeline/${auditId}`}
+          to={buildAppRoute.portalPipeline(auditId)}
           className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline"
           style={CLIENT_AUDIT_VIEW_UI.links.pipelineCard}
         >

@@ -266,7 +266,76 @@
     ]
   },
   "portfolio": {
-    "appShellSubtitle": "All client audits and pipeline history (GLC team)"
+    "appShellTitle": "Admin portfolio",
+    "appShellSubtitle": "All client audits and pipeline history (GLC team)",
+    "newAuditButton": "New Audit",
+    "metrics": {
+      "totalAuditsLabel": "Total Audits",
+      "totalAuditsSub": "All time",
+      "activeLabel": "Active",
+      "activeSub": "In pipeline",
+      "avgScoreLabel": "Avg Score",
+      "avgScoreSub": "Across all audits"
+    },
+    "auditsList": {
+      "searchPlaceholder": "Search audits...",
+      "headerCompany": "Company",
+      "headerIndustry": "Industry",
+      "headerCreated": "Created",
+      "headerScore": "Score",
+      "headerStatus": "Status",
+      "openButton": "Open",
+      "openIconAriaLabel": "Open audit for {{company}}",
+      "showingOfTotal": "Showing {{shown}} of {{total}} audits.",
+      "loadMoreButton": "Load more",
+      "searchNoMatchesPrefix": "No audits match \"",
+      "searchNoMatchesSuffix": "\"",
+      "emptyTitle": "No audits yet",
+      "emptySubtitle": "Start your first audit to see it here"
+    },
+    "cta": {
+      "title": "Add a new client",
+      "subtitle": "Start a new audit by entering a company URL",
+      "button": "Start Audit"
+    }
+  },
+  "dashboard": {
+    "appShellTitle": "Dashboard",
+    "appShellSubtitle": "Operational overview — audits, pipeline health, and client requests",
+    "newAuditButton": "New Audit",
+    "heroKicker": "Control center",
+    "heroTitle": "Portfolio command overview",
+    "heroSubtitle": "Live portfolio overview and operational health.",
+    "analyticsUnavailable": "Some dashboard panels are temporarily unavailable. Audit list is unaffected.",
+    "auditsList": {
+      "sectionLabel": "All Audits",
+      "searchPlaceholder": "Search audits...",
+      "headerCompany": "Company",
+      "headerIndustry": "Industry",
+      "headerCreated": "Created",
+      "headerScore": "Score",
+      "headerStatus": "Status",
+      "openButton": "Open",
+      "openIconAriaLabel": "Open audit for {{company}}",
+      "deleteButton": "Delete",
+      "deleteTitle": "Delete audit",
+      "deleteIconAriaLabel": "Delete audit for {{company}}",
+      "deleteDialogPrefix": "Delete audit for ",
+      "deleteDialogSuffix": "? This cannot be undone.",
+      "deleteDialogCancel": "Cancel",
+      "deleteDialogConfirm": "Delete",
+      "showingOfTotal": "Showing {{shown}} of {{total}} audits.",
+      "loadMoreButton": "Load more",
+      "searchNoMatchesPrefix": "No audits match \"",
+      "searchNoMatchesSuffix": "\"",
+      "emptyTitle": "No audits yet",
+      "emptySubtitle": "Start your first audit to see it here"
+    },
+    "cta": {
+      "title": "Add a new client",
+      "subtitle": "Start a new audit by entering a company URL",
+      "button": "Start Audit"
+    }
   },
   "marketingLayout": {
     "skipToMainContent": "Skip to main content",

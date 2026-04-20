@@ -4,6 +4,7 @@ import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { SettingsCard } from '../components/SettingsCard';
 import { useTokenUsageSummary } from '../hooks/useTokenUsageSummary';
 import { renderCopyTemplate } from '../utils/render-copy-template';
+import { formatAppInteger } from '../../../lib/number-format';
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ type TokenUsageSectionProps = {
 };
 
 function formatTokens(n: number): string {
-  return n.toLocaleString();
+  return formatAppInteger(n);
 }
 
 export function TokenUsageSection({ enabled }: TokenUsageSectionProps) {

@@ -5,6 +5,14 @@ import {
   type GlcDirectorOrchestrationSlice,
 } from '../../schemas/glc-director-orchestration-slice.js';
 
+export const DIRECTOR_SLICE_PARSE_MODES = ['canonical', 'legacy', 'missing', 'invalid'] as const;
+export type DirectorSliceParseMode = (typeof DIRECTOR_SLICE_PARSE_MODES)[number];
+
+export interface DirectorSliceExtractionResult {
+  slice: GlcDirectorOrchestrationSlice | null;
+  mode: DirectorSliceParseMode;
+}
+
 function parseWaveBundle(input: unknown) {
   if (Array.isArray(input)) {
     return DirectorWaveBundleSchema.safeParse({ actions: input });
@@ -39,7 +47,15 @@ function buildSliceFromWaveCandidates(raw: Record<string, unknown>): GlcDirector
 export function extractGlcDirectorOrchestrationSliceFromAgentOutput(
   rawAgentOutput: unknown,
 ): GlcDirectorOrchestrationSlice | null {
-  if (!rawAgentOutput || typeof rawAgentOutput !== 'object' || Array.isArray(rawAgentOutput)) return null;
+  return extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed(rawAgentOutput).slice;
+}
+
+export function extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed(
+  rawAgentOutput: unknown,
+): DirectorSliceExtractionResult {
+  if (!rawAgentOutput || typeof rawAgentOutput !== 'object' || Array.isArray(rawAgentOutput)) {
+    return { slice: null, mode: 'missing' };
+  }
   const raw = rawAgentOutput as Record<string, unknown>;
 
   const explicitCandidates = [
@@ -50,8 +66,12 @@ export function extractGlcDirectorOrchestrationSliceFromAgentOutput(
   ];
   for (const candidate of explicitCandidates) {
     const parsed = GlcDirectorOrchestrationSliceSchema.safeParse(candidate);
-    if (parsed.success) return parsed.data;
+    if (parsed.success) return { slice: parsed.data, mode: 'canonical' };
   }
 
-  return buildSliceFromWaveCandidates(raw);
+  const hasAnyExplicitCandidate = explicitCandidates.some(candidate => candidate !== undefined);
+  const legacy = buildSliceFromWaveCandidates(raw);
+  if (legacy) return { slice: legacy, mode: 'legacy' };
+  if (hasAnyExplicitCandidate) return { slice: null, mode: 'invalid' };
+  return { slice: null, mode: 'missing' };
 }

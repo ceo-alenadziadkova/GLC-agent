@@ -1,5 +1,6 @@
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import { PIPELINE_STATUS_EVENTS_LIMIT } from '../../../config/route-query-limits.js';
+import { isPipelineDebugLogsEnabled } from '../../../config/feature-flags.js';
 import { supabase } from '../../supabase.js';
 
 export async function insertPipelineCancelledEvent(params: {
@@ -35,14 +36,41 @@ export async function insertPipelineResumedFromCancelledEvent(params: {
   });
 }
 
-export async function fetchPipelineEventsForAudit(auditId: string): Promise<unknown[]> {
-  const { data } = await supabase
+export async function fetchPipelineEventsForAudit(
+  auditId: string,
+  query?: {
+    limit?: number;
+    before?: string;
+    phase?: number;
+    event_type?: string;
+    detail_level?: 'default' | 'debug';
+  },
+): Promise<unknown[]> {
+  const maxRows = query?.limit ?? PIPELINE_STATUS_EVENTS_LIMIT;
+  let dbQuery = supabase
     .from('pipeline_events')
     .select('*')
     .eq('audit_id', auditId)
     .order('created_at', { ascending: false })
-    .limit(PIPELINE_STATUS_EVENTS_LIMIT);
-  return data ?? [];
+    .limit(maxRows);
+  if (query?.before) dbQuery = dbQuery.lt('created_at', query.before);
+  if (query?.phase !== undefined) dbQuery = dbQuery.eq('phase', query.phase);
+  if (query?.event_type) dbQuery = dbQuery.eq('event_type', query.event_type);
+  const { data } = await dbQuery;
+  const debugEnabled = isPipelineDebugLogsEnabled();
+  if (query?.detail_level === 'debug' && debugEnabled) return data ?? [];
+  return (data ?? []).map((event) => {
+    const row = event as { data?: Record<string, unknown> };
+    if (!row.data || typeof row.data !== 'object') return event;
+    const nextData = { ...row.data };
+    if (nextData.detail_level === 'debug' || !debugEnabled) {
+      delete nextData.prompt;
+      delete nextData.raw_response;
+      delete nextData.trace_id;
+      delete nextData.operation_id;
+    }
+    return { ...(event as Record<string, unknown>), data: nextData };
+  });
 }
 
 export async function fetchLatestQualityGateEventData(auditId: string, phase: number): Promise<unknown | null> {

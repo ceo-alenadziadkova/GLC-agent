@@ -8,6 +8,50 @@ The authoritative product/implementation contract is:
 
 - `docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md`
 
+## Current implementation contract (Phase 1-2)
+
+Deterministic backend flow is implemented in separate steps to keep SRP boundaries clear:
+
+1. `loadInputs` — audit execution plan + latest manifest snapshot validation.
+2. `normalizeActions` — strategy/director input normalization into unified `ActionNode`.
+3. `buildDependencyGraph` — edge construction + cycle repair with deterministic conflict entries.
+4. `resolveConflicts` — policy-driven conflict handling and merge cap handling.
+5. `prioritizeGlobal` — weighted score with centralized policy coefficients.
+6. `compressExecution` — deterministic season/time-bucket projection.
+7. `buildPack` — schema-validated persisted pack (`versioned`, `diffable`).
+
+Source-of-truth contracts:
+
+- Manifest payload: `server/src/schemas/roadmap-manifest.ts` (`schema_version` is required and defaults on parse).
+- Persisted pack: `server/src/schemas/glc-orchestration-pack.ts` (versioned schema with v1->v2 adapter).
+- Policy constants: `server/src/config/orchestration-graph-policy.ts`, `server/src/config/orchestration-roadmap-presets.ts`, `server/src/config/orchestration-lanes.ts`.
+
+No hardcoded thresholds/weights/lane ids are allowed in orchestration services; runtime behavior must read from config/policy modules.
+
+## UX contract (client canonical flow)
+
+- `Business Cockpit` is the first client entry point after the initial audit loop.
+- `Timeline` is the primary roadmap artifact (seasonal multi-lane execution projection).
+- `Lab` is a secondary deep-dive layer for node-level detail and manifest/version operations.
+- Baseline/deep director provenance must stay visible through consistent node badges.
+- Coverage changes must produce a new roadmap version (`vN+1`) with explicit diff, never overwrite `vN`.
+
+## Governance rollout cutover checklist (runtime)
+
+Use one rollout path for orchestration plan governance:
+
+1. `shadow` — persist is never blocked; collect telemetry and warnings only.
+2. `hard_structure_soft_quality` — block only structural violations.
+3. `tightened_quality` — block structural + selected quality floors.
+
+Promotion is readiness-driven and must be computed from policy floors in
+`server/src/config/orchestration-plan-governance-rollout-policy.ts`.
+
+Operational invariant:
+
+- No controller/service should embed ad-hoc rollout decisions.
+- Use centralized rollout helpers and persist/log both current and recommended mode.
+
 ## SYSTEM ROLE
 
 You are the **GLC Orchestrator v1.1** — the central decision engine of the GLC Operating System.

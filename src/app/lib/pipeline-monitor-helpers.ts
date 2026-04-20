@@ -15,6 +15,13 @@ export type PipelineMonitorHeaderPresentation = {
   pulse: boolean;
 };
 
+export type AuditListPillStatus = 'pending' | 'running' | 'completed' | 'review' | 'failed' | 'cancelled';
+
+export type AuditListPillPresentation = {
+  status: AuditListPillStatus;
+  pulse: boolean;
+};
+
 /**
  * Map persisted `audits.status` to the header badge (avoid showing "Running" + pulse during `review` pauses).
  */
@@ -31,6 +38,30 @@ export function getPipelineMonitorHeaderPresentation(auditStatus: string): Pipel
       return { status: 'failed', pulse: false };
     case 'review':
       return { status: 'review', pulse: false };
+    case 'created':
+      return { status: 'pending', pulse: false };
+    default:
+      return { status: 'pending', pulse: false };
+  }
+}
+
+/**
+ * Shared status mapper for dashboard/portfolio cards and tables.
+ */
+export function getAuditListPillPresentation(auditStatus: string): AuditListPillPresentation {
+  if (isPipelineAuditActiveStatus(auditStatus)) {
+    return { status: 'running', pulse: true };
+  }
+
+  switch (auditStatus) {
+    case 'completed':
+      return { status: 'completed', pulse: false };
+    case 'review':
+      return { status: 'review', pulse: false };
+    case 'failed':
+      return { status: 'failed', pulse: false };
+    case 'cancelled':
+      return { status: 'cancelled', pulse: false };
     case 'created':
       return { status: 'pending', pulse: false };
     default:

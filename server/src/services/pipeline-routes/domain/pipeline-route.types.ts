@@ -24,7 +24,7 @@ export type PipelineNextResult =
   | {
       ok: true;
       outcome: 'completed';
-      response: { status: 'completed' };
+      response: { status: 'completed'; phase: number };
       disableAutoRemediate: boolean;
     }
   | { ok: false; error: PipelineRouteErr };
@@ -61,6 +61,11 @@ export type PipelineStatusResult =
         execution_plan: unknown;
         events: unknown[];
         reviews: unknown[];
+        event_page?: {
+          limit: number;
+          next_before: string | null;
+          detail_level: 'default' | 'debug';
+        };
       };
     }
   | { ok: false; error: PipelineRouteErr };

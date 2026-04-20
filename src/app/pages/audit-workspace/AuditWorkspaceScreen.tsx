@@ -29,6 +29,8 @@ import { RecommendationsSection } from './sections/RecommendationsSection';
 import { DataGapsSection } from './sections/DataGapsSection';
 import { EnrichmentSection } from './sections/EnrichmentSection';
 import { Button } from '../../components/ui/button';
+import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
+import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
@@ -193,6 +195,7 @@ export function AuditWorkspaceScreen() {
               setOpenRec={state.setOpenRec}
             />
             <DataGapsSection domainData={domainData} />
+            <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.auditWorkspace} compact />
           </motion.div>
         ) : (
           <motion.div

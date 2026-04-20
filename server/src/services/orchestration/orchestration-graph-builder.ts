@@ -5,7 +5,6 @@ import {
   ORCHESTRATION_GRAPH_MAX_CRITICAL_PATH_DEPTH,
   ORCHESTRATION_GRAPH_MAX_NODES,
 } from '../../config/orchestration-graph-policy.js';
-import { ORCHESTRATION_LANE_IDS } from '../../config/orchestration-lanes.js';
 import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import type {
   OrchestrationActionNode,
@@ -20,6 +19,7 @@ import type {
 } from '../../types/orchestration/index.js';
 import { buildOrchestrationPhaseRouting } from './orchestration-phase-routing.js';
 import { computeOrchestrationPriorityScore } from './orchestration-priority-engine.js';
+import { projectOrchestrationLanes } from './orchestration-lane-projection.js';
 
 export interface OrchestrationGraphBuildResult {
   graph: OrchestrationGraphPayload;
@@ -209,7 +209,7 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
         : undefined,
   };
 
-  const lanes = buildLaneIndex(nodes);
+  const lanes = projectOrchestrationLanes(nodes);
   const confidence_map = buildConfidenceMap(nodesScored);
   const risk_layer = buildRiskLayer(nodesScored);
 
@@ -225,26 +225,6 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
     risk_layer,
     domain_influence,
   };
-}
-
-function buildLaneIndex(nodes: OrchestrationActionNode[]): GlcOrchestrationPack['lanes'] {
-  const lanes: GlcOrchestrationPack['lanes'] = {
-    product_change: [],
-    tech_delivery: [],
-    marketing_narrative: [],
-    seo: [],
-    processes_automation: [],
-    risk_compliance: [],
-  };
-  for (const n of nodes) {
-    const bucket = lanes[n.lane];
-    if (bucket) bucket.push(n.id);
-  }
-  for (const lane of ORCHESTRATION_LANE_IDS) {
-    const col = lanes[lane];
-    if (col) col.sort();
-  }
-  return lanes;
 }
 
 /** Returns one edge that lies on a cycle, if any (DFS coloring). */

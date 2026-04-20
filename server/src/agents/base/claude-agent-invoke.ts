@@ -80,6 +80,14 @@ export async function callClaudeWithRetry(
   const toolName = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME;
 
   for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
+    const callStartedAt = Date.now();
+    await emit(PIPELINE_EVENT_TYPES.llmCallStarted, 'LLM call started', {
+      detail_level: 'debug',
+      call_type: 'domain_agent',
+      attempt,
+      max_attempts: CLAUDE_MAX_RETRIES,
+      model: CLAUDE_MODEL,
+    });
     try {
       const consecutiveFailures = await getConsecutiveClaudeFailures();
       if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
@@ -125,6 +133,20 @@ export async function callClaudeWithRetry(
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
         model: CLAUDE_MODEL,
+      }, {
+        latency_ms: Date.now() - callStartedAt,
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        status: 'completed',
+        call_type: 'domain_agent',
+        detail_level: 'debug',
+      });
+      await emit(PIPELINE_EVENT_TYPES.llmCallCompleted, 'LLM call completed', {
+        detail_level: 'debug',
+        call_type: 'domain_agent',
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        latency_ms: Date.now() - callStartedAt,
       });
 
       const parsed = schema.safeParse(toolBlock.input);
@@ -174,6 +196,14 @@ export async function callClaudeWithRetry(
         attempt,
         status: error.status ?? null,
         error: error.message,
+      });
+      await emit(PIPELINE_EVENT_TYPES.llmCallFailed, 'LLM call failed', {
+        detail_level: 'debug',
+        call_type: 'domain_agent',
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        provider_status: status ?? null,
+        latency_ms: Date.now() - callStartedAt,
       });
       throw err;
     }

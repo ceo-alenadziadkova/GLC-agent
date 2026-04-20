@@ -15,6 +15,7 @@ export const ADMIN_REQUEST_QUEUE_COPY = {
   emptyAwaiting:
     'Nothing awaiting review — no audit requests or client pre-brief submissions.',
   emptyAll: 'No requests in this view',
+  retryLoad: 'Retry',
   preBriefListUnavailablePrefix: 'Pre-brief list unavailable:',
   intakeSummaryLine: (n: number, total: number, auditId: string | null, expired: boolean) => {
     const parts = [`Pre-brief · ${n}/${total} fields answered`];
@@ -47,6 +48,8 @@ export const ADMIN_REQUEST_QUEUE_COPY = {
   reject: 'Reject',
   linkExpired: 'Link expired',
   linkedAudit: 'Linked audit',
+  expandDetails: 'Expand pre-brief details',
+  collapseDetails: 'Collapse pre-brief details',
   notLinkedToAudit: 'Not linked to an audit yet',
   copyClientLink: 'Copy client link',
   copied: 'Copied',

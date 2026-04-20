@@ -5,6 +5,7 @@ import {
   Pulse,
   FileText,
   Flask,
+  Path,
   MagnifyingGlass,
   Lightning,
   HouseSimple,
@@ -33,6 +34,7 @@ export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
     // after refining owner workflows and usage criteria.
     { to: auditId ? buildAppRoute.audit(auditId) : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
     { to: auditId ? buildAppRoute.pipeline(auditId) : null,icon: Pulse,          label: n.pipeline,        badge: null },
+    { to: auditId ? buildAppRoute.timeline(auditId) : null, icon: Path,          label: n.timeline,        badge: null },
     { to: auditId ? buildAppRoute.reports(auditId) : null, icon: FileText,       label: n.reports,         badge: null },
     { to: auditId ? buildAppRoute.strategy(auditId) : null,icon: Flask,          label: n.strategyLab,    badge: null },
   ];
@@ -44,6 +46,7 @@ export function buildClientNav(auditId: string | null, showPipelineInNav: boolea
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
     { to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,   icon: Pulse,         label: n.pipeline,     badge: null },
+    { to: auditId ? buildAppRoute.portalTimeline(auditId) : null, icon: Path, label: n.timeline, badge: null },
     { to: auditId ? buildAppRoute.portalReports(auditId) : null, icon: FileText, label: n.reports, badge: null },
     { to: auditId ? buildAppRoute.portalStrategy(auditId) : null, icon: Flask, label: n.strategyLab, badge: null },
   ];

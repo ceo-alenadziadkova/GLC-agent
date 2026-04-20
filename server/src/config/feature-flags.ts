@@ -119,6 +119,25 @@ export function isOrchestrationConflictSynthesisEnabled(): boolean {
   );
 }
 
+function readPercentEnv(env: string | undefined, defaultValue: number): number {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+/**
+ * Controlled rollout segment for orchestration conflict synthesis.
+ * Env: FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT (0..100)
+ */
+export function getOrchestrationConflictSynthesisRolloutPercent(): number {
+  return readPercentEnv(
+    process.env.FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT,
+    FF.orchestrationConflictSynthesisRolloutPercent,
+  );
+}
+
 /**
  * Persisted orchestration pack HTTP API. Env: FEATURE_ORCHESTRATION_PACK_API=false to disable.
  */
@@ -145,5 +164,22 @@ export function getOrchestrationPlanGovernanceRolloutMode(): OrchestrationPlanGo
     process.env.FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE,
     ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES,
     FF.orchestrationPlanGovernanceRolloutMode,
+  );
+}
+
+/** Extended runtime debug logs for pipeline/orchestration event streams. Env: FEATURE_PIPELINE_DEBUG_LOGS=true */
+export function isPipelineDebugLogsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PIPELINE_DEBUG_LOGS, FF.pipelineDebugLogsEnabled);
+}
+
+/**
+ * Director orchestration slice generated directly by domain-agent output.
+ * When disabled, strict director phases must fail fast before any LLM call.
+ * Env: FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT=true
+ */
+export function isDirectorOrchestrationAgentOutputEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT,
+    FF.directorOrchestrationAgentOutputEnabled,
   );
 }

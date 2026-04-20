@@ -1,9 +1,12 @@
 import {
   apiAuditsOrchestrationCommercialOffer,
+  apiAuditsOrchestrationPackDiff,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
   apiAuditsRoadmapManifestPreview,
   apiAuditsRoadmapManifestSnapshots,
+  apiAuditsRoadmapManifestSnapshotsLatest,
 } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type {
@@ -51,8 +54,11 @@ export type OrchestrationPackRevisionHistoryItemDto = {
 export type OrchestrationPlanGovernanceDto = {
   unresolved_conflicts: number;
   cycles_detected: number;
+  dangling_deps_count: number;
   invalid_lane_assignments: number;
   dependency_integrity_score: number;
+  coverage_integrity_score: number;
+  confidence_integrity_score: number;
   confidence_coverage_score: number;
   risk_coverage_score: number;
   critical_path_node_ratio: number;
@@ -102,6 +108,13 @@ export const auditsOrchestrationApi = {
     );
   },
 
+  async getRoadmapManifestSnapshotLatest(auditId: string) {
+    return apiFetch<{ snapshot: { id: string; payload: RoadmapManifestRequestBody } | null }>(
+      apiAuditsRoadmapManifestSnapshotsLatest(auditId),
+      { method: 'GET' },
+    );
+  },
+
   async postRoadmapManifestSnapshot(auditId: string, body: RoadmapManifestRequestBody) {
     return apiFetch<{ id: string }>(apiAuditsRoadmapManifestSnapshots(auditId), {
       method: 'POST',
@@ -115,6 +128,9 @@ export const auditsOrchestrationApi = {
       orchestration_pack_version: number;
       roadmap_version: number;
       last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      revision_history?: OrchestrationPackRevisionHistoryItemDto[];
+      plan_governance: OrchestrationPlanGovernanceDto | null;
     }>(apiAuditsOrchestrationPack(auditId), { method: 'GET' });
   },
 
@@ -124,8 +140,23 @@ export const auditsOrchestrationApi = {
       orchestration_pack_version: number;
       roadmap_version: number;
       last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
       plan_governance: OrchestrationPlanGovernanceDto;
     }>(apiAuditsOrchestrationPack(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postOrchestrationPackRegenerate(auditId: string, body: { manifest_snapshot_id: string }) {
+    return apiFetch<{
+      pack: GlcOrchestrationPackView;
+      orchestration_pack_version: number;
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      plan_governance: OrchestrationPlanGovernanceDto;
+    }>(apiAuditsOrchestrationPackRegenerate(auditId), {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -134,7 +165,14 @@ export const auditsOrchestrationApi = {
   async getOrchestrationPackDiffHistory(auditId: string, query?: { limit?: number }) {
     return apiFetch<{
       items: OrchestrationPackRevisionHistoryItemDto[];
+      latest_plan_governance: OrchestrationPlanGovernanceDto | null;
     }>(apiAuditsOrchestrationPackDiffHistory(auditId, query), { method: 'GET' });
+  },
+
+  async getOrchestrationPackDiff(auditId: string, query: { from_version: number; to_version: number }) {
+    return apiFetch<{
+      item: OrchestrationPackRevisionHistoryItemDto;
+    }>(apiAuditsOrchestrationPackDiff(auditId, query), { method: 'GET' });
   },
 
   async postOrchestrationCommercialOffer(

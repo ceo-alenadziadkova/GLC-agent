@@ -21,7 +21,19 @@ import {
 } from '../config/discovery-queue-copy.en';
 import { DISCOVERY_QUEUE_PAGE_CONFIG } from '../config/discovery-queue-page-config';
 import { buildAbsoluteUrlFromOrigin } from '../lib/public-app-url';
+import { formatAppShortDate } from '../lib/date-format';
 import { Button } from '../components/ui/button';
+import { useTablistKeyboardNavigation } from '../hooks/useTablistKeyboardNavigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,13 +89,11 @@ function SessionCard({
   session: DiscoverySession;
   onConvert: (token: string) => void;
   converting: boolean;
-  onDelete: (token: string) => void;
+  onDelete: () => void;
   deleting: boolean;
 }) {
   const highFindings = session.findings.filter(f => f.impact === 'high');
-  const date = new Date(session.created_at).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
+  const date = formatAppShortDate(session.created_at);
 
   return (
     <div className={`space-y-4 rounded-2xl border bg-card p-4 mobile:p-5 ${session.audit_id ? 'border-success/40' : 'border-border'}`}>
@@ -128,7 +138,7 @@ function SessionCard({
             variant="outline"
             size="sm"
             disabled={converting || deleting}
-            onClick={() => onDelete(session.session_token)}
+            onClick={onDelete}
             className="glc-touch-target text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive sm:min-h-0"
           >
             {deleting ? DISCOVERY_QUEUE_COPY.deleting : DISCOVERY_QUEUE_COPY.deleteSession}
@@ -241,6 +251,8 @@ function SessionCard({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function DiscoveryQueue() {
+  const filterOrder = ['all', 'new', 'converted'] as const;
+  const tabPanelId = 'discovery-queue-panel';
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const q = useQuery({
@@ -261,6 +273,7 @@ export function DiscoveryQueue() {
   const [convertError, setConvertError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'converted'>('all');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const refetchSessions = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: glcKeys.discoverySessions() });
@@ -286,10 +299,6 @@ export function DiscoveryQueue() {
   }
 
   async function handleDelete(token: string) {
-    const confirmed = window.confirm(DISCOVERY_QUEUE_COPY.deleteConfirm);
-    if (!confirmed) {
-      return;
-    }
     setDeleting(token);
     setConvertError(null);
     try {
@@ -312,10 +321,16 @@ export function DiscoveryQueue() {
   });
 
   const newCount = sessions.filter(s => !s.audit_id).length;
+  const convertedCount = sessions.length - newCount;
+  const { setTabRef, handleTablistKeyDown } = useTablistKeyboardNavigation({
+    order: filterOrder,
+    activeKey: filter,
+    onChange: setFilter,
+  });
 
   return (
     <AppShell
-      title="Discovery Queue"
+      title={DISCOVERY_QUEUE_COPY.title}
       subtitle={
         newCount > 0
           ? DISCOVERY_QUEUE_COPY.subtitleAwaiting(newCount)
@@ -358,86 +373,139 @@ export function DiscoveryQueue() {
       <div className="glc-page-content max-w-2xl mx-auto space-y-4 mobile:space-y-5">
 
         {/* Filter tabs */}
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label={DISCOVERY_QUEUE_COPY.title}
+          onKeyDown={handleTablistKeyDown}
+        >
           {(['all', 'new', 'converted'] as const).map(tab => (
             <button
+              ref={setTabRef(tab)}
               key={tab}
               type="button"
+              role="tab"
+              id={`discovery-queue-tab-${tab}`}
+              aria-controls={tabPanelId}
+              aria-selected={filter === tab}
+              tabIndex={filter === tab ? 0 : -1}
               onClick={() => setFilter(tab)}
               className={`glc-touch-target rounded-lg border px-3 py-2 text-xs font-semibold capitalize sm:min-h-0 sm:py-1.5 ${
                 filter === tab ? 'border-info/50 bg-info/10 text-info' : 'bg-muted text-muted-foreground'
               }`}
             >
-              {tab}
+              {DISCOVERY_QUEUE_COPY.filters[tab]}
               {tab === 'all' && ` (${sessions.length})`}
-              {tab === 'new' && ` (${sessions.filter(s => !s.audit_id).length})`}
-              {tab === 'converted' && ` (${sessions.filter(s => !!s.audit_id).length})`}
+              {tab === 'new' && ` (${newCount})`}
+              {tab === 'converted' && ` (${convertedCount})`}
             </button>
           ))}
         </div>
 
-        {/* Error banner */}
-        {convertError && (
-          <div className="bg-destructive/10 border-destructive/40 mb-4 flex items-center gap-2 rounded-xl border px-4 py-3">
-            <Warning size={14} weight="fill" className="text-destructive" />
-            <span className="text-destructive text-[length:var(--text-sm)]">{convertError}</span>
-            <button
-              type="button"
-              onClick={() => setConvertError(null)}
-              className="text-muted-foreground ml-auto text-xs"
-            >
-              {DISCOVERY_QUEUE_COPY.dismiss}
-            </button>
-          </div>
-        )}
+        <section
+          id={tabPanelId}
+          role="tabpanel"
+          aria-labelledby={`discovery-queue-tab-${filter}`}
+          className="space-y-4"
+        >
+          {/* Error banner */}
+          {convertError && (
+            <div className="bg-destructive/10 border-destructive/40 mb-4 flex items-center gap-2 rounded-xl border px-4 py-3">
+              <Warning size={14} weight="fill" className="text-destructive" />
+              <span className="text-destructive text-[length:var(--text-sm)]">{convertError}</span>
+              <button
+                type="button"
+                onClick={() => setConvertError(null)}
+                className="text-muted-foreground ml-auto text-xs"
+              >
+                {DISCOVERY_QUEUE_COPY.dismiss}
+              </button>
+            </div>
+          )}
 
-        {/* Content */}
-        {loading && (
-          <div className="text-muted-foreground flex items-center justify-center gap-3 py-16">
-            <Spinner size={18} className="animate-spin" />
-            <span className="text-[length:var(--text-sm)]">{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
-          </div>
-        )}
+          {/* Content */}
+          {loading && (
+            <div className="text-muted-foreground flex items-center justify-center gap-3 py-16">
+              <Spinner size={18} className="animate-spin" />
+              <span className="text-[length:var(--text-sm)]">{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
+            </div>
+          )}
 
-        {!loading && error && (
-          <div className="text-center py-12">
-            <Warning size={28} weight="fill" className="text-destructive mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">{error}</p>
-            <button
-              type="button"
-              onClick={() => refetchSessions()}
-              className="bg-muted text-muted-foreground mt-4 rounded-lg border px-4 py-2 text-sm font-medium"
-            >
-              {DISCOVERY_QUEUE_COPY.tryAgain}
-            </button>
-          </div>
-        )}
+          {!loading && error && (
+            <div className="text-center py-12">
+              <Warning size={28} weight="fill" className="text-destructive mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">{error}</p>
+              <button
+                type="button"
+                onClick={() => refetchSessions()}
+                className="bg-muted text-muted-foreground mt-4 rounded-lg border px-4 py-2 text-sm font-medium"
+              >
+                {DISCOVERY_QUEUE_COPY.tryAgain}
+              </button>
+            </div>
+          )}
 
-        {!loading && !error && filtered.length === 0 && (
-          <div className="text-center py-16">
-            <Users size={32} weight="thin" className="text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">
-              {filter === 'all'
-                ? DISCOVERY_QUEUE_COPY.emptyAll
-                : DISCOVERY_QUEUE_COPY.emptyFiltered(filter)}
-            </p>
-          </div>
-        )}
+          {!loading && !error && filtered.length === 0 && (
+            <div className="text-center py-16">
+              <Users size={32} weight="thin" className="text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">
+                {filter === 'all'
+                  ? DISCOVERY_QUEUE_COPY.emptyAll
+                  : DISCOVERY_QUEUE_COPY.emptyFiltered(filter)}
+              </p>
+            </div>
+          )}
 
-        {!loading && !error && filtered.length > 0 && (
-          <div className="space-y-3">
-            {filtered.map(session => (
-              <SessionCard
-                key={session.session_token}
-                session={session}
-                onConvert={handleConvert}
-                converting={converting === session.session_token}
-                onDelete={handleDelete}
-                deleting={deleting === session.session_token}
-              />
-            ))}
-          </div>
-        )}
+          {!loading && !error && filtered.length > 0 && (
+            <div className="space-y-3">
+              {filtered.map(session => (
+                <SessionCard
+                  key={session.session_token}
+                  session={session}
+                  onConvert={handleConvert}
+                  converting={converting === session.session_token}
+                  onDelete={() => setDeleteTarget(session.session_token)}
+                  deleting={deleting === session.session_token}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+        <AlertDialog
+          open={deleteTarget !== null}
+          onOpenChange={open => {
+            if (!open) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{DISCOVERY_QUEUE_COPY.deleteDialogTitle}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {DISCOVERY_QUEUE_COPY.deleteDialogDescription}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel type="button">
+                {DISCOVERY_QUEUE_COPY.deleteDialogCancel}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                type="button"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  if (target) {
+                    void handleDelete(target);
+                  }
+                }}
+              >
+                {DISCOVERY_QUEUE_COPY.deleteDialogConfirm}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppShell>
   );

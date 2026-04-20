@@ -23,6 +23,8 @@ import {
   orchestrationNodeWeight,
 } from '../config/orchestration-graph-policy.js';
 import { ORCHESTRATION_LANE_IDS } from '../config/orchestration-lanes.js';
+import { ROADMAP_MANIFEST_SCHEMA_VERSION } from '../config/orchestration-roadmap-presets.js';
+import { projectOrchestrationLanes } from '../services/orchestration/orchestration-lane-projection.js';
 
 function node(partial: Partial<OrchestrationActionNode> & Pick<OrchestrationActionNode, 'id'>): OrchestrationActionNode {
   return {
@@ -188,6 +190,15 @@ describe('buildOrchestrationGraph', () => {
 });
 
 describe('roadmap manifest vs execution_plan', () => {
+  it('injects default schema_version during manifest parsing', () => {
+    const manifest = parseRoadmapManifestPayload({
+      selected_domains: ['marketing_utp', 'ux_conversion'],
+      change_scenario: 'hybrid',
+      season_preset: 'rolling_90d',
+    });
+    expect(manifest.schema_version).toBe(ROADMAP_MANIFEST_SCHEMA_VERSION);
+  });
+
   it('matches when domain sets are equal', () => {
     const manifest = parseRoadmapManifestPayload({
       selected_domains: ['marketing_utp', 'ux_conversion'],
@@ -244,6 +255,19 @@ describe('orchestrationNodeWeight', () => {
     const hi = orchestrationNodeWeight({ impact: 'high', effort: 'low', priority: 'medium' });
     const lo = orchestrationNodeWeight({ impact: 'low', effort: 'low', priority: 'medium' });
     expect(hi).toBeGreaterThan(lo);
+  });
+});
+
+describe('projectOrchestrationLanes', () => {
+  it('projects all core lanes and sorts node ids in each lane', () => {
+    const lanes = projectOrchestrationLanes([
+      node({ id: 'm2', lane: 'marketing_narrative' }),
+      node({ id: 'm1', lane: 'marketing_narrative' }),
+      node({ id: 'r1', lane: 'risk_compliance' }),
+    ]);
+    expect(Object.keys(lanes).sort()).toEqual([...ORCHESTRATION_LANE_IDS].sort());
+    expect(lanes.marketing_narrative).toEqual(['m1', 'm2']);
+    expect(lanes.risk_compliance).toEqual(['r1']);
   });
 });
 

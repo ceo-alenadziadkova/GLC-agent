@@ -96,7 +96,7 @@ export function AuditRequestQueueCard({
             type="button"
             disabled={busyId === req.id}
             className={cn(
-              'rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-success-border-25)] bg-[var(--ui-success-muted-bg-12)] px-3 py-1.5 text-xs font-medium text-[var(--glc-green)]',
+              'glc-touch-target rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-success-border-25)] bg-[var(--ui-success-muted-bg-12)] px-3 py-1.5 text-xs font-medium text-[var(--glc-green)]',
               'disabled:opacity-60',
             )}
             onClick={() => onApprove(req.id)}
@@ -116,7 +116,7 @@ export function AuditRequestQueueCard({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="rounded-lg bg-[var(--ui-danger-muted-bg-12)] px-3 py-1.5 text-xs text-[var(--ui-danger-fg-strong)]"
+                  className="glc-touch-target rounded-lg bg-[var(--ui-danger-muted-bg-12)] px-3 py-1.5 text-xs text-[var(--ui-danger-fg-strong)]"
                   onClick={() => onReject(req.id, rejectNote.text)}
                   disabled={busyId === req.id}
                 >
@@ -124,7 +124,7 @@ export function AuditRequestQueueCard({
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-xs text-[var(--text-tertiary)]"
+                  className="glc-touch-target px-3 py-1.5 text-xs text-[var(--text-tertiary)]"
                   onClick={() => setRejectNote(null)}
                 >
                   {ADMIN_REQUEST_QUEUE_COPY.cancel}
@@ -135,7 +135,7 @@ export function AuditRequestQueueCard({
             <button
               type="button"
               disabled={busyId === req.id}
-              className="rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-danger-border-20)] bg-[var(--ui-danger-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--score-1)] disabled:opacity-60"
+                  className="glc-touch-target rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-danger-border-20)] bg-[var(--ui-danger-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--score-1)] disabled:opacity-60"
               onClick={() => setRejectNote({ id: req.id, text: '' })}
             >
               <XCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />

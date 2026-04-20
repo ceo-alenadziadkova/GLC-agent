@@ -16,6 +16,8 @@ import { Input } from '../components/ui/input';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
 import { PAGE_SHELL_CONTRACTS } from '../../design-system/patterns/Layouts';
+import { getAuditListPillPresentation } from '../lib/pipeline-monitor-helpers';
+import { formatAppShortDate } from '../lib/date-format';
 
 const EASE_GLC = [0.16, 1, 0.3, 1] as const;
 
@@ -28,17 +30,19 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE_GLC } },
 };
 
-function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' | 'cancelled' {
-  if (status === 'completed') return 'completed';
-  if (status === 'failed') return 'review';
-  if (status === 'cancelled') return 'cancelled';
-  if (status === 'created') return 'pending';
-  return 'running';
+function formatPortfolioDate(isoDate: string): string {
+  return formatAppShortDate(isoDate);
+}
+
+function formatPortfolioOpenAriaLabel(template: string, company: string): string {
+  return template.replace('{{company}}', company);
 }
 
 export function Portfolio() {
-  const { audits, loading, error } = useAudits();
+  const { audits, loading, error, hasMore, loadMore, total } = useAudits();
   const [query, setQuery] = useState('');
+  const portfolioCopy = WORKSPACE_PAGE_COPY.portfolio;
+  const portfolioAuditsListCopy = WORKSPACE_PAGE_COPY.portfolio.auditsList;
 
   const filtered = audits.filter(c =>
     query === '' ||
@@ -56,19 +60,19 @@ export function Portfolio() {
     : '—';
 
   const METRICS = [
-    { label: 'Total Audits', value: String(totalAudits), sub: 'All time', Icon: Users, tone: 'text-info border-info/40 bg-info/10' },
-    { label: 'Active', value: String(activeAudits), sub: 'In pipeline', Icon: Pulse, tone: 'text-warning border-warning/40 bg-warning/10' },
-    { label: 'Avg Score', value: avgScore, sub: 'Across all audits', Icon: TrendUp, tone: 'text-success border-success/40 bg-success/10' },
+    { label: portfolioCopy.metrics.totalAuditsLabel, value: String(totalAudits), sub: portfolioCopy.metrics.totalAuditsSub, Icon: Users, tone: 'text-info border-info/40 bg-info/10' },
+    { label: portfolioCopy.metrics.activeLabel, value: String(activeAudits), sub: portfolioCopy.metrics.activeSub, Icon: Pulse, tone: 'text-warning border-warning/40 bg-warning/10' },
+    { label: portfolioCopy.metrics.avgScoreLabel, value: avgScore, sub: portfolioCopy.metrics.avgScoreSub, Icon: TrendUp, tone: 'text-success border-success/40 bg-success/10' },
   ];
 
   return (
     <AppShell
-      title="Admin portfolio"
-      subtitle={WORKSPACE_PAGE_COPY.portfolio.appShellSubtitle}
+      title={portfolioCopy.appShellTitle}
+      subtitle={portfolioCopy.appShellSubtitle}
       actions={
         <Button asChild variant="default" className="no-underline">
           <Link to="/audit/new">
-            <Plus className="w-4 h-4" /> New Audit
+            <Plus className="w-4 h-4" /> {portfolioCopy.newAuditButton}
           </Link>
         </Button>
       }
@@ -114,7 +118,7 @@ export function Portfolio() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search audits..."
+              placeholder={portfolioAuditsListCopy.searchPlaceholder}
               className="h-auto flex-1 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
             />
           </div>
@@ -137,17 +141,20 @@ export function Portfolio() {
           <div className="glc-card overflow-hidden rounded-xl">
             {/* Header */}
             <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
-              <span>Company</span>
-              <span>Industry</span>
-              <span>Created</span>
-              <span>Score</span>
-              <span>Status</span>
+              <span>{portfolioAuditsListCopy.headerCompany}</span>
+              <span>{portfolioAuditsListCopy.headerIndustry}</span>
+              <span>{portfolioAuditsListCopy.headerCreated}</span>
+              <span>{portfolioAuditsListCopy.headerScore}</span>
+              <span>{portfolioAuditsListCopy.headerStatus}</span>
               <span />
             </div>
 
             {/* Rows */}
             <AnimatePresence initial={false}>
-              {filtered.map((c, i) => (
+              {filtered.map((c, i) => {
+                const companyLabel = c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website);
+                const statusPill = getAuditListPillPresentation(c.status);
+                return (
                 <motion.div
                   key={c.id}
                   initial={{ opacity: 0, y: 4 }}
@@ -161,14 +168,14 @@ export function Portfolio() {
                     <div
                       className="text-info border-info/30 bg-info/10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
                     >
-                      {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
+                      {companyLabel.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <Link
                         to={`/audit/${c.id}`}
                         className="text-foreground block truncate text-sm font-semibold no-underline"
                       >
-                        {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
+                        {companyLabel}
                       </Link>
                       <div className="text-muted-foreground mt-0.5 truncate text-xs">
                         {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
@@ -180,7 +187,7 @@ export function Portfolio() {
 
                   <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                    {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatPortfolioDate(c.created_at)}
                   </div>
 
                   {c.overall_score !== null
@@ -188,33 +195,52 @@ export function Portfolio() {
                     : <span className="text-muted-foreground text-sm">—</span>
                   }
 
-                  <StatusPill status={mapStatus(c.status)} pulse={mapStatus(c.status) === 'running'} />
+                  <StatusPill status={statusPill.status} pulse={statusPill.pulse} />
 
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Link
                       to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
                       className="glc-btn-icon h-7 w-7 rounded-md"
+                      aria-label={formatPortfolioOpenAriaLabel(portfolioAuditsListCopy.openIconAriaLabel, companyLabel)}
                     >
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
+          </div>
+        )}
 
-            {filtered.length === 0 && (
-              <div className="text-muted-foreground py-14 text-center text-sm">
-                No audits match "{query}"
-              </div>
-            )}
+        {query && filtered.length === 0 && audits.length > 0 && !loading && !error && (
+          <div className="text-muted-foreground py-14 text-center text-sm">
+            {portfolioAuditsListCopy.searchNoMatchesPrefix}
+            {query}
+            {portfolioAuditsListCopy.searchNoMatchesSuffix}
           </div>
         )}
 
         {!loading && audits.length === 0 && !error && (
           <div className="text-muted-foreground py-14 text-center">
             <Buildings className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-            <p className="text-sm font-medium">No audits yet</p>
-            <p className="text-xs mt-1">Start your first audit to see it here</p>
+            <p className="text-sm font-medium">{portfolioAuditsListCopy.emptyTitle}</p>
+            <p className="text-xs mt-1">{portfolioAuditsListCopy.emptySubtitle}</p>
+          </div>
+        )}
+
+        {!error && !query && total > audits.length && (
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+            <p className="text-muted-foreground text-xs">
+              {portfolioAuditsListCopy.showingOfTotal
+                .replace('{{shown}}', String(audits.length))
+                .replace('{{total}}', String(total))}
+            </p>
+            {hasMore && (
+              <Button type="button" variant="outline" size="sm" onClick={loadMore}>
+                {portfolioAuditsListCopy.loadMoreButton}
+              </Button>
+            )}
           </div>
         )}
 
@@ -234,16 +260,16 @@ export function Portfolio() {
               <p
                 className="text-foreground text-sm font-semibold"
               >
-                Add a new client
+                {portfolioCopy.cta.title}
               </p>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                Start a new audit by entering a company URL
+                {portfolioCopy.cta.subtitle}
               </p>
             </div>
           </div>
           <Button asChild variant="default" className="no-underline">
             <Link to="/audit/new">
-              <Plus className="w-4 h-4" /> Start Audit
+              <Plus className="w-4 h-4" /> {portfolioCopy.cta.button}
             </Link>
           </Button>
         </motion.div>

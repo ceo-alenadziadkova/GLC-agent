@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GlcOrchestrationPack } from '../schemas/glc-orchestration-pack.js';
+import {
+  isTightenedQualityRolloutReady,
+  resolveOrchestrationPlanGovernanceRolloutTransition,
+} from '../config/orchestration-plan-governance-rollout-policy.js';
 import { evaluateOrchestrationPlanGovernance } from '../services/orchestration/orchestration-plan-governance.service.js';
 
 function pack(partial: Partial<GlcOrchestrationPack>): GlcOrchestrationPack {
@@ -21,10 +25,26 @@ function pack(partial: Partial<GlcOrchestrationPack>): GlcOrchestrationPack {
     critical_path: ['a'],
     conflicts_resolved: [],
     manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+    phase_diagnostic: {
+      dominant_constraint: 'capacity',
+      constraint_chain: ['capacity'],
+    },
+    routing_profile: {
+      strategy: 'toc_dynamic_routing_v1',
+      domain_weights: { tech_infrastructure: 1 },
+    },
+    execution_mode: 'deterministic',
     confidence_map: { node_confidence: { a: 'medium' } },
     risk_layer: { node_risk: { a: 3 } },
+    domain_influence: { domain_weights: { tech_infrastructure: 1 } },
+    input_quality: {
+      input_mode: 'director_enriched',
+      director_coverage_ratio: 1,
+      director_input_coverage_ratio: 1,
+      degraded: false,
+    },
     ...partial,
-  };
+  } as GlcOrchestrationPack;
 }
 
 describe('evaluateOrchestrationPlanGovernance', () => {
@@ -106,5 +126,64 @@ describe('evaluateOrchestrationPlanGovernance', () => {
     expect(result.decision).toBe('reject');
     expect(result.status).toBe('fail');
     expect(result.blocking_reasons).toContain('confidence_coverage_below_floor');
+  });
+
+  it('computes tightened-quality rollout readiness from telemetry floors', () => {
+    expect(
+      isTightenedQualityRolloutReady({
+        dependencyIntegrityScore: 0.9,
+        confidenceCoverageScore: 0.75,
+        riskCoverageScore: 0.6,
+      }),
+    ).toBe(true);
+    expect(
+      isTightenedQualityRolloutReady({
+        dependencyIntegrityScore: 0.89,
+        confidenceCoverageScore: 0.75,
+        riskCoverageScore: 0.6,
+      }),
+    ).toBe(false);
+  });
+
+  it('suggests rollout promotion path only when readiness floors are met', () => {
+    const readiness = {
+      dependencyIntegrityScore: 0.92,
+      confidenceCoverageScore: 0.8,
+      riskCoverageScore: 0.7,
+    };
+    expect(
+      resolveOrchestrationPlanGovernanceRolloutTransition({
+        currentMode: 'shadow',
+        readiness,
+      }),
+    ).toMatchObject({
+      currentMode: 'shadow',
+      recommendedMode: 'hard_structure_soft_quality',
+      readyForPromotion: true,
+    });
+    expect(
+      resolveOrchestrationPlanGovernanceRolloutTransition({
+        currentMode: 'hard_structure_soft_quality',
+        readiness,
+      }),
+    ).toMatchObject({
+      currentMode: 'hard_structure_soft_quality',
+      recommendedMode: 'tightened_quality',
+      readyForPromotion: true,
+    });
+    expect(
+      resolveOrchestrationPlanGovernanceRolloutTransition({
+        currentMode: 'hard_structure_soft_quality',
+        readiness: {
+          dependencyIntegrityScore: 0.5,
+          confidenceCoverageScore: 0.5,
+          riskCoverageScore: 0.5,
+        },
+      }),
+    ).toMatchObject({
+      currentMode: 'hard_structure_soft_quality',
+      recommendedMode: 'hard_structure_soft_quality',
+      readyForPromotion: false,
+    });
   });
 });

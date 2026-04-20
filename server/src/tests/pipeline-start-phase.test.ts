@@ -193,6 +193,7 @@ function getPipelineInserts() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT = 'true';
   clearCalls();
   setProductMode('full');
   (mockAssertBriefReady as Mock).mockReset().mockResolvedValue(undefined);

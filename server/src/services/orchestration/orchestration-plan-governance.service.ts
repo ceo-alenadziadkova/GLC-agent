@@ -10,6 +10,7 @@ import {
 } from '../../schemas/orchestration-plan-governance.js';
 import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import { ORCHESTRATION_LANE_IDS } from '../../config/orchestration-lanes.js';
+import { GLC_ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-graph-policy.js';
 
 function countCycles(pack: GlcOrchestrationPack): number {
   const adjacency = new Map<string, string[]>();
@@ -76,6 +77,26 @@ function countInvalidLaneAssignments(pack: GlcOrchestrationPack): number {
   return pack.graph.nodes.reduce((acc, node) => (allowed.has(node.lane) ? acc : acc + 1), 0);
 }
 
+function countDanglingDepsFromConflicts(pack: GlcOrchestrationPack): number {
+  return pack.conflicts_resolved.filter(row => row.id.startsWith('orphan-dep:')).length;
+}
+
+function computeCoverageIntegrityScore(pack: GlcOrchestrationPack): number {
+  const selected = pack.graph.nodes.length;
+  if (selected === 0) return 1;
+  const ratio = pack.critical_path.length / selected;
+  return Math.min(1, Math.max(0, ratio));
+}
+
+function computeConfidenceIntegrityScore(pack: GlcOrchestrationPack): number {
+  if (pack.graph.nodes.length === 0) return 1;
+  const map = pack.confidence_map?.node_confidence ?? {};
+  const values = Object.values(map);
+  if (values.length === 0) return 0;
+  const highOrMedium = values.filter(v => v === 'high' || v === 'medium').length;
+  return highOrMedium / values.length;
+}
+
 function resolveBlockingReasons(
   reasons: readonly OrchestrationPlanGovernanceReasonCode[],
   rolloutMode: OrchestrationPlanGovernanceRolloutMode,
@@ -100,8 +121,11 @@ export function evaluateOrchestrationPlanGovernance(
     row => row.resolution === 'synthesis_pending',
   ).length;
   const cyclesDetected = countCycles(pack);
+  const danglingDepsCount = countDanglingDepsFromConflicts(pack);
   const invalidLaneAssignments = countInvalidLaneAssignments(pack);
   const dependencyIntegrityScore = computeDependencyIntegrityScore(pack);
+  const coverageIntegrityScore = computeCoverageIntegrityScore(pack);
+  const confidenceIntegrityScore = computeConfidenceIntegrityScore(pack);
   const confidenceCoverageScore = computeConfidenceCoverageScore(pack);
   const riskCoverageScore = computeRiskCoverageScore(pack);
   const criticalPathNodeRatio =
@@ -115,8 +139,20 @@ export function evaluateOrchestrationPlanGovernance(
   if (cyclesDetected > 0) {
     reason_codes.push('dependency_cycles_detected');
   }
+  if (pack.version !== GLC_ORCHESTRATION_PACK_SCHEMA_VERSION) {
+    reason_codes.push('pack_schema_invalid');
+  }
+  if (danglingDepsCount > ORCHESTRATION_PLAN_GOVERNANCE_POLICY.danglingDependencyBudget) {
+    reason_codes.push('dangling_dependencies_detected');
+  }
   if (dependencyIntegrityScore < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.dependencyIntegrityScoreFloor) {
     reason_codes.push('dependency_integrity_below_floor');
+  }
+  if (coverageIntegrityScore < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.coverageIntegrityScoreFloor) {
+    reason_codes.push('coverage_integrity_below_floor');
+  }
+  if (confidenceIntegrityScore < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.confidenceIntegrityScoreFloor) {
+    reason_codes.push('confidence_integrity_below_floor');
   }
   if (confidenceCoverageScore < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.confidenceCoverageScoreFloor) {
     reason_codes.push('confidence_coverage_below_floor');
@@ -162,8 +198,11 @@ export function evaluateOrchestrationPlanGovernance(
   return OrchestrationPlanGovernanceSchema.parse({
     unresolved_conflicts: unresolvedConflicts,
     cycles_detected: cyclesDetected,
+    dangling_deps_count: danglingDepsCount,
     invalid_lane_assignments: invalidLaneAssignments,
     dependency_integrity_score: dependencyIntegrityScore,
+    coverage_integrity_score: coverageIntegrityScore,
+    confidence_integrity_score: confidenceIntegrityScore,
     confidence_coverage_score: confidenceCoverageScore,
     risk_coverage_score: riskCoverageScore,
     critical_path_node_ratio: criticalPathNodeRatio,

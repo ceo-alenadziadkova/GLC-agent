@@ -86,6 +86,7 @@ export async function postRoadmapManifestPreviewController(req: AuthRequest, res
       selected_domains_count: parsedBody.data.selected_domains.length,
       lanes_included_count: preview.lanes_included.length,
       waiting_list_count: preview.waiting_list_domains.length,
+      kpi_manifest_preview_confirm_intent: 1,
     });
     res.json({ preview });
   } catch (err) {

@@ -85,6 +85,7 @@ export async function postRoadmapManifestSnapshotController(req: AuthRequest, re
       component: 'audits',
       metric: 'roadmap_manifest_snapshot.success',
       selected_domains_count: parsedBody.data.selected_domains.length,
+      kpi_manifest_confirmed: 1,
     });
     res.status(201).json({ id });
   } catch (err) {

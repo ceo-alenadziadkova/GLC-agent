@@ -7,8 +7,11 @@ import {
   ORCHESTRATION_DEPENDENCY_RELATION_WEIGHTS,
   ORCHESTRATION_CONFLICT_RESOLUTIONS,
   ORCHESTRATION_EXECUTION_MODES,
+  ORCHESTRATION_FALLBACK_REASON_CODES,
   ORCHESTRATION_GRAPH_NODE_ANALYSIS_DEPTHS,
+  ORCHESTRATION_INPUT_MODES,
   ORCHESTRATION_GRAPH_NODE_SOURCES,
+  ORCHESTRATION_DEFAULT_INPUT_QUALITY,
 } from '../config/orchestration-graph-policy.js';
 import { ORCHESTRATION_LANE_IDS } from '../config/orchestration-lanes.js';
 import { STRATEGY_INITIATIVE_DOMAIN_KEYS } from '../config/strategy-initiative-policy.js';
@@ -99,6 +102,16 @@ const executionModeTuple = [...ORCHESTRATION_EXECUTION_MODES] as [
   ...(typeof ORCHESTRATION_EXECUTION_MODES)[number][],
 ];
 
+const inputModeTuple = [...ORCHESTRATION_INPUT_MODES] as [
+  (typeof ORCHESTRATION_INPUT_MODES)[number],
+  ...(typeof ORCHESTRATION_INPUT_MODES)[number][],
+];
+
+const fallbackReasonTuple = [...ORCHESTRATION_FALLBACK_REASON_CODES] as [
+  (typeof ORCHESTRATION_FALLBACK_REASON_CODES)[number],
+  ...(typeof ORCHESTRATION_FALLBACK_REASON_CODES)[number][],
+];
+
 const OrchestrationRoutingProfileSchema = z.object({
   strategy: z.literal('toc_dynamic_routing_v1'),
   domain_weights: z.record(z.enum(initiativeDomainTuple), z.number().min(0.5).max(2)),
@@ -116,6 +129,14 @@ const OrchestrationDomainInfluenceSchema = z.object({
   domain_weights: z.record(z.enum(initiativeDomainTuple), z.number().min(0.5).max(2)),
 });
 
+const OrchestrationInputQualitySchema = z.object({
+  input_mode: z.enum(inputModeTuple),
+  director_coverage_ratio: z.number().min(0).max(1),
+  director_input_coverage_ratio: z.number().min(0).max(1),
+  degraded: z.boolean(),
+  fallback_reason_code: z.enum(fallbackReasonTuple).optional(),
+});
+
 export const GlcOrchestrationPackSchemaV2 = z.object({
   version: z.literal(GLC_ORCHESTRATION_PACK_SCHEMA_VERSION),
   graph: OrchestrationGraphPayloadSchema,
@@ -129,6 +150,7 @@ export const GlcOrchestrationPackSchemaV2 = z.object({
   confidence_map: OrchestrationConfidenceMapSchema.default({ node_confidence: {} }),
   risk_layer: OrchestrationRiskLayerSchema.default({ node_risk: {} }),
   domain_influence: OrchestrationDomainInfluenceSchema.default({ domain_weights: {} }),
+  input_quality: OrchestrationInputQualitySchema.default(ORCHESTRATION_DEFAULT_INPUT_QUALITY),
 });
 
 const GlcOrchestrationPackSchemaV1 = z.object({
@@ -237,6 +259,7 @@ function adaptGlcOrchestrationPackV1ToV2(raw: z.infer<typeof GlcOrchestrationPac
     confidence_map: { node_confidence: {} },
     risk_layer: { node_risk: {} },
     domain_influence: { domain_weights: {} },
+    input_quality: ORCHESTRATION_DEFAULT_INPUT_QUALITY,
   });
 }
 

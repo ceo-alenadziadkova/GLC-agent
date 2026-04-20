@@ -30,23 +30,28 @@ import {
 import { Input } from '../components/ui/input';
 import { Callout } from '../components/ui/callout';
 import { Button } from '../components/ui/button';
+import { getAuditListPillPresentation } from '../lib/pipeline-monitor-helpers';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { formatAppShortDate } from '../lib/date-format';
 
-function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' | 'cancelled' {
-  if (status === 'completed') return 'completed';
-  if (status === 'failed') return 'review';
-  if (status === 'cancelled') return 'cancelled';
-  if (status === 'created') return 'pending';
-  return 'running';
+function formatDashboardDate(isoDate: string): string {
+  return formatAppShortDate(isoDate);
+}
+
+function formatAuditAriaLabel(template: string, company: string): string {
+  return template.replace('{{company}}', company);
 }
 
 function DashboardAuditMobileCard({
   c,
   onRequestDelete,
+  copy,
 }: {
   c: AuditMeta;
   onRequestDelete: (id: string, label: string) => void;
+  copy: typeof WORKSPACE_PAGE_COPY.dashboard.auditsList;
 }) {
-  const status = mapStatus(c.status);
+  const statusPill = getAuditListPillPresentation(c.status);
   return (
     <div
       className="glc-card rounded-xl p-4"
@@ -74,7 +79,7 @@ function DashboardAuditMobileCard({
             </span>
             <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
               <Calendar className="w-3 h-3 flex-shrink-0" />
-              {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {formatDashboardDate(c.created_at)}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -83,7 +88,7 @@ function DashboardAuditMobileCard({
             ) : (
               <span className="text-muted-foreground text-sm">—</span>
             )}
-            <StatusPill status={status} pulse={status === 'running'} />
+            <StatusPill status={statusPill.status} pulse={statusPill.pulse} />
           </div>
         </div>
       </div>
@@ -91,7 +96,7 @@ function DashboardAuditMobileCard({
         <Button asChild variant="outline" size="sm" className="glc-touch-target no-underline">
           <Link to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}>
             <ArrowUpRight className="w-4 h-4" />
-            Open
+            {copy.openButton}
           </Link>
         </Button>
         <Button
@@ -107,7 +112,7 @@ function DashboardAuditMobileCard({
           }}
         >
           <Trash className="w-4 h-4" />
-          Delete
+          {copy.deleteButton}
         </Button>
       </div>
     </div>
@@ -118,7 +123,15 @@ export function Dashboard() {
   // Analytics panels — independent fetch from the audit list
   const { data: dashData, loading: dashLoading, error: dashError, reloadDashboard } = useDashboard();
   // Audit list — existing paginated fetch
-  const { audits, loading: auditsLoading, error: auditsError, deleteAudit } = useAudits();
+  const {
+    audits,
+    loading: auditsLoading,
+    error: auditsError,
+    deleteAudit,
+    hasMore,
+    loadMore,
+    total,
+  } = useAudits();
   const [query, setQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
 
@@ -129,15 +142,17 @@ export function Dashboard() {
     c.company_url.toLowerCase().includes(query.toLowerCase()) ||
     formatAuditWebsiteDisplay(c.company_url, c.no_public_website).toLowerCase().includes(query.toLowerCase())
   );
+  const dashboardAuditsListCopy = WORKSPACE_PAGE_COPY.dashboard.auditsList;
+  const dashboardCopy = WORKSPACE_PAGE_COPY.dashboard;
 
   return (
     <AppShell
-      title="Dashboard"
-      subtitle="Operational overview — audits, pipeline health, and client requests"
+      title={dashboardCopy.appShellTitle}
+      subtitle={dashboardCopy.appShellSubtitle}
       actions={
         <Button asChild variant="default" className="hidden sm:inline-flex">
           <Link to="/audit/new">
-            <Plus className="w-4 h-4" /> New Audit
+            <Plus className="w-4 h-4" /> {dashboardCopy.newAuditButton}
           </Link>
         </Button>
       }
@@ -148,16 +163,16 @@ export function Dashboard() {
         <div className="glc-page-hero glc-orb-decor p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="glc-kicker">Control center</p>
-              <h2 className="glc-hero-title mt-2">Portfolio command overview</h2>
+              <p className="glc-kicker">{dashboardCopy.heroKicker}</p>
+              <h2 className="glc-hero-title mt-2">{dashboardCopy.heroTitle}</h2>
               <p className="glc-hero-sub">
-                Live portfolio overview and operational health.
+                {dashboardCopy.heroSubtitle}
               </p>
             </div>
             <div className="sm:hidden">
               <Button asChild variant="default" className="w-full justify-center no-underline">
                 <Link to="/audit/new">
-                  <Plus className="w-4 h-4" /> New Audit
+                  <Plus className="w-4 h-4" /> {dashboardCopy.newAuditButton}
                 </Link>
               </Button>
             </div>
@@ -169,7 +184,7 @@ export function Dashboard() {
         {dashError && !dashLoading && (
           <Callout intent="danger" className="text-destructive flex items-center gap-2 rounded-md px-4 py-2.5 text-xs">
             <ArrowsClockwise className="w-3.5 h-3.5 flex-shrink-0" />
-            Some dashboard panels are temporarily unavailable. Audit list is unaffected.
+            {dashboardCopy.analyticsUnavailable}
           </Callout>
         )}
 
@@ -199,14 +214,14 @@ export function Dashboard() {
         {/* ── 4. All Audits ─────────────────────────────────────── */}
         <section className="glc-soft-panel p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <SectionLabel>All Audits</SectionLabel>
+            <SectionLabel>{dashboardAuditsListCopy.sectionLabel}</SectionLabel>
             <div className="bg-card flex w-full items-center gap-2 rounded-md border px-3 py-2 sm:w-auto ds-dashboard-search-minw">
               <MagnifyingGlass className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
               <Input
                 type="search"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Search audits..."
+                placeholder={dashboardAuditsListCopy.searchPlaceholder}
                 className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
               />
             </div>
@@ -229,16 +244,19 @@ export function Dashboard() {
             <div className="glc-card hidden overflow-hidden rounded-xl sm:block">
               {/* Header */}
               <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
-                <span>Company</span>
-                <span>Industry</span>
-                <span>Created</span>
-                <span>Score</span>
-                <span>Status</span>
+                <span>{dashboardAuditsListCopy.headerCompany}</span>
+                <span>{dashboardAuditsListCopy.headerIndustry}</span>
+                <span>{dashboardAuditsListCopy.headerCreated}</span>
+                <span>{dashboardAuditsListCopy.headerScore}</span>
+                <span>{dashboardAuditsListCopy.headerStatus}</span>
                 <span />
               </div>
 
               <AnimatePresence initial={false}>
-                {filtered.map((c: AuditMeta, i: number) => (
+                {filtered.map((c: AuditMeta, i: number) => {
+                  const companyLabel = c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website);
+                  const statusPill = getAuditListPillPresentation(c.status);
+                  return (
                   <motion.div
                     key={c.id}
                     initial={{ opacity: 0, y: 4 }}
@@ -254,14 +272,14 @@ export function Dashboard() {
                       <div
                         className="text-info border-info/30 bg-info/10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
                       >
-                        {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
+                        {companyLabel.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <Link
                           to={`/audit/${c.id}`}
                           className="text-foreground block truncate text-sm font-semibold no-underline"
                         >
-                          {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
+                          {companyLabel}
                         </Link>
                         <div className="text-muted-foreground mt-0.5 truncate text-xs">
                           {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
@@ -273,7 +291,7 @@ export function Dashboard() {
 
                     <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
                       <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                      {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {formatDashboardDate(c.created_at)}
                     </div>
 
                     {c.overall_score !== null
@@ -281,12 +299,13 @@ export function Dashboard() {
                       : <span className="text-muted-foreground text-sm">—</span>
                     }
 
-                    <StatusPill status={mapStatus(c.status)} pulse={mapStatus(c.status) === 'running'} />
+                    <StatusPill status={statusPill.status} pulse={statusPill.pulse} />
 
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                       <Link
                         to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
                         className="glc-btn-icon h-7 w-7 rounded-md"
+                        aria-label={formatAuditAriaLabel(dashboardAuditsListCopy.openIconAriaLabel, companyLabel)}
                       >
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </Link>
@@ -296,16 +315,18 @@ export function Dashboard() {
                         onClick={() => {
                           setDeleteTarget({
                             id: c.id,
-                            label: c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website),
+                            label: companyLabel,
                           });
                         }}
-                        title="Delete audit"
+                        title={dashboardAuditsListCopy.deleteTitle}
+                        aria-label={formatAuditAriaLabel(dashboardAuditsListCopy.deleteIconAriaLabel, companyLabel)}
                       >
                         <Trash className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </motion.div>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </div>
 
@@ -314,6 +335,7 @@ export function Dashboard() {
                 <DashboardAuditMobileCard
                   key={c.id}
                   c={c}
+                  copy={dashboardAuditsListCopy}
                   onRequestDelete={(id, label) => setDeleteTarget({ id, label })}
                 />
               ))}
@@ -323,15 +345,32 @@ export function Dashboard() {
 
           {query && filtered.length === 0 && audits.length > 0 && !auditsLoading && !auditsError && (
             <div className="text-muted-foreground py-10 text-center text-sm">
-              No audits match "{query}"
+              {dashboardAuditsListCopy.searchNoMatchesPrefix}
+              {query}
+              {dashboardAuditsListCopy.searchNoMatchesSuffix}
             </div>
           )}
 
           {!auditsLoading && audits.length === 0 && !auditsError && (
             <div className="text-muted-foreground py-14 text-center">
               <Buildings className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-              <p className="text-sm font-medium">No audits yet</p>
-              <p className="text-xs mt-1">Start your first audit to see it here</p>
+              <p className="text-sm font-medium">{dashboardAuditsListCopy.emptyTitle}</p>
+              <p className="text-xs mt-1">{dashboardAuditsListCopy.emptySubtitle}</p>
+            </div>
+          )}
+
+          {!auditsError && !query && total > audits.length && (
+            <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+              <p className="text-muted-foreground text-xs">
+                {dashboardAuditsListCopy.showingOfTotal
+                  .replace('{{shown}}', String(audits.length))
+                  .replace('{{total}}', String(total))}
+              </p>
+              {hasMore && (
+                <Button type="button" variant="outline" size="sm" onClick={loadMore}>
+                  {dashboardAuditsListCopy.loadMoreButton}
+                </Button>
+              )}
             </div>
           )}
         </section>
@@ -352,16 +391,16 @@ export function Dashboard() {
               <p
                 className="text-foreground text-sm font-semibold"
               >
-                Add a new client
+                {dashboardCopy.cta.title}
               </p>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                Start a new audit by entering a company URL
+                {dashboardCopy.cta.subtitle}
               </p>
             </div>
           </div>
           <Button asChild variant="default" className="glc-touch-target w-full justify-center sm:w-auto">
             <Link to="/audit/new">
-              <Plus className="w-4 h-4" /> Start Audit
+              <Plus className="w-4 h-4" /> {dashboardCopy.cta.button}
             </Link>
           </Button>
         </motion.div>
@@ -374,15 +413,15 @@ export function Dashboard() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete audit</AlertDialogTitle>
+              <AlertDialogTitle>{dashboardAuditsListCopy.deleteTitle}</AlertDialogTitle>
               <AlertDialogDescription>
                 {deleteTarget
-                  ? `Delete audit for ${deleteTarget.label}? This cannot be undone.`
+                  ? `${dashboardAuditsListCopy.deleteDialogPrefix}${deleteTarget.label}${dashboardAuditsListCopy.deleteDialogSuffix}`
                   : ''}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+              <AlertDialogCancel type="button">{dashboardAuditsListCopy.deleteDialogCancel}</AlertDialogCancel>
               <AlertDialogAction
                 type="button"
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -392,7 +431,7 @@ export function Dashboard() {
                   if (id) void deleteAudit(id);
                 }}
               >
-                Delete
+                {dashboardAuditsListCopy.deleteDialogConfirm}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

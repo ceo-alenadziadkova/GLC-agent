@@ -14,6 +14,8 @@ import { PhaseDetailPanel } from './sections/PhaseDetailPanel';
 import { StopPipelineDialog } from './sections/StopPipelineDialog';
 import { pipelineHasReconCrawlerTruncationWarning } from '../../lib/pipeline-recon-truncation';
 import type { PipelineReview } from './types-pipeline-state';
+import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
+import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 
 export function PipelineMonitorPage() {
   const { id } = useParams<{ id: string }>();
@@ -148,6 +150,9 @@ export function PipelineMonitorPage() {
           runNextPhaseBusy={runNextPhaseBusy}
           onRetryPhase={retryPhase}
         />
+      </div>
+      <div className="mt-4">
+        <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.pipelineMonitor} />
       </div>
 
       <ReviewPointModal

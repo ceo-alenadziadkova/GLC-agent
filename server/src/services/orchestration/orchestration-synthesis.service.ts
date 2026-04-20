@@ -1,15 +1,28 @@
 import { loadPrompt } from '../../agents/base.js';
 import { MIN_TOKEN_RESERVE } from '../../config/model.js';
-import { isOrchestrationConflictSynthesisEnabled } from '../../config/feature-flags.js';
+import {
+  getOrchestrationConflictSynthesisRolloutPercent,
+  isOrchestrationConflictSynthesisEnabled,
+} from '../../config/feature-flags.js';
 import { ORCHESTRATION_SYNTHESIS_CONFLICT_ID_PREFIX } from '../../config/orchestration-synthesis-policy.js';
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import type { GlcOrchestrationSynthesisToolOutput } from '../../schemas/glc-orchestration-synthesis-tool.js';
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 import { logger } from '../logger.js';
 import { TokenTracker } from '../token-tracker.js';
+import { supabase } from '../supabase.js';
+import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 
 import { buildOrchestrationSynthesisUserJson } from './orchestration-synthesis-context.js';
 import { invokeOrchestrationPackSynthesisClaude } from './orchestration-pack-synthesis-claude.js';
+
+function hashAuditIdToPercent(auditId: string): number {
+  let hash = 0;
+  for (let i = 0; i < auditId.length; i += 1) {
+    hash = (hash * 31 + auditId.charCodeAt(i)) >>> 0;
+  }
+  return hash % 100;
+}
 
 /**
  * Merges LLM synthesis rows into a deterministic pack. Deterministic `conflicts_resolved` ids win on collision.
@@ -55,7 +68,41 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
   domainRows: Array<Record<string, unknown>>;
   roadmapManifest?: RoadmapManifestPayload;
 }): Promise<GlcOrchestrationPack> {
+  const orchestrationPhase = -1;
+  const startedAt = Date.now();
+  await supabase.from('pipeline_events').insert({
+    audit_id: args.auditId,
+    phase: orchestrationPhase,
+    event_type: PIPELINE_EVENT_TYPES.orchestrationStarted,
+    message: 'Orchestration synthesis started',
+    data: { detail_level: 'default', component: 'orchestration_synthesis' },
+  });
   if (!isOrchestrationConflictSynthesisEnabled()) {
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      message: 'Orchestration synthesis skipped by feature flag',
+      data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
+    });
+    return args.deterministicPack;
+  }
+  const rolloutPercent = getOrchestrationConflictSynthesisRolloutPercent();
+  const bucket = hashAuditIdToPercent(args.auditId);
+  const inRollout = bucket < rolloutPercent;
+  if (!inRollout) {
+    logger.info('orchestration_synthesis.rollout_skip', {
+      audit_id: args.auditId,
+      rollout_percent: rolloutPercent,
+      audit_bucket: bucket,
+    });
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      message: 'Orchestration synthesis skipped by rollout segment',
+      data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
+    });
     return args.deterministicPack;
   }
 
@@ -67,12 +114,26 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       within_budget: budget.within_budget,
       remaining: budget.remaining,
     });
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      message: 'Orchestration synthesis skipped by token budget',
+      data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
+    });
     return args.deterministicPack;
   }
 
   const system = loadPrompt('orchestration-pack-synthesis');
   if (!system.trim()) {
     logger.error('orchestration_synthesis.missing_prompt', { audit_id: args.auditId });
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationError,
+      message: 'Orchestration synthesis failed: missing prompt',
+      data: { detail_level: 'default', component: 'orchestration_synthesis' },
+    });
     return args.deterministicPack;
   }
 
@@ -89,12 +150,41 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       system,
       user,
     });
+    logger.info('orchestration_synthesis.rollout_applied', {
+      audit_id: args.auditId,
+      rollout_percent: rolloutPercent,
+      audit_bucket: bucket,
+    });
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      message: 'Orchestration synthesis completed',
+      data: {
+        detail_level: 'default',
+        component: 'orchestration_synthesis',
+        latency_ms: Date.now() - startedAt,
+        skipped: false,
+      },
+    });
     return mergeOrchestrationSynthesisIntoPack(args.deterministicPack, synthesis);
   } catch (err) {
     const error = err as Error;
     logger.warn('orchestration_synthesis.claude_skip', {
       audit_id: args.auditId,
       message: error.message,
+    });
+    await supabase.from('pipeline_events').insert({
+      audit_id: args.auditId,
+      phase: orchestrationPhase,
+      event_type: PIPELINE_EVENT_TYPES.orchestrationError,
+      message: 'Orchestration synthesis failed',
+      data: {
+        detail_level: 'default',
+        component: 'orchestration_synthesis',
+        latency_ms: Date.now() - startedAt,
+        error: error.message,
+      },
     });
     return args.deterministicPack;
   }

@@ -7,22 +7,34 @@ import {
   AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
   AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID_MESSAGE,
   AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
+  IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
+import { idempotencyPostAuditsOrchestrationPackKey } from '../../../config/api-http-paths.js';
 import {
   getOrchestrationPlanGovernanceRolloutMode,
   isOrchestrationPackApiEnabled,
 } from '../../../config/feature-flags.js';
 import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY } from '../../../config/orchestration-plan-governance-policy.js';
+import {
+  isTightenedQualityRolloutReady,
+  resolveOrchestrationPlanGovernanceRolloutTransition,
+} from '../../../config/orchestration-plan-governance-rollout-policy.js';
 import { AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE } from '../../../config/api-user-messages.en.js';
+import {
+  getStoredIdempotentResponse,
+  isIdempotencyPayloadConflictError,
+  storeIdempotentResponse,
+} from '../../../lib/idempotency.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import {
-  buildOrchestrationPackForAudit,
+  buildOrchestrationPackForAuditWithStatus,
   persistGlcOrchestrationPack,
 } from '../../../services/orchestration/orchestration-read.service.js';
 import { RoadmapManifestMismatchError } from '../../../services/orchestration/roadmap-manifest.service.js';
 import { evaluateOrchestrationPlanGovernance } from '../../../services/orchestration/orchestration-plan-governance.service.js';
+import { summarizeOrchestrationPackRevisionDiff } from '../../../services/orchestration/orchestration-pack-diff.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 const BodySchema = z.object({
@@ -30,6 +42,10 @@ const BodySchema = z.object({
 });
 
 export async function postOrchestrationPackController(req: AuthRequest, res: Response) {
+  await executePostOrchestrationPack(req, res, idempotencyPostAuditsOrchestrationPackKey(req.params.id as string));
+}
+
+export async function executePostOrchestrationPack(req: AuthRequest, res: Response, idempotencyRoute: string) {
   try {
     if (!isOrchestrationPackApiEnabled()) {
       sendApiError(res, 403, API_ERROR_CODES.ORCHESTRATION_PACK_API_DISABLED, ORCHESTRATION_PACK_API_DISABLED_MESSAGE);
@@ -54,16 +70,23 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       return;
     }
 
-    const pack = await buildOrchestrationPackForAudit({
+    const idempotent = await getStoredIdempotentResponse(req, idempotencyRoute, req.body);
+    if (idempotent.replay) {
+      res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
+      return;
+    }
+
+    const buildResult = await buildOrchestrationPackForAuditWithStatus({
       auditId,
       userId: req.userId!,
       manifestSnapshotId: parsedBody.data.manifest_snapshot_id,
     });
 
-    if (!pack) {
+    if (buildResult.status === 'not_ready') {
       logger.warn('route.orchestration_pack_rejected', {
         component: 'audits',
         reason: 'pack_not_ready',
+        not_ready_reason_code: buildResult.reason_code,
         metric: 'orchestration_pack_run.not_ready',
       });
       sendApiError(
@@ -71,13 +94,28 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
         409,
         API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_NOT_READY,
         AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
+        { not_ready_reason_code: buildResult.reason_code },
       );
       return;
     }
+    const { pack } = buildResult;
 
     const governanceRolloutMode = getOrchestrationPlanGovernanceRolloutMode();
     const plan_governance = evaluateOrchestrationPlanGovernance(pack, {
       rolloutMode: governanceRolloutMode,
+    });
+    const tightenedQualityRolloutReady = isTightenedQualityRolloutReady({
+      dependencyIntegrityScore: plan_governance.dependency_integrity_score,
+      confidenceCoverageScore: plan_governance.confidence_coverage_score,
+      riskCoverageScore: plan_governance.risk_coverage_score,
+    });
+    const rolloutTransition = resolveOrchestrationPlanGovernanceRolloutTransition({
+      currentMode: governanceRolloutMode,
+      readiness: {
+        dependencyIntegrityScore: plan_governance.dependency_integrity_score,
+        confidenceCoverageScore: plan_governance.confidence_coverage_score,
+        riskCoverageScore: plan_governance.risk_coverage_score,
+      },
     });
     if (
       governanceRolloutMode === 'shadow' &&
@@ -124,6 +162,7 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       return;
     }
 
+    const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(last_revision_diff);
     logger.info('route.orchestration_pack_success', {
       component: 'audits',
       metric: 'orchestration_pack_run.success',
@@ -134,18 +173,47 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       governance_decision_hint: plan_governance.decision_hint,
       governance_status: plan_governance.status,
       governance_rollout_mode: plan_governance.rollout_mode,
+      governance_next_rollout_mode: rolloutTransition.recommendedMode,
       governance_reason_codes: plan_governance.reason_codes,
+      tightened_quality_rollout_ready: tightenedQualityRolloutReady ? 1 : 0,
       kpi_pack_refine_required: plan_governance.decision_hint === 'refine_plan' ? 1 : 0,
       kpi_pack_lane_imbalance: computeLaneImbalance(pack),
+      kpi_unresolved_conflicts_rate:
+        pack.conflicts_resolved.length === 0
+          ? 0
+          : Number((plan_governance.unresolved_conflicts / pack.conflicts_resolved.length).toFixed(4)),
+      kpi_governance_coverage_score: plan_governance.coverage_score,
+      kpi_governance_integrity_score: plan_governance.integrity_score,
+      last_revision_diff_summary,
     });
-    res.json({
+    const payload = {
       pack,
       orchestration_pack_version,
       roadmap_version: orchestration_pack_version,
       last_revision_diff,
+      last_revision_diff_summary,
       plan_governance,
-    });
+      rollout_transition: rolloutTransition,
+    };
+    await storeIdempotentResponse(
+      req,
+      idempotencyRoute,
+      idempotent.key,
+      idempotent.hash,
+      { statusCode: 200, payload },
+      auditId,
+    );
+    res.json(payload);
   } catch (err) {
+    if (isIdempotencyPayloadConflictError(err)) {
+      sendApiError(
+        res,
+        409,
+        API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH,
+        IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
+      );
+      return;
+    }
     if (err instanceof RoadmapManifestMismatchError) {
       logger.warn('route.orchestration_pack_rejected', {
         component: 'audits',

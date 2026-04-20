@@ -37,15 +37,13 @@ import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
+import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import {
   orchestrationNodeTitleMap,
-  partitionCriticalPathNodeIds,
-  prioritizeCrossLaneEdges,
 } from '../../lib/orchestration-timeline-projection';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
-import { StrategyLabOrchestratorListBody } from './StrategyLabOrchestratorListBody';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
@@ -56,21 +54,6 @@ import {
 } from '../../lib/strategy-lab-roadmap-export';
 import { sortStrategyInitiatives } from '../../lib/strategy-lab-sort';
 import type { StrategyExecutionPackResponse } from '../../data/audit/contracts/report/strategy-lab.types';
-
-type StrategyLabOrchestratorTabId = 'now' | 'next' | 'dependencies' | 'risks';
-
-const ORCHESTRATOR_TABS: {
-  key: StrategyLabOrchestratorTabId;
-  label: string;
-  icon: typeof Lightning;
-  toneClass: string;
-  desc: string;
-}[] = [
-  { key: 'now', label: STRATEGY_LAB_COPY.orchestratorTabs.now, icon: CalendarBlank, toneClass: 'text-warning', desc: STRATEGY_LAB_COPY.orchestratorTabs.nowDesc },
-  { key: 'next', label: STRATEGY_LAB_COPY.orchestratorTabs.next, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_COPY.orchestratorTabs.nextDesc },
-  { key: 'dependencies', label: STRATEGY_LAB_COPY.orchestratorTabs.dependencies, icon: GitBranch, toneClass: 'text-violet-500', desc: STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc },
-  { key: 'risks', label: STRATEGY_LAB_COPY.orchestratorTabs.risks, icon: WarningCircle, toneClass: 'text-destructive', desc: STRATEGY_LAB_COPY.orchestratorTabs.risksDesc },
-];
 
 const TABS: {
   key: StrategyLabRoadmapTimeframe;
@@ -102,7 +85,6 @@ export function StrategyLab() {
   const { audit, loading, error, reload } = useAudit(id);
   const { isClient } = useProfile();
   const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
-  const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
   const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
   const [sortMode, setSortMode] = useState<StrategyLabSortMode>('roi');
@@ -201,19 +183,6 @@ export function StrategyLab() {
     );
     return sortStrategyInitiatives(base, sortMode);
   }, [visible, domainFilter, sortMode]);
-
-  const orchestratorTabCounts = useMemo(() => {
-    if (!glcPackView) {
-      return { now: 0, next: 0, dependencies: 0, risks: 0 };
-    }
-    const { near, mid, far } = partitionCriticalPathNodeIds(glcPackView);
-    return {
-      now: near.length,
-      next: mid.length + far.length,
-      dependencies: prioritizeCrossLaneEdges(glcPackView).length,
-      risks: glcPackView.conflicts_resolved.length,
-    };
-  }, [glcPackView]);
 
   const roadmapMarkdownPreview = useMemo(() => {
     if (!audit?.strategy || selected.size === 0) return null;
@@ -352,14 +321,20 @@ export function StrategyLab() {
   }
 
   const orchestrationUiEnabled = APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
-  const orchestratorDetailTabsEnabled = APP_FEATURE_FLAGS.strategyLabOrchestratorDetailTabsEnabled;
   const clientOrchestrationLabReadOnlyEnabled = APP_FEATURE_FLAGS.clientOrchestrationLabReadOnlyEnabled;
   const orchestrationPackReady = glcPackView != null;
-  const useOrchestratorPrimaryNav = orchestrationUiEnabled && orchestratorDetailTabsEnabled;
+  const useOrchestratorPrimaryNav = orchestrationUiEnabled;
+  const showLegacyRoadmapComposer = !useOrchestratorPrimaryNav;
   const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
-  const reportBasePath = isClient ? '/portal/reports' : '/reports';
-  const reportHref = id ? `${reportBasePath}/${id}` : reportBasePath;
-  const timelineInReportHref = `${reportHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
+  const reportHref = id
+    ? isClient
+      ? buildAppRoute.portalReports(id)
+      : buildAppRoute.reports(id)
+    : isClient
+      ? '/portal/reports'
+      : '/reports';
+  const timelineHref =
+    isClient && id ? buildAppRoute.portalTimeline(id) : `${reportHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
 
   if (!audit.strategy) {
     return (
@@ -411,7 +386,7 @@ export function StrategyLab() {
         <div className="bg-card flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.clientTimelineReadOnlyHint}</p>
           <Button asChild variant="outline" size="sm" className="no-underline w-fit">
-            <Link to={timelineInReportHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
+            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
           </Button>
         </div>
       ) : orchestrationUiEnabled && isClient ? (
@@ -536,7 +511,7 @@ export function StrategyLab() {
               </div>
             </>
           )}
-          {!useOrchestratorPrimaryNav ? (
+          {showLegacyRoadmapComposer ? (
             <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
               <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
                 <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
@@ -570,42 +545,11 @@ export function StrategyLab() {
             </div>
           ) : null}
           {/* Tabs */}
-          <div
-            className="bg-background/90 sticky top-0 z-10 flex gap-2 border-b p-4 backdrop-blur"
-          >
-            {useOrchestratorPrimaryNav
-              ? ORCHESTRATOR_TABS.map(tab => {
-                  const I = tab.icon;
-                  const active = orchestratorTab === tab.key;
-                  const count = orchestratorTabCounts[tab.key];
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setOrchestratorTab(tab.key)}
-                      className={cn(
-                        'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
-                        active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
-                      )}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId="tab-indicator-orch"
-                          className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
-                        />
-                      )}
-                      <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
-                      <span className="relative font-semibold text-xs">
-                        {tab.label} ({count})
-                      </span>
-                      <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
-                        {tab.desc}
-                      </span>
-                    </button>
-                  );
-                })
-              : TABS.map(tab => {
+          {showLegacyRoadmapComposer ? (
+            <div
+              className="bg-background/90 sticky top-0 z-10 flex gap-2 border-b p-4 backdrop-blur"
+            >
+              {TABS.map(tab => {
                   const I = tab.icon;
                   const active = activeTab === tab.key;
                   const count = initiatives[tab.key].length;
@@ -635,44 +579,30 @@ export function StrategyLab() {
                     </button>
                   );
                 })}
-          </div>
+            </div>
+          ) : null}
 
           {/* Initiative list */}
-          <div className="p-4 space-y-2">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={useOrchestratorPrimaryNav ? orchestratorTab : activeTab}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-2"
-              >
-                {useOrchestratorPrimaryNav ? (
-                  glcPackView ? (
-                    <StrategyLabOrchestratorListBody
-                      pack={glcPackView}
-                      tab={orchestratorTab}
-                      selectedNodeId={selectedPackNodeId}
-                      onSelectNode={setSelectedPackNodeId}
-                    />
-                  ) : (
-                    <div className="rounded-xl border border-dashed p-4 text-center">
-                      <p className="text-muted-foreground text-xs leading-relaxed">
-                        {ORCHESTRATION_UI_COPY.noPackYet}
-                      </p>
-                    </div>
-                  )
-                ) : (
+          {showLegacyRoadmapComposer ? (
+            <div className="p-4 space-y-2">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-2"
+                >
                   <>
-                    {filteredVisible.length === 0 && (
-                      <div className="text-center py-10">
-                        <p className="text-muted-foreground text-sm">
-                          {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
-                        </p>
-                      </div>
-                    )}
-                    {filteredVisible.map((init: StrategyInitiative, i: number) => {
+                      {filteredVisible.length === 0 && (
+                        <div className="text-center py-10">
+                          <p className="text-muted-foreground text-sm">
+                            {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
+                          </p>
+                        </div>
+                      )}
+                      {filteredVisible.map((init: StrategyInitiative, i: number) => {
                   const sel = selected.has(init.id);
                   const expanded = expandedId === init.id;
                   return (
@@ -788,12 +718,34 @@ export function StrategyLab() {
                       ) : null}
                     </motion.div>
                   );
-                    })}
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                      })}
+                    </>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="p-4">
+              <div className="bg-background rounded-xl border p-4">
+                <p className="text-foreground text-sm font-semibold">
+                  {ORCHESTRATION_UI_COPY.timelineTitle}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                  {ORCHESTRATION_UI_COPY.timelineHint}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm" className="no-underline">
+                    <Link to={timelineHref}>
+                      <Path className="h-4 w-4" />
+                      {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="no-underline">
+                    <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Plan summary ──────────────────────────── */}
@@ -806,37 +758,41 @@ export function StrategyLab() {
               </p>
             </div>
 
-            {useOrchestratorPrimaryNav && glcPackView ? (
-              selectedPackNodeId ? (
-                <OrchestrationNodeDetailCard
-                  pack={glcPackView}
-                  nodeId={selectedPackNodeId}
-                  onClear={() => setSelectedPackNodeId(null)}
-                />
-              ) : (
-                <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
-                  {STRATEGY_LAB_COPY.orchestratorTabs.pickNode}
-                </p>
-              )
+            {glcPackView && selectedPackNodeId ? (
+              <OrchestrationNodeDetailCard
+                pack={glcPackView}
+                nodeId={selectedPackNodeId}
+                onClear={() => setSelectedPackNodeId(null)}
+              />
             ) : null}
 
-            <div className="space-y-2">
-              {[
-                { label: STRATEGY_LAB_COPY.panel.totalInitiatives, value: `${selected.size}`, color: 'var(--text-primary)' },
-                { label: STRATEGY_LAB_COPY.panel.quickWins, value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
-                { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: COLOR_TOKENS.semantic.uiSemantic.strategicPurple },
-              ].map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="bg-background flex items-center justify-between rounded-lg border px-3 py-2.5"
-                >
-                  <span className="text-muted-foreground text-xs">{label}</span>
-                  <span className={cn('text-sm font-bold tabular-nums', color === 'var(--text-primary)' ? 'text-foreground' : color === 'var(--glc-green)' ? 'text-success' : 'text-violet-500')}>
-                    {value}
-                  </span>
+            {glcPackView && !selectedPackNodeId ? (
+              <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
+                {STRATEGY_LAB_COPY.orchestratorTabs.pickNode}
+              </p>
+            ) : null}
+
+            {!useOrchestratorPrimaryNav ? (
+              <>
+                <div className="space-y-2">
+                  {[
+                    { label: STRATEGY_LAB_COPY.panel.totalInitiatives, value: `${selected.size}`, color: 'var(--text-primary)' },
+                    { label: STRATEGY_LAB_COPY.panel.quickWins, value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
+                    { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: COLOR_TOKENS.semantic.uiSemantic.strategicPurple },
+                  ].map(({ label, value, color }) => (
+                    <div
+                      key={label}
+                      className="bg-background flex items-center justify-between rounded-lg border px-3 py-2.5"
+                    >
+                      <span className="text-muted-foreground text-xs">{label}</span>
+                      <span className={cn('text-sm font-bold tabular-nums', color === 'var(--text-primary)' ? 'text-foreground' : color === 'var(--glc-green)' ? 'text-success' : 'text-violet-500')}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : null}
 
             {!useOrchestratorPrimaryNav ? (
               <div className="space-y-2">

@@ -11,7 +11,10 @@ vi.mock('../api-http', () => ({
 import { auditsOrchestrationApi } from './audits-orchestration';
 import {
   apiAuditsOrchestrationCommercialOffer,
+  apiAuditsOrchestrationPackDiff,
+  apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
+  apiAuditsRoadmapManifestSnapshotsLatest,
 } from '../../config/api-paths';
 
 describe('auditsOrchestrationApi', () => {
@@ -24,6 +27,29 @@ describe('auditsOrchestrationApi', () => {
     await auditsOrchestrationApi.getOrchestrationPackDiffHistory('audit-1', { limit: 7 });
     expect(apiFetchMock).toHaveBeenCalledWith(
       apiAuditsOrchestrationPackDiffHistory('audit-1', { limit: 7 }),
+      { method: 'GET' },
+    );
+  });
+
+  it('calls latest manifest snapshot endpoint', async () => {
+    await auditsOrchestrationApi.getRoadmapManifestSnapshotLatest('audit-1');
+    expect(apiFetchMock).toHaveBeenCalledWith(apiAuditsRoadmapManifestSnapshotsLatest('audit-1'), {
+      method: 'GET',
+    });
+  });
+
+  it('calls regenerate pack endpoint', async () => {
+    await auditsOrchestrationApi.postOrchestrationPackRegenerate('audit-1', { manifest_snapshot_id: 'snapshot-1' });
+    expect(apiFetchMock).toHaveBeenCalledWith(apiAuditsOrchestrationPackRegenerate('audit-1'), {
+      method: 'POST',
+      body: JSON.stringify({ manifest_snapshot_id: 'snapshot-1' }),
+    });
+  });
+
+  it('calls pack-diff endpoint with version params', async () => {
+    await auditsOrchestrationApi.getOrchestrationPackDiff('audit-1', { from_version: 2, to_version: 3 });
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      apiAuditsOrchestrationPackDiff('audit-1', { from_version: 2, to_version: 3 }),
       { method: 'GET' },
     );
   });

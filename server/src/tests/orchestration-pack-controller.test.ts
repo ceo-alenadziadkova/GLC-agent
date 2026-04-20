@@ -20,6 +20,10 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 
 const sendApiErrorMock = vi.hoisted(() => vi.fn());
+const idempotencyMocks = vi.hoisted(() => ({
+  getStoredIdempotentResponse: vi.fn(),
+  storeIdempotentResponse: vi.fn(),
+}));
 
 vi.mock('../config/feature-flags.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../config/feature-flags.js')>();
@@ -31,7 +35,7 @@ vi.mock('../config/feature-flags.js', async importOriginal => {
 });
 
 vi.mock('../services/orchestration/orchestration-read.service.js', () => ({
-  buildOrchestrationPackForAudit: orchestrationMocks.buildPack,
+  buildOrchestrationPackForAuditWithStatus: orchestrationMocks.buildPack,
   persistGlcOrchestrationPack: orchestrationMocks.persistPack,
 }));
 
@@ -41,6 +45,11 @@ vi.mock('../services/logger.js', () => ({
 
 vi.mock('../routes/audits/mappers/audits-http.mapper.js', () => ({
   sendApiError: sendApiErrorMock,
+}));
+vi.mock('../lib/idempotency.js', () => ({
+  getStoredIdempotentResponse: idempotencyMocks.getStoredIdempotentResponse,
+  storeIdempotentResponse: idempotencyMocks.storeIdempotentResponse,
+  isIdempotencyPayloadConflictError: () => false,
 }));
 
 import { postOrchestrationPackController } from '../routes/audits/controllers/post-orchestration-pack.controller.js';
@@ -56,12 +65,21 @@ describe('postOrchestrationPackController', () => {
     vi.clearAllMocks();
     flagMocks.enabled = true;
     flagMocks.governanceRolloutMode = 'hard_structure_soft_quality';
-    orchestrationMocks.buildPack.mockResolvedValue(null);
+    orchestrationMocks.buildPack.mockResolvedValue({
+      status: 'not_ready',
+      reason_code: 'strategy_row_missing',
+    });
     orchestrationMocks.persistPack.mockResolvedValue({
       orchestration_pack_version: 1,
       last_revision_diff: null,
       error: null,
     });
+    idempotencyMocks.getStoredIdempotentResponse.mockResolvedValue({
+      key: null,
+      hash: undefined,
+      replay: undefined,
+    });
+    idempotencyMocks.storeIdempotentResponse.mockResolvedValue(undefined);
   });
 
   it('returns 403 when orchestration API flag is disabled', async () => {
@@ -99,7 +117,15 @@ describe('postOrchestrationPackController', () => {
 
     await postOrchestrationPackController(req as never, res);
 
-    expect(sendApiErrorMock).toHaveBeenCalledWith(expect.anything(), 409, expect.any(String), expect.any(String));
+    expect(sendApiErrorMock).toHaveBeenCalledWith(
+      expect.anything(),
+      409,
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        not_ready_reason_code: 'strategy_row_missing',
+      }),
+    );
   });
 
   it('returns 400 when manifest does not match execution plan', async () => {
@@ -120,11 +146,17 @@ describe('postOrchestrationPackController', () => {
 
   it('returns 500 when persist fails', async () => {
     orchestrationMocks.buildPack.mockResolvedValue({
+      status: 'ok',
+      pack: {
+      version: 2,
       graph: { nodes: [{ id: 'n1', lane: 'tech_delivery', domain: 'tech_infrastructure' }], edges: [] },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
       critical_path: ['n1'],
       confidence_map: { node_confidence: { n1: 'high' } },
       risk_layer: { node_risk: { n1: 2 } },
       conflicts_resolved: [],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      },
     });
     orchestrationMocks.persistPack.mockResolvedValue({
       orchestration_pack_version: 1,
@@ -145,14 +177,20 @@ describe('postOrchestrationPackController', () => {
 
   it('returns 409 when governance requires refinement before persistence', async () => {
     orchestrationMocks.buildPack.mockResolvedValue({
+      status: 'ok',
+      pack: {
+      version: 2,
       graph: {
         nodes: [{ id: 'n1' }],
         edges: [{ from: 'n1', to: 'n1' }],
       },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
       critical_path: ['n1'],
       confidence_map: { node_confidence: { n1: 'high' } },
       risk_layer: { node_risk: { n1: 2 } },
       conflicts_resolved: [],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      },
     });
     const res = createRes();
     const req = {
@@ -179,14 +217,17 @@ describe('postOrchestrationPackController', () => {
 
   it('returns persisted pack payload on success', async () => {
     const pack = {
+      version: 2,
       graph: { nodes: [{ id: 'n1', lane: 'tech_delivery' }], edges: [] },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
       critical_path: ['n1'],
       confidence_map: { node_confidence: { n1: 'high' } },
       risk_layer: { node_risk: { n1: 2 } },
       conflicts_resolved: [{ id: 'c1', summary: 'ok' }],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
     };
     const lastDiff = { from_version: 1, to_version: 2 };
-    orchestrationMocks.buildPack.mockResolvedValue(pack);
+    orchestrationMocks.buildPack.mockResolvedValue({ status: 'ok', pack });
     orchestrationMocks.persistPack.mockResolvedValue({
       orchestration_pack_version: 2,
       last_revision_diff: lastDiff,
@@ -207,6 +248,7 @@ describe('postOrchestrationPackController', () => {
         orchestration_pack_version: 2,
         roadmap_version: 2,
         last_revision_diff: lastDiff,
+        last_revision_diff_summary: expect.any(String),
         plan_governance: expect.objectContaining({
           decision_hint: expect.any(String),
         }),
@@ -225,14 +267,20 @@ describe('postOrchestrationPackController', () => {
   it('does not block persistence for structural issue in shadow mode', async () => {
     flagMocks.governanceRolloutMode = 'shadow';
     orchestrationMocks.buildPack.mockResolvedValue({
+      status: 'ok',
+      pack: {
+      version: 2,
       graph: {
         nodes: [{ id: 'n1' }],
         edges: [{ from: 'n1', to: 'n1' }],
       },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
       critical_path: ['n1'],
       confidence_map: { node_confidence: { n1: 'high' } },
       risk_layer: { node_risk: { n1: 2 } },
       conflicts_resolved: [],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      },
     });
     const res = createRes();
     const req = {

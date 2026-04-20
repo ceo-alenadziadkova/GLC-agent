@@ -143,8 +143,24 @@ export function apiAuditsRoadmapManifestSnapshots(
   return base;
 }
 
+export function apiAuditsRoadmapManifestSnapshotsLatest(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest-snapshots/latest`;
+}
+
 export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
+}
+
+export function apiAuditsOrchestrationPackRegenerate(auditId: string): string {
+  return `${apiAuditsOrchestrationPack(auditId)}/regenerate`;
+}
+
+export function idempotencyPostAuditsOrchestrationPackKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationPack(auditId));
+}
+
+export function idempotencyPostAuditsOrchestrationPackRegenerateKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationPackRegenerate(auditId));
 }
 
 export function apiAuditsOrchestrationPackDiffHistory(
@@ -156,6 +172,15 @@ export function apiAuditsOrchestrationPackDiffHistory(
     return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
   }
   return base;
+}
+
+export function apiAuditsOrchestrationPackDiff(auditId: string, query: { from_version: number; to_version: number }): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/pack-diff`;
+  const qs = new URLSearchParams({
+    from_version: String(query.from_version),
+    to_version: String(query.to_version),
+  });
+  return `${base}?${qs.toString()}`;
 }
 
 export function apiAuditsOrchestrationCommercialOffer(auditId: string): string {

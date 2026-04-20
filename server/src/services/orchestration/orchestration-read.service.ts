@@ -16,6 +16,7 @@ import {
   type GlcOrchestrationPackRevisionDiff,
 } from '../../schemas/orchestration-pack-revision-diff.js';
 import { z } from 'zod';
+import type { DomainKey } from '@glc/intake-core';
 import type { AuditExecutionPlan, ProductMode } from '../../types/audit.js';
 import { normalizeExecutionPlan } from '../execution-plan.js';
 import { fetchAuditByIdForUser, fetchAuditRelatedReadModel } from '../../repositories/audits/audit-read-model.repository.js';
@@ -26,15 +27,19 @@ import {
 } from '../strategy/strategy-audit-read-normalize.js';
 import { supabase } from '../supabase.js';
 import { buildGlcOrchestrationPackFromActionNodes } from './build-glc-orchestration-pack.js';
-import { buildDirectorSliceIndexFromDomainRows } from './extract-glc-director-slice-from-raw-data.js';
-import { mergeOrchestrationActionInputs } from './merge-orchestration-action-inputs.js';
-import { mapStrategyInitiativesToActionNodes } from './map-strategy-initiative-to-action-node.js';
+import {
+  buildDirectorSliceIndexFromDomainRows,
+  buildDirectorSliceParseStatusIndexFromDomainRows,
+} from './extract-glc-director-slice-from-raw-data.js';
+import { collectOrchestrationActionInputs } from './orchestration-action-sources.js';
 import { runOrchestrationSynthesisIfEnabled } from './orchestration-synthesis.service.js';
 import {
   assertManifestMatchesExecutionPlan,
+  fetchLatestRoadmapManifestSnapshotIdForAudit,
   fetchRoadmapManifestSnapshotForAudit,
 } from './roadmap-manifest.service.js';
 import { buildOrchestrationPackRevisionDiff } from './orchestration-pack-diff.js';
+import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 
 export async function loadAuditExecutionPlanRow(
   auditId: string,
@@ -55,54 +60,77 @@ export async function buildOrchestrationPackForAudit(args: {
   userId: string;
   manifestSnapshotId: string;
 }): Promise<GlcOrchestrationPack | null> {
-  const startedAt = Date.now();
-  const priorPersisted = await fetchPersistedGlcOrchestrationPackForUser({
-    auditId: args.auditId,
-    userId: args.userId,
-  });
-  const priorVersion =
-    priorPersisted.status === 'ok' ? priorPersisted.orchestration_pack_version : 0;
-  const emitBuildMetric = (status: 'success' | 'not_ready' | 'failed', reason: string, nodeCount = 0) => {
-    logger.info('orchestration.pack_build_metric', {
-      auditId: args.auditId,
-      metric: 'orchestration_pack_build',
-      status,
-      reason,
-      duration_ms: Date.now() - startedAt,
-      node_count: nodeCount,
-      kpi_pack_regeneration: priorVersion > 0 ? 1 : 0,
-    });
-  };
+  const result = await buildOrchestrationPackForAuditWithStatus(args);
+  return result.status === 'ok' ? result.pack : null;
+}
 
+export type OrchestrationPackBuildNotReadyReasonCode =
+  | 'audit_not_found'
+  | 'manifest_snapshot_missing'
+  | 'manifest_snapshot_not_latest'
+  | 'strategy_row_missing'
+  | 'strategy_normalization_failed'
+  | 'no_action_nodes';
+
+export type BuildOrchestrationPackForAuditResult =
+  | { status: 'ok'; pack: GlcOrchestrationPack }
+  | { status: 'not_ready'; reason_code: OrchestrationPackBuildNotReadyReasonCode };
+
+type LoadedOrchestrationInputs =
+  | { status: 'ok'; auditPlan: AuditExecutionPlan; manifestRow: { id: string; payload: RoadmapManifestPayload } }
+  | { status: 'not_ready'; reason_code: 'audit_not_found' | 'manifest_snapshot_missing' | 'manifest_snapshot_not_latest' };
+
+type NormalizedActionInputs =
+  | {
+      status: 'ok';
+      nodes: ReturnType<typeof collectOrchestrationActionInputs>['combined_nodes'];
+      preGraphConflicts: ReturnType<typeof collectOrchestrationActionInputs>['strategy']['conflicts_resolved'];
+      mergedConflicts: ReturnType<typeof collectOrchestrationActionInputs>['director']['conflicts_resolved'];
+      inputQuality: ReturnType<typeof collectOrchestrationActionInputs>['director']['input_quality'];
+      normalizedStrategy: NonNullable<ReturnType<typeof normalizeAuditStrategyRowForReadModel>>;
+      domainRowsForSynth: Array<Record<string, unknown>>;
+    }
+  | {
+      status: 'not_ready';
+      reason_code: 'strategy_row_missing' | 'strategy_normalization_failed' | 'no_action_nodes';
+    };
+
+async function loadOrchestrationInputs(args: {
+  auditId: string;
+  userId: string;
+  manifestSnapshotId: string;
+}): Promise<LoadedOrchestrationInputs> {
   const auditCtx = await loadAuditExecutionPlanRow(args.auditId, args.userId);
-  if (!auditCtx) {
-    emitBuildMetric('not_ready', 'audit_not_found');
-    return null;
-  }
+  if (!auditCtx) return { status: 'not_ready', reason_code: 'audit_not_found' };
 
   const manifestRow = await fetchRoadmapManifestSnapshotForAudit({
     auditId: args.auditId,
     snapshotId: args.manifestSnapshotId,
   });
-  if (!manifestRow) {
-    emitBuildMetric('not_ready', 'manifest_snapshot_missing');
-    return null;
+  if (!manifestRow) return { status: 'not_ready', reason_code: 'manifest_snapshot_missing' };
+
+  const latestManifest = await fetchLatestRoadmapManifestSnapshotIdForAudit({
+    auditId: args.auditId,
+  });
+  if (!latestManifest || latestManifest.id !== manifestRow.id) {
+    return { status: 'not_ready', reason_code: 'manifest_snapshot_not_latest' };
   }
 
   assertManifestMatchesExecutionPlan(manifestRow.payload, auditCtx.plan);
+  return { status: 'ok', auditPlan: auditCtx.plan, manifestRow };
+}
 
-  const [_reconRes, domainsRes, strategyRes, _reviewsRes, briefRes] = await fetchAuditRelatedReadModel(
-    args.auditId,
-  );
-  const domainsArr =
-    domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
-  const strategyRow =
-    strategyRes.status === 'fulfilled' ? strategyRes.value.data : null;
+async function normalizeOrchestrationActionInputs(args: {
+  auditId: string;
+  selectedDomains: readonly DomainKey[];
+}): Promise<NormalizedActionInputs> {
+  const [_reconRes, domainsRes, strategyRes, _reviewsRes, briefRes] = await fetchAuditRelatedReadModel(args.auditId);
+  const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+  const strategyRow = strategyRes.status === 'fulfilled' ? strategyRes.value.data : null;
   const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
 
   if (!strategyRow || typeof strategyRow !== 'object') {
-    emitBuildMetric('not_ready', 'strategy_row_missing');
-    return null;
+    return { status: 'not_ready', reason_code: 'strategy_row_missing' };
   }
 
   const domainsMap: Record<string, unknown> = {};
@@ -112,8 +140,7 @@ export async function buildOrchestrationPackForAudit(args: {
       domainsMap[domainRow.domain_key] = domainRow;
     }
   }
-  const domainRowsDeduped = Object.values(domainsMap) as Array<{ domain_key: string; issues?: unknown }>;
-
+  const domainRowsDeduped = Object.values(domainsMap) as Array<{ domain_key: string; issues?: unknown; raw_data?: unknown }>;
   const briefResponses =
     brief && typeof brief === 'object' && brief !== null && 'responses' in brief
       ? (brief as { responses?: unknown }).responses
@@ -127,51 +154,125 @@ export async function buildOrchestrationPackForAudit(args: {
         ? (briefResponses as Record<string, unknown>)
         : null,
   });
-  if (!normalized) {
-    emitBuildMetric('not_ready', 'strategy_normalization_failed');
-    return null;
-  }
+  if (!normalized) return { status: 'not_ready', reason_code: 'strategy_normalization_failed' };
 
   const initiatives = flattenNormalizedStrategyInitiativeBuckets(normalized);
-  const strategyMapped = mapStrategyInitiativesToActionNodes(initiatives);
   const sliceIndex = buildDirectorSliceIndexFromDomainRows(
     domainRowsDeduped as Array<{ domain_key: string; raw_data?: unknown }>,
   );
-  const merged = mergeOrchestrationActionInputs({
-    strategyNodes: strategyMapped.nodes,
-    slicesByDomain: sliceIndex,
-    selectedDomains: auditCtx.plan.selected_domains,
+  const sliceInputStatusIndex = buildDirectorSliceParseStatusIndexFromDomainRows(
+    domainRowsDeduped as Array<{ domain_key: string; raw_data?: unknown }>,
+  );
+  const sourced = collectOrchestrationActionInputs({
+    initiatives,
+    selectedDomains: args.selectedDomains,
+    directorSlicesByDomain: sliceIndex,
+    directorInputStatusByDomain: sliceInputStatusIndex,
   });
-  if (merged.nodes.length === 0) {
-    emitBuildMetric('not_ready', 'no_action_nodes');
-    return null;
+  if (sourced.combined_nodes.length === 0) return { status: 'not_ready', reason_code: 'no_action_nodes' };
+
+  return {
+    status: 'ok',
+    nodes: sourced.combined_nodes,
+    preGraphConflicts: sourced.strategy.conflicts_resolved,
+    mergedConflicts: sourced.director.conflicts_resolved,
+    inputQuality: sourced.director.input_quality,
+    normalizedStrategy: normalized,
+    domainRowsForSynth: domainRowsDeduped as Array<Record<string, unknown>>,
+  };
+}
+
+export async function buildOrchestrationPackForAuditWithStatus(args: {
+  auditId: string;
+  userId: string;
+  manifestSnapshotId: string;
+}): Promise<BuildOrchestrationPackForAuditResult> {
+  const startedAt = Date.now();
+  const priorPersisted = await fetchPersistedGlcOrchestrationPackForUser({
+    auditId: args.auditId,
+    userId: args.userId,
+  });
+  const priorVersion =
+    priorPersisted.status === 'ok' ? priorPersisted.orchestration_pack_version : 0;
+  const emitBuildMetric = (
+    status: 'success' | 'not_ready' | 'failed',
+    reason: OrchestrationPackBuildNotReadyReasonCode | 'pack_built',
+    nodeCount = 0,
+  ) => {
+    logger.info('orchestration.pack_build_metric', {
+      auditId: args.auditId,
+      metric: 'orchestration_pack_build',
+      status,
+      reason,
+      duration_ms: Date.now() - startedAt,
+      node_count: nodeCount,
+      kpi_pack_regeneration: priorVersion > 0 ? 1 : 0,
+    });
+  };
+
+  const loaded = await loadOrchestrationInputs(args);
+  if (loaded.status === 'not_ready') {
+    emitBuildMetric('not_ready', loaded.reason_code);
+    return loaded;
+  }
+
+  const normalizedInputs = await normalizeOrchestrationActionInputs({
+    auditId: args.auditId,
+    selectedDomains: loaded.auditPlan.selected_domains,
+  });
+  if (normalizedInputs.status === 'not_ready') {
+    emitBuildMetric('not_ready', normalizedInputs.reason_code);
+    return normalizedInputs;
   }
 
   const deterministicPack = buildGlcOrchestrationPackFromActionNodes({
-    nodes: merged.nodes,
-    preGraphConflicts: [...strategyMapped.conflicts_resolved, ...merged.conflicts_resolved],
-    manifestSnapshotId: manifestRow.id,
-    seasonPreset: manifestRow.payload.season_preset,
+    nodes: normalizedInputs.nodes,
+    preGraphConflicts: [...normalizedInputs.preGraphConflicts, ...normalizedInputs.mergedConflicts],
+    manifestSnapshotId: loaded.manifestRow.id,
+    seasonPreset: loaded.manifestRow.payload.season_preset,
+    inputQuality: normalizedInputs.inputQuality,
   });
-
-  const domainRowsForSynth = domainRowsDeduped as Array<Record<string, unknown>>;
 
   const result = await runOrchestrationSynthesisIfEnabled({
     auditId: args.auditId,
     deterministicPack,
-    normalizedStrategy: normalized,
-    domainRows: domainRowsForSynth,
-    roadmapManifest: manifestRow.payload,
+    normalizedStrategy: normalizedInputs.normalizedStrategy,
+    domainRows: normalizedInputs.domainRowsForSynth,
+    roadmapManifest: loaded.manifestRow.payload,
   });
   logger.info('orchestration.pack_lifecycle_metric', {
     auditId: args.auditId,
     metric: 'orchestration_pack_lifecycle',
     kpi_manifest_adoption: 1,
     kpi_pack_regeneration: priorVersion > 0 ? 1 : 0,
-    manifest_snapshot_id: args.manifestSnapshotId,
+    kpi_synthesis_override_rate:
+      deterministicPack.conflicts_resolved.length === 0
+        ? 0
+        : Number(
+            (
+              Math.max(
+                0,
+                deterministicPack.conflicts_resolved.length - result.conflicts_resolved.length,
+              ) / deterministicPack.conflicts_resolved.length
+            ).toFixed(4),
+          ),
+    kpi_unresolved_conflicts_rate:
+      result.conflicts_resolved.length === 0
+        ? 0
+        : Number(
+            (
+              result.conflicts_resolved.filter(row => row.resolution === 'synthesis_pending').length /
+              result.conflicts_resolved.length
+            ).toFixed(4),
+          ),
+    manifest_snapshot_id: loaded.manifestRow.id,
+    execution_mode: result.execution_mode,
+    director_coverage_ratio: normalizedInputs.inputQuality.director_coverage_ratio,
+    director_input_coverage_ratio: normalizedInputs.inputQuality.director_input_coverage_ratio,
+    input_fallback_reason_code: normalizedInputs.inputQuality.fallback_reason_code,
   });
   emitBuildMetric('success', 'pack_built', result.graph.nodes.length);
-  return result;
+  return { status: 'ok', pack: result };
 }
 
 export type FetchPersistedOrchestrationPackResult =

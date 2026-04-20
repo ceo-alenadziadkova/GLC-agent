@@ -10,6 +10,7 @@ import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_POST_AUDIT_COCKPIT_UI } from '../../../config/client-post-audit-cockpit-ui';
 import { ORCHESTRATION_PANEL_DOM_ID } from '../../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
+import { buildAppRoute } from '../../../config/route-paths';
 
 function previewExecutiveSummary(text: string, maxChars: number): string {
   const t = text.trim();
@@ -51,9 +52,10 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const diffNodesChanged = roadmapDiff ? roadmapDiff.nodes_added.length + roadmapDiff.nodes_removed.length : 0;
   const diffDependenciesChanged = roadmapDiff ? roadmapDiff.edges_added.length + roadmapDiff.edges_removed.length : 0;
 
-  const reportHref = `/portal/reports/${auditId}`;
-  const timelineHref = `${reportHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
-  const labHref = `/portal/strategy/${auditId}`;
+  const reportHref = buildAppRoute.portalReports(auditId);
+  const timelineHref = buildAppRoute.portalTimeline(auditId);
+  const labHref = buildAppRoute.portalStrategy(auditId);
+  const adjustScopeHref = `${timelineHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
 
   return (
     <div className="glc-soft-panel space-y-5 p-5">
@@ -140,6 +142,9 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
       <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
         <h3 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{copy.adjustScopeTitle}</h3>
         <p className="mt-2 text-[length:var(--text-xs)] leading-relaxed text-[var(--text-secondary)]">{copy.adjustScopeBody}</p>
+        <Button asChild variant="outline" size="sm" className="mt-3 no-underline">
+          <Link to={adjustScopeHref}>{copy.adjustScopeTitle}</Link>
+        </Button>
       </div>
     </div>
   );

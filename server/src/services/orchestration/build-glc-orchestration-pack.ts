@@ -1,10 +1,14 @@
-import { GLC_ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-graph-policy.js';
+import {
+  GLC_ORCHESTRATION_PACK_SCHEMA_VERSION,
+  ORCHESTRATION_DEFAULT_INPUT_QUALITY,
+} from '../../config/orchestration-graph-policy.js';
 import {
   ROADMAP_SEASON_TARGET_WINDOW_DAYS,
   type RoadmapSeasonPreset,
 } from '../../config/orchestration-roadmap-presets.js';
 import type { StrategyInitiative } from '../../schemas/domain-output.js';
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
+import { OrchestrationActionNodeListSchema } from '../../schemas/orchestration-action-node.js';
 import type { OrchestrationActionNode, OrchestrationConflictResolvedEntry } from '../../types/orchestration/index.js';
 import { dedupeOrchestrationActionNodesByPolicy } from './dedupe-orchestration-action-nodes.js';
 import { buildOrchestrationGraph } from './orchestration-graph-builder.js';
@@ -19,8 +23,17 @@ export function buildGlcOrchestrationPackFromActionNodes(args: {
   preGraphConflicts: OrchestrationConflictResolvedEntry[];
   manifestSnapshotId: string;
   seasonPreset: RoadmapSeasonPreset;
+  inputQuality?: {
+    input_mode: 'director_enriched' | 'strategy_fallback';
+    director_coverage_ratio: number;
+    director_input_coverage_ratio: number;
+    degraded: boolean;
+    fallback_reason_code?: 'director_slice_missing' | 'director_slice_partial' | 'director_slice_invalid';
+  };
 }): GlcOrchestrationPack {
-  const { nodes: deduped, conflicts_resolved: dupConflicts } = dedupeOrchestrationActionNodesByPolicy(args.nodes);
+  const runtimeValidatedNodes = OrchestrationActionNodeListSchema.parse(args.nodes);
+  const { nodes: deduped, conflicts_resolved: dupConflicts } =
+    dedupeOrchestrationActionNodesByPolicy(runtimeValidatedNodes);
   const built = buildOrchestrationGraph(deduped);
   const criticalPosition = new Map<string, number>(built.critical_path.map((id, idx) => [id, idx] as const));
   const targetWindowDays = ROADMAP_SEASON_TARGET_WINDOW_DAYS[args.seasonPreset];
@@ -58,6 +71,7 @@ export function buildGlcOrchestrationPackFromActionNodes(args: {
     confidence_map: built.confidence_map,
     risk_layer: built.risk_layer,
     domain_influence: built.domain_influence,
+    input_quality: args.inputQuality ?? ORCHESTRATION_DEFAULT_INPUT_QUALITY,
   };
   return GlcOrchestrationPackSchema.parse(raw);
 }
@@ -77,5 +91,6 @@ export function buildGlcOrchestrationPackFromInitiatives(args: {
     preGraphConflicts: capConflicts,
     manifestSnapshotId: args.manifestSnapshotId,
     seasonPreset: args.seasonPreset,
+    inputQuality: ORCHESTRATION_DEFAULT_INPUT_QUALITY,
   });
 }

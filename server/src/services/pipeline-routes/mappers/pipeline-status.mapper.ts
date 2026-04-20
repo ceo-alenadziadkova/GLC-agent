@@ -19,6 +19,8 @@ export function toPipelineStatusPayload(
   events: unknown[],
   reviews: unknown[],
   viewerRole: UserRole | undefined,
+  eventPageLimit: number,
+  detailLevel: 'default' | 'debug' = 'default',
 ) {
   const normalizedReviews = (reviews as ReviewRow[]).map(row => ({
     after_phase: row.after_phase,
@@ -36,5 +38,13 @@ export function toPipelineStatusPayload(
     ...audit,
     events: eventsOut,
     reviews: reviewsOut,
+    event_page: {
+      limit: eventPageLimit,
+      next_before:
+        events.length > 0
+          ? ((events[events.length - 1] as { created_at?: string }).created_at ?? null)
+          : null,
+      detail_level: detailLevel,
+    },
   };
 }

@@ -33,6 +33,7 @@ import {
 } from '../../config/orchestration-roadmap-ui-copy.en';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-projection';
+import { formatAppMediumDateTime } from '../../lib/date-format';
 
 type ExecutionPlan = NonNullable<AuditMeta['execution_plan']>;
 
@@ -87,13 +88,14 @@ export function StrategyLabOrchestrationPanel({
     if (isGlcOrchestrationPackView(strategy.glc_orchestration_pack)) return;
     void (async () => {
       try {
+        const latest = await api.getRoadmapManifestSnapshotLatest(auditId);
         const { snapshots } = await api.getRoadmapManifestSnapshots(auditId, {
           limit: ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems,
         });
         if (cancelled) return;
         setManifestSnapshots(snapshots);
         if (manifestSnapshotId) return;
-        const row = snapshots[0];
+        const row = latest.snapshot ?? snapshots[0] ?? null;
         if (!row) return;
         setManifestSnapshotId(row.id);
         setScenario(row.payload.change_scenario);
@@ -239,7 +241,11 @@ export function StrategyLabOrchestrationPanel({
     if (!manifestSnapshotId) return;
     setWorking(true);
     try {
-      const res = await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
+      const hasExistingRoadmapVersion =
+        typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0;
+      const res = hasExistingRoadmapVersion
+        ? await api.postOrchestrationPackRegenerate(auditId, { manifest_snapshot_id: manifestSnapshotId })
+        : await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
       setLastPostRevision({ roadmap_version: res.roadmap_version, diff: res.last_revision_diff });
       setPlanGovernance(res.plan_governance);
       toast.success(ORCHESTRATION_UI_COPY.packBuilt);
@@ -249,7 +255,7 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setWorking(false);
     }
-  }, [auditId, manifestSnapshotId, onReload]);
+  }, [auditId, manifestSnapshotId, onReload, strategy.orchestration_pack_version]);
 
   const handleFetchCommercialOffer = useCallback(
     async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
@@ -490,7 +496,7 @@ export function StrategyLabOrchestrationPanel({
             >
               {manifestSnapshots.map(row => (
                 <option key={row.id} value={row.id}>
-                  {new Date(row.created_at).toLocaleString()} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
+                  {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
                   {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
                 </option>
               ))}

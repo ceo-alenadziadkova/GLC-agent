@@ -35,6 +35,7 @@ export const REPORT_VIEWER_COPY = {
     actionPlanCsv: 'Action Plan CSV',
     exportPdf: 'Export PDF',
     viewStrategyLab: 'View Strategy Lab',
+    viewTimeline: 'Open timeline',
     actionPlanCsvTitle: 'Download Action Plan as CSV',
     exportPdfTitle: 'Download branded A4 PDF report',
   },
@@ -59,21 +60,22 @@ export const REPORT_VIEWER_COPY = {
   orchestration: {
     sectionTitle: 'Execution roadmap',
     sectionHint:
-      'Cross-domain execution order from the orchestration pack. Open Strategy Lab for the full manifest, lanes, and updates.',
+      'Cross-domain execution order from the orchestration pack. Timeline is the primary surface; Strategy Lab remains a deep-dive detail layer.',
     dependencyTitle: 'Key dependency links',
     dependencyHint: 'Upstream work blocks downstream milestones.',
     versionLabel: 'Roadmap version',
-    openStrategyLab: 'Open Strategy Lab',
+    openStrategyLab: 'Open Strategy Lab deep dive',
   },
   roadmapCockpit: {
     sectionTitle: 'What happens next',
     sectionHint:
-      'Use Strategy Lab to lock a roadmap input manifest, then generate or refresh the cross-domain execution plan when your priorities change.',
+      'Open Timeline first to confirm scope, preview lanes, and generate or refresh roadmap versions.',
     diagnosisLabel: 'Primary focus',
     diagnosisFallback:
-      'Review domain scores and findings below. When you are ready to sequence work across teams, open Strategy Lab.',
-    ctaManifest: 'Confirm roadmap manifest',
+      'Review domain scores and findings below, then open Timeline to sequence execution across teams.',
+    ctaManifest: 'Open timeline setup',
     ctaTimeline: 'View execution timeline',
+    ctaCompare: 'Compare roadmap versions',
     ctaScorecard: 'Domain scorecard',
     latestPlanChangeLabel: 'Latest plan change',
     latestPlanChangeFallback: 'No revision diff yet',
@@ -82,7 +84,12 @@ export const REPORT_VIEWER_COPY = {
     changedCriticalPathLabel: 'Critical path',
     changedCriticalPathYes: 'changed',
     changedCriticalPathNo: 'unchanged',
+    provenanceLabel: 'Provenance',
+    baselineLabel: 'Baseline',
+    deepLabel: 'Deep',
+    qualityFallbackLabel: 'Limited precision (strategy fallback)',
+    qualityFallbackHint: 'Data gaps detected. Re-run director slices to improve roadmap confidence.',
     noPackCallout:
-      'No execution roadmap pack yet. After the audit completes, confirm your manifest in Strategy Lab to generate the timeline.',
+      'No execution roadmap pack yet. After the audit completes, confirm your manifest in Timeline to generate the first version.',
   },
 } as const;

@@ -68,6 +68,10 @@ export const ORCHESTRATION_UI_COPY = {
   lanesTitle: 'Lanes',
   dependencyTitle: 'Key dependencies',
   dependencyHint: 'Cross-lane links are listed first; longer graphs are truncated for readability.',
+  dataGapsTitle: 'Data gaps',
+  dataGapFallback: 'Limited precision (strategy fallback)',
+  dataGapDirectorMissing: 'Director slices are missing for part of scope.',
+  dataGapDirectorPartial: 'Director slices are only partially available for this scope.',
   versionLabel: 'Pack version',
   openNodeInLab: 'Open in Lab',
   noPackYet: 'No orchestration pack yet. Save a manifest, then build the pack.',
@@ -75,8 +79,8 @@ export const ORCHESTRATION_UI_COPY = {
     'Strategy Lab now focuses on node-level detail. The shared timeline projection remains in the report roadmap section.',
   clientHidden: 'Roadmap manifest is available to consultants on this audit.',
   clientTimelineReadOnlyHint:
-    'The full seasonal timeline and lanes live in your report. Open it to see ordering, then return here for initiative detail.',
-  clientOpenFullTimeline: 'Open timeline in report',
+    'The full seasonal timeline and lanes live in the dedicated timeline view. Open it to review ordering and dependencies, then return here for node detail.',
+  clientOpenFullTimeline: 'Open timeline',
   synthesisSectionTitle: 'Orchestrator synthesis',
   synthesisSectionHint:
     'Cross-domain trade-offs from the optional synthesis pass (when enabled on the server). Deterministic graph and lanes are unchanged.',

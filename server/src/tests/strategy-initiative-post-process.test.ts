@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { DomainKey } from '@glc/intake-core';
 
 import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
 import { buildStrategyBriefConstraintSnapshot } from '../services/strategy/strategy-brief-constraint-snapshot.js';
@@ -38,13 +39,13 @@ describe('strategy-initiative-post-process', () => {
   });
 
   it('verifies evidence when issue id exists for domain', () => {
-    const idx = new Map([['marketing_utp', new Set(['i1'])]]);
+    const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
     expect(verifyInitiativeEvidence(baseInit, idx)).toBe(true);
   });
 
   it('fails verification when issue id is unknown', () => {
     const bad = { ...baseInit, evidence: { sources: [{ domain_key: 'marketing_utp', issue_id: 'nope' }] } };
-    const idx = new Map([['marketing_utp', new Set(['i1'])]]);
+    const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
     expect(verifyInitiativeEvidence(bad, idx)).toBe(false);
   });
 });

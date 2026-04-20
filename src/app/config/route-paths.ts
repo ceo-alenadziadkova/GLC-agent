@@ -31,11 +31,13 @@ export const APP_ROUTE_PATHS = {
 export const buildAppRoute = {
   audit: (auditId: string): string => `/${P.auditById.replace(':id', auditId)}`,
   pipeline: (auditId: string): string => `/${P.pipelineById.replace(':id', auditId)}`,
+  timeline: (auditId: string): string => `/${P.timelineById.replace(':id', auditId)}`,
   reports: (auditId: string): string => `/${P.reportsById.replace(':id', auditId)}`,
   strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
   portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
+  portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
@@ -48,8 +50,8 @@ export const buildAppRoute = {
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'strategy'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),

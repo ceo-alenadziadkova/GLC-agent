@@ -47,6 +47,13 @@ export interface GlcOrchestrationPackView {
   domain_influence?: {
     domain_weights: Record<string, number>;
   };
+  input_quality?: {
+    input_mode: 'director_enriched' | 'strategy_fallback';
+    director_coverage_ratio: number;
+    director_input_coverage_ratio: number;
+    degraded: boolean;
+    fallback_reason_code?: 'director_slice_missing' | 'director_slice_partial' | 'director_slice_invalid';
+  };
 }
 
 /** Client view of `glc_orchestration_last_revision_diff` (server Zod: orchestration-pack-revision-diff). */

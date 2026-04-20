@@ -56,7 +56,7 @@ export function ReportOrchestrationRoadmapSection({
       laneOrder={laneOrder}
       selectedDomains={selectedDomains}
       maxDependencyLinks={REPORT_VIEWER_CONSTANTS.orchestration.maxDependencyLinksDisplayed}
-      showOpenLabButton
+      showOpenLabButton={false}
       copy={ORCHESTRATION_SECTION_COPY}
       motionCardEnterOffsetY={REPORT_VIEWER_CONSTANTS.motion.cardEnterOffsetY}
       motionCardEnterDurationSec={REPORT_VIEWER_CONSTANTS.motion.cardEnterDurationSec}

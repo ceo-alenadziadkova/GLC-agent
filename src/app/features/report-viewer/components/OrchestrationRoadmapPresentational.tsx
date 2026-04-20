@@ -67,6 +67,10 @@ export function OrchestrationRoadmapPresentational({
   const titleById = orchestrationNodeTitleMap(pack);
   const edgeRows = prioritizeCrossLaneEdges(pack).slice(0, maxDependencyLinks);
   const lanesToShow = visibleOrchestrationLanesForPack(pack.lanes, laneOrder, selectedDomains);
+  const selectedScopeCount = selectedDomains?.length ?? 0;
+  const danglingDataGaps = pack.conflicts_resolved.filter(row => row.id.startsWith('orphan-dep:')).length;
+  const targetWindowDays =
+    pack.graph.nodes.find(node => typeof node.target_window_days === 'number')?.target_window_days ?? null;
 
   return (
     <motion.div
@@ -88,11 +92,34 @@ export function OrchestrationRoadmapPresentational({
         ) : null}
       </div>
       <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">{copy.sectionHint}</p>
+      {selectedScopeCount > 0 ? (
+        <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+          Scope: {selectedScopeCount} selected domain{selectedScopeCount > 1 ? 's' : ''}
+        </p>
+      ) : null}
       {typeof packVersion === 'number' && packVersion > 0 && (
         <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           {copy.versionLabel}: {packVersion}
         </p>
       )}
+      {pack.input_quality?.degraded ? (
+        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
+          <div className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+            {ORCHESTRATION_UI_COPY.dataGapsTitle}
+          </div>
+          <p className="mt-1 text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+            {ORCHESTRATION_UI_COPY.dataGapFallback}
+            {pack.input_quality.fallback_reason_code === 'director_slice_partial'
+              ? ` ${ORCHESTRATION_UI_COPY.dataGapDirectorPartial}`
+              : ` ${ORCHESTRATION_UI_COPY.dataGapDirectorMissing}`}
+          </p>
+          {danglingDataGaps > 0 ? (
+            <p className="mt-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+              Dangling dependencies detected: {danglingDataGaps}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-2 border-t border-[var(--border-default)] pt-4">
         <CalendarBlank className="text-info h-4 w-4" />
@@ -101,6 +128,11 @@ export function OrchestrationRoadmapPresentational({
         </span>
       </div>
       <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.timelineHint}</p>
+      {targetWindowDays ? (
+        <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+          Planning window: {targetWindowDays} days
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         {timelineBuckets.map(bucket => (
           <div key={bucket.id} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
@@ -166,6 +198,9 @@ export function OrchestrationRoadmapPresentational({
                 {titleById.get(e.from) ?? e.from}
                 <span className="text-[var(--text-tertiary)]"> → </span>
                 {titleById.get(e.to) ?? e.to}
+                {e.relation ? (
+                  <span className="text-[var(--text-tertiary)]"> ({e.relation})</span>
+                ) : null}
               </li>
             ))}
           </ul>

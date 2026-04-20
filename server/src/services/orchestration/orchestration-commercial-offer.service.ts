@@ -3,6 +3,7 @@ import {
   ORCHESTRATION_COMMERCIAL_DOMAIN_VALUE_LABELS,
   ORCHESTRATION_COMMERCIAL_POLICY,
 } from '../../config/orchestration-commercial-policy.js';
+import { ROADMAP_MANIFEST_SCHEMA_VERSION } from '../../config/orchestration-roadmap-presets.js';
 import {
   OrchestrationCommercialOfferResponseSchema,
   type OrchestrationCommercialOfferRequest,
@@ -14,24 +15,30 @@ export function buildOrchestrationCommercialOffer(args: {
   executionPlan: { selected_domains: readonly DomainKey[]; recommended_domains?: readonly DomainKey[] | null };
   request: OrchestrationCommercialOfferRequest;
 }): OrchestrationCommercialOfferResponse {
+  const normalizedRecommendedDomains = args.executionPlan.recommended_domains
+    ? [...args.executionPlan.recommended_domains]
+    : undefined;
   const basePreview = buildRoadmapManifestPreview({
     executionPlan: {
       ...args.executionPlan,
+      recommended_domains: normalizedRecommendedDomains,
       selected_domains: [...args.request.selected_domains],
       depth: 'standard',
       source: 'user_selected',
       include_strategy: true,
     },
     manifest: {
+      schema_version: ROADMAP_MANIFEST_SCHEMA_VERSION,
       selected_domains: [...args.request.selected_domains],
       change_scenario: args.request.change_scenario,
       season_preset: args.request.season_preset,
     },
   });
 
-  const offers = basePreview.waiting_list_domains
+  const waitingListDomains = basePreview.waiting_list_domains as DomainKey[];
+  const offers = waitingListDomains
     .slice(0, ORCHESTRATION_COMMERCIAL_POLICY.maxSuggestedDomains)
-    .map(domain => ({
+    .map((domain) => ({
       domain,
       value_message: `Add ${ORCHESTRATION_COMMERCIAL_DOMAIN_VALUE_LABELS[domain]} to unlock a fuller cross-lane roadmap.`,
       estimated_incremental_effort_weeks: ORCHESTRATION_COMMERCIAL_POLICY.defaultIncrementalEffortWeeks,
@@ -43,12 +50,14 @@ export function buildOrchestrationCommercialOffer(args: {
       ? buildRoadmapManifestPreview({
           executionPlan: {
             ...args.executionPlan,
+            recommended_domains: normalizedRecommendedDomains,
             selected_domains: [...args.request.selected_domains, accepted_domain],
             depth: 'standard',
             source: 'user_selected',
             include_strategy: true,
           },
           manifest: {
+            schema_version: ROADMAP_MANIFEST_SCHEMA_VERSION,
             selected_domains: [...args.request.selected_domains, accepted_domain],
             change_scenario: args.request.change_scenario,
             season_preset: args.request.season_preset,

@@ -64,8 +64,6 @@ export type AuditForStatus = {
 };
 
 async function claimByOwnerOrClient(
-  auditId: string,
-  userId: string,
   claim: (scope: 'user_id' | 'client_id') => Promise<{ data: unknown[] | null }>,
 ): Promise<boolean> {
   const byOwner = await claim('user_id');
@@ -139,16 +137,17 @@ export async function fetchConsultantOwnedAudit(auditId: string, userId: string)
 }
 
 export async function claimPipelineStart(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(auditId, userId, (scope) =>
-    supabase
+  return claimByOwnerOrClient(async (scope) => {
+    const { data } = await supabase
       .from('audits')
       .update({ status: 'recon', current_phase: 0 })
       .eq('id', auditId)
       .eq(scope, userId)
       .eq('status', 'created')
       .eq('updated_at', updatedAt)
-      .select('id'),
-  );
+      .select('id');
+    return { data };
+  });
 }
 
 export async function claimPipelineNext(
@@ -157,16 +156,17 @@ export async function claimPipelineNext(
   updatedAt: string,
   lockStatus: string,
 ): Promise<boolean> {
-  return claimByOwnerOrClient(auditId, userId, (scope) =>
-    supabase
+  return claimByOwnerOrClient(async (scope) => {
+    const { data } = await supabase
       .from('audits')
       .update({ status: lockStatus })
       .eq('id', auditId)
       .eq(scope, userId)
       .eq('updated_at', updatedAt)
       .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
-      .select('id'),
-  );
+      .select('id');
+    return { data };
+  });
 }
 
 export type PipelineRetryOwnershipFilter =
@@ -178,16 +178,17 @@ export type PipelineRetryOwnershipFilter =
  * Moves `audits.status` from `review` to `completed` (idempotent if already completed via refetch).
  */
 export async function claimPipelineFinalizeAfterLastGate(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(auditId, userId, (scope) =>
-    supabase
+  return claimByOwnerOrClient(async (scope) => {
+    const { data } = await supabase
       .from('audits')
       .update({ status: 'completed' })
       .eq('id', auditId)
       .eq(scope, userId)
       .eq('updated_at', updatedAt)
       .eq('status', 'review')
-      .select('id'),
-  );
+      .select('id');
+    return { data };
+  });
 }
 
 export async function claimPipelineRetry(
@@ -210,16 +211,17 @@ export async function claimPipelineRetry(
 }
 
 export async function claimPipelineStop(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(auditId, userId, (scope) =>
-    supabase
+  return claimByOwnerOrClient(async (scope) => {
+    const { data } = await supabase
       .from('audits')
       .update({ status: 'cancelled' })
       .eq('id', auditId)
       .eq(scope, userId)
       .eq('updated_at', updatedAt)
       .in('status', PIPELINE_STOP_CLAIMABLE_STATUSES as unknown as string[])
-      .select('id'),
-  );
+      .select('id');
+    return { data };
+  });
 }
 
 /**
