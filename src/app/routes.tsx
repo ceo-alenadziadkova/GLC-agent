@@ -6,7 +6,7 @@ import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
 import { PipelineMonitor }  from './pages/PipelineMonitor';
 import { ReportViewer }     from './pages/ReportViewer';
-import { StrategyLab }      from './pages/StrategyLab';
+import { StrategyLab }      from './pages/strategy-lab/StrategyLabPage';
 import { Login }            from './pages/Login';
 import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';

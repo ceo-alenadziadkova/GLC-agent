@@ -1,20 +1,21 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
   Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
+  CalendarBlank, GitBranch, WarningCircle,
 } from '@phosphor-icons/react';
-import { AppShell } from '../components/AppShell';
-import { SectionLabel } from '../components/glc/SectionLabel';
-import { useAudit } from '../hooks/useAudit';
-import { useProfile } from '../hooks/useProfile';
-import type { StrategyInitiative } from '../data/auditTypes';
-import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
-import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
-import { api } from '../data/apiService';
-import { ApiError } from '../data/api-error';
-import { COLOR_TOKENS } from '../../design-system/tokens/colors';
+import { AppShell } from '../../components/AppShell';
+import { SectionLabel } from '../../components/glc/SectionLabel';
+import { useAudit } from '../../hooks/useAudit';
+import { useProfile } from '../../hooks/useProfile';
+import type { StrategyInitiative } from '../../data/auditTypes';
+import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
+import type { DomainBenchmarkSnapshot } from '../../data/api/benchmarks';
+import { api } from '../../data/apiService';
+import { ApiError } from '../../data/api-error';
+import { COLOR_TOKENS } from '../../../design-system/tokens/colors';
 import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
   STRATEGY_LAB_DOMAIN_FILTER_ALL,
@@ -26,23 +27,50 @@ import {
   type StrategyLabDomainFilter,
   type StrategyLabRoadmapTimeframe,
   type StrategyLabSortMode,
-} from '../config/strategy-lab';
+} from '../../config/strategy-lab';
 import {
   STRATEGY_LAB_UI_BUDGET_BANDS,
   STRATEGY_LAB_UI_COMPANY_STAGES,
   STRATEGY_LAB_UI_TEAM_SCALES,
-} from '../config/strategy-lab-constraints';
-import { STRATEGY_LAB_COPY } from '../config/strategy-lab-copy';
-import { cn } from '../components/ui/utils';
-import { Button } from '../components/ui/button';
+} from '../../config/strategy-lab-constraints';
+import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
+import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
+import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
+import {
+  orchestrationNodeTitleMap,
+  partitionCriticalPathNodeIds,
+  prioritizeCrossLaneEdges,
+} from '../../lib/orchestration-timeline-projection';
+import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
+import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
+import { StrategyLabOrchestratorListBody } from './StrategyLabOrchestratorListBody';
+import { cn } from '../../components/ui/utils';
+import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
   buildStrategyLabRoadmapMarkdown,
   downloadTextFile,
   strategyLabRoadmapExportFileName,
-} from '../lib/strategy-lab-roadmap-export';
-import { sortStrategyInitiatives } from '../lib/strategy-lab-sort';
-import type { StrategyExecutionPackResponse } from '../data/audit/contracts/report/strategy-lab.types';
+} from '../../lib/strategy-lab-roadmap-export';
+import { sortStrategyInitiatives } from '../../lib/strategy-lab-sort';
+import type { StrategyExecutionPackResponse } from '../../data/audit/contracts/report/strategy-lab.types';
+
+type StrategyLabOrchestratorTabId = 'now' | 'next' | 'dependencies' | 'risks';
+
+const ORCHESTRATOR_TABS: {
+  key: StrategyLabOrchestratorTabId;
+  label: string;
+  icon: typeof Lightning;
+  toneClass: string;
+  desc: string;
+}[] = [
+  { key: 'now', label: STRATEGY_LAB_COPY.orchestratorTabs.now, icon: CalendarBlank, toneClass: 'text-warning', desc: STRATEGY_LAB_COPY.orchestratorTabs.nowDesc },
+  { key: 'next', label: STRATEGY_LAB_COPY.orchestratorTabs.next, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_COPY.orchestratorTabs.nextDesc },
+  { key: 'dependencies', label: STRATEGY_LAB_COPY.orchestratorTabs.dependencies, icon: GitBranch, toneClass: 'text-violet-500', desc: STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc },
+  { key: 'risks', label: STRATEGY_LAB_COPY.orchestratorTabs.risks, icon: WarningCircle, toneClass: 'text-destructive', desc: STRATEGY_LAB_COPY.orchestratorTabs.risksDesc },
+];
 
 const TABS: {
   key: StrategyLabRoadmapTimeframe;
@@ -70,9 +98,11 @@ const EFFORT_CLASS: Record<string, string> = {
 
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { audit, loading, error, reload } = useAudit(id);
   const { isClient } = useProfile();
   const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
+  const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
   const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
   const [sortMode, setSortMode] = useState<StrategyLabSortMode>('roi');
@@ -86,6 +116,31 @@ export function StrategyLab() {
   const [constraintBudgetDraft, setConstraintBudgetDraft] = useState<string>('unknown');
   const [constraintTeamDraft, setConstraintTeamDraft] = useState<string>('unknown');
   const [constraintSaving, setConstraintSaving] = useState(false);
+
+  const glcPackView = useMemo(() => {
+    const raw = audit?.strategy?.glc_orchestration_pack;
+    return isGlcOrchestrationPackView(raw) ? raw : null;
+  }, [audit?.strategy?.glc_orchestration_pack]);
+
+  const selectedPackNodeId = searchParams.get('node');
+
+  const setSelectedPackNodeId = useCallback(
+    (nextId: string | null) => {
+      setSearchParams(
+        prev => {
+          const n = new URLSearchParams(prev);
+          if (nextId) {
+            n.set('node', nextId);
+          } else {
+            n.delete('node');
+          }
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   useEffect(() => {
     if (!audit?.strategy || isClient) return;
@@ -146,6 +201,19 @@ export function StrategyLab() {
     );
     return sortStrategyInitiatives(base, sortMode);
   }, [visible, domainFilter, sortMode]);
+
+  const orchestratorTabCounts = useMemo(() => {
+    if (!glcPackView) {
+      return { now: 0, next: 0, dependencies: 0, risks: 0 };
+    }
+    const { near, mid, far } = partitionCriticalPathNodeIds(glcPackView);
+    return {
+      now: near.length,
+      next: mid.length + far.length,
+      dependencies: prioritizeCrossLaneEdges(glcPackView).length,
+      risks: glcPackView.conflicts_resolved.length,
+    };
+  }, [glcPackView]);
 
   const roadmapMarkdownPreview = useMemo(() => {
     if (!audit?.strategy || selected.size === 0) return null;
@@ -263,8 +331,6 @@ export function StrategyLab() {
     });
   }
 
-  const activeTabCfg = TABS.find(t => t.key === activeTab)!;
-
   if (loading && !audit) {
     return (
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.loadingSubtitle}>
@@ -284,6 +350,17 @@ export function StrategyLab() {
       </AppShell>
     );
   }
+
+  const orchestrationUiEnabled = APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
+  const strategyLabOrchestratorTabsEnabled = APP_FEATURE_FLAGS.strategyLabOrchestratorDetailTabsEnabled;
+  const clientOrchestrationLabReadOnlyEnabled = APP_FEATURE_FLAGS.clientOrchestrationLabReadOnlyEnabled;
+  const orchestrationPackReady = glcPackView != null;
+  const useOrchestratorPrimaryNav =
+    orchestrationUiEnabled && strategyLabOrchestratorTabsEnabled && orchestrationPackReady;
+  const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
+  const reportBasePath = isClient ? '/portal/reports' : '/reports';
+  const reportHref = id ? `${reportBasePath}/${id}` : reportBasePath;
+  const timelineInReportHref = `${reportHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
 
   if (!audit.strategy) {
     return (
@@ -329,6 +406,26 @@ export function StrategyLab() {
         </div>
       }
     >
+      {orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled ? (
+        <div className="bg-card flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.clientTimelineReadOnlyHint}</p>
+          <Button asChild variant="outline" size="sm" className="no-underline w-fit">
+            <Link to={timelineInReportHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
+          </Button>
+        </div>
+      ) : orchestrationUiEnabled && isClient ? (
+        <div className="text-muted-foreground border-b bg-card px-4 py-2 text-center text-xs">
+          {ORCHESTRATION_UI_COPY.clientHidden}
+        </div>
+      ) : null}
+      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap && (
+        <StrategyLabOrchestrationPanel
+          auditId={audit.meta.id}
+          executionPlan={executionPlanForRoadmap}
+          strategy={audit.strategy}
+          onReload={reload}
+        />
+      )}
       <div className="flex ds-audit-workspace-main-h">
 
         {/* ── Initiative picker ─────────────────────── */}
@@ -438,90 +535,135 @@ export function StrategyLab() {
               </div>
             </>
           )}
-          <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
-            <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-              <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
-              <select
-                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={domainFilter}
-                onChange={e => setDomainFilter(e.target.value as StrategyLabDomainFilter)}
-              >
-                <option value={STRATEGY_LAB_DOMAIN_FILTER_ALL}>{STRATEGY_LAB_COPY.panel.domainFilterAll}</option>
-                {STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS.map(dk => (
-                  <option key={dk} value={dk}>
-                    {DOMAIN_LABELS[dk as keyof typeof DOMAIN_LABELS] ?? dk}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-              <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.sortModeLabel}</span>
-              <select
-                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={sortMode}
-                onChange={e => setSortMode(e.target.value as StrategyLabSortMode)}
-              >
-                {STRATEGY_LAB_SORT_MODES.map(m => (
-                  <option key={m} value={m}>
-                    {STRATEGY_LAB_COPY.panel.sortModes[m]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          {!useOrchestratorPrimaryNav ? (
+            <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
+              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={domainFilter}
+                  onChange={e => setDomainFilter(e.target.value as StrategyLabDomainFilter)}
+                >
+                  <option value={STRATEGY_LAB_DOMAIN_FILTER_ALL}>{STRATEGY_LAB_COPY.panel.domainFilterAll}</option>
+                  {STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS.map(dk => (
+                    <option key={dk} value={dk}>
+                      {DOMAIN_LABELS[dk as keyof typeof DOMAIN_LABELS] ?? dk}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.sortModeLabel}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value as StrategyLabSortMode)}
+                >
+                  {STRATEGY_LAB_SORT_MODES.map(m => (
+                    <option key={m} value={m}>
+                      {STRATEGY_LAB_COPY.panel.sortModes[m]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
           {/* Tabs */}
           <div
             className="bg-background/90 sticky top-0 z-10 flex gap-2 border-b p-4 backdrop-blur"
           >
-            {TABS.map(tab => {
-              const I = tab.icon;
-              const active = activeTab === tab.key;
-              const count = initiatives[tab.key].length;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={cn(
-                    'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
-                    active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
-                  )}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="tab-indicator"
-                      className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
-                      transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
-                    />
-                  )}
-                  <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
-                  <span className="relative font-semibold text-xs">{tab.label} ({count})</span>
-                  <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
-                    {tab.desc}
-                  </span>
-                </button>
-              );
-            })}
+            {useOrchestratorPrimaryNav
+              ? ORCHESTRATOR_TABS.map(tab => {
+                  const I = tab.icon;
+                  const active = orchestratorTab === tab.key;
+                  const count = orchestratorTabCounts[tab.key];
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setOrchestratorTab(tab.key)}
+                      className={cn(
+                        'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
+                        active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
+                      )}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="tab-indicator-orch"
+                          className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+                        />
+                      )}
+                      <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
+                      <span className="relative font-semibold text-xs">
+                        {tab.label} ({count})
+                      </span>
+                      <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
+                        {tab.desc}
+                      </span>
+                    </button>
+                  );
+                })
+              : TABS.map(tab => {
+                  const I = tab.icon;
+                  const active = activeTab === tab.key;
+                  const count = initiatives[tab.key].length;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      className={cn(
+                        'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
+                        active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
+                        orchestrationUiEnabled && orchestrationPackReady && 'opacity-80',
+                      )}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="tab-indicator"
+                          className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+                        />
+                      )}
+                      <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
+                      <span className="relative font-semibold text-xs">{tab.label} ({count})</span>
+                      <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
+                        {tab.desc}
+                      </span>
+                    </button>
+                  );
+                })}
           </div>
 
           {/* Initiative list */}
           <div className="p-4 space-y-2">
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeTab}
+                key={useOrchestratorPrimaryNav ? orchestratorTab : activeTab}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2"
               >
-                {filteredVisible.length === 0 && (
-                  <div className="text-center py-10">
-                    <p className="text-muted-foreground text-sm">
-                      {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
-                    </p>
-                  </div>
-                )}
-                {filteredVisible.map((init: StrategyInitiative, i: number) => {
+                {useOrchestratorPrimaryNav && glcPackView ? (
+                  <StrategyLabOrchestratorListBody
+                    pack={glcPackView}
+                    tab={orchestratorTab}
+                    selectedNodeId={selectedPackNodeId}
+                    onSelectNode={setSelectedPackNodeId}
+                  />
+                ) : (
+                  <>
+                    {filteredVisible.length === 0 && (
+                      <div className="text-center py-10">
+                        <p className="text-muted-foreground text-sm">
+                          {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
+                        </p>
+                      </div>
+                    )}
+                    {filteredVisible.map((init: StrategyInitiative, i: number) => {
                   const sel = selected.has(init.id);
                   const expanded = expandedId === init.id;
                   return (
@@ -565,10 +707,10 @@ export function StrategyLab() {
                           ) : null}
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold">
-                              {init.impact} impact
+                              {init.impact} {STRATEGY_LAB_COPY.panel.labels.impact}
                             </span>
                             <span className={cn('text-xs font-semibold', EFFORT_CLASS[init.effort] ?? 'text-muted-foreground')}>
-                              {init.effort} effort
+                              {init.effort} {STRATEGY_LAB_COPY.panel.labels.effort}
                             </span>
                             {typeof init.evidence_verified === 'boolean' ? (
                               <span className={cn('text-[length:var(--text-2xs)] font-medium', init.evidence_verified ? 'text-success' : 'text-warning')}>
@@ -637,7 +779,9 @@ export function StrategyLab() {
                       ) : null}
                     </motion.div>
                   );
-                })}
+                    })}
+                  </>
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -652,6 +796,20 @@ export function StrategyLab() {
                 {selected.size} {STRATEGY_LAB_COPY.panel.initiativesSelectedSuffix}
               </p>
             </div>
+
+            {useOrchestratorPrimaryNav && glcPackView ? (
+              selectedPackNodeId ? (
+                <OrchestrationNodeDetailCard
+                  pack={glcPackView}
+                  nodeId={selectedPackNodeId}
+                  onClear={() => setSelectedPackNodeId(null)}
+                />
+              ) : (
+                <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
+                  {STRATEGY_LAB_COPY.orchestratorTabs.pickNode}
+                </p>
+              )
+            ) : null}
 
             <div className="space-y-2">
               {[
@@ -775,7 +933,7 @@ export function StrategyLab() {
               </Button>
             </motion.div>
             <Button asChild variant="ghost" className="w-full justify-center py-2">
-              <Link to={`/reports/${id}`}>
+              <Link to={reportHref}>
                 {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
               </Link>
             </Button>

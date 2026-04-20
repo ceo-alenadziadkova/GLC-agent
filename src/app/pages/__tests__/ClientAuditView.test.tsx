@@ -280,6 +280,27 @@ describe('ClientAuditView', () => {
     );
   });
 
+  it('renders post-audit cockpit CTAs for completed paid audits', async () => {
+    renderClientAuditRoute('audit-cockpit-1');
+
+    await waitFor(() => {
+      expect(screen.getByText('What you have now')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('link', { name: /Open execution timeline/i })).toHaveAttribute(
+      'href',
+      '/portal/reports/audit-cockpit-1#glc-execution-roadmap',
+    );
+    expect(screen.getByRole('link', { name: /Full domain report/i })).toHaveAttribute(
+      'href',
+      '/portal/reports/audit-cockpit-1',
+    );
+    expect(screen.getByRole('link', { name: /^Strategy Lab$/i })).toHaveAttribute(
+      'href',
+      '/portal/strategy/audit-cockpit-1',
+    );
+  });
+
   it('shows friendly copy for 404 from getAudit', async () => {
     getAuditSpy.mockRejectedValue(new apiService.ApiError('Not found', 404));
 

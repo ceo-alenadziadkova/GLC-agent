@@ -14,4 +14,21 @@ export const APP_FEATURE_FLAGS = {
    * Static product toggle — change here and redeploy; do not use `VITE_*` for feature flags.
    */
   publicBriefSessionFlowEnabled: true,
+  /**
+   * Strategy Lab: roadmap manifest + orchestration timeline (consultant-only surfaces).
+   * Static toggle — redeploy to change.
+   */
+  orchestrationRoadmapUiEnabled: true,
+  /**
+   * Client portal: post-audit cockpit (coverage, summary, CTAs) on the audit home screen.
+   */
+  clientPostAuditCockpitEnabled: true,
+  /**
+   * Strategy Lab: orchestrator-first tabs (Now / Next / Dependencies / Risks) when a pack exists.
+   */
+  strategyLabOrchestratorDetailTabsEnabled: true,
+  /**
+   * Client portal Strategy Lab: replace “consultant-only manifest” banner with a link to the full timeline in the report.
+   */
+  clientOrchestrationLabReadOnlyEnabled: true,
 } as const;
