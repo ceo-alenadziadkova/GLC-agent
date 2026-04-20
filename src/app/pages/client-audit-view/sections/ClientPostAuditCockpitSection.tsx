@@ -8,7 +8,10 @@ import { CoverageCard } from '../../../features/report-viewer/components/Coverag
 import { getReportPageViewModel } from '../../../features/report-viewer/domain/selectors';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_POST_AUDIT_COCKPIT_UI } from '../../../config/client-post-audit-cockpit-ui';
-import { ORCHESTRATION_PANEL_DOM_ID } from '../../../config/orchestration-ui-limits';
+import {
+  ORCHESTRATION_LAB_FOCUS_QUERY_KEY,
+  ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE,
+} from '../../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../../config/route-paths';
 
@@ -55,7 +58,7 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const reportHref = buildAppRoute.portalReports(auditId);
   const timelineHref = buildAppRoute.portalTimeline(auditId);
   const labHref = buildAppRoute.portalStrategy(auditId);
-  const adjustScopeHref = `${timelineHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
+  const adjustScopeHref = `${labHref}?${ORCHESTRATION_LAB_FOCUS_QUERY_KEY}=${ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE}`;
 
   return (
     <div className="glc-soft-panel space-y-5 p-5">
@@ -125,6 +128,9 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
         ) : null}
       </div>
       <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{copy.openTimelineHint}</p>
+      {!roadmapVersion ? (
+        <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">{copy.openTimelineEmptyPackHint}</p>
+      ) : null}
       {roadmapVersion ? (
         <div className="space-y-1 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
           <p>

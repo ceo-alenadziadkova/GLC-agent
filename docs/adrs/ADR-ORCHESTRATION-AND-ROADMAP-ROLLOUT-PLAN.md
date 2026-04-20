@@ -20,7 +20,7 @@
 
 ## Progress snapshot (evidence-based)
 
-**Estimated completion toward the full vision in the two client/orchestrator ADRs: ~62%** (see rationale below).
+**Estimated completion toward the full vision in the two client/orchestrator ADRs: ~68%** (see rationale below; Phase 0 doc pass + timeline season preset wiring + nav/copy/tests landed 2026-04-20).
 
 ### Already implemented (non-exhaustive, verify in tree)
 
@@ -57,7 +57,7 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 **Goal:** Operators know which flags turn on timeline-primary UX and pack API for each environment.
 
 - Confirm `isOrchestrationPackApiEnabled`, `isOrchestrationTimelinePrimaryUxEnabled`, `APP_FEATURE_FLAGS.clientTimelineEnabled` (and related) are documented in `DEPLOYMENT.md` / env matrix — **no new hardcoded toggles in components**.
-- **Remaining effort:** small doc/env pass.
+- **Done (2026-04-20):** `DEPLOYMENT.md` matrix includes `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX` and `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT`; SPA `APP_FEATURE_FLAGS` documented in `DEPLOYMENT.md` + `FRONTEND.md` (no `VITE_*`).
 
 **Cumulative ~63%**
 
@@ -119,6 +119,8 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 **Goal:** Sign-off checklist: client + consultant happy path E2E, diff/history UX, consultant commercial-offer flow if in scope, accessibility spot-check on timeline.
 
 - Any **new** plan-level quality gate → **new ADR**, not scope creep here.
+- **Automation (partial):** `e2e/orchestration-timeline-manifest.spec.ts` covers manifest preview + `GET /api/audits/:id/timeline` when `E2E_ORCHESTRATION_*` env is set; Vitest covers timeline season partition, director phase contract, timeline controller.
+- **Manual:** keyboard tab order through timeline CTAs; screen reader spot-check on `near` / `mid` / `later` bucket headings (`PortalTimelinePage`).
 
 **Cumulative ~100%**
 

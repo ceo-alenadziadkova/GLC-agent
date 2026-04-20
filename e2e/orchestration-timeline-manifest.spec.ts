@@ -26,4 +26,26 @@ test.describe('orchestration timeline manifest flow', () => {
     expect(Array.isArray(body.preview?.lanes_included)).toBeTruthy();
     expect(Array.isArray(body.preview?.confidence_callouts)).toBeTruthy();
   });
+
+  test('GET timeline returns version, seasons, and optional season_preset', async ({ request }) => {
+    skipWithoutAuth();
+
+    const res = await request.get(`/api/audits/${auditId}/timeline`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as {
+      timeline?: {
+        status?: string;
+        version?: { manifest_state?: string; season_preset?: string | null };
+        seasons?: unknown[];
+        dependencies?: Array<{ cross_lane?: boolean }>;
+      };
+    };
+    expect(body.timeline?.version?.manifest_state).toBeTruthy();
+    expect(Array.isArray(body.timeline?.seasons)).toBeTruthy();
+    if (body.timeline?.dependencies?.length) {
+      expect(typeof body.timeline.dependencies[0]?.cross_lane).toBe('boolean');
+    }
+  });
 });

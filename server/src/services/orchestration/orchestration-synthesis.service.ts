@@ -5,6 +5,7 @@ import {
   isOrchestrationConflictSynthesisEnabled,
 } from '../../config/feature-flags.js';
 import { ORCHESTRATION_SYNTHESIS_CONFLICT_ID_PREFIX } from '../../config/orchestration-synthesis-policy.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import type { GlcOrchestrationSynthesisToolOutput } from '../../schemas/glc-orchestration-synthesis-tool.js';
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
@@ -173,6 +174,8 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
     logger.warn('orchestration_synthesis.claude_skip', {
       audit_id: args.auditId,
       message: error.message,
+      component: 'orchestration_synthesis',
+      metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
     });
     await supabase.from('pipeline_events').insert({
       audit_id: args.auditId,

@@ -4,6 +4,10 @@ import {
   apiAuditsOrchestrationPack,
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
+  apiAuditsOrchestratorLatest,
+  apiAuditsOrchestratorPreview,
+  apiAuditsOrchestratorRun,
+  apiAuditsTimeline,
   apiAuditsRoadmapManifestPreview,
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
@@ -17,17 +21,29 @@ import type { AuditMeta } from '../audit/contracts/core/audit-meta.types';
 import type { DomainKey } from '../auditTypes';
 import type {
   OrchestrationChangeScenario,
+  OrchestrationManifestSchemaVersion,
   OrchestrationPreviewCompressionHint,
   OrchestrationPreviewLaneDensityBand,
+  OrchestrationRiskTolerancePreset,
   OrchestrationSeasonPreset,
 } from '../../config/orchestration-roadmap-manifest';
 import type { OrchestrationLaneId } from '../../config/orchestration-roadmap-ui-copy.en';
+import type { OrchestrationPlanGovernanceReasonCode } from '../../config/orchestration-plan-governance';
+import type {
+  OrchestrationManifestState,
+  OrchestrationPlanGateOutcome,
+  OrchestrationPlanGovernanceRolloutMode,
+  OrchestrationTimelineStatus,
+} from '../../config/orchestration-contract';
 
 export type RoadmapManifestRequestBody = {
+  schema_version: OrchestrationManifestSchemaVersion;
   selected_domains: NonNullable<AuditMeta['execution_plan']>['selected_domains'];
   change_scenario: OrchestrationChangeScenario;
   season_preset: OrchestrationSeasonPreset;
+  risk_tolerance?: OrchestrationRiskTolerancePreset;
 };
+export type RoadmapInputManifest = RoadmapManifestRequestBody;
 
 export type RoadmapManifestSnapshotListItem = {
   id: string;
@@ -67,12 +83,58 @@ export type OrchestrationPlanGovernanceDto = {
   confidence_score: number;
   status: 'pass' | 'pass_with_warnings' | 'fail';
   decision: 'persist' | 'reject';
-  rollout_mode: 'shadow' | 'hard_structure_soft_quality' | 'tightened_quality';
+  rollout_mode: OrchestrationPlanGovernanceRolloutMode;
   decision_hint: 'accept_plan' | 'accept_with_warnings' | 'refine_plan';
-  reason_codes: string[];
-  blocking_reasons: string[];
-  warnings_soft: string[];
+  plan_gate_outcome: OrchestrationPlanGateOutcome;
+  reason_codes: OrchestrationPlanGovernanceReasonCode[];
+  blocking_reasons: OrchestrationPlanGovernanceReasonCode[];
+  warnings_soft: OrchestrationPlanGovernanceReasonCode[];
   warnings: string[];
+};
+
+export type AuditTimelineDto = {
+  status: OrchestrationTimelineStatus;
+  version: {
+    roadmap_version: number;
+    manifest_snapshot_id: string | null;
+    latest_manifest_snapshot_id: string | null;
+    stale_manifest: boolean;
+    manifest_state: OrchestrationManifestState;
+    season_preset?: OrchestrationSeasonPreset | null;
+  };
+  seasons: Array<{ id: 'near' | 'mid' | 'far'; node_ids: string[] }>;
+  lanes: Array<{
+    lane_id: OrchestrationLaneId;
+    items: Array<{
+      id: string;
+      title: string;
+      domain: DomainKey;
+      lane: OrchestrationLaneId;
+      season_index?: number;
+      time_bucket?: 'now' | 'next' | 'later';
+      /** Present for nodes enriched from director or explicit baseline/deep synthesis. */
+      analysis_depth?: 'baseline' | 'deep';
+      /** Provenance is optional for backward-compatible timeline payloads. */
+      source?: 'strategy' | 'director';
+    }>;
+  }>;
+  dependencies: Array<{
+    from: string;
+    to: string;
+    relation: 'direct_blocker' | 'strong' | 'medium' | 'weak';
+    cross_lane: boolean;
+    blocking: boolean;
+  }>;
+  top_7d: string[];
+  top_30d: string[];
+  waiting_list_domains: DomainKey[];
+  data_gaps: {
+    degraded_input: boolean;
+    fallback_reason_code?: 'director_slice_missing' | 'director_slice_partial' | 'director_slice_invalid';
+    dangling_dependencies: number;
+    missing_confidence: number;
+    missing_risk: number;
+  } | null;
 };
 
 export type OrchestrationCommercialOfferResponseDto = {
@@ -80,6 +142,7 @@ export type OrchestrationCommercialOfferResponseDto = {
     domain: DomainKey;
     value_message: string;
     estimated_incremental_effort_weeks: number;
+    why_now_bullets: string[];
   }>;
   accepted_domain: DomainKey | null;
   base_preview: RoadmapManifestPreviewDto;
@@ -183,5 +246,43 @@ export const auditsOrchestrationApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+
+  /** Compatibility aliases for Orchestrator v1 endpoint names. */
+  async postOrchestratorPreview(auditId: string, body: RoadmapManifestRequestBody) {
+    return apiFetch<{ preview: RoadmapManifestPreviewDto }>(apiAuditsOrchestratorPreview(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postOrchestratorRun(auditId: string, body: { manifest_snapshot_id: string }) {
+    return apiFetch<{
+      pack: GlcOrchestrationPackView;
+      orchestration_pack_version: number;
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      plan_governance: OrchestrationPlanGovernanceDto;
+    }>(apiAuditsOrchestratorRun(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async getOrchestratorLatest(auditId: string) {
+    return apiFetch<{
+      pack: GlcOrchestrationPackView | null;
+      orchestration_pack_version: number;
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      revision_history?: OrchestrationPackRevisionHistoryItemDto[];
+      plan_governance: OrchestrationPlanGovernanceDto | null;
+    }>(apiAuditsOrchestratorLatest(auditId), { method: 'GET' });
+  },
+
+  async getAuditTimeline(auditId: string) {
+    return apiFetch<{ timeline: AuditTimelineDto }>(apiAuditsTimeline(auditId), { method: 'GET' });
   },
 };

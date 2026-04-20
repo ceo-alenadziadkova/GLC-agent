@@ -7,6 +7,16 @@ export const STRATEGY_LAB_COPY = {
     medium: 'Legacy Core Growth',
     strategic: 'Legacy Strategic',
   },
+  depthFilter: {
+    all: 'All depths',
+    baseline: 'Baseline only',
+    deep: 'Deep only',
+    hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
+  },
+  roles: {
+    timelineVsLab:
+      'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
+  },
   orchestratorTabs: {
     now: 'Now',
     next: 'Next',
@@ -29,7 +39,8 @@ export const STRATEGY_LAB_COPY = {
   },
   appShell: {
     title: 'Strategy Lab',
-    subtitle: 'Build a prioritised transformation roadmap',
+    subtitle:
+      'Detail layer for manifest snapshots, pack versions, and node inspection. Sequencing and seasonal buckets stay on the execution timeline.',
     loadingSubtitle: 'Loading...',
     errorSubtitle: 'Error',
     unavailableSubtitle: 'Not available yet',
@@ -100,6 +111,8 @@ export const STRATEGY_LAB_COPY = {
     roadmapPreviewTitle: 'Roadmap document',
     roadmapPreviewHint: 'Same text as the Markdown download. Scroll to read.',
     roadmapPreviewEmpty: 'Select one or more initiatives on the left to preview the roadmap here.',
+    resizeHandle: 'Resize roadmap summary panel',
+    resizeHint: 'Drag to resize. Double-click to collapse or expand.',
   },
   messages: {
     auditNotFound: 'Audit not found',

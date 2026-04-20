@@ -260,7 +260,11 @@ Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
 | Domain benchmarks | `FEATURE_BENCHMARKS`, `BENCHMARK_RECOMPUTE_SECRET` | `false` | `true` when recompute job exists | `false` until recompute scheduling/monitoring is live | Backend + Ops |
 | Strategy execution pack | `FEATURE_STRATEGY_EXECUTION_PACK` | `true` | `true` | `true` (set `false` only for emergency cost control) | Backend + Product |
 | Orchestration pack API | `FEATURE_ORCHESTRATION_PACK_API` | `true` | `true` | `true` (set `false` to disable POST/GET `/api/audits/:id/orchestration/pack` without redeploy; requires migration `069`) | Backend + Product |
+| Timeline-primary orchestration (telemetry / rollout hooks) | `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX` | `true` | `true` | `true` (set `false` to disable structured `route.audit_timeline_served` logs and other timeline-first hooks; `GET /api/audits/:id/timeline` still returns the read model) | Backend + Product |
+| Director orchestration slice from domain-agent output | `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` | `false` | `true` once each strict phase emits a parseable director slice | `false` until domain rollout is signed off (`director-orchestration-policy.ts`, `server/src/services/orchestration/README.md`) | Backend + Product |
 | Orchestration conflict synthesis (LLM) | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS` | `false` | `true` only when implemented + reviewed | `false` until second-stage copy is shipped | Backend + Product |
+
+**SPA orchestration / timeline toggles (not env):** client nav and portal surfaces also read **`APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts` (`clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, …). There is **no** `VITE_*` for these — change the static map and redeploy. Keep **`orchestrationTimelinePrimaryUxEnabled`** aligned with **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** (see `src/app/config/orchestration-contract-parity.test.ts`).
 
 ### Runtime verification checklist (feature flags)
 

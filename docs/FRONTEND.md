@@ -19,7 +19,7 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 
 The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** `public-brand-defaults.v1.json`, not a `VITE_*` variable.
 
-**Static front config (no `VITE_*`):** feature flags (`app_feature_flags` — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback; change there and redeploy), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
+**Static front config (no `VITE_*`):** feature flags in [`src/app/config/app-feature-flags.ts`](../src/app/config/app-feature-flags.ts) (`APP_FEATURE_FLAGS`) — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback, plus orchestration/timeline rollout (`orchestrationRoadmapUiEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, …). These are **not** set via Railway/Vercel env; change constants and redeploy. Server mirror for timeline-first hooks: **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** — parity is enforced in [`src/app/config/orchestration-contract-parity.test.ts`](../src/app/config/orchestration-contract-parity.test.ts). Also: client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 
 Cross-page persistence keys for consultant flows live in **`storage_keys`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
 
@@ -220,6 +220,8 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
+| `/timeline/:id` | `PortalTimelinePage.tsx` | Orchestration execution timeline (`GET /api/audits/:id/timeline`); primary surface when `orchestrationTimelinePrimaryUxEnabled` |
+| `/portal/timeline/:id` | `PortalTimelinePage.tsx` | Client portal timeline (same data model; `restricted_client_view` when applicable) |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
 | `/admin/requests` | `pages/admin-request-queue/AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |

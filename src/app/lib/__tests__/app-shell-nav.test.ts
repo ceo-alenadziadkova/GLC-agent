@@ -12,6 +12,7 @@ describe('app-shell-nav', () => {
     const nav = buildConsultantNav(null);
     expect(nav.map(i => i.to)).toEqual([
       '/dashboard',
+      '/admin/audits',
       '/admin/requests',
       '/admin/snapshots',
       '/admin/discovery',
@@ -23,14 +24,22 @@ describe('app-shell-nav', () => {
     ]);
   });
 
-  it('buildConsultantNav fills audit-scoped links when auditId is set', () => {
+  it('buildConsultantNav fills audit-scoped links when auditId is set (timeline-first)', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildConsultantNav(id);
-    expect(nav[4]?.to).toBe(`/audit/${id}`);
-    expect(nav[5]?.to).toBe(`/pipeline/${id}`);
+    const nav = buildConsultantNav(id, { timelinePrimaryUx: true });
+    expect(nav[5]?.to).toBe(`/audit/${id}`);
     expect(nav[6]?.to).toBe(`/timeline/${id}`);
-    expect(nav[7]?.to).toBe(`/reports/${id}`);
-    expect(nav[8]?.to).toBe(`/strategy/${id}`);
+    expect(nav[7]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[8]?.to).toBe(`/reports/${id}`);
+    expect(nav[9]?.to).toBe(`/strategy/${id}`);
+    expect(nav[9]?.label).toBe('Plan details');
+  });
+
+  it('buildConsultantNav orders pipeline before timeline when timeline-first is off', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
+    expect(nav[6]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[7]?.to).toBe(`/timeline/${id}`);
   });
 
   it('buildMobileBottomNavItems takes first four linked consultant destinations', () => {
@@ -39,9 +48,9 @@ describe('app-shell-nav', () => {
     expect(bottom).toHaveLength(4);
     expect(bottom.map(i => i.to)).toEqual([
       '/dashboard',
+      '/admin/audits',
       '/admin/requests',
       '/admin/snapshots',
-      '/admin/discovery',
     ]);
   });
 
@@ -56,9 +65,23 @@ describe('app-shell-nav', () => {
     expect(bottom.map(i => i.to)).toEqual(['/portal', '/portal/audit/new']);
   });
 
-  it('buildClientNav includes report and strategy links for selected audit', () => {
+  it('buildClientNav includes report and strategy links for selected audit (timeline-first)', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildClientNav(id, true);
+    const nav = buildClientNav(id, true, { timelinePrimaryUx: true });
+    expect(nav.map(i => i.to)).toEqual([
+      '/portal',
+      `/portal/audit/${id}`,
+      `/portal/timeline/${id}`,
+      `/portal/pipeline/${id}`,
+      `/portal/reports/${id}`,
+      `/portal/strategy/${id}`,
+    ]);
+    expect(nav[5]?.label).toBe('Plan details');
+  });
+
+  it('buildClientNav orders pipeline before timeline when timeline-first is off', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const nav = buildClientNav(id, true, { timelinePrimaryUx: false });
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,

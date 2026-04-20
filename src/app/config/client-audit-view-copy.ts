@@ -95,6 +95,8 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     teamLabel: 'Team scale',
     openTimeline: 'Open execution timeline',
     openTimelineHint: 'See the seasonal roadmap and lanes in the dedicated timeline view.',
+    openTimelineEmptyPackHint:
+      'If the timeline looks empty, the execution pack is not saved yet. Your consultant confirms the roadmap manifest in Strategy Lab and builds the pack; then the timeline updates automatically.',
     roadmapVersionLabel: 'Roadmap version',
     roadmapDiffHint: 'Latest update',
     roadmapDiffNodesLabel: 'Initiatives changed',
