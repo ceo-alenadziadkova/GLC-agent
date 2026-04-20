@@ -26,6 +26,11 @@ export async function getOrchestrationPackController(req: AuthRequest, res: Resp
     });
 
     if (result.status === 'not_found') {
+      logger.warn('route.orchestration_pack_get_rejected', {
+        component: 'audits',
+        reason: 'audit_not_found',
+        metric: 'orchestration_pack_get.not_found',
+      });
       sendApiError(res, 404, API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE);
       return;
     }
@@ -38,9 +43,18 @@ export async function getOrchestrationPackController(req: AuthRequest, res: Resp
       return;
     }
 
+    logger.info('route.orchestration_pack_get_success', {
+      component: 'audits',
+      metric: 'orchestration_pack_get.success',
+      roadmap_version: result.orchestration_pack_version,
+      has_pack: result.pack !== null,
+      nodes_count: result.pack?.graph.nodes.length ?? 0,
+    });
     res.json({
       pack: result.pack,
       orchestration_pack_version: result.orchestration_pack_version,
+      roadmap_version: result.orchestration_pack_version,
+      last_revision_diff: result.last_revision_diff,
     });
   } catch (err) {
     const error = err as Error;

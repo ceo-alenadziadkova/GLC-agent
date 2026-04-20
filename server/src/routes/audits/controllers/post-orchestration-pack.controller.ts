@@ -33,6 +33,11 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
     const auditId = req.params.id as string;
     const parsedBody = BodySchema.safeParse(req.body);
     if (!parsedBody.success) {
+      logger.warn('route.orchestration_pack_rejected', {
+        component: 'audits',
+        reason: 'payload_invalid',
+        metric: 'orchestration_pack_run.validation_fail',
+      });
       sendApiError(
         res,
         400,
@@ -50,6 +55,11 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
     });
 
     if (!pack) {
+      logger.warn('route.orchestration_pack_rejected', {
+        component: 'audits',
+        reason: 'pack_not_ready',
+        metric: 'orchestration_pack_run.not_ready',
+      });
       sendApiError(
         res,
         409,
@@ -59,19 +69,42 @@ export async function postOrchestrationPackController(req: AuthRequest, res: Res
       return;
     }
 
-    const { orchestration_pack_version, error: persistErr } = await persistGlcOrchestrationPack({
+    const { orchestration_pack_version, last_revision_diff, error: persistErr } = await persistGlcOrchestrationPack({
       auditId,
       userId: req.userId!,
       pack,
     });
     if (persistErr) {
+      logger.error('route.orchestration_pack_persist_failed', {
+        component: 'audits',
+        metric: 'orchestration_pack_run.persist_fail',
+        error: persistErr.message,
+      });
       sendApiError(res, 500, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED, AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE);
       return;
     }
 
-    res.json({ pack, orchestration_pack_version });
+    logger.info('route.orchestration_pack_success', {
+      component: 'audits',
+      metric: 'orchestration_pack_run.success',
+      roadmap_version: orchestration_pack_version,
+      nodes_count: pack.graph.nodes.length,
+      edges_count: pack.graph.edges.length,
+      conflicts_count: pack.conflicts_resolved.length,
+    });
+    res.json({
+      pack,
+      orchestration_pack_version,
+      roadmap_version: orchestration_pack_version,
+      last_revision_diff,
+    });
   } catch (err) {
     if (err instanceof RoadmapManifestMismatchError) {
+      logger.warn('route.orchestration_pack_rejected', {
+        component: 'audits',
+        reason: 'manifest_execution_plan_mismatch',
+        metric: 'orchestration_pack_run.mismatch',
+      });
       sendApiError(
         res,
         400,

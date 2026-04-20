@@ -5,6 +5,8 @@ import {
   AUDITS_NOT_FOUND_MESSAGE,
   AUDITS_ROADMAP_MANIFEST_LIST_FAILED_MESSAGE,
 } from '../../../config/api-error-codes.js';
+import { ORCHESTRATION_PACK_API_DISABLED_MESSAGE } from '../../../config/api-user-messages.en.js';
+import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
 import {
   ORCHESTRATION_ROADMAP_MANIFEST_SNAPSHOTS_LIST_DEFAULT_LIMIT,
   ORCHESTRATION_ROADMAP_MANIFEST_SNAPSHOTS_LIST_MAX_LIMIT,
@@ -29,9 +31,19 @@ function parseManifestSnapshotsLimit(raw: unknown): number {
 
 export async function getRoadmapManifestSnapshotsController(req: AuthRequest, res: Response) {
   try {
+    if (!isOrchestrationPackApiEnabled()) {
+      sendApiError(res, 403, API_ERROR_CODES.ORCHESTRATION_PACK_API_DISABLED, ORCHESTRATION_PACK_API_DISABLED_MESSAGE);
+      return;
+    }
+
     const auditId = req.params.id as string;
     const auditCtx = await loadAuditExecutionPlanRow(auditId, req.userId!);
     if (!auditCtx) {
+      logger.warn('route.roadmap_manifest_list_rejected', {
+        component: 'audits',
+        reason: 'audit_not_found',
+        metric: 'roadmap_manifest_list.not_found',
+      });
       sendApiError(res, 404, API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE);
       return;
     }
@@ -52,6 +64,12 @@ export async function getRoadmapManifestSnapshotsController(req: AuthRequest, re
       return;
     }
 
+    logger.info('route.roadmap_manifest_list_success', {
+      component: 'audits',
+      metric: 'roadmap_manifest_list.success',
+      snapshots_count: snapshots.length,
+      query_limit: limit,
+    });
     res.json({ snapshots });
   } catch (err) {
     const error = err as Error;
