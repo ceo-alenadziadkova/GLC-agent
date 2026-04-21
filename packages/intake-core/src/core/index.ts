@@ -1,6 +1,43 @@
 export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
 export {
+  evaluateIntakeReadinessEnvelope,
+  type EvaluateIntakeReadinessInput,
+  type IntakeReadinessCriticalSignalsMode,
+} from './intake-readiness-envelope.js';
+export { evaluateCriticalSignalsPilot } from './evaluate-critical-signals.js';
+export { selectRemediationPilotQueue } from './evaluate-remediation-pilot.js';
+export { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
+export {
+  resolveSequencingPilotArtifact,
+  type SequencingPilotArtifactV1,
+  type SequencingDependencyRuleV1,
+} from './resolve-sequencing-artifact.js';
+export { loadSurfaceMatrixPilot, type SurfaceMatrixPilotV1 } from './load-surface-matrix-pilot.js';
+export {
+  buildProjectContextEnvelope,
+  evaluateExecutionPlanScopeReadiness,
+  PHASE_BC_EXPANSION_ORDER,
+  isPhaseBcExpansionOrderValid,
+  type BuildProjectContextEnvelopeInput,
+  type ExecutionCoveragePackage,
+  type ExecutionPlanReadinessInput,
+  type ExecutionPlanReadinessResult,
+  type ExecutionPlanReadinessStub,
+  type PhaseBcExpansionStep,
+  type ProjectContextEnvelopeStub,
+} from './diagnostic-intake/phase-bc-stubs.js';
+export {
+  evaluatePilotKpiGate,
+  type IntakePilotKpiGateDecision,
+  type IntakePilotKpiGateEvaluation,
+  type IntakePilotKpiGateInput,
+} from './diagnostic-intake/evaluate-pilot-kpi-gate.js';
+export {
+  buildReadinessAnalyticsEvents,
+  type IntakeReadinessAnalyticsEvent,
+} from './diagnostic-intake/build-readiness-analytics-events.js';
+export {
   getQuestionBankLegalMetaForBankId,
   listQuestionBankIdsWithLegalMeta,
   type QuestionBankLegalBasisV1,
@@ -38,6 +75,7 @@ export {
 } from './resolve-intake-artifacts.js';
 export {
   intakeTupleArtifactKey,
+  normalizeIntakeVersionTupleFromStorage,
   parseIntakeVersionTuple,
   parseIntakeVersionsBody,
   tuplesEqual,
@@ -87,5 +125,6 @@ export {
   INTAKE_LAYOUT_VERSION,
   INTAKE_POLICY_VERSION,
   INTAKE_RESOLVER_VERSION,
+  INTAKE_SEQUENCING_VERSION,
   syntheticIntakeVersionsBeforeMatrix,
 } from './versions.js';

@@ -314,6 +314,10 @@ describe('GET /api/audits/:id/brief', () => {
     expect(body.gates).toBeDefined();
     expect(body.intakeProgress).toBeDefined();
     expect(typeof (body.intakeProgress as Record<string, unknown>).progressPct).toBe('number');
+    expect(body.readiness).toBeDefined();
+    expect(body.critical_signals).toBeDefined();
+    expect(Array.isArray(body.remediation_queue)).toBe(true);
+    expect(Array.isArray(body.next_recommended)).toBe(true);
   });
 
   it('returns 200 with populated brief when row exists', async () => {

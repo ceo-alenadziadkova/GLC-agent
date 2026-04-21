@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { BriefSchemaSnapshot } from '../../data/api/brief-profile-platform';
 import type { FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,7 +11,14 @@ import {
   readClientPortalNewAuditDraft,
   type ClientPortalNewAuditDraftV1,
 } from '../../lib/client-portal-new-audit-draft';
-import type { BriefIntakeAnalyticsSurface } from '../../lib/brief-intake-analytics';
+import {
+  briefTrackReadinessBlocked,
+  briefTrackRemediationAsked,
+  briefTrackSequencingTransitionTaken,
+  createBriefIntakeAnalyticsSink,
+  type BriefIntakeAnalyticsSink,
+  type BriefIntakeAnalyticsSurface,
+} from '../../lib/brief-intake-analytics';
 import type {
   IntakeVersionTuple,
 } from '../../data/auditTypes';
@@ -36,6 +44,7 @@ import { useDraftIntakeVersionsEffect } from './wizard-effects/useDraftIntakeVer
 import { useWizardPrefillEffects } from './wizard-effects/useWizardPrefillEffects';
 import { resolveResponseSource } from './wizard-services/response-source.resolver';
 import { createPreBriefToken, validatePreBriefInput } from './wizard-services/prebrief-token.service';
+import { BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS } from '../../config/client-analytics-batching';
 import { BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST, NEW_AUDIT_WIZARD_STEPS } from './wizard-config/wizard-constants';
 import type { NewAuditVariant, NewAuditWizardContract } from './wizard-contract/useNewAuditWizard.types';
 
@@ -120,6 +129,13 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(portalDraftSeed));
+
+  const [briefExecutionDiagnostic, setBriefExecutionDiagnostic] = useState<Pick<
+    BriefSchemaSnapshot,
+    'readiness' | 'critical_signals' | 'remediation_queue'
+  > | null>(null);
+  const [briefExecutionDiagnosticLoading, setBriefExecutionDiagnosticLoading] = useState(false);
+  const [briefExecutionDiagnosticError, setBriefExecutionDiagnosticError] = useState(false);
 
   useEffect(() => {
     if (isClientSelfServe) {
@@ -282,6 +298,103 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     };
   }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
 
+  const intakeBriefAnalyticsSink = useMemo((): BriefIntakeAnalyticsSink | null => {
+    if (!briefWizardIntakeAnalytics) return null;
+    return createBriefIntakeAnalyticsSink({
+      auditId: briefWizardIntakeAnalytics.auditId,
+      surface: briefWizardIntakeAnalytics.surface,
+      getIntakeVersions: () => briefWizardIntakeAnalytics.getIntakeVersions(),
+    });
+  }, [briefWizardIntakeAnalytics]);
+
+  useEffect(() => {
+    return () => {
+      intakeBriefAnalyticsSink?.dispose();
+    };
+  }, [intakeBriefAnalyticsSink]);
+
+  const responsesFingerprint = useMemo(() => JSON.stringify(responses), [responses]);
+
+  const lastReadinessBlockedFpRef = useRef('');
+  const lastRemediationFpRef = useRef('');
+  const lastNextRecommendedFpRef = useRef('');
+
+  /** Cap must stay aligned with `REQUEST_FIELD_LIMITS.intakeAnalyticsNextRecommendedMaxIds` (server). */
+  const nextRecommendedAnalyticsCap = 80;
+
+  useEffect(() => {
+    if (step !== 1 || !draftAuditId || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) {
+      setBriefExecutionDiagnostic(null);
+      setBriefExecutionDiagnosticLoading(false);
+      setBriefExecutionDiagnosticError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBriefExecutionDiagnosticLoading(true);
+    setBriefExecutionDiagnosticError(false);
+    const tid = window.setTimeout(() => {
+      void api
+        .getBrief(draftAuditId)
+        .then(payload => {
+          if (cancelled) return;
+          if (payload.readiness != null && payload.critical_signals != null) {
+            setBriefExecutionDiagnostic({
+              readiness: payload.readiness,
+              critical_signals: payload.critical_signals,
+              remediation_queue: payload.remediation_queue ?? [],
+            });
+
+            if (intakeBriefAnalyticsSink) {
+              if (payload.readiness.auditReadinessStatus === 'blocked') {
+                const fp = `blocked:${(payload.readiness.trace ?? []).map(t => t.code).join('|')}`;
+                if (lastReadinessBlockedFpRef.current !== fp) {
+                  lastReadinessBlockedFpRef.current = fp;
+                  briefTrackReadinessBlocked(intakeBriefAnalyticsSink, {
+                    auditReadinessStatus: payload.readiness.auditReadinessStatus,
+                    flowReadinessStatus: payload.readiness.flowReadinessStatus as 'flow_ready' | 'blocked',
+                    traceCodes: (payload.readiness.trace ?? []).map(t => t.code).filter(c => typeof c === 'string' && c.length > 0),
+                  });
+                }
+              }
+              const rem = payload.remediation_queue ?? [];
+              if (rem.length > 0) {
+                const remFp = rem.join(',');
+                if (lastRemediationFpRef.current !== remFp) {
+                  lastRemediationFpRef.current = remFp;
+                  briefTrackRemediationAsked(intakeBriefAnalyticsSink, { bankIds: rem });
+                }
+              }
+              const nr = (payload.next_recommended ?? []).slice(0, nextRecommendedAnalyticsCap);
+              if (nr.length > 0) {
+                const nrFp = nr.join('\u001f');
+                if (lastNextRecommendedFpRef.current !== nrFp) {
+                  lastNextRecommendedFpRef.current = nrFp;
+                  briefTrackSequencingTransitionTaken(intakeBriefAnalyticsSink, {
+                    transition_rule_ref: 'pilot_next_recommended',
+                    next_recommended: nr,
+                  });
+                }
+              }
+            }
+          } else {
+            setBriefExecutionDiagnostic(null);
+          }
+          setBriefExecutionDiagnosticLoading(false);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setBriefExecutionDiagnosticError(true);
+            setBriefExecutionDiagnosticLoading(false);
+          }
+        });
+    }, BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(tid);
+    };
+  }, [step, draftAuditId, noPublicWebsite, briefLayoutChoice, responsesFingerprint, intakeBriefAnalyticsSink]);
+
   function handleResponseChange(id: string, value: string | string[] | number | null) {
     setResponses(prev => ({ ...prev, [id]: { value, source: responseSource } }));
   }
@@ -308,6 +421,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       productMode: briefProductMode,
       responses,
       briefLayoutChoice,
+      coveragePackage,
+      selectedDomains,
       executionPlan,
       draftAuditId,
       draftIntakeVersions,
@@ -497,6 +612,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     progressPct,
     readinessBadge,
     nextBestAction,
+    briefExecutionDiagnostic,
+    briefExecutionDiagnosticLoading,
+    briefExecutionDiagnosticError,
     bankMetrics,
 
     // Layout / gating UI

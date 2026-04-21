@@ -36,6 +36,8 @@ import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
+import { INTAKE_DIAGNOSTIC_PILOT_COPY_EN } from '../../../config/intake-diagnostic-pilot-copy.en';
+import { getQuestionLabel } from '../../../lib/intake-question-lookup';
 
 export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBriefSaved?: () => void }) {
   const queryClient = useQueryClient();
@@ -235,6 +237,36 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
               visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
               reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
+            {briefLayoutChoice === 'wizard' &&
+            briefQuery.data?.readiness?.auditReadinessStatus === 'blocked' ? (
+              <Callout intent="warning">
+                <div className="space-y-2 px-3 py-2 text-xs text-[var(--text-secondary)]">
+                  <p className="font-semibold text-[var(--text-primary)]">
+                    {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}
+                  </p>
+                  <p>{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessBlockedLead}</p>
+                  {(briefQuery.data.readiness.trace ?? []).length > 0 ? (
+                    <ul className="list-disc pl-4 space-y-1">
+                      {(briefQuery.data.readiness.trace ?? []).map((t, i) => (
+                        <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {briefQuery.data.remediation_queue != null && briefQuery.data.remediation_queue.length > 0 ? (
+                    <div>
+                      <p className="font-medium text-[var(--text-primary)]">
+                        {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationTitle}
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        {briefQuery.data.remediation_queue.map(id => (
+                          <li key={id}>{getQuestionLabel(id)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              </Callout>
+            ) : null}
             <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
               {CLIENT_AUDIT_VIEW_COPY.brief.helpTailoringPrefix}{' '}
               <span className="inline-flex items-center gap-0.5 text-[var(--score-1)]">

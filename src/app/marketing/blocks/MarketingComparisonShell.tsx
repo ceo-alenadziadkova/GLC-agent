@@ -12,7 +12,7 @@ export function MarketingComparisonShell({
 }: {
   children: ReactNode;
   className?: string;
-  /** Inner padding for flush children (e.g. DecisionPath cards). */
+  /** Inner padding for flush children (e.g. DecisionPath home rail / cards). */
   padded?: boolean;
 }) {
   return (

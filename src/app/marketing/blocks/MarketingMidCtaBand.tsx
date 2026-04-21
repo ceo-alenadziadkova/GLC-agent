@@ -11,6 +11,9 @@ export function MarketingMidCtaBand({
   body,
   ctaLabel,
   ctaTo,
+  recoveryLabel,
+  recoveryCtaLabel,
+  recoveryCtaTo,
   className,
   /** Overrides `aria-label` when the visible title should differ from the landmark (e.g. page TOC). */
   landmarkLabel,
@@ -19,6 +22,9 @@ export function MarketingMidCtaBand({
   body: string;
   ctaLabel: string;
   ctaTo: string;
+  recoveryLabel?: string;
+  recoveryCtaLabel?: string;
+  recoveryCtaTo?: string;
   className?: string;
   landmarkLabel?: string;
 }) {
@@ -38,6 +44,14 @@ export function MarketingMidCtaBand({
           <p className="ds-marketing-mid-cta-body ds-text-secondary">
             {body}
           </p>
+          {recoveryLabel && recoveryCtaLabel && recoveryCtaTo ? (
+            <p className="mt-3 text-xs leading-relaxed text-[var(--text-tertiary)] sm:text-sm">
+              {recoveryLabel}{' '}
+              <Link to={recoveryCtaTo} className="font-semibold text-[var(--glc-blue)] underline underline-offset-4">
+                {recoveryCtaLabel}
+              </Link>
+            </p>
+          ) : null}
         </div>
         <Button
           asChild

@@ -32,6 +32,16 @@ export type BriefSchemaSnapshot = {
   };
   missing_for_report: string[];
   next_recommended: string[];
+  readiness?: {
+    flowReadinessStatus: string;
+    auditReadinessStatus: string;
+    trace: Array<{ code: string; semanticCause: string; questionId?: string; signalKey?: string }>;
+  };
+  critical_signals?: {
+    by_key: Record<string, string>;
+    summary: { satisfied: boolean };
+  };
+  remediation_queue?: string[];
   legal?: Record<
     string,
     {
@@ -86,10 +96,20 @@ export type BriefIntakeAnalyticsBatchPayload = {
       | 'question_answered'
       | 'question_skipped'
       | 'wizard_completed'
-      | 'results_viewed';
+      | 'results_viewed'
+      | 'readiness_blocked'
+      | 'remediation_asked'
+      | 'sequencing_transition_taken';
     question_id?: string;
     step_index?: number;
     client_ts?: string;
+    signal_key?: string;
+    transition_rule_ref?: string;
+    audit_readiness_status?: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+    flow_readiness_status?: 'flow_ready' | 'blocked';
+    trace_codes?: string[];
+    remediation_bank_ids?: string[];
+    next_recommended?: string[];
   }>;
 };
 
@@ -131,6 +151,10 @@ export const briefProfilePlatformApi = {
         readinessBadge: 'low' | 'medium' | 'high';
         nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
       };
+      readiness?: BriefSchemaSnapshot['readiness'];
+      critical_signals?: BriefSchemaSnapshot['critical_signals'];
+      remediation_queue?: string[];
+      next_recommended?: string[];
     }>(`${API_PATHS.audits}/${auditId}/brief`);
     assertIntakePayloadShape(payload);
     return payload;

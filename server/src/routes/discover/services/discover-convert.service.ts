@@ -9,10 +9,13 @@ import {
   DISCOVER_CLAIM_CONFLICT_MESSAGE,
   DISCOVER_CONVERT_FAILED_MESSAGE,
   DISCOVER_FORBIDDEN_OWNER_MESSAGE,
+  DISCOVER_INTAKE_READINESS_BLOCKED_MESSAGE,
   DISCOVER_LINK_CONFLICT_MESSAGE,
   DISCOVER_SESSION_NOT_FOUND_MESSAGE,
   apiErrorJson,
 } from '../../../config/api-error-codes.js';
+import { currentIntakeVersionTuple, evaluateIntakeReadinessEnvelope } from '@glc/intake-core';
+import { isDiagnosticIntakePilotEnabled } from '../../../config/feature-flags.js';
 import { DISCOVER_CONVERT_SESSION_RPC } from '../../../config/discover-convert-rpc.js';
 import { coerceDiscoverySessionAnswers, discoveryToBriefPatch } from '../domain/discovery-to-brief-patch.js';
 
@@ -117,12 +120,51 @@ export async function convertDiscoverySessionToAudit(
       body: apiErrorJson(API_ERROR_CODES.DISCOVER_CONVERT_FAILED, DISCOVER_CONVERT_FAILED_MESSAGE),
     };
   }
+
+  const answersPre = coerceDiscoverySessionAnswers(convertRow.answers);
+  let briefPatchPre: Record<string, unknown> = {};
+  try {
+    briefPatchPre = discoveryToBriefPatch(answersPre) as Record<string, unknown>;
+  } catch {
+    briefPatchPre = {};
+  }
+  if (isDiagnosticIntakePilotEnabled()) {
+    const readinessPre = evaluateIntakeReadinessEnvelope({
+      responses: briefPatchPre,
+      slaProductMode: DEFAULT_AUDIT_PRODUCT_MODE,
+      collectionMode: 'interview',
+      surface: 'consultant_interview',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+      criticalSignalsMode: 'sla_only',
+    });
+    if (readinessPre.auditReadinessStatus === 'blocked') {
+      logger.info('discover.convert.intake_readiness_blocked', {
+        kind: 'intake_readiness_blocked',
+        auditId: convertRow.audit_id,
+        flowReadinessStatus: readinessPre.flowReadinessStatus,
+        auditReadinessStatus: readinessPre.auditReadinessStatus,
+        trace_codes: readinessPre.trace.map(t => t.code),
+      });
+      return {
+        status: 422,
+        body: {
+          ...apiErrorJson(API_ERROR_CODES.DISCOVER_INTAKE_READINESS_BLOCKED, DISCOVER_INTAKE_READINESS_BLOCKED_MESSAGE),
+          readiness: {
+            flowReadinessStatus: readinessPre.flowReadinessStatus,
+            auditReadinessStatus: readinessPre.auditReadinessStatus,
+            trace: readinessPre.trace,
+          },
+        },
+      };
+    }
+  }
+
   const auditId = convertRow.audit_id;
   await supabase
     .from('audits')
     .update({ origin: 'discovery' })
     .eq('id', auditId);
-  const answers = coerceDiscoverySessionAnswers(convertRow.answers);
+  const answers = answersPre;
 
   let briefPatch: ReturnType<typeof discoveryToBriefPatch> = {};
   try {

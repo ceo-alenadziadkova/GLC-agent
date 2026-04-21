@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "maxTransitionTypes": 6,
+  "pilotIndustryLabels": ["Healthcare"],
+  "transitionTypes": [
+    { "id": "t_industry", "semanticCause": "Anchor branch for pilot vertical sequencing" },
+    { "id": "t_presence", "semanticCause": "Website presence shapes downstream risk" },
+    { "id": "t_problem", "semanticCause": "Primary problem narrows diagnostic lens" },
+    { "id": "t_operations", "semanticCause": "Operations bottleneck prioritises automation slice" },
+    { "id": "t_audit_scope", "semanticCause": "Audit focus maps to domain workload" },
+    { "id": "t_delivery_shape", "semanticCause": "Delivery / closing flow baseline for handoff realism" }
+  ],
+  "dependencyRules": [
+    {
+      "id": "dep_audit_focus_after_problem",
+      "transitionId": "t_audit_scope",
+      "requiresAnsweredBankIds": ["a2", "a5", "f1"],
+      "semanticCause": "Audit focus (f2) is sequenced after industry, website presence, and primary problem anchors"
+    },
+    {
+      "id": "dep_delivery_after_operations",
+      "transitionId": "t_delivery_shape",
+      "requiresAnsweredBankIds": ["a2", "a5", "d2"],
+      "semanticCause": "Delivery shape (d_closing_flow) follows operations bottleneck (d2) in pilot ordering semantics"
+    },
+    {
+      "id": "dep_problem_after_presence",
+      "transitionId": "t_problem",
+      "requiresAnsweredBankIds": ["a2", "a5", "a1"],
+      "semanticCause": "Primary problem (f1) is sequenced after industry, website presence, and company name"
+    }
+  ],
+  "remediationAllowedBankIds": ["a1", "a3"],
+  "strictRecommendedOrderWhenPilot": [
+    "a2",
+    "a5",
+    "a1",
+    "f1",
+    "f2",
+    "d2",
+    "d_closing_flow"
+  ]
+}

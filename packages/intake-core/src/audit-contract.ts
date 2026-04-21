@@ -55,11 +55,52 @@ export interface BriefResponseEntry {
   source: BriefResponseSource;
 }
 
+/**
+ * ADR Diagnostic Adaptive Intake — canonical readiness tokens (snake_case API contract).
+ * Do not merge with pipeline phase `analysisConfidence` / CONTROL_OBJECT confidence (ADR §3.2).
+ */
+export type FlowReadinessStatus = 'flow_ready' | 'blocked';
+
+export type AuditReadinessStatus = 'audit_ready' | 'blocked' | 'ready_with_caveats';
+export type IntakeReadinessCaveatClass =
+  | 'full_scope_required_gaps'
+  | 'unknown_source_signal_evidence'
+  | 'surface_limited_context';
+
+/**
+ * Pilot critical-signal confidence (ADR §3.2) — orthogonal to UX `IntakePlan.confidence.overall`
+ * and phase-level analysis confidence.
+ */
+export type IntakeCriticalSignalConfidence = 'high' | 'medium' | 'low' | 'unknown';
+
+/** Compact explainability for sequencing / readiness / remediation (ADR §8, §13). */
+export interface IntakeReadinessTraceEntry {
+  code: string;
+  /** Human-semantic cause for tests and support (not only bank question ids). */
+  semanticCause: string;
+  questionId?: string;
+  signalKey?: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface IntakeReadinessEnvelope {
+  flowReadinessStatus: FlowReadinessStatus;
+  auditReadinessStatus: AuditReadinessStatus;
+  /**
+   * Optional caveats for `ready_with_caveats` (Phase-1 cap: max 3 classes).
+   * Keep compact and policy-driven; never emit free-form UI copy here.
+   */
+  caveats?: IntakeReadinessCaveatClass[];
+  trace: IntakeReadinessTraceEntry[];
+}
+
 export interface IntakeVersionTuple {
   questionBankVersion: string;
   policyVersion: string;
   layoutVersion: string;
   resolverVersion: string;
+  /** Dedicated sequencing artifact version (ADR §4.2); not implied by resolver semver. */
+  sequencingVersion: string;
 }
 
 export interface IntakeVersionMigration {

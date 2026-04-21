@@ -14,6 +14,9 @@ export function HomeMidCtaSection({ landmarkLabel, data }: HomeMidCtaSectionProp
       body={data.body}
       ctaLabel={data.ctaLabel}
       ctaTo={data.ctaTo}
+      recoveryLabel={data.recoveryLabel}
+      recoveryCtaLabel={data.recoveryCtaLabel}
+      recoveryCtaTo={data.recoveryCtaTo}
     />
   );
 }

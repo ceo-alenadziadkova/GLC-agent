@@ -13,8 +13,10 @@ import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { computeIntakePlanDerived } from './plan-derived.js';
 import { computeNextRecommended } from './plan-next-recommended.js';
+import { runSequencingEvaluator } from './intake-plan/resolver-pipeline.js';
+import { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
-import { INTAKE_RESOLVER_VERSION } from './versions.js';
+import { INTAKE_RESOLVER_VERSION, currentIntakeVersionTuple } from './versions.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
 import type {
@@ -250,26 +252,49 @@ function buildIntakePlanInternal(
     stubs,
   });
 
-  // When no layout surface applies, finalVisible is alphabetically sorted.
-  // nextRecommended iterates within priority tiers: bank-canonical order produces
-  // more predictable "fill next" suggestions than alphabetical (ADR §nextRecommended).
-  const visibleForNextRecommended = layoutSurfaceKey
-    ? finalVisible
-    : (() => {
-        const vset = new Set(finalVisible);
-        return stubs.filter(s => vset.has(s.id)).map(s => s.id);
-      })();
+  // Sequencing precedence is evaluated before layout masking:
+  // - sequencing uses policy-visible candidates (participation ceiling after policy),
+  // - layout then projects the visible subset for this surface.
+  const sequencingEligibleVisible = stubs
+    .filter(s => uiPolicyVisibleSet.has(s.id))
+    .map(s => s.id);
 
-  const nextRecommended = isIntakeNextRecommendedEnabled()
+  const nextRecommendedRaw = isIntakeNextRecommendedEnabled()
     ? computeNextRecommended({
-        visibleOrdered: visibleForNextRecommended,
+        visibleOrdered: sequencingEligibleVisible,
         stubs,
         responses: r,
         missingForReport: derived.missingForReport,
       })
     : [];
 
-  return {
+  const versionsObj = {
+    questionBankVersion: artifacts.questionBankVersion,
+    policyVersion: policy.version,
+    layoutVersion: layoutArtifact.version,
+    resolverVersion: INTAKE_RESOLVER_VERSION,
+    sequencingVersion: input.intakeVersionTuple?.sequencingVersion ?? currentIntakeVersionTuple().sequencingVersion,
+  };
+
+  const seqApplied = runSequencingEvaluator({
+    sequencingVersion: versionsObj.sequencingVersion,
+    nextRecommended: nextRecommendedRaw,
+    visible: sequencingEligibleVisible,
+    responses: r,
+  });
+  for (const te of seqApplied.sequencingTrace) {
+    debugTrace.push({
+      layer: 'resolver',
+      level: 'info',
+      code: te.code,
+      message: te.semanticCause,
+    });
+  }
+
+  const finalVisibleSet = new Set(finalVisible);
+  const layoutProjectedRecommended = seqApplied.nextRecommended.filter(id => finalVisibleSet.has(id));
+
+  const planCore: IntakePlan = {
     eligible: eligibleAfterPolicy,
     visible: finalVisible,
     required: sortUniqueIds(req.ids),
@@ -284,7 +309,7 @@ function buildIntakePlanInternal(
     coverage: derived.coverage,
     confidence: derived.confidence,
     missingForReport: derived.missingForReport,
-    nextRecommended,
+    nextRecommended: layoutProjectedRecommended,
     runtimeState: {
       responses: r as Record<string, unknown>,
       canon: {
@@ -292,13 +317,24 @@ function buildIntakePlanInternal(
         passById: canon.passById,
       },
     },
-    versions: {
-      questionBankVersion: artifacts.questionBankVersion,
-      policyVersion: policy.version,
-      layoutVersion: layoutArtifact.version,
-      // Resolver code is always current (ADR); never echo a client-provided frozen version.
-      resolverVersion: INTAKE_RESOLVER_VERSION,
-    },
+    versions: versionsObj,
+  };
+
+  const diagnostics = assembleIntakePlanDiagnostics({ plan: planCore, responses: r });
+  for (const te of diagnostics.remediation.trace) {
+    debugTrace.push({
+      layer: 'resolver',
+      level: 'info',
+      code: te.code,
+      message: te.semanticCause,
+    });
+  }
+
+  return {
+    ...planCore,
+    criticalSignals: diagnostics.criticalSignals,
+    remediation: diagnostics.remediation,
+    debugTrace,
   };
 }
 

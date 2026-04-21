@@ -1,3 +1,4 @@
+import { INTAKE_SEQUENCING_VERSION } from '@glc/intake-core';
 import { AUDIT_COVERAGE_PACKAGES, type AuditCoveragePackage, type DomainKey, type IntakeVersionTuple } from '../data/auditTypes';
 import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../config/new-audit-coverage-policy';
 import type { BriefResponses } from '../data/briefQuestions';
@@ -11,6 +12,7 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
   const p = o.policyVersion;
   const l = o.layoutVersion;
   const r = o.resolverVersion;
+  const s = o.sequencingVersion;
   if (
     typeof q === 'string'
     && typeof p === 'string'
@@ -21,7 +23,13 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
     && l.length > 0
     && r.length > 0
   ) {
-    return { questionBankVersion: q, policyVersion: p, layoutVersion: l, resolverVersion: r };
+    return {
+      questionBankVersion: q,
+      policyVersion: p,
+      layoutVersion: l,
+      resolverVersion: r,
+      sequencingVersion: typeof s === 'string' && s.length > 0 ? s : INTAKE_SEQUENCING_VERSION,
+    };
   }
   return null;
 }

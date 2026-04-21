@@ -5,7 +5,11 @@ import { HomeHeroCockpit } from '../../blocks/HomeHeroCockpit';
 import { cn } from '../../../components/ui/utils';
 import { MARKETING_MOTION_EASE_PREMIUM } from '../../../config/marketing-motion';
 import { marketingHeroBillboardMotion } from '../../../config/marketing-motion-variants';
-import { HOME_CHIP_STYLE, HOME_FOCUS_RING } from '../config/home-ui.config';
+import {
+  HOME_CHIP_STYLE,
+  HOME_FOCUS_RING,
+  HOME_HERO_TRUST_BULLETS_VISIBLE_MAX,
+} from '../config/home-ui.config';
 import { homeHeroVisualFloatVariants, homeTrustLineVariants } from '../motion/home-motion';
 import type { MarketingHomeViewModel } from '../types/home-content.types';
 
@@ -17,6 +21,7 @@ type HomeHeroSectionProps = {
 export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
   const heroMv = marketingHeroBillboardMotion(reduceMotion);
   const { hero, brandName } = data;
+  const heroTrustBullets = hero.trustBullets.slice(0, HOME_HERO_TRUST_BULLETS_VISIBLE_MAX);
 
   return (
     <motion.div
@@ -49,7 +54,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           </motion.h1>
           <motion.p
             variants={heroMv.item}
-            className="glc-light-home-hero-subhead mt-8 max-w-[65ch] text-base leading-[1.6] text-[var(--text-secondary)] sm:text-lg"
+            className="glc-light-home-hero-subhead mt-6 max-w-[58ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base"
           >
             {hero.subheadline}
           </motion.p>
@@ -61,7 +66,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
               {hero.supportingLine}
             </motion.p>
           ) : null}
-          <motion.div variants={heroMv.item} className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+          <motion.div variants={heroMv.item} className="mt-7 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
             <motion.div
               whileHover={reduceMotion ? undefined : { y: -1, opacity: 0.92 }}
               transition={{ duration: 0.22, ease: MARKETING_MOTION_EASE_PREMIUM }}
@@ -102,11 +107,11 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           ) : null}
           <motion.div
             variants={heroMv.item}
-            className="mt-10 flex flex-wrap gap-2 sm:mt-12 sm:gap-3"
+            className="mt-8 flex flex-wrap gap-2 sm:mt-10 sm:gap-3"
             role="list"
             aria-label={hero.trustPointsAriaLabel}
           >
-            {hero.trustBullets.map((line, index) => (
+            {heroTrustBullets.map((line, index) => (
               <motion.span
                 key={line}
                 role="listitem"

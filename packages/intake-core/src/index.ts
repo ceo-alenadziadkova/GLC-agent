@@ -175,8 +175,13 @@ export {
   resolveIntakeNextRecommendedMax,
 } from './config/intake-flags.js';
 export { INTAKE_UI_CONFIG, type IntakeUiConfig } from './config/intake-ui-config.js';
+export {
+  INTAKE_DIAGNOSTIC_ANALYTICS_KINDS,
+  type IntakeDiagnosticAnalyticsKind,
+} from './config/intake-rollout-analytics-kinds.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
+  AuditReadinessStatus,
   BriefPriority,
   BriefQuestion,
   BriefResponseEntry,
@@ -184,8 +189,13 @@ export type {
   BriefResponseValue,
   BriefRevenueSignal,
   DomainKey,
+  FlowReadinessStatus,
   IntakeBriefCollectionMode,
+  IntakeCriticalSignalConfidence,
+  IntakeReadinessEnvelope,
+  IntakeReadinessTraceEntry,
   IntakeVersionMigration,
+  IntakeVersionTuple,
   ProductMode,
 } from './audit-contract.js';
 export { DOMAIN_KEYS } from './audit-contract.js';

@@ -42,6 +42,8 @@
   "DISCOVER_CONTACT_SAVE_FAILED": "Failed to save contact info",
   "DISCOVER_CONTACT_NOT_ALLOWED": "Contact update not allowed for this session",
   "DISCOVER_CONVERT_FAILED": "Failed to convert session",
+  "DISCOVER_INTAKE_READINESS_BLOCKED": "Discovery session does not meet minimum intake readiness to create this audit",
+  "PIPELINE_INTAKE_READINESS_BLOCKED": "Intake readiness gate blocked pipeline start — complete required context or remediation first",
   "DISCOVER_ALREADY_CONVERTED": "Session already converted",
   "DISCOVER_FORBIDDEN_OWNER": "Session is assigned to another consultant",
   "DISCOVER_CLAIM_CONFLICT": "Session was claimed or converted by another request",

@@ -2,22 +2,39 @@ import type { MarketingHomeViewModel } from '../types/home-content.types';
 
 type HomeMetricsSectionProps = {
   data: MarketingHomeViewModel['trustMetrics'];
+  /** When false, parent section owns the landmark (combined at-a-glance block). */
+  includeLandmark?: boolean;
+  maxItems?: number;
+  showTagline?: boolean;
 };
 
-export function HomeMetricsSection({ data }: HomeMetricsSectionProps) {
+export function HomeMetricsSection({
+  data,
+  includeLandmark = true,
+  maxItems,
+  showTagline = true,
+}: HomeMetricsSectionProps) {
+  if (!data.items[0]) {
+    return null;
+  }
+  const metricItems = typeof maxItems === 'number' ? data.items.slice(0, maxItems) : data.items;
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 sm:py-9" aria-label={data.ariaLabel}>
-      <div className="grid gap-8 text-center sm:grid-cols-3 sm:gap-10 sm:text-left">
-        {data.items.map(item => (
-          <div key={item.label} className="max-w-md sm:max-w-none">
-            <p className="ds-home-metric-value">{item.value}</p>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
-              {item.label}
-            </p>
-          </div>
+    <div
+      className="mx-auto w-full max-w-5xl px-5 pb-7 pt-5 sm:px-6 sm:pb-8 sm:pt-6"
+      {...(includeLandmark ? { 'aria-label': data.ariaLabel } : {})}
+    >
+      <p className="ds-home-metrics-proof-label">Proof points</p>
+      <div className="ds-home-proof-grid mb-8" aria-label={data.gridLabel}>
+        {metricItems.map(item => (
+          <article key={item.value} className="ds-home-proof-card">
+            <h3 className="ds-home-proof-card-title">{item.value}</h3>
+            <p className="ds-home-proof-card-body">{item.label}</p>
+          </article>
         ))}
       </div>
-      <p className="ds-home-metrics-tagline">{data.tagline}</p>
+
+      {showTagline ? <p className="ds-home-metrics-tagline">{data.tagline}</p> : null}
     </div>
   );
 }

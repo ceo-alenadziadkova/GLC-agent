@@ -29,6 +29,7 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     startPipeline: vi.fn(),
     linkIntakeTokenToAudit: vi.fn(),
     getBrief: vi.fn(),
+    postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
     getDiscoverySession: vi.fn(),
   },
 }));
@@ -147,7 +148,33 @@ describe('NewAudit wizard state wiring', () => {
     apiMock.saveBrief.mockResolvedValue({ brief: { intake_versions: null } });
     apiMock.startPipeline.mockResolvedValue({});
     apiMock.linkIntakeTokenToAudit.mockResolvedValue({});
-    apiMock.getBrief.mockResolvedValue({ brief: { responses: {}, intake_versions: null } });
+    apiMock.getBrief.mockResolvedValue({
+      brief: { responses: {}, intake_versions: null },
+      questions: [],
+      validation: {
+        passed: true,
+        sla_met: true,
+        answered_required: 1,
+        total_required: 1,
+        answered_recommended: 0,
+        total_recommended: 0,
+        missing_required: [],
+      },
+      gates: {
+        canStartSnapshot: true,
+        canStartExpress: true,
+        canStartFull: true,
+        canStartPipeline: true,
+        missingRequiredIds: [],
+        recommendedToImproveIds: [],
+        intakeProgress: { progressPct: 50, readinessBadge: 'medium', nextBestAction: 'none' },
+      },
+      intakeProgress: { progressPct: 50, readinessBadge: 'medium', nextBestAction: 'none' },
+      readiness: { flowReadinessStatus: 'flow_ready', auditReadinessStatus: 'audit_ready', trace: [] },
+      critical_signals: { by_key: {}, summary: { satisfied: true } },
+      remediation_queue: [],
+      next_recommended: [],
+    });
     apiMock.getDiscoverySession.mockResolvedValue({ answers: {} });
   });
 

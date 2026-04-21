@@ -16,7 +16,12 @@ export type BriefIntakeAnalyticsEventType =
   | 'question_answered'
   | 'question_skipped'
   | 'wizard_completed'
-  | 'results_viewed';
+  | 'results_viewed'
+  | 'signal_confidence_changed'
+  | 'readiness_blocked'
+  | 'remediation_asked'
+  | 'sequencing_transition_taken'
+  | 'guard_question_triggered';
 
 const FLUSH_MS = CLIENT_ANALYTICS_FLUSH_MS_DEFAULT;
 const MAX_BATCH = CLIENT_ANALYTICS_MAX_BATCH_DEFAULT;
@@ -44,6 +49,13 @@ type QueuedEvent = {
   question_id?: string;
   step_index?: number;
   client_ts: string;
+  signal_key?: string;
+  transition_rule_ref?: string;
+  audit_readiness_status?: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+  flow_readiness_status?: 'flow_ready' | 'blocked';
+  trace_codes?: string[];
+  remediation_bank_ids?: string[];
+  next_recommended?: string[];
 };
 
 function intakeMapValueAnswered(v: unknown): boolean {
@@ -107,6 +119,15 @@ export function createBriefIntakeAnalyticsSink(deps: {
         ...(e.question_id != null ? { question_id: e.question_id } : {}),
         ...(e.step_index != null ? { step_index: e.step_index } : {}),
         ...(e.client_ts ? { client_ts: e.client_ts } : {}),
+        ...(e.signal_key != null ? { signal_key: e.signal_key } : {}),
+        ...(e.transition_rule_ref != null ? { transition_rule_ref: e.transition_rule_ref } : {}),
+        ...(e.audit_readiness_status != null ? { audit_readiness_status: e.audit_readiness_status } : {}),
+        ...(e.flow_readiness_status != null ? { flow_readiness_status: e.flow_readiness_status } : {}),
+        ...(e.trace_codes != null && e.trace_codes.length > 0 ? { trace_codes: e.trace_codes } : {}),
+        ...(e.remediation_bank_ids != null && e.remediation_bank_ids.length > 0
+          ? { remediation_bank_ids: e.remediation_bank_ids }
+          : {}),
+        ...(e.next_recommended != null && e.next_recommended.length > 0 ? { next_recommended: e.next_recommended } : {}),
       })),
     };
     try {
@@ -180,5 +201,44 @@ export function briefTrackQuestionSkipped(
     event_type: 'question_skipped',
     question_id: p.questionId,
     step_index: p.stepIndex,
+  });
+}
+
+export function briefTrackReadinessBlocked(
+  sink: BriefIntakeAnalyticsSink,
+  p: {
+    auditReadinessStatus: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+    flowReadinessStatus: 'flow_ready' | 'blocked';
+    traceCodes: string[];
+  },
+): void {
+  sink.enqueue({
+    event_type: 'readiness_blocked',
+    audit_readiness_status: p.auditReadinessStatus,
+    flow_readiness_status: p.flowReadinessStatus,
+    ...(p.traceCodes.length > 0 ? { trace_codes: p.traceCodes } : {}),
+  });
+}
+
+export function briefTrackRemediationAsked(
+  sink: BriefIntakeAnalyticsSink,
+  p: { bankIds: string[] },
+): void {
+  if (p.bankIds.length === 0) return;
+  sink.enqueue({
+    event_type: 'remediation_asked',
+    remediation_bank_ids: p.bankIds.slice(0, 2),
+  });
+}
+
+export function briefTrackSequencingTransitionTaken(
+  sink: BriefIntakeAnalyticsSink,
+  p: { transition_rule_ref: string; next_recommended: string[] },
+): void {
+  if (p.next_recommended.length === 0) return;
+  sink.enqueue({
+    event_type: 'sequencing_transition_taken',
+    transition_rule_ref: p.transition_rule_ref,
+    next_recommended: p.next_recommended,
   });
 }

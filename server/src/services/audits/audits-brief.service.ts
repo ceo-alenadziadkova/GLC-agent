@@ -1,7 +1,6 @@
 import type { AuditExecutionPlan, IntakeBriefCollectionMode, IntakeVersionTuple } from '../../types/audit.js';
 import {
   buildBriefSchemaSnapshot,
-  buildIntakePlan,
   currentIntakeVersionTuple,
   isSupportedIntakeArtifactTuple,
   parseIntakeVersionsBody,
@@ -89,7 +88,7 @@ export function buildBriefReadPayload(args: {
     context.surface,
     context.intakeTuple,
   );
-  const plan = buildIntakePlan({
+  const snapshot = buildBriefSchemaSnapshot({
     responses: context.responses,
     productMode: context.briefMode,
     collectionMode: context.collectionMode,
@@ -97,10 +96,15 @@ export function buildBriefReadPayload(args: {
     intakeVersionTuple: context.intakeTuple,
   });
   return {
-    questions: getBriefQuestionsByIds(plan.visible),
+    questions: getBriefQuestionsByIds(snapshot.visible),
     validation,
     gates,
     intakeProgress: gates.intakeProgress,
+    readiness: snapshot.readiness,
+    critical_signals: snapshot.critical_signals,
+    remediation_queue: snapshot.remediation_queue,
+    /** Same ordering as `GET …/brief/schema` after pilot sequencing (server authority). */
+    next_recommended: [...snapshot.next_recommended],
   };
 }
 

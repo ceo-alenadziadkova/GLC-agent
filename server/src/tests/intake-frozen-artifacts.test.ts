@@ -8,6 +8,7 @@ import {
   currentIntakeVersionTuple,
   INTAKE_POLICY_VERSION,
   INTAKE_RESOLVER_VERSION,
+  INTAKE_SEQUENCING_VERSION,
 } from '@glc/intake-core';
 import type { IntakeVersionTuple } from '../types/audit.js';
 
@@ -16,6 +17,7 @@ const FROZEN_LEGACY: IntakeVersionTuple = {
   policyVersion: '1.0.0',
   layoutVersion: '1.1.0',
   resolverVersion: '1.0.0',
+  sequencingVersion: INTAKE_SEQUENCING_VERSION,
 };
 
 describe('frozen intake artifacts', () => {
@@ -43,6 +45,7 @@ describe('frozen intake artifacts', () => {
     // ADR: resolver code is always current — resolverVersion in plan output is the running
     // resolver, not the stored tuple's version (Issue 6 fix).
     expect(legacy.versions.resolverVersion).toBe(INTAKE_RESOLVER_VERSION);
+    expect(legacy.versions.sequencingVersion).toBe(INTAKE_SEQUENCING_VERSION);
   });
 
   it('current tuple uses live policy artifact version', () => {

@@ -99,8 +99,21 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
   return { mockFrom, setAuditMode, setBriefRow, getUpsertCalls };
 });
 
+const loggerState = vi.hoisted(() => ({
+  debug: vi.fn(),
+}));
+
 vi.mock('../services/supabase.js', () => ({
   supabase: { from: (globalThis as Record<string, unknown>).__mockBriefFrom },
+}));
+
+vi.mock('../services/logger.js', () => ({
+  logger: {
+    debug: loggerState.debug,
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
@@ -365,6 +378,19 @@ describe('saveBriefResponses()', () => {
   it('rejects malformed structured response objects', async () => {
     const responses = { f1: { nested: 'object' } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
+  });
+
+  it('recomputes readiness and logs trace codes on write', async () => {
+    await saveBriefResponses('audit-001', makeFullRequired());
+    expect(loggerState.debug).toHaveBeenCalledWith(
+      'brief_write.intake_readiness_recomputed',
+      expect.objectContaining({
+        auditId: 'audit-001',
+        flowReadinessStatus: expect.any(String),
+        auditReadinessStatus: expect.any(String),
+        trace_codes: expect.any(Array),
+      }),
+    );
   });
 });
 

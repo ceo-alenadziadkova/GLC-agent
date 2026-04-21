@@ -2342,7 +2342,7 @@ html:not(.dark) .glc-hover-row:hover {
   max-width: 22ch;
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 6.2vw, 4.125rem);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.04;
   letter-spacing: -0.03em;
   color: var(--text-primary);
@@ -2506,6 +2506,31 @@ html:not(.dark) .glc-hover-row:hover {
   }
 }
 
+/* Marketing home — asymmetric “at a glance” lead + dossier column */
+.ds-home-metric-value-lead {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 3.2vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.ds-home-metric-value-compact {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metric-value-compact {
+    font-size: 1.5rem;
+  }
+}
+
 .ds-home-metrics-tagline {
   margin-top: 2rem;
   text-align: center;
@@ -2519,6 +2544,245 @@ html:not(.dark) .glc-hover-row:hover {
     margin-top: 2.5rem;
     font-size: 0.95rem;
   }
+}
+
+.ds-home-metrics-proof-label {
+  margin: 0 0 0.65rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .ds-home-metrics-proof-label {
+    text-align: left;
+  }
+}
+
+/* Home metrics proof grid (replaces segmented tablist to avoid visual concatenation) */
+.ds-home-proof-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .ds-home-proof-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ds-home-proof-card {
+  min-height: 100%;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: color-mix(in oklab, var(--bg-surface) 90%, var(--bg-muted));
+  padding: 0.8rem 0.9rem;
+}
+
+.ds-home-proof-card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+.ds-home-proof-card-body {
+  margin: 0.45rem 0 0 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.ds-home-scope-truth-expand-trigger {
+  margin-top: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-lg);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--glc-blue-deeper);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.ds-home-scope-truth-expand-trigger:hover {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 40%, var(--bg-surface));
+}
+
+.ds-home-scope-truth-expand-trigger:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-muted),
+    0 0 0 4px var(--glc-blue);
+}
+
+.ds-home-scope-truth-expand-chevron {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ds-home-scope-truth-expand-trigger[data-state='open'] .ds-home-scope-truth-expand-chevron {
+  transform: rotate(180deg);
+}
+
+.ds-home-coherence-proof {
+  display: grid;
+  gap: 0.75rem;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  padding: 1rem;
+  background: color-mix(in oklab, var(--bg-surface) 88%, var(--bg-muted));
+}
+
+@media (min-width: 768px) {
+  .ds-home-coherence-proof {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    padding: 1.25rem;
+  }
+}
+
+.ds-home-coherence-proof-col {
+  min-width: 0;
+}
+
+.ds-home-coherence-proof-label {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ds-home-coherence-proof-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ds-home-coherence-proof-stack > span {
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  background-color: color-mix(in oklab, var(--bg-surface) 80%, transparent);
+}
+
+.ds-home-coherence-proof-arrow {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--glc-blue-deeper);
+  opacity: 0.8;
+}
+
+.ds-home-coherence-proof-result {
+  display: grid;
+  gap: 0.35rem;
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 40%, var(--border-subtle));
+  border-radius: var(--radius-xl);
+  padding: 0.7rem 0.85rem;
+  background: color-mix(in oklab, var(--glc-blue-muted) 34%, var(--bg-surface));
+}
+
+.ds-home-coherence-proof-result > strong {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.ds-home-coherence-proof-result > span {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.ds-home-coverage-map {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ds-home-coverage-map-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ds-home-coverage-map-columns {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 860px) {
+  .ds-home-coverage-map-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+}
+
+.ds-home-coverage-visual {
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in oklab, var(--bg-surface) 85%, var(--bg-muted));
+  padding: 0.7rem;
+}
+
+.ds-home-coverage-visual-head {
+  display: none;
+  margin-bottom: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 640px) {
+  .ds-home-coverage-visual-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+  }
+}
+
+.ds-home-coverage-map-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in oklab, var(--bg-surface) 90%, var(--bg-muted));
+}
+
+.ds-home-coverage-map-label {
+  font-size: 0.825rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.ds-home-coverage-map-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 32%, var(--border-subtle));
+  background: color-mix(in oklab, var(--glc-blue-muted) 46%, var(--bg-surface));
+  padding: 0.16rem 0.48rem;
+  color: var(--glc-blue-deeper);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .ds-home-trust-caps {
@@ -3816,4 +4080,65 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-portal-pack-graph-fit-control {
   color: var(--text-secondary);
+}
+
+/* Home guided path: brief snap-highlight when connector reaches target card. */
+.ds-home-guided-target-highlight {
+  border-color: color-mix(in oklab, var(--glc-blue) 64%, var(--border-subtle)) !important;
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--glc-blue) 18%, transparent),
+    0 12px 26px color-mix(in oklab, var(--glc-blue) 12%, transparent);
+  transition:
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ds-home-guided-matrix {
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklab, var(--bg-surface) 88%, var(--bg-muted));
+  overflow: hidden;
+}
+
+.ds-home-guided-matrix-header,
+.ds-home-guided-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+}
+
+.ds-home-guided-matrix-header {
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  background: color-mix(in oklab, var(--bg-muted) 82%, var(--bg-surface));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ds-home-guided-matrix-row + .ds-home-guided-matrix-row {
+  border-top: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-home-guided-matrix-row {
+  font-size: 0.77rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.ds-home-guided-matrix-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+@media (max-width: 639px) {
+  .ds-home-guided-matrix-header,
+  .ds-home-guided-matrix-row {
+    grid-template-columns: minmax(100px, 1fr) repeat(3, minmax(72px, 1fr));
+    gap: 0.4rem;
+    padding: 0.5rem 0.55rem;
+  }
 }

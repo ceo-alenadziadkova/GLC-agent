@@ -93,4 +93,39 @@ describe('intakeAnalyticsAuditBriefBatchSchema', () => {
     });
     expect(r.success).toBe(true);
   });
+
+  it('accepts ADR diagnostic pilot event types with optional fields', () => {
+    const r = intakeAnalyticsAuditBriefBatchSchema.safeParse({
+      surface: 'client_form',
+      client_session_id: '550e8400-e29b-41d4-a716-446655440000',
+      events: [
+        {
+          event_type: 'signal_confidence_changed',
+          signal_key: 'operations_bottleneck',
+          trace_codes: ['signal_confidence_low_missing'],
+        },
+        {
+          event_type: 'readiness_blocked',
+          audit_readiness_status: 'blocked',
+          flow_readiness_status: 'blocked',
+          trace_codes: ['audit_blocked_full_sla'],
+        },
+        {
+          event_type: 'remediation_asked',
+          remediation_bank_ids: ['a1', 'a3'],
+        },
+        {
+          event_type: 'sequencing_transition_taken',
+          transition_rule_ref: 'pilot_next_recommended',
+          next_recommended: ['a2', 'a5'],
+        },
+        {
+          event_type: 'guard_question_triggered',
+          question_id: 'f1',
+          signal_key: 'primary_problem',
+        },
+      ],
+    });
+    expect(r.success).toBe(true);
+  });
 });

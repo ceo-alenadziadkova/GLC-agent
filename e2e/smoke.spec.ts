@@ -25,18 +25,14 @@ test.describe('public routing smoke', () => {
   test('root shows marketing home for unauthenticated session', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('marketing-home')).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByRole('heading', {
-        name: /one place where your business context turns into coordinated decisions/i,
-      }),
-    ).toBeVisible();
+    await expect(page.getByText(/signals are noisy\. direction should not be\./i)).toBeVisible();
   });
 
   test('snapshot marketing page renders hero and URL field', async ({ page }) => {
     await page.goto('/snapshot');
-    await expect(
-      page.getByRole('heading', { name: /how well does your website convert visitors\?/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /clear ways forward/i })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByRole('textbox', { name: /yourcompany\.com/i })).toBeVisible();
   });
 
@@ -70,14 +66,18 @@ test.describe('public routing smoke', () => {
 
   test('legacy discovery path audit/discover loads wizard shell', async ({ page }) => {
     await page.goto('/audit/discover');
-    const continueBtn = page.getByRole('button', { name: /continue|see my findings/i });
+    const continueBtn = page.getByRole('button', {
+      name: /continue|see my findings|view my findings/i,
+    });
     await expect(continueBtn).toBeVisible({ timeout: 20_000 });
   });
 
   test('discovery step-by-step allows switching option and typing text', async ({ page }) => {
     await page.goto('/discovery');
 
-    const continueBtn = page.getByRole('button', { name: /continue|see my findings/i });
+    const continueBtn = page.getByRole('button', {
+      name: /continue|see my findings|view my findings/i,
+    });
     await expect(continueBtn).toBeVisible({ timeout: 20_000 });
 
     const questionCard = continueBtn.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")]').first();
@@ -107,7 +107,9 @@ test.describe('public routing smoke', () => {
   test('discovery step-by-step preserves answer on back/next navigation', async ({ page }) => {
     await page.goto('/discovery');
 
-    const continueBtn = page.getByRole('button', { name: /continue|see my findings/i });
+    const continueBtn = page.getByRole('button', {
+      name: /continue|see my findings|view my findings/i,
+    });
     await expect(continueBtn).toBeVisible({ timeout: 20_000 });
 
     const questionCard = continueBtn.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")]').first();
@@ -157,25 +159,32 @@ test.describe('public routing smoke', () => {
     test.skip(!hasF9, 'Current discovery fragment does not include f9');
 
     await page.goto('/discovery');
+    const acceptCookies = page.getByRole('button', { name: /accept all/i });
+    if (await acceptCookies.isVisible().catch(() => false)) {
+      await acceptCookies.click();
+    }
 
-    const continueBtn = page.getByRole('button', { name: /continue|see my findings/i });
-    await expect(continueBtn).toBeVisible({ timeout: 20_000 });
+    const continueButtonLocator = () =>
+      page.getByRole('button', { name: /continue|see my findings|view my findings/i }).first();
+    await expect(continueButtonLocator()).toBeVisible({ timeout: 20_000 });
 
     const detailsValue = 'Cross-border tax residency; not Spain-only.';
     const answerCurrentQuestion = async () => {
-      const textInput = page.getByRole('textbox').first();
-      if (await textInput.isVisible()) {
+      const questionCard = page.locator('div.rounded-2xl').filter({ has: continueButtonLocator() }).first();
+      const textInput = questionCard.getByRole('textbox').first();
+      if (await textInput.isVisible().catch(() => false)) {
         await textInput.fill('Playwright smoke answer');
         await expect(textInput).toHaveValue('Playwright smoke answer');
       } else {
-        const optionButtons = page
+        const optionButtons = questionCard
           .getByRole('button')
           .filter({ hasNotText: /^Back$/i })
-          .filter({ hasNotText: /continue|see my findings/i });
+          .filter({ hasNotText: /continue|see my findings|view my findings/i });
         await expect(optionButtons.first()).toBeVisible();
         await optionButtons.first().click();
       }
 
+      const continueBtn = continueButtonLocator();
       await expect(continueBtn).toBeEnabled({ timeout: 10_000 });
       await continueBtn.click();
     };
@@ -196,7 +205,7 @@ test.describe('public routing smoke', () => {
     await specify.fill(detailsValue);
     await expect(specify).toHaveValue(detailsValue);
 
-    await continueBtn.click();
+    await continueButtonLocator().click();
     const backBtn = page.getByRole('button', { name: /^Back$/i });
     if (await backBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await backBtn.click();

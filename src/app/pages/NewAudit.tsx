@@ -233,6 +233,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 onBackToStep0={() => wizard.setStep(0)}
                 onGoToStep2={() => wizard.setStep(2)}
                 clientDraftSaveSection={clientDraftSaveSection}
+                briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
+                briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
+                briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
               />
             )}
 

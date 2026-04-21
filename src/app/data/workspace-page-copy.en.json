@@ -411,6 +411,8 @@
   "marketingLayout": {
     "skipToMainContent": "Skip to main content",
     "primaryNavAriaLabel": "Primary navigation",
+    "packagesMenuLabel": "Compare depth",
+    "packagesMenuAriaLabel": "Workspace depth tiers: Focus, Context, and Strategy pages",
     "mobileNavOpenAriaLabel": "Open navigation menu",
     "mobileNavCloseAriaLabel": "Close navigation menu",
     "mobileNavDialogAriaLabel": "Site navigation",

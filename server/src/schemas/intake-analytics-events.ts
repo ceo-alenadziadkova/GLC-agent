@@ -12,6 +12,12 @@ export const INTAKE_ANALYTICS_EVENT_TYPES = [
   'question_skipped',
   'wizard_completed',
   'results_viewed',
+  /** ADR Diagnostic Adaptive Intake — pilot observability (strict optional fields on event row) */
+  'signal_confidence_changed',
+  'readiness_blocked',
+  'remediation_asked',
+  'sequencing_transition_taken',
+  'guard_question_triggered',
 ] as const;
 
 export type IntakeAnalyticsEventType = (typeof INTAKE_ANALYTICS_EVENT_TYPES)[number];
@@ -25,8 +31,12 @@ const intakeVersionsPartialSchema = z
     policyVersion: z.string().optional(),
     layoutVersion: z.string().optional(),
     resolverVersion: z.string().optional(),
+    sequencingVersion: z.string().optional(),
   })
   .strict();
+
+const flowReadinessStatusEnum = z.enum(['flow_ready', 'blocked']);
+const auditReadinessStatusEnum = z.enum(['audit_ready', 'blocked', 'ready_with_caveats']);
 
 export const intakeAnalyticsEventSchema = z
   .object({
@@ -34,6 +44,27 @@ export const intakeAnalyticsEventSchema = z
     question_id: z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax).optional(),
     step_index: z.number().int().min(0).max(REQUEST_FIELD_LIMITS.intakeAnalyticsStepIndexMax).optional(),
     client_ts: z.string().datetime().optional(),
+    signal_key: z.string().min(1).max(REQUEST_FIELD_LIMITS.intakeAnalyticsSignalKeyMax).optional(),
+    transition_rule_ref: z.string().min(1).max(REQUEST_FIELD_LIMITS.intakeAnalyticsTransitionRuleRefMax).optional(),
+    audit_readiness_status: auditReadinessStatusEnum.optional(),
+    flow_readiness_status: flowReadinessStatusEnum.optional(),
+    trace_codes: z
+      .array(z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax))
+      .min(1)
+      .max(REQUEST_FIELD_LIMITS.intakeAnalyticsTraceCodesMax)
+      .optional(),
+    /** `remediation_asked` — pilot queue bank ids (max 2 per ADR). */
+    remediation_bank_ids: z
+      .array(z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax))
+      .min(1)
+      .max(2)
+      .optional(),
+    /** `sequencing_transition_taken` — ordered visible recommendation tail after pilot sort. */
+    next_recommended: z
+      .array(z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax))
+      .min(1)
+      .max(REQUEST_FIELD_LIMITS.intakeAnalyticsNextRecommendedMaxIds)
+      .optional(),
   })
   .strict();
 

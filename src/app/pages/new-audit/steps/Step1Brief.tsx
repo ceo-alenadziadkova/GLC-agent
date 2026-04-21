@@ -19,7 +19,9 @@ import type {
   ProductMode,
 } from '../../../data/auditTypes';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
+import { INTAKE_DIAGNOSTIC_PILOT_COPY_EN } from '../../../config/intake-diagnostic-pilot-copy.en';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
 import { getQuestionLabel } from '../../../lib/intake-question-lookup';
 import { listMissingPipelineRequiredIds } from '../newAuditValidation';
 import {
@@ -88,6 +90,14 @@ export type Step1BriefProps = {
 
   /** Portal self-serve: simpler copy (no Settings / consultant defaults). */
   isClientSelfServe: boolean;
+
+  /** Server-driven diagnostic intake (GET brief/schema); do not derive locally. */
+  briefExecutionDiagnostic: Pick<
+    BriefSchemaSnapshot,
+    'readiness' | 'critical_signals' | 'remediation_queue'
+  > | null;
+  briefExecutionDiagnosticLoading: boolean;
+  briefExecutionDiagnosticError: boolean;
 };
 
 export function Step1Brief({
@@ -121,6 +131,9 @@ export function Step1Brief({
   onGoToStep2,
   clientDraftSaveSection,
   isClientSelfServe,
+  briefExecutionDiagnostic,
+  briefExecutionDiagnosticLoading,
+  briefExecutionDiagnosticError,
 }: Step1BriefProps) {
   const pipelineProductMode = briefProductMode === 'express' ? 'express' : 'full';
   const missingRequiredIds = useMemo(
@@ -294,6 +307,40 @@ export function Step1Brief({
             value={(answeredRequired / pipelineRequiredTotal) * 100}
             className="ds-step1-brief-progress-thin mb-6 bg-muted [&>[data-slot=progress-indicator]]:bg-[var(--gradient-brand)]"
           />
+
+          {briefExecutionDiagnosticLoading ? (
+            <p className="text-muted-foreground mb-3 text-xs">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessSyncing}</p>
+          ) : null}
+
+          {briefExecutionDiagnosticError ? (
+            <Callout intent="info" className="mb-4">
+              {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.schemaLoadError}
+            </Callout>
+          ) : null}
+
+          {briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'blocked' ? (
+            <Callout intent="warning" className="mb-4" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}>
+              <p className="m-0 mb-2">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessBlockedLead}</p>
+              <ul className="m-0 list-disc space-y-1 pl-4">
+                {briefExecutionDiagnostic.readiness.trace
+                  .filter(t => Boolean(t.semanticCause))
+                  .slice(0, 6)
+                  .map((t, i) => (
+                    <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                  ))}
+              </ul>
+            </Callout>
+          ) : null}
+
+          {briefExecutionDiagnostic?.remediation_queue && briefExecutionDiagnostic.remediation_queue.length > 0 ? (
+            <Callout intent="neutral" className="mb-4" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationTitle}>
+              <ul className="m-0 list-disc space-y-1 pl-4">
+                {briefExecutionDiagnostic.remediation_queue.map(id => (
+                  <li key={id}>{getQuestionLabel(id)}</li>
+                ))}
+              </ul>
+            </Callout>
+          ) : null}
 
           <p className="text-muted-foreground mb-3.5 text-xs">
             {WORKSPACE_PAGE_COPY.newAudit.nextActionText[nextBestAction]}

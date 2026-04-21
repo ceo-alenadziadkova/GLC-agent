@@ -9,6 +9,8 @@
 | Owners | Product + Engineering                                         |
 
 
+**Implementation contract (enforcement points, acceptance checklist):** [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](../INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)
+
 ## 1) Context
 
 GLC already has a strong intake foundation:
@@ -36,6 +38,12 @@ This ADR intentionally separates:
 
 - **Phase-1 must ship core** (small, implementable quickly),
 - **Phase-B/C governance expansion** (preserved, but not mandatory in first wave).
+
+Pragmatic rollout policy:
+
+- execute in short, bounded phases (0-9),
+- keep implementation quality gates explicit before each expansion step,
+- do not open Phase-B/C work before pilot KPI gate is passed.
 
 ## 3) Normative Semantics (Keep)
 
@@ -65,11 +73,19 @@ This ADR intentionally separates:
 3. Layout defines where/when asks appear.
 4. UI renders plan output only (no local branching invention).
 
+**Phase-1 implementation alignment:** the runtime resolver keeps ADR precedence (`eligibility → sequencing → layout`) while preserving deterministic surface projection. Sequencing governs ordering within the eligible set; layout remains the final projection for rendered `visible` slots, and UI still consumes server-authored output only.
+
 ## 4) Source of Truth and Versioning
 
 ### 4.1 Sequencing Artifact
 
 Sequencing logic lives in a **dedicated sequencing artifact** (not policy extension).
+
+Current canonical artifact path and ownership:
+
+- path: `packages/intake-core/src/artifacts/intake-sequencing-pilot-1.0.0.json`,
+- runtime owner: Intake Core (Engineering),
+- semantic owner: Product + Engineering (joint sign-off for rule changes).
 
 ### 4.2 Tuple Contract
 
@@ -102,12 +118,12 @@ Canonical status tokens (contract-level):
 Note: camelCase labels (`flowReady`, `auditReady`) are narrative only; API/persisted contracts must use canonical snake_case tokens.
 
 
-| Flow                                                          | DSL behavior                          | Readiness policy                                         | Remediation budget | Consultant override |
-| ------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------- | ------------------ | ------------------- |
-| Pre-brief (`mode=pre_brief`, `surface=client_form`)           | Minimum context for call handoff      | `flowReady` only                                         | 0                  | N/A                 |
-| Self-serve brief (`mode=full/express`, `surface=client_form`) | Progressive flow to audit conversion  | `flowReady` + `auditReady`                               | 1-2                | No direct override  |
-| Consultant-led (`mode=full`, `surface=consultant_interview`)  | Deep enrichment and expert correction | `auditReady` advisory + override path                    | Flexible/manual    | Allowed             |
-| Discovery (`mode=discovery`, `surface=public_discovery`)      | Wow-first + conversion signal         | `flowReady` in flow; `auditReady` at conversion boundary | 0                  | N/A                 |
+| Flow                                                          | DSL behavior                          | Readiness policy                                                                                                                                                                                                                                                                                                          | Remediation budget | Consultant override |
+| ------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------- |
+| Pre-brief (`mode=pre_brief`, `surface=client_form`)           | Minimum context for call handoff      | `flowReady` only                                                                                                                                                                                                                                                                                                          | 0                  | N/A                 |
+| Self-serve brief (`mode=full/express`, `surface=client_form`) | Progressive flow to audit conversion  | `flowReady` + `auditReady`                                                                                                                                                                                                                                                                                                | 1-2                | No direct override  |
+| Consultant-led (`mode=full`, `surface=consultant_interview`)  | Deep enrichment and expert correction | `auditReady` advisory + override path                                                                                                                                                                                                                                                                                     | Flexible/manual    | Allowed             |
+| Discovery (`mode=discovery`, `surface=public_discovery`)      | Wow-first + conversion signal         | Envelope + trace at convert (`criticalSignalsMode: 'sla_only'`); pilot critical registry does **not** block convert — full pilot gate (`criticalSignalsMode: 'full'`) at `POST /api/audits/:id/pipeline/start` only (see [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](../INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)) | 0                  | N/A                 |
 
 
 Rules:
@@ -159,6 +175,76 @@ Phase-1 explicit non-goals:
 - full caveat ownership machinery,
 - full lifecycle governance for bridge content,
 - full envelope replacement in all downstream components.
+
+Phase-1 Definition of Done (DoD):
+
+- canonical readiness API fields and enums are the only accepted vocabulary in contracts,
+- tuple compatibility (`sequencingVersion` + legacy fallback) is tested,
+- precedence invariant is enforced in resolver and validated by tests,
+- readiness enforcement points are active and covered by server tests,
+- surface parity snapshots remain stable for pilot surfaces.
+
+## 6.1) Pragmatic Rollout Phases (0-9)
+
+### Phase 0: Baseline + inventory (1-2 days)
+
+- freeze current baseline for artifacts/contracts/enforcement points,
+- produce a focused gap list against Phase-1 must ship and record DoD checks.
+
+### Phase 1: Contracts and schemas (no complex logic)
+
+- lock canonical readiness fields and enums,
+- lock tuple contract with `sequencingVersion` and compatibility fallback,
+- lock minimal sequencing artifact and critical signal registry schemas.
+
+### Phase 2: Deterministic sequencing core
+
+- enforce `branch/policy -> sequencing -> layout -> UI` precedence as runtime invariant,
+- keep pilot transition set bounded; no probabilistic routing/ML in Phase-1.
+
+### Phase 3: Critical signals + readiness gate
+
+- keep Phase-1 registry to six mandatory keys only,
+- keep baseline package-agnostic readiness evaluator,
+- enforce default unknown safety rule.
+
+### Phase 4: Remediation (soft, bounded)
+
+- keep fallback clarification selector deterministic,
+- keep remediation budget bounded by surface policy,
+- defer session-level reopening suppression until post-pilot KPI gate.
+
+### Phase 5: Enforcement points
+
+- keep checks at `PUT /brief` recompute path (observability),
+- keep checks at discover conversion boundary and pipeline start boundary,
+- keep execution authority separate from discovery/pre-brief completion.
+
+### Phase 6: UI contract (minimal and strict)
+
+- one-question focus,
+- compact explainability hint ("why asked"),
+- remediation checkpoint language instead of generic hard errors,
+- no UI-local branching; only server-authored states.
+
+### Phase 7: Tests and quality gates
+
+- readiness contract tests,
+- tuple compatibility tests (including fallback),
+- precedence tests,
+- boundary enforcement tests,
+- remediation idempotence tests,
+- surface parity tests.
+
+### Phase 8: Pilot rollout (single vertical)
+
+- rollout sequence: internal -> limited traffic -> full,
+- monitor completion, readiness-qualified context, and drop-off non-regression.
+
+### Phase 9: Phase-B/C expansion
+
+- only after pilot KPI gate,
+- then expand signal metadata, package-aware readiness, caveat taxonomy, Context Envelope, and bridge-question governance.
 
 ## 7) Phase-B/C Expansion (Preserve, Do Not Lose)
 
@@ -297,7 +383,62 @@ Intake does not replace phase governance.
   - no completion regression,
   - measurable lift in readiness-qualified context.
 
-## 15) UI/UX Contract (Adaptive Flow Experience)
+## 15) Industry Expansion Priorities (Phase-B/C)
+
+Current industry model is intentionally uneven: universal core + selected branch packs.  
+Next expansion should prioritize business impact with minimal flow inflation.
+
+Priority order:
+
+1. `E-commerce` (high impact, low/medium effort),
+2. `SaaS / Software` (high impact, medium effort),
+3. `Retail` (medium/high impact, low effort).
+
+### 15.1 E-commerce (first)
+
+Recommended branch probes:
+
+- order funnel drop-off point (product page/cart/checkout/payment),
+- fulfillment/returns handling maturity (manual/partial/systemized),
+- marketplace vs own-site dependency split.
+
+Expected lift:
+
+- stronger `conversion` + `operations` + `channel risk` signal quality.
+
+### 15.2 SaaS / Software (second)
+
+Recommended branch probes:
+
+- activation bottleneck (where users fail to reach first value),
+- current monetization motion (trial/freemium/demo-led/sales-led),
+- retention pressure point (activation/retention/expansion).
+
+Expected lift:
+
+- stronger `strategy` + `ux_conversion` + `automation` fit for SaaS contexts.
+
+### 15.3 Retail (third)
+
+Recommended branch probes:
+
+- online/offline channel split,
+- inventory/price synchronization pain across channels,
+- returns/repeat purchase handling shape.
+
+Expected lift:
+
+- stronger `operations` + `channel consistency` context.
+
+### 15.4 Rollout Constraints (normative)
+
+- Treat these probes as **Diagnostic Depth**, not Phase-1 Critical Signals.
+- Self-serve surfaces: max 2 industry probes per pass.
+- Discovery/pre-brief: max 0-1 probe based on strongest available signal.
+- Add via bank/policy/sequencing artifacts only (no UI-local hardcoded branching).
+- Follow `QUESTION_BANK.md` protocol for any new question ID or option change.
+
+## 16) UI/UX Contract (Adaptive Flow Experience)
 
 Adaptive intake must feel like guided discovery, not a dense form.
 
@@ -317,7 +458,7 @@ Transition behavior guidance:
 - no abrupt full-page jank unless crossing a section/stage boundary,
 - avoid unexplained topic jumps between stages.
 
-## 16) References
+## 17) References
 
 - `packages/intake-core/src/question-bank.v1.json`
 - `packages/intake-core/src/branch-rules.v1.json`

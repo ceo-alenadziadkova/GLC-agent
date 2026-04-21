@@ -1,3 +1,6 @@
+/** Caps hero trust chips to reduce first-screen cognitive load (see marketing critique / distill). */
+export const HOME_HERO_TRUST_BULLETS_VISIBLE_MAX = 1 as const;
+
 export const HOME_FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]';
 

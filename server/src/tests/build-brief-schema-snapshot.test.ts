@@ -23,6 +23,15 @@ describe('buildBriefSchemaSnapshot', () => {
     expect(schema.derived.confidence_overall).toBeLessThanOrEqual(1);
     expect(schema.legal).toBeDefined();
     expect(schema.legal?.a2?.legal_basis).toBe('contract');
+    expect(schema.readiness).toBeDefined();
+    expect(['flow_ready', 'blocked']).toContain(schema.readiness.flowReadinessStatus);
+    expect(['audit_ready', 'blocked', 'ready_with_caveats']).toContain(schema.readiness.auditReadinessStatus);
+    expect(Array.isArray(schema.readiness.trace)).toBe(true);
+    expect(schema.intake_versions.sequencingVersion).toBeDefined();
+    expect(schema.critical_signals).toBeDefined();
+    expect(schema.critical_signals.summary).toHaveProperty('satisfied');
+    expect(schema.remediation_queue).toBeDefined();
+    expect(Array.isArray(schema.remediation_queue)).toBe(true);
   });
 
   it('uses null surface when caller passes undefined (discovery-style)', () => {

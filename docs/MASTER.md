@@ -29,6 +29,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Agents, collectors, fact-check, weights | [AGENTS.md](./AGENTS.md) |
 | Database tables, migrations, RLS | [DATABASE.md](./DATABASE.md) |
 | REST API (human contract) | [API.md](./API.md) |
+| Diagnostic Adaptive Intake (pilot contract + acceptance) | [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md) |
 | Literal `error` string inventory (generated; see [API.md](./API.md#error-responses)) | [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) |
 | Auth, roles, JWT | [AUTH.md](./AUTH.md) |
 | Threat model, rate limits, CORS, snapshot log redaction | [SECURITY.md](./SECURITY.md) |

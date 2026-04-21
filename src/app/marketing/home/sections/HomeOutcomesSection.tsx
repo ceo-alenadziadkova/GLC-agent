@@ -18,7 +18,13 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
   return (
     <>
       <SectionHeading variant="minimal" size="display" title={data.title} description={data.description} />
-      <div className="mt-12 grid gap-6 lg:grid-cols-12 lg:gap-8">
+      <div className="mt-10 grid gap-4 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:mt-12 sm:gap-6 sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{data.specimenEyebrow}</p>
+        <p className="max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
+          {data.specimenBody}
+        </p>
+      </div>
+      <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-12 lg:gap-8">
         <motion.article
           className="flex flex-col justify-between p-6 sm:p-8 lg:col-span-7 will-change-transform"
           style={HOME_SURFACE_CARD_STYLE}
@@ -37,6 +43,11 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
                     ease: MARKETING_MOTION_EASE_PREMIUM,
                   },
                 }
+          }
+          whileTap={
+            reduceMotion
+              ? undefined
+              : { scale: 0.992, transition: { duration: 0.12, ease: MARKETING_MOTION_EASE_PREMIUM } }
           }
         >
           <div>
@@ -69,6 +80,11 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
                         ease: MARKETING_MOTION_EASE_PREMIUM,
                       },
                     }
+              }
+              whileTap={
+                reduceMotion
+                  ? undefined
+                  : { scale: 0.992, transition: { duration: 0.12, ease: MARKETING_MOTION_EASE_PREMIUM } }
               }
             >
               <h3 className="font-display text-base font-bold tracking-tight text-[var(--text-primary)] sm:text-lg">

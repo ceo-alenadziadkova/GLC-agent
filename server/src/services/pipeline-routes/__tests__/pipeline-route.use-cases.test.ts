@@ -105,6 +105,10 @@ vi.mock('../orchestration/schedule-pipeline-execution.js', () => ({
   schedulePipelineExecution: mocks.schedulePipelineExecution,
 }));
 
+import * as intakeCore from '@glc/intake-core';
+import * as featureFlags from '../../../config/feature-flags.js';
+import { intakeBriefGateModeFromExecutionPlan } from '../../../lib/audit-coverage-bridge.js';
+
 import { PIPELINE_RETRY_CLAIM_OWNERSHIP } from '../../../config/pipeline-retry-claim.js';
 import { runPipelineStart } from '../use-cases/start-pipeline.use-case.js';
 import { runPipelineNext } from '../use-cases/next-pipeline.use-case.js';
@@ -118,6 +122,12 @@ import { loadQualityGateData } from '../use-cases/load-quality-gate.use-case.js'
 describe('pipeline route use-cases with mocked repositories', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(featureFlags, 'isDiagnosticIntakePilotEnabled').mockReturnValue(true);
+    vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockReturnValue({
+      flowReadinessStatus: 'flow_ready',
+      auditReadinessStatus: 'audit_ready',
+      trace: [],
+    });
     mocks.fetchAuditForStart.mockResolvedValue({
       id: 'a1',
       status: 'created',
@@ -196,6 +206,56 @@ describe('pipeline route use-cases with mocked repositories', () => {
     mocks.fetchReviewPointsForAudit.mockResolvedValue([{ after_phase: 0, status: 'approved' }]);
     mocks.fetchAuditForAnyAccess.mockResolvedValue({ id: 'a1' });
     mocks.fetchLatestQualityGateEventData.mockResolvedValue({ passed: true, flags: [] });
+  });
+
+  it('runPipelineStart returns intake readiness blocked when envelope blocks audit', async () => {
+    vi.mocked(intakeCore.evaluateIntakeReadinessEnvelope).mockReturnValueOnce({
+      flowReadinessStatus: 'blocked',
+      auditReadinessStatus: 'blocked',
+      trace: [{ code: 'test_block', semanticCause: 'Test semantic readiness block' }],
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.status).toBe(400);
+      expect(result.error.body.code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
+    }
+  });
+
+  it('runPipelineStart does not apply intake readiness block when diagnostic pilot flag is disabled', async () => {
+    vi.spyOn(featureFlags, 'isDiagnosticIntakePilotEnabled').mockReturnValueOnce(false);
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('runPipelineStart passes slaProductMode from intakeBriefGateModeFromExecutionPlan into readiness envelope', async () => {
+    vi.mocked(intakeBriefGateModeFromExecutionPlan).mockReturnValueOnce('express');
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.slaProductMode).toBe('express');
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
   });
 
   it('runPipelineStart returns started payload on success', async () => {

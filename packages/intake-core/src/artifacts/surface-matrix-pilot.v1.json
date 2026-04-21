@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "surfaces": {
+    "pre_brief_client_form": {
+      "remediationMax": 0,
+      "enforceAuditReadyOn": ["conversion", "pipeline_start"],
+      "enforceFlowReadyOn": ["brief_recompute"]
+    },
+    "discovery_public_discovery": {
+      "remediationMax": 0,
+      "enforceAuditReadyOn": ["conversion"],
+      "enforceFlowReadyOn": ["brief_recompute"]
+    },
+    "self_serve_client_form": {
+      "remediationMax": 2,
+      "enforceAuditReadyOn": ["pipeline_start"],
+      "enforceFlowReadyOn": ["brief_recompute"]
+    },
+    "consultant_interview": {
+      "remediationMax": 8,
+      "consultantOverrideAllowed": true,
+      "enforceAuditReadyOn": ["pipeline_start"],
+      "enforceFlowReadyOn": ["brief_recompute"]
+    }
+  }
+}

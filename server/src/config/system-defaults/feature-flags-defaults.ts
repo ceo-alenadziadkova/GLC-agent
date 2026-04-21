@@ -59,4 +59,9 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
    */
   orchestrationTimelinePrimaryUxEnabled: true,
+  /**
+   * When true, pipeline start and discovery convert apply `evaluateIntakeReadinessEnvelope` blocking rules.
+   * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT
+   */
+  diagnosticIntakePilotEnabled: false,
 } as const;

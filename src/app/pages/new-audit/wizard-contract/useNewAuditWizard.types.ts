@@ -8,6 +8,7 @@ import type {
   IntakeReadinessBadge,
   IntakeVersionTuple,
 } from '../../../data/auditTypes';
+import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import type { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
 
@@ -58,6 +59,13 @@ export type NewAuditWizardContract = {
   progressPct: number;
   readinessBadge: IntakeReadinessBadge;
   nextBestAction: IntakeNextBestAction;
+  /** Server `GET …/brief/schema` diagnostic slice for step 1 (null when unavailable). */
+  briefExecutionDiagnostic: Pick<
+    BriefSchemaSnapshot,
+    'readiness' | 'critical_signals' | 'remediation_queue'
+  > | null;
+  briefExecutionDiagnosticLoading: boolean;
+  briefExecutionDiagnosticError: boolean;
   bankMetrics: ReturnType<typeof useIntakeBankMetrics>;
   briefLayoutChoice: BriefLayoutChoice;
   setBriefLayoutChoice: Dispatch<SetStateAction<BriefLayoutChoice>>;

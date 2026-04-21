@@ -205,3 +205,11 @@ export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
     FF.orchestrationTimelinePrimaryUxEnabled,
   );
 }
+
+/**
+ * Diagnostic Adaptive Intake pilot — readiness blocking on pipeline start / discover convert.
+ * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT=true
+ */
+export function isDiagnosticIntakePilotEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIAGNOSTIC_INTAKE_PILOT, FF.diagnosticIntakePilotEnabled);
+}

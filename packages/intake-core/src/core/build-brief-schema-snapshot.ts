@@ -4,9 +4,16 @@
 import { expandAnswerContractForApi, getQuestionBankAnswerContract, getQuestionBankSchemaMeta } from '../question-bank.js';
 import { getQuestionBankLegalMetaForBankId, type QuestionBankLegalMetaRowV1 } from '../question-bank-legal-meta.v1.js';
 import type { IntakeAnswerContract } from '../types.js';
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../audit-contract.js';
+import type {
+  IntakeBriefCollectionMode,
+  IntakeCriticalSignalConfidence,
+  IntakeReadinessEnvelope,
+  IntakeVersionTuple,
+  ProductMode,
+} from '../audit-contract.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
+import { evaluateIntakeReadinessEnvelope } from './intake-readiness-envelope.js';
 import type { IntakeSurface, StepPlanEntry } from './types.js';
 
 export interface BriefSchemaQuestionRow {
@@ -41,6 +48,7 @@ export interface BriefSchemaSnapshot {
   questions: BriefSchemaQuestionRow[];
   derived: {
     ai_readiness_score: number;
+    /** UX / resolver aggregate — not `signalConfidence` and not phase-level analysis confidence (ADR §3.2). */
     confidence_overall: number;
     website_gate: string;
     /** Canon `reportUse` → answer snippet when present on visible answered questions. */
@@ -49,6 +57,17 @@ export interface BriefSchemaSnapshot {
   /** Domains with unanswered in-scope primary bank questions (SLA-visible set). */
   missing_for_report: string[];
   next_recommended: string[];
+  /** ADR Diagnostic Adaptive Intake — execution / flow readiness (authoritative at enforcement points). */
+  readiness: Pick<IntakeReadinessEnvelope, 'flowReadinessStatus' | 'auditReadinessStatus' | 'trace'>;
+  /**
+   * Pilot critical signals — `by_key` is ADR `signalConfidence` (not `derived.confidence_overall`).
+   */
+  critical_signals: {
+    by_key: Record<string, IntakeCriticalSignalConfidence>;
+    summary: { satisfied: boolean };
+  };
+  /** Pilot remediation suggestions (eligible ∩ allow-list), max 2; empty when none. */
+  remediation_queue: string[];
   /** Per visible bank id: GDPR-oriented metadata (contract-first intake); see `question-bank-legal-meta.v1.ts`. */
   legal?: Record<string, QuestionBankLegalMetaRowV1>;
 }
@@ -71,6 +90,8 @@ export function buildBriefSchemaSnapshot(args: {
   collectionMode: IntakeBriefCollectionMode;
   surface: IntakeSurface | undefined;
   intakeVersionTuple: IntakeVersionTuple;
+  /** Defaults to `productMode` — override when audit execution plan differs from schema product axis. */
+  slaProductMode?: ProductMode;
 }): BriefSchemaSnapshot {
   const plan = buildIntakePlan({
     responses: args.responses,
@@ -104,6 +125,15 @@ export function buildBriefSchemaSnapshot(args: {
     }
   }
 
+  const slaMode = args.slaProductMode ?? args.productMode;
+  const readiness = evaluateIntakeReadinessEnvelope({
+    responses: args.responses,
+    slaProductMode: slaMode,
+    collectionMode: args.collectionMode,
+    surface: args.surface,
+    intakeVersionTuple: args.intakeVersionTuple,
+  });
+
   return {
     intake_versions: plan.versions,
     product_mode: args.productMode,
@@ -128,6 +158,16 @@ export function buildBriefSchemaSnapshot(args: {
     },
     missing_for_report: [...plan.missingForReport],
     next_recommended: [...plan.nextRecommended],
+    readiness: {
+      flowReadinessStatus: readiness.flowReadinessStatus,
+      auditReadinessStatus: readiness.auditReadinessStatus,
+      trace: readiness.trace,
+    },
+    critical_signals: {
+      by_key: { ...(plan.criticalSignals?.confidenceByKey ?? {}) },
+      summary: { satisfied: plan.criticalSignals?.satisfied ?? true },
+    },
+    remediation_queue: [...(plan.remediation?.queue ?? [])],
     legal: Object.keys(legal).length > 0 ? legal : undefined,
   };
 }

@@ -1,20 +1,20 @@
 {
   "marketing_home": {
     "hero": {
-      "eyebrow": "Business context workspace",
-      "headline": "One place where your business context turns into coordinated decisions",
-      "headline_gradient_suffix": "coordinated decisions",
-      "subheadline": "Capture what matters once, see what needs attention now, and move with a clear next-step roadmap.",
-      "supporting_line": "",
-      "snapshot_caption": "",
+      "eyebrow": "One point of entry for business clarity",
+      "headline": "Bring your business situation into focus",
+      "headline_gradient_suffix": "into focus",
+      "subheadline": "Share your situation once and receive a decision pack: priority map, trade-off notes, and the first executable sequence.",
+      "supporting_line": "Scope guardrail: coverage is confirmed before work starts, and non-covered dependencies are labeled in plain language.",
+      "snapshot_caption": "Mini specimen: Input: sales + product + delivery signals. Output: top 3 priorities, owners, sequence, and boundary notes.",
       "ctas": {
-        "primary": "Start with your context",
-        "secondary": "See how it works"
+        "primary": "Start with your situation",
+        "secondary": "Route me in 30 seconds"
       },
       "trust_bullets": [
-        "Explicit scope before delivery",
-        "Handoff-ready workspace output",
-        "Prioritized next actions"
+        "Secure by design",
+        "Structured for action",
+        "Built to scale with decisions"
       ]
     },
     "client_dashboard": {
@@ -23,29 +23,29 @@
       "cta_sign_in": "Sign in to dashboard"
     },
     "outcomes_section": {
-      "title": "What you get",
-      "description": "",
+      "title": "Built for decisions, not generic advice",
+    "description": "Each output is built for action: clear priorities, explicit trade-offs, and ownership-ready sequence.",
       "items": [
         {
-          "title": "Shared picture",
-          "body": "See what blocks progress now, what is secondary, and what can wait."
+          "title": "Decision pack with execution order",
+          "body": "You receive a priority map, trade-off notes, and a first action sequence teams can run immediately."
         },
         {
-          "title": "Priority roadmap",
-          "body": "Know what to do first, what depends on what, and where not to waste effort."
+          "title": "Trade-offs and dependencies made explicit",
+          "body": "Cross-team implications are surfaced early so leadership can choose with visible downside."
         },
         {
-          "title": "Clear scope",
-          "body": "See what is covered, what is not, and what the next step should be."
+          "title": "Boundaries documented in plain language",
+          "body": "Dependencies outside selected coverage are marked as non-covered to prevent false certainty."
         }
       ]
     },
     "trust_strip": {
-      "title": "Why teams choose this flow",
+      "title": "Built to hold up from the start",
       "lines": [
-        "Scope is explicit before delivery starts.",
-        "Outputs are structured for real implementation handoff.",
-        "Entry path is flexible: Snapshot, Brief, or direct tier selection."
+        "Secure in how context is handled.",
+        "Structured in how decisions are framed.",
+        "Ready for implementation, not only discussion."
       ]
     },
     "next_steps": {
@@ -53,9 +53,9 @@
       "subtitle": "If you want a human in the loop—brief or FAQ."
     },
     "mid_page_cta": {
-      "title": "Ready to map what matters",
-      "body": "Start with a brief and we’ll suggest the right route.",
-      "cta_label": "Start with your context",
+      "title": "Start once, decide with clarity",
+      "body": "Share your situation once and receive a structured decision path with explicit boundaries, priorities, and next moves.",
+      "cta_label": "Start with your situation",
       "cta_to": "/brief"
     },
     "landmarks": {
@@ -63,6 +63,7 @@
       "who_we_are": "Who we are",
       "what_we_do": "What we do",
       "how_it_works": "How it works",
+      "scope_truth": "Scope and limits",
       "coverage": "Coverage tiers",
       "outcomes": "Deliverables",
       "trust": "Trust",
@@ -73,18 +74,18 @@
   },
   "decision_paths": [
     {
-      "title": "Snapshot",
-      "subtitle": "Public signals → first visibility check",
+      "title": "A clearer reading of what matters",
+      "subtitle": "Bring current business signals and get a structured reading of what deserves attention first.",
       "to": "/snapshot"
     },
     {
-      "title": "Context",
-      "subtitle": "Your inputs → multi-domain clarity",
+      "title": "Context, connected properly",
+      "subtitle": "Add internal context so dependencies across teams are visible in one coherent picture.",
       "to": "/pro"
     },
     {
-      "title": "Strategy",
-      "subtitle": "Synthesis → roadmap",
+      "title": "Direction, shaped for action",
+      "subtitle": "Get full-picture output with viable paths shaped into a coordinated direction you can move with.",
       "to": "/complete"
     }
   ],
@@ -117,13 +118,22 @@
   "faq": {
     "snapshot_vs_workspace": {
       "question": "Snapshot vs full workspace?",
-      "answer": "Snapshot gives first visibility from public signals. Workspace adds your context, coordinates domain analysis, and builds roadmap."
+      "answer": "Snapshot gives a fast outside-in read. Workspace paths add internal context and return strategy-ready direction."
     }
   },
   "packages": {
-    "quick": { "title": "Quick diagnosis", "subtitle": "First visibility map" },
-    "full": { "title": "Full context analysis", "subtitle": "Your inputs + domain coordination" },
-    "strategy": { "title": "Strategy workspace", "subtitle": "Synthesis + roadmap" }
+    "quick": {
+      "title": "Clarity start",
+      "subtitle": "First visibility map"
+    },
+    "full": {
+      "title": "Connected context",
+      "subtitle": "Your inputs + domain coordination"
+    },
+    "strategy": {
+      "title": "Strategy workspace",
+      "subtitle": "Full-picture synthesis + coordinated direction"
+    }
   },
   "package_pages": {
     "starter": {
@@ -131,10 +141,22 @@
       "h1": "Focus package",
       "lead": "One priority domain with clear scope—actionable output without pretending you have full cross-domain coverage.",
       "timeline": [
-        { "title": "Kickoff", "detail": "Short brief or scope alignment—without drowning in detail." },
-        { "title": "Signal gathering", "detail": "Site, key pages, baseline process questions within agreed volume." },
-        { "title": "Findings", "detail": "Priorities, risks, quick wins, and recommended next step." },
-        { "title": "Delivery", "detail": "Structured report you can use internally or with a vendor." }
+        {
+          "title": "Kickoff",
+          "detail": "Short brief or scope alignment—without drowning in detail."
+        },
+        {
+          "title": "Signal gathering",
+          "detail": "Site, key pages, baseline process questions within agreed volume."
+        },
+        {
+          "title": "Findings",
+          "detail": "Priorities, risks, quick wins, and recommended next step."
+        },
+        {
+          "title": "Delivery",
+          "detail": "Structured report you can use internally or with a vendor."
+        }
       ],
       "scope_comparison": {
         "included": [
@@ -143,9 +165,9 @@
           "Coverage disclosure in the report."
         ],
         "not_included": [
-          "Cross-domain synthesis confidence of a complete audit.",
-          "Equal-score comparability with complete 6-domain audits.",
-          "Multi-domain dependency certainty outside selected scope."
+          "Full-picture confidence that comes from all connected fronts.",
+          "Direct comparability with complete six-front workspaces.",
+          "Dependency certainty outside the selected focus scope."
         ]
       },
       "outcome_cards": [
@@ -169,10 +191,22 @@
       "signal_to_decision": {
         "title": "From signal to decision",
         "items": [
-          { "label": "Signal", "detail": "What the business and users see." },
-          { "label": "Bottlenecks", "detail": "Friction, loss, risk." },
-          { "label": "Recommendations", "detail": "What to change and in what order within Starter." },
-          { "label": "Next step", "detail": "Scale to Pro/Complete or go directly into implementation." }
+          {
+            "label": "Signal",
+            "detail": "What the business and users see."
+          },
+          {
+            "label": "Bottlenecks",
+            "detail": "Friction, loss, risk."
+          },
+          {
+            "label": "Recommendations",
+            "detail": "What to change and in what order within Starter."
+          },
+          {
+            "label": "Next step",
+            "detail": "Scale to Pro/Complete or go directly into implementation."
+          }
         ]
       },
       "process_timeline_title": "Typical process",
@@ -205,7 +239,7 @@
             "best_fit": "Best fit: Focus"
           },
           {
-            "situation": "You need a roadmap before hiring support",
+            "situation": "You need clear direction before hiring support",
             "happening_now": "You want clear scope and priorities before committing budget to agency or dev hires.",
             "best_fit": "Best fit: Focus"
           }
@@ -214,13 +248,25 @@
     },
     "pro": {
       "breadcrumb": "Context package",
-      "h1": "Full context analysis",
+      "h1": "Connected context",
       "lead": "When one domain is too narrow and six domains are unnecessary: choose 2–3 areas and get stronger dependency and sequencing confidence.",
       "timeline": [
-        { "title": "Scope alignment", "detail": "Choose 2-3 domains that match your current bottlenecks and objectives." },
-        { "title": "Focused diagnostics", "detail": "Deep checks inside selected domains with cross-signal context." },
-        { "title": "Synthesis", "detail": "Tradeoffs, dependencies, and what to do first vs what can wait." },
-        { "title": "Delivery", "detail": "Action plan with sequencing and handoff-ready recommendations." }
+        {
+          "title": "Scope alignment",
+          "detail": "Choose 2-3 domains that match your current bottlenecks and objectives."
+        },
+        {
+          "title": "Focused context pass",
+          "detail": "Deep checks inside selected domains with cross-signal context."
+        },
+        {
+          "title": "Synthesis",
+          "detail": "Tradeoffs, dependencies, and what to do first vs what can wait."
+        },
+        {
+          "title": "Delivery",
+          "detail": "Action plan with sequencing and handoff-ready recommendations."
+        }
       ],
       "scope_comparison": {
         "included": [
@@ -278,7 +324,7 @@
             "best_fit": "Best fit: Context"
           },
           {
-            "situation": "You need a practical roadmap without full six-domain scope",
+            "situation": "You need practical direction without full six-front scope",
             "happening_now": "You need cross-signal direction now, but complete synthesis is not required yet.",
             "best_fit": "Best fit: Context"
           }
@@ -291,7 +337,7 @@
       "lead": "Full six-domain coverage for teams that need maximum comparability and end-to-end synthesis.",
       "mid_cta": {
         "title": "Full synthesis when comparability matters",
-        "body": "Align on six-domain scope before we run—then roadmap, priorities, and explicit coverage in one workspace.",
+        "body": "Align on six-front scope before we run-then priorities, sequencing, and explicit coverage in one strategy-ready workspace.",
         "cta_label": "Start with your context",
         "cta_to": "/brief"
       },
@@ -341,7 +387,7 @@
     "partial_coverage_note": "Partial coverage: score is not directly comparable with complete six-domain workspaces.",
     "single_domain_note": "Confidence note: single-domain coverage has lower cross-domain confidence by design."
   },
-  "audit_compare_footer": "Focus for one urgent area, Context for a coordinated pack, Strategy workspace for full cross-domain confidence.",
+  "audit_compare_footer": "Focus for one urgent front, Context for a connected pack, Strategy workspace for full-picture confidence.",
   "navigation": {
     "homeBreadcrumbLabel": "Home",
     "links": {

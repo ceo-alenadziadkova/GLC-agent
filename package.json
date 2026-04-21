@@ -41,6 +41,8 @@
     "audit:ds:refresh-allowlist": "node scripts/design-system-refresh-allowlist.mjs",
     "audit:ds:refresh-primitive-boundary-allowlist": "node scripts/design-system-refresh-primitive-boundary-allowlist.mjs",
     "audit:bank-copy": "node scripts/question-bank-copy-overlap.mjs",
+    "lint:intake-readiness-vocab": "node scripts/intake-readiness-vocab-check.mjs",
+    "test:intake-diagnostic-contracts": "pnpm vitest run packages/intake-core/src/tests/intake-diagnostic-readiness.test.ts packages/intake-core/src/tests/evaluate-remediation-pilot.test.ts packages/intake-core/src/tests/intake-version-tuple.test.ts packages/intake-core/src/tests/intake-surface-no-regression.snapshot.test.ts packages/intake-core/src/tests/evaluate-pilot-kpi-gate.test.ts packages/intake-core/src/tests/phase-bc-expansion-order.test.ts && pnpm --filter glc-audit-server test -- src/services/pipeline-routes/__tests__/pipeline-route.use-cases.test.ts src/tests/discover-route.test.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm test && pnpm --filter glc-audit-server run test"
   },
   "dependencies": {

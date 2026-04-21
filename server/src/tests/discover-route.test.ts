@@ -121,6 +121,9 @@ const state = vi.hoisted(() => {
 
       if (table === 'audits') {
         return {
+          update: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: null, error: null })),
+          })),
           insert: vi.fn(() => ({
             select: vi.fn(() => ({
               single: vi.fn(async () => {
@@ -201,6 +204,16 @@ const state = vi.hoisted(() => {
   };
 });
 
+const featureFlagsState = vi.hoisted(() => {
+  let diagnosticPilotEnabled = false;
+  return {
+    setDiagnosticPilotEnabled: (value: boolean) => {
+      diagnosticPilotEnabled = value;
+    },
+    isDiagnosticIntakePilotEnabled: () => diagnosticPilotEnabled,
+  };
+});
+
 vi.mock('../services/supabase.js', () => ({
   supabase: { from: state.mockFrom, rpc: state.mockRpc },
 }));
@@ -217,6 +230,10 @@ vi.mock('../middleware/auth.js', () => ({
 
 vi.mock('../services/brief-validator.js', () => ({
   saveBriefResponses: vi.fn(async () => ({ ok: true })),
+}));
+
+vi.mock('../config/feature-flags.js', () => ({
+  isDiagnosticIntakePilotEnabled: featureFlagsState.isDiagnosticIntakePilotEnabled,
 }));
 
 import { discoverRouter } from '../routes/discover.js';
@@ -255,6 +272,7 @@ beforeEach(() => {
   state.setLinkConflict(false);
   state.setListShouldFail(false);
   state.setLoadShouldFail(false);
+  featureFlagsState.setDiagnosticPilotEnabled(false);
   state.setSessionsRows([
     {
       session_token: 'session-token-1',
@@ -353,6 +371,24 @@ describe('POST /api/discover/:token/convert', () => {
     expect(body.error).toBe('Session conversion conflict. Please retry.');
     expect(counters.auditsCreated).toBe(0);
     expect(counters.auditsDeleted).toBe(0);
+  });
+
+  it('returns 422 when readiness gate blocks conversion in pilot mode', async () => {
+    featureFlagsState.setDiagnosticPilotEnabled(true);
+    state.setSessionRow({
+      ...state.getSessionRow(),
+      answers: {},
+    } as Record<string, unknown>);
+
+    const res = await fetch(`${baseUrl}/api/discover/${'f'.repeat(40)}/convert`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test' },
+    });
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(422);
+    expect(body.code).toBe('DISCOVER_INTAKE_READINESS_BLOCKED');
+    expect(body.readiness).toBeDefined();
   });
 });
 
