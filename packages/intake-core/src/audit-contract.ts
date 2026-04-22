@@ -65,7 +65,18 @@ export type AuditReadinessStatus = 'audit_ready' | 'blocked' | 'ready_with_cavea
 export type IntakeReadinessCaveatClass =
   | 'full_scope_required_gaps'
   | 'unknown_source_signal_evidence'
-  | 'surface_limited_context';
+  | 'surface_limited_context'
+  | 'execution_scope_missing_signals'
+  | 'critical_signal_low_confidence'
+  | 'bridge_dependency_pending';
+
+export interface IntakeReadinessCaveatDetail {
+  code: IntakeReadinessCaveatClass;
+  owner: 'product' | 'engineering' | 'ops';
+  severity: 'info' | 'warning' | 'blocking';
+  rolloutPhase: 'phase_1' | 'phase_bc';
+  semanticIntent: string;
+}
 
 /**
  * Pilot critical-signal confidence (ADR §3.2) — orthogonal to UX `IntakePlan.confidence.overall`
@@ -91,6 +102,7 @@ export interface IntakeReadinessEnvelope {
    * Keep compact and policy-driven; never emit free-form UI copy here.
    */
   caveats?: IntakeReadinessCaveatClass[];
+  caveatDetails?: IntakeReadinessCaveatDetail[];
   trace: IntakeReadinessTraceEntry[];
 }
 

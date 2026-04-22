@@ -4,6 +4,7 @@
  */
 import type {
   AuditReadinessStatus,
+  DomainKey,
   FlowReadinessStatus,
   IntakeBriefCollectionMode,
   IntakeReadinessCaveatClass,
@@ -18,9 +19,15 @@ import {
   evaluateExecutionPlanScopeReadiness,
   type ExecutionCoveragePackage,
 } from './diagnostic-intake/phase-bc-stubs.js';
+import { INTAKE_READINESS_CAVEAT_TAXONOMY } from '../config/intake-caveat-taxonomy.js';
 import { evaluateCriticalSignalsPilot } from './evaluate-critical-signals.js';
+import {
+  filterMissingDomainsForExecutionPlan,
+  unansweredPrimaryBankIdsForCoverageDomains,
+} from './intake-readiness-execution-scope.js';
 import { evaluateFlowReadinessBlocked, missingRequiredForMode } from './intake-readiness-sla-helpers.js';
 import type { IntakeSurface } from './types.js';
+import { isSurfaceReadinessEnforcedAt, type SurfaceMatrixEnforcementPoint } from './load-surface-matrix-pilot.js';
 
 const INTAKE_SLA_FULL: ProductMode = 'full';
 
@@ -43,12 +50,34 @@ export interface EvaluateIntakeReadinessInput {
   criticalSignalsMode?: IntakeReadinessCriticalSignalsMode;
   /** Phase-B optional execution-plan scope signal. */
   executionCoveragePackage?: ExecutionCoveragePackage;
+  /**
+   * When true with non-empty `executionSelectedDomains`, `evaluateExecutionPlanScopeReadiness` uses
+   * coverage gaps (`missingForReport` ∩ execution slice) instead of SLA missing-id lists alone.
+   */
+  applyExecutionPlanCoverageScope?: boolean;
+  /** Domains selected for pipeline execution (`audit.execution_plan.selected_domains`). */
+  executionSelectedDomains?: readonly DomainKey[];
+  /** Whether strategy phase is in scope (`audit.execution_plan.include_strategy`). */
+  executionIncludeStrategy?: boolean;
+  /** Runtime boundary where readiness is being evaluated. */
+  enforcementPoint?: SurfaceMatrixEnforcementPoint;
 }
 
 export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessInput): IntakeReadinessEnvelope {
   const trace: IntakeReadinessTraceEntry[] = [];
-  const { responses, slaProductMode, collectionMode, surface, intakeVersionTuple, criticalSignalsMode } = input;
+  const {
+    responses,
+    slaProductMode,
+    collectionMode,
+    surface,
+    intakeVersionTuple,
+    criticalSignalsMode,
+    applyExecutionPlanCoverageScope,
+    executionSelectedDomains,
+    executionIncludeStrategy,
+  } = input;
   const critMode = criticalSignalsMode ?? 'full';
+  const enforcementPoint = input.enforcementPoint ?? 'pipeline_start';
 
   if (slaProductMode === 'free_snapshot') {
     trace.push({
@@ -64,6 +93,12 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
 
   const tuple = intakeVersionTuple ?? undefined;
 
+  const flowEnforced = isSurfaceReadinessEnforcedAt({
+    collectionMode,
+    surface,
+    point: enforcementPoint,
+    kind: 'flow',
+  });
   const { flowBlocked, traces: flowTraces } = evaluateFlowReadinessBlocked({
     responses,
     collectionMode,
@@ -71,6 +106,14 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     intakeVersionTuple: tuple,
   });
   trace.push(...flowTraces);
+  if (!flowEnforced) {
+    trace.push({
+      code: 'flow_readiness_not_enforced_at_point',
+      semanticCause:
+        'Flow readiness is not enforced at this boundary for the current surface policy; returning flow_ready for this checkpoint',
+      detail: { enforcementPoint },
+    });
+  }
 
   const missingFull = missingRequiredForMode(responses, INTAKE_SLA_FULL, collectionMode, surface, tuple);
   const missingExpress = missingRequiredForMode(responses, 'express', collectionMode, surface, tuple);
@@ -115,34 +158,109 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     });
   }
 
+  const auditEnforced = isSurfaceReadinessEnforcedAt({
+    collectionMode,
+    surface,
+    point: enforcementPoint,
+    kind: 'audit',
+  });
   const auditBlocked = auditBlockedBySla || !critical.satisfied;
+
+  const useExecutionCoverageScope =
+    applyExecutionPlanCoverageScope === true
+    && Array.isArray(executionSelectedDomains)
+    && executionSelectedDomains.length > 0;
+
+  let inScopeMissingSignals: string[];
+  let outOfScopeMissingSignals: string[];
+  if (useExecutionCoverageScope) {
+    const scopedDomains = filterMissingDomainsForExecutionPlan({
+      missingForReport: fullPlan.missingForReport,
+      executionSelectedDomains,
+      executionIncludeStrategy: executionIncludeStrategy ?? false,
+    });
+    inScopeMissingSignals = unansweredPrimaryBankIdsForCoverageDomains({
+      domains: scopedDomains,
+      slaVisibleBankIds: fullPlan.slaVisibleBankIds,
+      responses,
+    });
+    const scopedSet = new Set(scopedDomains);
+    const outDomains = fullPlan.missingForReport.filter(d => !scopedSet.has(d));
+    outOfScopeMissingSignals = unansweredPrimaryBankIdsForCoverageDomains({
+      domains: outDomains,
+      slaVisibleBankIds: fullPlan.slaVisibleBankIds,
+      responses,
+    });
+    trace.push({
+      code: 'execution_plan_coverage_scope_active',
+      semanticCause:
+        'Execution-plan coverage scope is active: in-scope gaps are derived from missing report domains intersected with selected pipeline domains',
+      detail: {
+        scopedDomains,
+        inScopeMissingBankIds: inScopeMissingSignals,
+        outOfScopeMissingBankIds: outOfScopeMissingSignals,
+      },
+    });
+  } else {
+    inScopeMissingSignals = slaProductMode === INTAKE_SLA_FULL ? missingFull : missingExpress;
+    outOfScopeMissingSignals =
+      slaProductMode === INTAKE_SLA_FULL ? [] : missingFull.filter(id => !missingExpress.includes(id));
+  }
+
   const packageReadiness = evaluateExecutionPlanScopeReadiness({
     packageName: input.executionCoveragePackage ?? 'complete',
     baselineReady: !auditBlocked,
-    inScopeMissingSignals: slaProductMode === 'full' ? missingFull : missingExpress,
-    outOfScopeMissingSignals: slaProductMode === 'full' ? [] : missingFull.filter(id => !missingExpress.includes(id)),
+    inScopeMissingSignals,
+    outOfScopeMissingSignals,
     policy: INTAKE_EXECUTION_PLAN_READINESS_POLICY,
   });
-  if (!packageReadiness.ready && packageReadiness.blockedBy === 'in_scope_gaps') {
+  const executionScopeBlocked = !packageReadiness.ready && packageReadiness.blockedBy === 'in_scope_gaps';
+  if (executionScopeBlocked) {
     trace.push({
       code: 'audit_blocked_execution_scope',
       semanticCause: 'Execution-plan in-scope readiness requirements are not satisfied',
     });
   }
 
-  const flowReadinessStatus: FlowReadinessStatus = flowBlocked ? 'blocked' : 'flow_ready';
-  let auditReadinessStatus: AuditReadinessStatus = packageReadiness.ready ? 'audit_ready' : 'blocked';
+  const flowReadinessStatus: FlowReadinessStatus = flowEnforced && flowBlocked ? 'blocked' : 'flow_ready';
+  let auditReadinessStatus: AuditReadinessStatus =
+    auditEnforced && !packageReadiness.ready ? 'blocked' : 'audit_ready';
   const caveats: IntakeReadinessCaveatClass[] = [];
+  const pushCaveat = (caveat: IntakeReadinessCaveatClass) => {
+    if (!caveats.includes(caveat)) caveats.push(caveat);
+  };
+  if (executionScopeBlocked) {
+    pushCaveat('execution_scope_missing_signals');
+  }
 
   if (packageReadiness.ready && slaProductMode === 'express' && missingFull.length > 0) {
     auditReadinessStatus = 'ready_with_caveats';
-    caveats.push('full_scope_required_gaps');
+    pushCaveat('full_scope_required_gaps');
     trace.push({
       code: 'audit_ready_with_caveats_full_scope',
       semanticCause:
         'Express baseline readiness is satisfied, but full-scope required inputs are still missing',
       detail: { missingRequiredIds: missingFull },
     });
+  }
+
+  if (!auditEnforced) {
+    trace.push({
+      code: 'audit_readiness_not_enforced_at_point',
+      semanticCause:
+        'Audit readiness is not enforced at this boundary for the current surface policy; readiness is advisory only at this checkpoint',
+      detail: { enforcementPoint },
+    });
+    if (auditBlockedBySla || !critical.satisfied) {
+      auditReadinessStatus = 'ready_with_caveats';
+      pushCaveat('surface_limited_context');
+      if (!critical.satisfied) {
+        pushCaveat('critical_signal_low_confidence');
+      }
+      if (trace.some(entry => entry.code === 'critical_signal_unknown_source')) {
+        pushCaveat('unknown_source_signal_evidence');
+      }
+    }
   }
 
   if (packageReadiness.ready && critical.satisfied) {
@@ -159,6 +277,12 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     flowReadinessStatus,
     auditReadinessStatus,
     caveats: caveats.length > 0 ? caveats.slice(0, 3) : undefined,
+    caveatDetails:
+      caveats.length > 0
+        ? caveats
+            .slice(0, 3)
+            .map(code => ({ code, ...INTAKE_READINESS_CAVEAT_TAXONOMY[code] }))
+        : undefined,
     trace,
   };
 }

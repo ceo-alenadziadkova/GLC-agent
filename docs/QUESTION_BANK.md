@@ -480,7 +480,7 @@ Pre-brief + дополнительно:
 | **Digital trace** | c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3 | Online presence without a site |
 | **Conversion pipeline** | d1, d1a/d1b, d_response_time, d_closing_flow, d_billing_flow | Inquiry → payment funnel |
 | **Operations & Automation** | d2, d_automation_attempt, d4a, d4b, d6, d5 + [industry D] | Manual bottlenecks, AI/automation readiness |
-| **Goals** | f1, f2, f7, f8, f4, f9 | Problem to solve, focus areas, readiness, urgency, additional context |
+| **Goals** | f1, f_idea_1, f_idea_2, f_idea_3, f_idea_4, f2, f7, f8, f4, f9 | Problem to solve, idea-stage validation, focus areas, readiness, urgency, additional context |
 
 
 #### Full ID Set (policy-driven; currently 50 IDs)
@@ -505,7 +505,7 @@ Section D (13 universal + up to 2 industry-specific):
  d_realestate_1 (is_real_estate)
  d_restaurant_1 (is_restaurant)
 Section E (4): e1, e2, e3, e4
-Section F (6): f1, f2, f4, f7, f8, f9
+Section F (10): f1, f_idea_1, f_idea_2, f_idea_3, f_idea_4, f2, f4, f7, f8, f9
 ```
 
 **Intentionally excluded from the public Discovery wizard UI (not from discovery policy):**
@@ -819,6 +819,11 @@ Use this checklist for **any** change to `question_bank.v1`, answer options, or 
  - Update this file (`QUESTION_BANK.md`) wherever question type/options/flow semantics changed.
  - Update `docs/API.md` if response contract behavior changed.
  - Add a short note in PR summary about affected surfaces (New Audit, Audit Workspace, Discovery, API schema, AI readiness).
+
+7. **Vertical expansion order is mandatory (post-KPI)**
+ - Apply new vertical packs only in this order: `E-commerce` -> `SaaS / Software` -> `Retail`.
+ - One vertical pack per release train; do not parallelize pack rollouts.
+ - For each pack, add/update parity tests and sequencing artifact metadata before enabling traffic.
 
 ## Для разработчиков
 

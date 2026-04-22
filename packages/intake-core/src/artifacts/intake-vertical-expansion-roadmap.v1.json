@@ -1,0 +1,35 @@
+{
+  "version": "1.0.0",
+  "orderedVerticals": [
+    {
+      "key": "ecommerce",
+      "label": "E-commerce",
+      "status": "planned",
+      "diagnosticDepthProbes": [
+        "order_funnel_dropoff_point",
+        "fulfillment_returns_maturity",
+        "marketplace_vs_ownsite_dependency"
+      ]
+    },
+    {
+      "key": "saas_software",
+      "label": "SaaS / Software",
+      "status": "planned",
+      "diagnosticDepthProbes": [
+        "activation_bottleneck",
+        "monetization_motion",
+        "retention_pressure_point"
+      ]
+    },
+    {
+      "key": "retail",
+      "label": "Retail",
+      "status": "planned",
+      "diagnosticDepthProbes": [
+        "online_offline_channel_split",
+        "inventory_price_sync_pain",
+        "returns_repeat_purchase_shape"
+      ]
+    }
+  ]
+}

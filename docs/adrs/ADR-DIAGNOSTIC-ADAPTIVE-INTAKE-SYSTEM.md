@@ -1,15 +1,18 @@
 # ADR: Diagnostic Adaptive Intake System (Phased Rollout)
 
 
-| Field  | Value                                                         |
-| ------ | ------------------------------------------------------------- |
-| Status | Proposed (Approve with phased amendments)                     |
-| Date   | 2026-04-20                                                    |
-| Scope  | Intake sequencing, readiness gating, pipeline handoff quality |
-| Owners | Product + Engineering                                         |
+| Field          | Value                                                                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status         | Accepted (Phased rollout)                                                                                                                                                                      |
+| Date           | 2026-04-20                                                                                                                                                                                     |
+| Scope          | Intake sequencing, readiness gating, pipeline handoff quality                                                                                                                                  |
+| Owners         | Product + Engineering                                                                                                                                                                          |
+| Implementation | **Phase-1 pilot (phases 0–9): engineering complete** — [contract](../INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md). Ops/product: flags + KPI rows. **Phase-B/C:** selective code pre-wiring implemented behind flags; production rollout policy remains KPI-gated. |
 
 
 **Implementation contract (enforcement points, acceptance checklist):** [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](../INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)
+
+**Engineering note:** the pilot slice (Healthcare baseline artifacts, readiness envelope, enforcement points, tests through phase 7, rollout procedures phase 8–9 as code + docs) is **fully implemented**; remaining work is gated enablement and post-KPI expansion only—not missing Phase-1 build-out.
 
 ## 1) Context
 
@@ -120,9 +123,9 @@ Note: camelCase labels (`flowReady`, `auditReady`) are narrative only; API/persi
 
 | Flow                                                          | DSL behavior                          | Readiness policy                                                                                                                                                                                                                                                                                                          | Remediation budget | Consultant override |
 | ------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------- |
-| Pre-brief (`mode=pre_brief`, `surface=client_form`)           | Minimum context for call handoff      | `flowReady` only                                                                                                                                                                                                                                                                                                          | 0                  | N/A                 |
-| Self-serve brief (`mode=full/express`, `surface=client_form`) | Progressive flow to audit conversion  | `flowReady` + `auditReady`                                                                                                                                                                                                                                                                                                | 1-2                | No direct override  |
-| Consultant-led (`mode=full`, `surface=consultant_interview`)  | Deep enrichment and expert correction | `auditReady` advisory + override path                                                                                                                                                                                                                                                                                     | Flexible/manual    | Allowed             |
+| Pre-brief (`mode=pre_brief`, `surface=client_form`)           | Minimum context for call handoff      | `flow_ready` only                                                                                                                                                                                                                                                                                                         | 0                  | N/A                 |
+| Self-serve brief (`mode=full/express`, `surface=client_form`) | Progressive flow to audit conversion  | `flow_ready` + `audit_ready`                                                                                                                                                                                                                                                                                              | 1-2                | No direct override  |
+| Consultant-led (`mode=full`, `surface=consultant_interview`)  | Deep enrichment and expert correction | `audit_ready` advisory + override path                                                                                                                                                                                                                                                                                    | Flexible/manual    | Allowed             |
 | Discovery (`mode=discovery`, `surface=public_discovery`)      | Wow-first + conversion signal         | Envelope + trace at convert (`criticalSignalsMode: 'sla_only'`); pilot critical registry does **not** block convert — full pilot gate (`criticalSignalsMode: 'full'`) at `POST /api/audits/:id/pipeline/start` only (see [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](../INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)) | 0                  | N/A                 |
 
 
@@ -165,7 +168,7 @@ This is the **minimum approved implementation package**:
 
 Phase-1 pilot bounds (to prevent scope creep):
 
-- pilot vertical: `hospitality` or `healthcare`,
+- pilot vertical: `healthcare`,
 - max critical signals in Phase-1 registry: 6,
 - max remediation asks on self-serve surfaces: 2,
 - max transition types in pilot ruleset: 6.
@@ -307,14 +310,14 @@ No alternative readiness field names or enum vocabularies are allowed in Phase-1
 
 Per-signal policy must define whether unknown:
 
-- is accepted for `flowReady`,
+- is accepted for `flow_ready`,
 - triggers remediation,
-- allows `auditReady` with caveat,
+- allows `audit_ready` with caveat,
 - or blocks audit readiness.
 
 Default safety rule:
 
-- if no per-signal unknown policy is defined, `unknown` may satisfy `flowReady` but cannot independently satisfy `auditReady`.
+- if no per-signal unknown policy is defined, `unknown` may satisfy `flow_ready` but cannot independently satisfy `audit_ready`.
 - `unknown` is never positive evidence and cannot raise `signalConfidence` above `low` by itself.
 
 ## 11) Pipeline Boundary Rule
@@ -350,12 +353,12 @@ Intake does not replace phase governance.
 - sequencing trace contract tests (reasons include semantic transition cause, not only question IDs),
 - remediation idempotence tests (same missing/low-confidence signal is not repeatedly reopened within one self-serve pass).
 
-### Phase-B/C tests (planned)
+### Phase-B/C tests (planned / partially active)
 
 - evidence precedence conflict traces,
-- execution-plan-aware readiness tests by package scope,
-- caveat policy matrix tests,
-- full signal registry integrity and ownership tests.
+- execution-plan-aware readiness tests by package scope (active baseline added),
+- caveat policy matrix tests (active limited expansion coverage),
+- full signal registry integrity and ownership tests (active metadata + lint guardrails).
 
 ## 14) Implementation Checklist (Phased)
 
@@ -370,18 +373,22 @@ Intake does not replace phase governance.
 - Add CI tests for tuple parity, precedence, readiness blocking.
 - Add UI/UX contract for adaptive flow rendering (one-question focus, low-friction remediation checkpoint, no overload).
 
-### Phase-B/C (after pilot proves value)
+### Phase-B/C (rollout after pilot proves value)
 
-- Expand signal registry schema and ownership fields.
+- Expand signal registry schema and ownership fields (baseline metadata-aware evaluation now implemented; broader schema remains rollout-gated).
 - Expand ask-slot contract and rule packs.
-- Add full caveat taxonomy and ownership model.
-- Introduce Project Context Envelope in ContextBuilder integration.
-- Add execution-plan-aware readiness for package scopes.
-- Add bridge-question lifecycle governance.
+- Add full caveat taxonomy and ownership model (limited caveat expansion implemented; full model deferred).
+- Introduce Project Context Envelope in ContextBuilder integration (implemented behind `FEATURE_PROJECT_CONTEXT_ENVELOPE`).
+- Add execution-plan-aware readiness for package scopes (implemented behind `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE`).
+- Add bridge-question lifecycle governance (implemented in sequencing artifact + lint rules; rollout still gated).
 - Document Phase-B/C trigger criteria (for example, pilot readiness lift > X%, cross-vertical sequencing stability).
 - Enforce pilot success gate for rollout beyond pilot:
   - no completion regression,
   - measurable lift in readiness-qualified context.
+
+Current implementation note:
+
+- Caveat taxonomy ownership metadata and ask-slot governance metadata are codified in intake-core artifacts/config, while production behavior is still controlled by KPI-gated rollout flags and ordered expansion policy.
 
 ## 15) Industry Expansion Priorities (Phase-B/C)
 
@@ -463,7 +470,9 @@ Transition behavior guidance:
 - `packages/intake-core/src/question-bank.v1.json`
 - `packages/intake-core/src/branch-rules.v1.json`
 - `packages/intake-core/src/intake-policy.v1.json`
+- `packages/intake-core/src/artifacts/intake-vertical-expansion-roadmap.v1.json`
 - `packages/intake-core/src/core/build-intake-plan.ts`
 - `src/app/lib/discovery-flow.ts`
 - `docs/QUESTION_BANK.md`
 - `docs/adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md`
+

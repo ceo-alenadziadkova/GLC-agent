@@ -557,6 +557,7 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
   "selected_domains": ["tech_infrastructure", "ux_conversion"],
   "change_scenario": "hybrid",
   "season_preset": "rolling_90d",
+  "selected_action_ids": ["MKT-01", "SEO-02"],
   "plan_horizon": {
     "start_date": "2026-01-01",
     "end_date": "2026-06-30"
@@ -566,6 +567,7 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 
 - **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
 - **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
+- **`selected_action_ids`:** optional client intent (manifest-level). Used as a **soft prioritization hint** on run/regenerate when no request override is provided.
 
 **Response `201`:** `{ "id": "<uuid>" }` — use as **`manifest_snapshot_id`** when building the orchestration pack.
 
@@ -589,6 +591,14 @@ Returns the **client timeline read model** (seasonal buckets, lanes, truncated d
 
 **Response `200`:** `{ "timeline": { "status": "...", "version": { "roadmap_version", "manifest_snapshot_id", "season_preset", "plan_horizon", ... }, "seasons", "lanes", ... } }` — see `server/src/schemas/orchestrator-timeline.ts`.
 
+`timeline.lanes[].items[]` now supports optional additive explain fields:
+- `explain.why: string[]`
+- `explain.how: { path_type?: string; description: string; time_estimate?: string }`
+- `explain.impact: { score?: number; label?: string }`
+- `explain.time: { bucket?: 'now'|'next'|'later'; target_window_days?: number; time_to_value?: string }`
+- `explain.risks?: string[]`
+- `explain.limited_context?: boolean` (deterministic fallback marker)
+
 **Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` when the pack API flag is off, `404` when the audit is missing or inaccessible.
 
 ---
@@ -607,8 +617,13 @@ Historical schema v1 rows are read through a server adapter and normalized to v2
 **Request body (JSON):**
 
 ```json
-{ "manifest_snapshot_id": "<uuid from manifest-snapshots POST>" }
+{
+  "manifest_snapshot_id": "<uuid from manifest-snapshots POST>",
+  "selected_action_ids": ["MKT-01", "SEO-02"]
+}
 ```
+
+- **`selected_action_ids`:** optional request override for the same soft prioritization hint. Resolution order: request override → manifest `selected_action_ids` → current default behavior.
 
 **Response `200`:** `{ "pack": { ... }, "orchestration_pack_version": <number>, "roadmap_version": <number>, "last_revision_diff": <object | null> }`. **`roadmap_version`** mirrors **`orchestration_pack_version`** (ADR naming). **`last_revision_diff`** is **`null`** on the first saved pack (v1); on later versions it is the structured vN→vN+1 diff persisted on **`audit_strategy.glc_orchestration_last_revision_diff`**. Pack persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` (retry budget from server config). Subsequent **`GET /api/audits/:id`** includes **`strategy.glc_orchestration_pack`**, **`strategy.orchestration_pack_version`**, and **`strategy.glc_orchestration_last_revision_diff`** on the read model when present.
 
@@ -659,13 +674,15 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`step_plan`**, **`layout_slots`** — when a layout surface is active 
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients. 
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate, … }` (`confidence_overall` is a **UX / resolver aggregate**, not the ADR `signalConfidence` contract and not phase-level analysis confidence)
-- **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, trace }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`); **`trace`** entries include **`semanticCause`** strings for supportability
+- **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, trace, caveats?, caveatDetails? }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `blocked` is a **baseline** audit-execution status (package-aware insufficiency remains Phase-B/C), and `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`) and for advisory boundaries with unknown-sourced critical signal evidence (`unknown_source_signal_evidence` with `surface_limited_context`). `caveatDetails` adds stable ownership/severity metadata (`code`, `owner`, `severity`, `rolloutPhase`, `semanticIntent`) for ops tooling; **`trace`** entries include **`semanticCause`** strings for supportability
 - **`critical_signals`** — `{ by_key, summary }` pilot **signal confidence** per ADR (orthogonal to **`derived.confidence_overall`**, which remains a UX / resolver aggregate)
 - **`remediation_queue`** — ordered bank ids (max **2**) suggested when pilot remediation applies; subset of **`eligible`**
 
 **Readiness enforcement (single server authority):** `evaluateIntakeReadinessEnvelope` in `@glc/intake-core` runs on **`PUT /api/audits/:id/brief`** for structured logging (writes are **not** rejected when audit readiness is `blocked` — UX vs execution; see [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)). **`POST …/discover/.../convert`** and **`POST /api/audits/:id/pipeline/start`** apply the same envelope **only when** `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true` (default **off** in `SYSTEM_DEFAULTS`). Clients must not re-implement readiness logic locally.
 
 **`GET …/brief` parity:** the same **`readiness`**, **`critical_signals`**, and **`remediation_queue`** fields as on this endpoint are also returned on **`GET /api/audits/:id/brief`** (additive to the existing brief payload) so clients can refresh execution diagnostics without a second request.
+
+Sequencing traces may include `sequencing_ask_slot_contract_applied` when ask-slot governance metadata is active for a recommended bank id (`unlocksSignals`, `guardDomain`, transition/conflict refs).
 
 Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
 
@@ -750,6 +767,7 @@ For partial audits, `/next` advances to the next selected phase from `execution_
 ### `POST /api/audits/:id/pipeline/retry`
 
 Retry a failed phase. **Consultant-only.** Allowed for the audit owner (`audits.user_id`) or for consultants who pass the same **platform operator** check as `GET /api/platform/*` settings routes (`profiles.is_platform_admin`, `platform_settings.legacy_platform_admin_user_ids`, or any consultant when no platform admins are configured — see `server/src/lib/platform-admin.ts`). Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
+For **domain phases 1–6**, the worker uses the same **isolated** path as parallel wings: if the latest `audit_domains` row for that domain is already `completed`, collectors and the LLM call are **skipped** (idempotent retry; a `pipeline_events` `log` explains the skip). Phases **0** (recon) and **7** (strategy) still use the full sequential phase path (no skip-on-completed).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Optional field `disable_auto_remediate: true` in the same JSON body — same semantics as `pipeline/start`.
@@ -921,6 +939,17 @@ Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner
 - `format=markdown` — `Content-Type: text/markdown`
 - `format=json` — JSON with `markdown` field
 - `format=csv` — `Content-Type: text/csv` with attachment filename `audit-{id}-action-plan.csv`
+- `format=pdf` — `Content-Type: application/pdf` (attachment download). Response sets privacy/security headers:
+  - `Cache-Control: private, no-store, no-cache, must-revalidate`
+  - `Pragma: no-cache`
+  - `X-Content-Type-Options: nosniff`
+
+#### PDF layout mode (section pagination)
+
+PDF section pagination is controlled by static config `SYSTEM_DEFAULTS.reportPdf.sectionPerPage`:
+
+- `true` — each major section starts on a new page.
+- `false` — compact flow with standard wrapping (no forced section page breaks).
 
 ---
 

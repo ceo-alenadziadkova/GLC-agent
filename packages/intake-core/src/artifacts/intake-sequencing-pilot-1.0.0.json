@@ -15,21 +15,88 @@
       "id": "dep_audit_focus_after_problem",
       "transitionId": "t_audit_scope",
       "requiresAnsweredBankIds": ["a2", "a5", "f1"],
-      "semanticCause": "Audit focus (f2) is sequenced after industry, website presence, and primary problem anchors"
+      "semanticCause": "Audit focus (f2) is sequenced after industry, website presence, and primary problem anchors",
+      "lifecycle": {
+        "owner": "product",
+        "kpiMetric": "intake_bridge_dep_audit_focus_after_problem_completion",
+        "state": "active",
+        "reviewByIsoDate": "2026-08-31"
+      }
     },
     {
       "id": "dep_delivery_after_operations",
       "transitionId": "t_delivery_shape",
       "requiresAnsweredBankIds": ["a2", "a5", "d2"],
-      "semanticCause": "Delivery shape (d_closing_flow) follows operations bottleneck (d2) in pilot ordering semantics"
+      "semanticCause": "Delivery shape (d_closing_flow) follows operations bottleneck (d2) in pilot ordering semantics",
+      "lifecycle": {
+        "owner": "product",
+        "kpiMetric": "intake_bridge_dep_delivery_after_operations_completion",
+        "state": "active",
+        "reviewByIsoDate": "2026-08-31"
+      }
     },
     {
       "id": "dep_problem_after_presence",
       "transitionId": "t_problem",
       "requiresAnsweredBankIds": ["a2", "a5", "a1"],
-      "semanticCause": "Primary problem (f1) is sequenced after industry, website presence, and company name"
+      "semanticCause": "Primary problem (f1) is sequenced after industry, website presence, and company name",
+      "lifecycle": {
+        "owner": "product",
+        "kpiMetric": "intake_bridge_dep_problem_after_presence_completion",
+        "state": "active",
+        "reviewByIsoDate": "2026-08-31"
+      }
     }
   ],
+  "askSlotContract": {
+    "a2": {
+      "unlocksSignals": ["industry"],
+      "guardDomain": "strategy",
+      "sourcesByPriority": ["client", "consultant", "recon_confirmed"],
+      "unknownPolicy": "block_audit_ready",
+      "conflictRuleRef": "prefer_explicit_over_inferred"
+    },
+    "a5": {
+      "unlocksSignals": ["website_presence"],
+      "guardDomain": "tech_infrastructure",
+      "transitionRuleRef": "t_presence",
+      "sourcesByPriority": ["client", "consultant", "recon_confirmed"],
+      "unknownPolicy": "block_audit_ready",
+      "conflictRuleRef": "prefer_explicit_over_inferred"
+    },
+    "f1": {
+      "unlocksSignals": ["primary_problem"],
+      "guardDomain": "strategy",
+      "transitionRuleRef": "t_problem",
+      "sourcesByPriority": ["client", "consultant"],
+      "unknownPolicy": "allow_with_caveat",
+      "conflictRuleRef": "prefer_consultant_for_interview_mode"
+    },
+    "d2": {
+      "unlocksSignals": ["operations_bottleneck"],
+      "guardDomain": "automation_processes",
+      "transitionRuleRef": "t_operations",
+      "sourcesByPriority": ["client", "consultant"],
+      "unknownPolicy": "allow_with_caveat",
+      "conflictRuleRef": "prefer_consultant_for_interview_mode"
+    },
+    "f2": {
+      "unlocksSignals": ["audit_focus"],
+      "guardDomain": "strategy",
+      "transitionRuleRef": "t_audit_scope",
+      "sourcesByPriority": ["client", "consultant"],
+      "unknownPolicy": "allow_flow_only",
+      "conflictRuleRef": "prefer_consultant_for_interview_mode"
+    },
+    "d_closing_flow": {
+      "unlocksSignals": ["delivery_shape_baseline"],
+      "guardDomain": "automation_processes",
+      "transitionRuleRef": "t_delivery_shape",
+      "sourcesByPriority": ["client", "consultant"],
+      "unknownPolicy": "allow_with_caveat",
+      "conflictRuleRef": "prefer_consultant_for_interview_mode"
+    }
+  },
   "remediationAllowedBankIds": ["a1", "a3"],
   "strictRecommendedOrderWhenPilot": [
     "a2",

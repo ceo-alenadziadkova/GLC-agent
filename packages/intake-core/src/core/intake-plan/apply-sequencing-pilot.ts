@@ -68,6 +68,24 @@ export function applySequencingPilotToPlan(args: {
     semanticCause: 'Reordered nextRecommended using pilot sequencing artifact (branch/policy/layout already applied)',
     detail: { transitionTypes: seq.transitionTypes.map(t => t.id) },
   });
+  for (const bankId of sorted) {
+    const slot = seq.askSlotContract?.[bankId];
+    if (!slot) continue;
+    trace.push({
+      code: 'sequencing_ask_slot_contract_applied',
+      semanticCause:
+        'Ask-slot contract metadata applied for deterministic signal unlocking and transition governance',
+      questionId: bankId,
+      detail: {
+        unlocksSignals: slot.unlocksSignals,
+        guardDomain: slot.guardDomain,
+        transitionRuleRef: slot.transitionRuleRef ?? null,
+        sourcesByPriority: slot.sourcesByPriority ?? [],
+        unknownPolicy: slot.unknownPolicy ?? null,
+        conflictRuleRef: slot.conflictRuleRef ?? null,
+      },
+    });
+  }
 
   const rules = [...(seq.dependencyRules ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   for (const rule of rules) {
@@ -79,13 +97,27 @@ export function applySequencingPilotToPlan(args: {
         code: 'sequencing_dep_prerequisite_pending',
         semanticCause: rule.semanticCause,
         questionId: pendingBankId,
-        detail: { ruleId: rule.id, transitionId: rule.transitionId },
+        detail: {
+          ruleId: rule.id,
+          transitionId: rule.transitionId,
+          owner: rule.lifecycle.owner,
+          kpiMetric: rule.lifecycle.kpiMetric,
+          lifecycleState: rule.lifecycle.state,
+          reviewByIsoDate: rule.lifecycle.reviewByIsoDate,
+        },
       });
     } else {
       trace.push({
         code: 'sequencing_dep_satisfied',
         semanticCause: rule.semanticCause,
-        detail: { ruleId: rule.id, transitionId: rule.transitionId },
+        detail: {
+          ruleId: rule.id,
+          transitionId: rule.transitionId,
+          owner: rule.lifecycle.owner,
+          kpiMetric: rule.lifecycle.kpiMetric,
+          lifecycleState: rule.lifecycle.state,
+          reviewByIsoDate: rule.lifecycle.reviewByIsoDate,
+        },
       });
     }
   }
