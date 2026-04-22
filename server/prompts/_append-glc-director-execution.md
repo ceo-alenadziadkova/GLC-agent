@@ -1,3 +1,4 @@
+<!-- version: 1.2 date: 2026-04-22 -->
 ## Director orchestration bundle (`glc_director_execution`)
 
 Add this object **at the top level** of the same JSON you return from `submit_analysis` (alongside `score`, `issues`, `recommendations`, etc.).
@@ -6,7 +7,9 @@ Add this object **at the top level** of the same JSON you return from `submit_an
 
 **Strict vs best-effort (server policy):** Tech, Security, UX, Marketing, and Automation phases may run **strict** director persistence when enabled in the deployment. In that mode, a **missing** bundle or a **schema-invalid** bundle can **fail the phase**. The **SEO** phase uses **best-effort** persistence: the phase still completes if the bundle is absent, but you should still emit a valid bundle whenever possible so the client roadmap graph stays useful.
 
-If you include `glc_director_execution`, it must be fully valid. Prefer **omitting the key entirely** over sending wrong types (for example numeric `id` fields or scores outside 1–5).
+When `glc_director_execution` is present, it must be fully valid (for example string `id` fields and scores in the `1-5` range).
+For **strict phases** (Tech, Security, UX, Marketing, Automation), do **not omit** this key. If evidence is incomplete, emit a **minimal valid** bundle with conservative defaults and explicit `evidence.missing` notes.
+For **best-effort SEO**, omission is allowed by policy, but a valid minimal bundle is still preferred.
 
 **Shape:**
 
@@ -24,7 +27,7 @@ If you include `glc_director_execution`, it must be fully valid. Prefer **omitti
 
 **Guidance:**
 
-- For strict phases, when you include the key, target **3–8** high-signal `baseline.actions` derived from issues and recommendations; do not dump the entire report.
+- For strict phases, target **3–8** high-signal `baseline.actions` derived from issues and recommendations; do not dump the entire report.
 - Keep ids unique within the phase; use `dependencies` to encode sequencing instead of long prose.
 - Align numeric scores with severity and urgency already stated in narrative sections.
 - Use `deep` only when you have a distinct second wave of work (for example after baseline stabilization); keep the same id/discipline rules.

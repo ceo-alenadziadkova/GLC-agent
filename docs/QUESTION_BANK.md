@@ -825,6 +825,86 @@ Use this checklist for **any** change to `question_bank.v1`, answer options, or 
  - One vertical pack per release train; do not parallelize pack rollouts.
  - For each pack, add/update parity tests and sequencing artifact metadata before enabling traffic.
 
+## 16. Intake Intelligence Contract v1 (Sprint 1 baseline)
+
+This section defines the Decision-Intelligence baseline introduced in Sprint 1.
+
+- Contract location: `packages/intake-core/src/config/intake-intelligence-contract.ts`
+- Required now (`required_now`) fields:
+  - `whyAsked`
+  - `semanticDomain` (`market | value | economics | operations | resources | risks`)
+  - `decisionImpact` (minimum one item)
+- Optional-with-todo fields (allowed in Sprint 1):
+  - `signalContribution`
+  - `followupPolicy`
+  - `stopCondition`
+  - `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) for non-P0 questions
+
+P0 scope in Sprint 1 is computed from:
+- all bank ids used by critical signals registry (`intake-critical-signals-pilot-1.0.0.json`)
+- all Section `F` (goals) bank questions
+
+Lint and fallback behavior:
+- `lintIntelligenceContractV1` blocks CI when a P0 question misses any `required_now` field
+- `semanticDomain` outside Core Spine is a hard error
+- anti-pattern heuristics are warnings only in Sprint 1
+- runtime fallback keeps questions visible and emits `intelligence_metadata_incomplete` trace when metadata is incomplete
+- canonical ADR: [`ADR-DECISION-IMPACT-METADATA-V1.md`](./adrs/ADR-DECISION-IMPACT-METADATA-V1.md)
+
+Sprint 1 enforcement matrix:
+
+| Rule | Level | Checked in |
+| --- | --- | --- |
+| P0 question has `whyAsked`, `semanticDomain`, and `decisionImpact[0]` | error | `lintIntelligenceContractV1`, `intake-intelligence-contract.test.ts` |
+| `semanticDomain` belongs to Core Diagnostic Spine | error | `lintIntelligenceContractV1`, `lint-intelligence-contract.test.ts` |
+| Non-P0 question has valid `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) | warning (lint), required by tests | `lintIntelligenceContractV1`, `intake-intelligence-contract.test.ts` |
+| Anti-pattern heuristics (generic/leading/double-barreled/etc.) | warning | `lintIntelligenceContractV1` |
+| Incomplete metadata does not break runtime plan build | runtime guard | `build-intake-plan.ts`, `intelligence-fallback-runtime.test.ts` |
+
+Baseline snapshot (Sprint 1):
+- `question_count = 78`
+- `P0_question_count = 17`
+- `fully_covered_questions = 17` (`21.8%`)
+- `fully_covered_P0_questions = 17` (`100%`)
+
+Baseline release gate policy:
+- Any PR that changes `question-bank.v1.json`, P0 scope, or intelligence contract coverage must update:
+  - `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` (deterministic baseline expectations)
+  - this section baseline snapshot values
+- Mismatched updates are treated as a release-blocking contract drift.
+
+### 16.1 Anti-pattern taxonomy (warning-only in Sprint 1)
+
+The following heuristics are intentionally non-blocking in Sprint 1 and must be treated as editorial warnings:
+
+- `generic`: broad prompts that do not express decision impact (`tell us about your business`, generic `anything else`).
+- `leading`: wording that pushes a preferred answer (`do you agree`, `is it important` framing).
+- `double-barreled`: multiple asks packed into one sentence.
+- `tautological`: restating the same concept without new decision signal.
+- `vanity`: asks that optimize optics rather than actionable change.
+- `outside-scope`: no clear mapping to Core Diagnostic Spine.
+- `low-gain`: weak expected signal movement with no justified override.
+
+Promotion path after Sprint 1:
+- Keep warning-only until editorial governance calibrates false-positive rate.
+- Promote selected heuristics to hard errors only with explicit ADR update and test coverage.
+
+### 16.2 Sprint 1 Decision-Intelligence DoD (single source of truth)
+
+| Criterion | Proof path | Command / test | Pass condition |
+| --- | --- | --- | --- |
+| P0 has required-now fields (`whyAsked`, `semanticDomain`, `decisionImpact[0]`) | `packages/intake-core/src/config/intake-intelligence-contract.ts`, `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All P0 ids pass `hasIntakeIntelligenceRequiredNow` |
+| Invalid `semanticDomain` is blocked | `packages/intake-core/src/core/lint-bank-policy/lint-intelligence-contract.ts`, `packages/intake-core/src/tests/lint-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/lint-intelligence-contract.test.ts` | Lint emits `INTELLIGENCE_SEMANTIC_DOMAIN_INVALID` as `error` |
+| Missing required-now for P0 is blocked | same as above | same as above | Lint emits `INTELLIGENCE_REQUIRED_NOW_MISSING` as `error` |
+| Non-P0 TODO metadata is enforced in Sprint 1 workflow | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All non-P0 ids contain valid `todo` metadata |
+| Runtime fallback never crashes on incomplete metadata | `packages/intake-core/src/core/build-intake-plan.ts`, `packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Plan build succeeds and emits `intelligence_metadata_incomplete` trace |
+| Baseline remains deterministic (`78/17/17/100%`) | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts`, this doc section | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | Snapshot numbers match tests and docs |
+| Package-level verification is green | `packages/intake-core/src/tests/` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts packages/intake-core/src/tests/lint-intelligence-contract.test.ts packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Command exits 0 |
+
+Sprint 1 `go/no-go` rule:
+- `go` only when every row above is green in the same branch.
+- Any failure is `no-go` until code + docs are reconciled.
+
 ## Для разработчиков
 
 Ниже перечислены технические пути реализации для инженерной навигации.

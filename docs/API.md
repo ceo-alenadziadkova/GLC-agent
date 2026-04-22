@@ -673,6 +673,7 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`** 
 - **`step_plan`**, **`layout_slots`** — when a layout surface is active 
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients. 
+- **`intelligence`** (optional per question) — emitted only when the question has complete Sprint-1 `required_now` metadata (`whyAsked`, `semanticDomain`, `decisionImpact`). Questions with incomplete metadata stay visible and rely on runtime fallback tracing instead of schema failure.
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate, … }` (`confidence_overall` is a **UX / resolver aggregate**, not the ADR `signalConfidence` contract and not phase-level analysis confidence)
 - **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, trace, caveats?, caveatDetails? }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `blocked` is a **baseline** audit-execution status (package-aware insufficiency remains Phase-B/C), and `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`) and for advisory boundaries with unknown-sourced critical signal evidence (`unknown_source_signal_evidence` with `surface_limited_context`). `caveatDetails` adds stable ownership/severity metadata (`code`, `owner`, `severity`, `rolloutPhase`, `semanticIntent`) for ops tooling; **`trace`** entries include **`semanticCause`** strings for supportability
 - **`critical_signals`** — `{ by_key, summary }` pilot **signal confidence** per ADR (orthogonal to **`derived.confidence_overall`**, which remains a UX / resolver aggregate)
@@ -682,9 +683,47 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 
 **`GET …/brief` parity:** the same **`readiness`**, **`critical_signals`**, and **`remediation_queue`** fields as on this endpoint are also returned on **`GET /api/audits/:id/brief`** (additive to the existing brief payload) so clients can refresh execution diagnostics without a second request.
 
+Decision-intelligence fallback contract: server/runtime must not reject or crash when non-P0 questions are still in TODO-enrichment mode; diagnostics are surfaced via trace/event code `intelligence_metadata_incomplete`.
+
 Sequencing traces may include `sequencing_ask_slot_contract_applied` when ask-slot governance metadata is active for a recommended bank id (`unlocksSignals`, `guardDomain`, transition/conflict refs).
 
 Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
+
+Illustrative `questions[].intelligence` examples:
+
+```json
+{
+  "id": "f1",
+  "label": "Main business problem to solve",
+  "section": "F",
+  "priority": "required",
+  "intelligence": {
+    "whyAsked": "Anchors strategy synthesis to the primary business constraint.",
+    "semanticDomain": "value",
+    "decisionImpact": [
+      {
+        "target": "strategy.problem_framing",
+        "weight": "high",
+        "effectDescription": "Changes initiative prioritization and quick-win ordering."
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "id": "b5",
+  "label": "Is your business seasonal?",
+  "section": "B",
+  "priority": "recommended"
+}
+```
+
+Notes for consumers:
+- If `intelligence` is absent, do not treat it as an API failure; render question normally.
+- UI should hide decision-impact helper blocks when `intelligence` is missing.
+- Operational diagnostics for missing metadata are available via readiness/trace event `intelligence_metadata_incomplete` (server-side diagnostics contract).
 
 ---
 
@@ -1291,6 +1330,62 @@ Common codes:
 - `INVALID_STATUS` — 422 (action not valid for current audit status)
 
 See [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) for the full grouped list; after route changes, run `./scripts/api-errors-inventory.sh` from the repo root to refresh it.
+
+---
+
+## Director deep-dive (Phase B/C)
+
+### `POST /api/audits/:id/directors/:domain/deep-dive`
+
+Queues an on-demand director deep-dive job.
+
+**Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
+
+**Feature flag:** `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND=true` on server.
+
+**Request body (JSON):**
+
+```json
+{
+  "focus_areas": ["optional"],
+  "client_context": {
+    "goals": ["required", "list"],
+    "constraints": ["optional", "list"],
+    "timeframe_days": 30
+  },
+  "idempotency_key": "required-string",
+  "operating_mode": "discovery",
+  "sub_agent_ids": ["cmo.agent_3_positioning"]
+}
+```
+
+**Response `202`:** `{ "job_id": "<string>", "status": "queued", "estimated_duration_minutes": 4 }`
+
+**Runtime notes:** idempotent by `idempotency_key` (replays return the same `job_id`), queue lifecycle runs through BullMQ worker `director_deep_dive`, and status is persisted in `job_runs` (frontend can subscribe to `job_runs` realtime updates by `queue_job_id`).
+
+**Errors:**
+
+- `503` `DIRECTOR_DEEP_DIVE_DISABLED` when feature flag is off.
+- `400` `DIRECTOR_DEEP_DIVE_PAYLOAD_INVALID` when request body fails schema validation.
+- `409` `DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED` when per-domain quota is exhausted for the package tier.
+
+### `GET /api/audits/:id/directors/:domain/deep-dive/:jobId`
+
+Returns deep-dive job status.
+
+**Response `200`:**
+
+```json
+{
+  "job_id": "deep_dive:...",
+  "status": "queued",
+  "started_at": "2026-04-22T12:00:00.000Z",
+  "completed_at": null,
+  "error_code": "DIRECTOR_DEEP_DIVE_FAILED"
+}
+```
+
+`GET` returns `404 DIRECTOR_DEEP_DIVE_JOB_NOT_FOUND` when `jobId` is missing for the same `audit_id` + `user_id` scope.
 
 ## Для разработчиков
 

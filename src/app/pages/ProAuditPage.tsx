@@ -15,6 +15,7 @@ import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
 import { PACKAGE_MARKETING_OUTCOME_CARD } from '../config/package-marketing-ui';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
+import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 
 const L = PACKAGE_PAGE_LAYOUT.context;
 
@@ -116,6 +117,13 @@ export function ProAuditPage() {
             <AuditCompare focusedPackage="pro" />
           </MarketingComparisonShell>
         </MarketingRevealMask>
+      </MarketingSection>
+
+      <MarketingSection className={L.sectionGapClass} delay={0.115}>
+        <MarketingComparisonShell padded>
+          <h2 className="font-display text-xl font-bold sm:text-2xl ds-text-primary">{ORCHESTRATION_UI_COPY.marketingTeaserTitle}</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.marketingTeaserBody}</p>
+        </MarketingComparisonShell>
       </MarketingSection>
 
       <MarketingSection className="mt-0" delay={0.12}>

@@ -28,6 +28,8 @@ export {
   apiAuditsOrchestratorRun,
   apiAuditsOrchestratorLatest,
   apiAuditsTimeline,
+  apiAuditsDirectorDeepDive,
+  apiAuditsDirectorDeepDiveStatus,
   apiPlatformAuditPipelineResumeCancelled,
   apiAuditsQualityGate,
   apiAuditsReportQuery,

@@ -28,6 +28,52 @@ type TimelineReadResult =
 
 const TIMELINE_BUCKET_IDS = ['near', 'mid', 'far'] as const;
 
+function buildTimelineMilestones(args: {
+  criticalPathIds: readonly string[];
+  nodesById: ReadonlyMap<string, { title: string; target_window_days?: number }>;
+}): Array<{ id: string; label: string; target_window_days: number; unlocks: string[] }> {
+  const picked = args.criticalPathIds.slice(
+    0,
+    ORCHESTRATION_TIMELINE_POLICY.milestoneMaxCount,
+  );
+  if (picked.length === 0) return [];
+  const milestones = picked.map((id, index) => {
+    const node = args.nodesById.get(id);
+    return {
+      id: `ms_${index + 1}_${id}`,
+      label: node?.title ?? id,
+      target_window_days: Math.max(1, node?.target_window_days ?? index + 1),
+      unlocks: [id],
+    };
+  });
+  return milestones.slice(
+    0,
+    Math.max(ORCHESTRATION_TIMELINE_POLICY.milestoneMinCount, milestones.length),
+  );
+}
+
+function buildTopPriorities(args: {
+  top7d: readonly string[];
+  top30d: readonly string[];
+  nodesById: ReadonlyMap<string, { target_window_days?: number }>;
+}): Array<{ bucket: '7d' | '30d'; action_id: string; reason_code: string }> {
+  const from7d = args.top7d.map((id) => ({
+    bucket: '7d' as const,
+    action_id: id,
+    reason_code: 'near_term',
+  }));
+  const from30d = args.top30d.map((id) => {
+    const node = args.nodesById.get(id);
+    const reason_code = node?.target_window_days ? 'time_to_value' : 'critical_path';
+    return {
+      bucket: '30d' as const,
+      action_id: id,
+      reason_code,
+    };
+  });
+  return [...from7d, ...from30d];
+}
+
 async function resolveManifestForTimelinePartition(args: {
   auditId: string;
   packManifestSnapshotId: string | null;
@@ -211,6 +257,15 @@ export async function buildClientTimelineReadModel(args: {
       };
     })
     .slice(0, ORCHESTRATION_TIMELINE_POLICY.maxDependencyRows);
+  const milestones = buildTimelineMilestones({
+    criticalPathIds: pack.critical_path,
+    nodesById: nodeById,
+  });
+  const top_priorities = buildTopPriorities({
+    top7d: top_7d,
+    top30d: top_30d,
+    nodesById: nodeById,
+  });
 
   const status = args.restrictedClientView
     ? 'restricted_client_view'
@@ -234,8 +289,10 @@ export async function buildClientTimelineReadModel(args: {
     seasons: TIMELINE_BUCKET_IDS.map((id) => ({ id, node_ids: critical[id] })),
     lanes,
     dependencies,
+    milestones,
     top_7d,
     top_30d,
+    top_priorities,
     waiting_list_domains,
     data_gaps: pack.data_gaps ?? null,
   });

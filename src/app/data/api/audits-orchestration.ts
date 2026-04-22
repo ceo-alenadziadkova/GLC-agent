@@ -8,6 +8,8 @@ import {
   apiAuditsOrchestratorPreview,
   apiAuditsOrchestratorRun,
   apiAuditsTimeline,
+  apiAuditsDirectorDeepDive,
+  apiAuditsDirectorDeepDiveStatus,
   apiAuditsRoadmapManifestPreview,
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
@@ -119,7 +121,7 @@ export type AuditTimelineDto = {
       /** Present for nodes enriched from director or explicit baseline/deep synthesis. */
       analysis_depth?: 'baseline' | 'deep';
       /** Provenance is optional for backward-compatible timeline payloads. */
-      source?: 'strategy' | 'director';
+      source?: 'strategy' | 'director' | `sub_agent:${string}`;
       explain?: {
         why?: string[];
         how?: { path_type?: string; description: string; time_estimate?: string };
@@ -137,8 +139,21 @@ export type AuditTimelineDto = {
     cross_lane: boolean;
     blocking: boolean;
   }>;
+  milestones?: Array<{
+    id: string;
+    label: string;
+    target_window_days: number;
+    unlocks: string[];
+  }>;
+  /** @deprecated Use `top_priorities` for client-priority narrative rendering. */
   top_7d: string[];
+  /** @deprecated Use `top_priorities` for client-priority narrative rendering. */
   top_30d: string[];
+  top_priorities?: Array<{
+    bucket: '7d' | '30d';
+    action_id: string;
+    reason_code: string;
+  }>;
   waiting_list_domains: DomainKey[];
   data_gaps: {
     degraded_input: boolean;
@@ -167,6 +182,18 @@ export type OrchestrationCommercialOfferResponseDto = {
     last_revision_diff_summary?: string | null;
     plan_governance: OrchestrationPlanGovernanceDto;
   } | null;
+};
+
+export type DirectorDeepDiveRequestBody = {
+  focus_areas?: string[];
+  client_context: {
+    goals: string[];
+    constraints: string[];
+    timeframe_days?: number;
+  };
+  idempotency_key: string;
+  operating_mode?: 'discovery' | 'launch' | 'growth' | 'authority' | 'defense';
+  sub_agent_ids?: string[];
 };
 
 export const auditsOrchestrationApi = {
@@ -297,5 +324,27 @@ export const auditsOrchestrationApi = {
 
   async getAuditTimeline(auditId: string) {
     return apiFetch<{ timeline: AuditTimelineDto }>(apiAuditsTimeline(auditId), { method: 'GET' });
+  },
+
+  async postDirectorDeepDive(auditId: string, domainKey: DomainKey, body: DirectorDeepDiveRequestBody) {
+    return apiFetch<{ job_id: string; status: 'queued'; estimated_duration_minutes: number }>(
+      apiAuditsDirectorDeepDive(auditId, domainKey),
+      {
+      method: 'POST',
+      body: JSON.stringify(body),
+      },
+    );
+  },
+
+  async getDirectorDeepDiveStatus(auditId: string, domainKey: DomainKey, jobId: string) {
+    return apiFetch<{
+      job_id: string;
+      status: 'queued' | 'running' | 'completed' | 'failed' | 'dead_letter';
+      started_at: string | null;
+      completed_at: string | null;
+      error_code?: string;
+    }>(apiAuditsDirectorDeepDiveStatus(auditId, domainKey, jobId), {
+      method: 'GET',
+    });
   },
 };

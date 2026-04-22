@@ -4,6 +4,7 @@
  */
 
 import type { DomainKey } from '@glc/intake-core';
+import type { AuditCoveragePackage } from '../types/audit/product.js';
 
 import type { OrchestrationGraphNodeAnalysisDepth } from './orchestration-graph-policy.js';
 import {
@@ -70,6 +71,27 @@ export const DIRECTOR_ORCHESTRATION_RISK_POLICY = {
   max: 1,
   fallback: 0.5,
 } as const;
+
+export const DIRECTOR_DEEP_DIVE_QUOTA_BY_PACKAGE: Record<
+  AuditCoveragePackage,
+  { perDomainPerAudit: number }
+> = {
+  starter: { perDomainPerAudit: 1 },
+  pro: { perDomainPerAudit: 2 },
+  complete: { perDomainPerAudit: 3 },
+};
+
+export const MAX_SUB_AGENTS_PER_DEEP_DIVE: Record<AuditCoveragePackage, number> = {
+  starter: 1,
+  pro: 2,
+  complete: 3,
+};
+
+export const SUB_AGENT_TOKEN_BUDGET_BY_DEPTH: Record<'min' | 'standard' | 'max', number> = {
+  min: 8_000,
+  standard: 16_000,
+  max: 24_000,
+};
 
 /**
  * Builds a stable graph node id for a director action (avoids collisions with strategy initiative ids).

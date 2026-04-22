@@ -177,6 +177,19 @@ export const ORCHESTRATION_UI_COPY = {
   timelineDecisionTimeLabel: 'Time',
   timelineDecisionImpactLabel: 'Impact',
   timelineDecisionRisksLabel: 'Risks',
+  initiativeOutcomeLabel: 'Expected outcome',
+  strategyRoadmapEyebrow: 'Strategic roadmap',
+  strategyRoadmapTitle: 'Implementation timeline',
+  strategyRoadmapQuickWinsTitle: 'Quick wins',
+  strategyRoadmapQuickWinsWindow: '<= 1 week',
+  strategyRoadmapMediumTermTitle: 'Medium term',
+  strategyRoadmapMediumTermWindow: 'About 1 month',
+  strategyRoadmapStrategicTitle: 'Strategic initiatives',
+  strategyRoadmapStrategicWindow: '1-3 months',
+  strategyRoadmapDependenciesLabel: 'Dependencies',
+  strategyRoadmapEmptyTimeframe: 'No initiatives in this timeframe',
+  timelineMilestonesTitle: 'Milestones',
+  topPriorityReasonLabel: 'Why now',
   timelineLimitedContextBadge: 'Limited context',
   topActionsTitle: 'Top actions',
   topActions7dLabel: 'Next 7 days',
@@ -257,6 +270,44 @@ export const ORCHESTRATION_UI_COPY = {
   nodeBadgeDeep: 'Deep',
   nodeBadgeDirector: 'Director',
   nodeBadgeStrategy: 'Strategy',
+  nodeBadgeSubAgent: 'Sub-agent',
+  timelineSubAgentFilterLabel: 'Filter by analysis agent',
+  timelineSubAgentFilterAll: 'All actions',
+  deepDiveCta: 'Deepen this domain',
+  deepDiveDialogTitle: 'Deepen this domain',
+  deepDiveDialogDescription: 'Run a focused director pass with your business context.',
+  deepDiveGoalsLabel: 'Goals (one per line)',
+  deepDiveConstraintsLabel: 'Constraints (one per line)',
+  deepDiveEstimatedTimeLabel: 'Estimated time',
+  deepDiveStatusLabel: 'Status',
+  deepDiveJobPrefix: 'Job',
+  deepDiveErrorFallback: 'Deep-dive request failed',
+  deepDiveGoalsRequired: 'Add at least one goal to start.',
+  deepDiveStartCta: 'Start deep-dive',
+  deepDiveModeLabel: 'Operating mode',
+  deepDiveModeAuto: 'Auto',
+  deepDiveMode_discovery: 'Discovery',
+  deepDiveMode_launch: 'Launch',
+  deepDiveMode_growth: 'Growth',
+  deepDiveMode_authority: 'Authority',
+  deepDiveMode_defense: 'Defense',
+  deepDiveAgentPickerLabel: 'Choose analysis agents',
+  deepDiveAgentPickerHint: 'Pick specific agents or leave all unchecked to auto-select.',
+  deepDiveSubAgentLabelPrefix: 'CMO',
+  deepDiveEstimatedTimeMinutes: 'about 4 minutes',
+  deepDiveCloseCta: 'Close',
+  deepDiveErrorFeatureDisabled: 'Deep-dive is currently disabled in this environment.',
+  deepDiveErrorPayloadInvalid: 'Deep-dive request payload is invalid. Update the inputs and try again.',
+  deepDiveErrorQuotaExceeded: 'Deep-dive quota is reached for this domain and package.',
+  deepDiveErrorJobNotFound: 'Deep-dive job is not available or no longer accessible.',
+  deepDiveErrorFailed: 'Deep-dive execution failed. Try again in a few minutes.',
+  deepDiveErrorDeadLetter: 'Deep-dive request moved to dead letter. Contact support if it keeps happening.',
+  subAgent_cmo_agent_3_positioning_title: 'Agent 3 Positioning',
+  subAgent_cmo_agent_3_positioning_description: 'Defines target niche and positioning statement.',
+  subAgent_cmo_agent_5_content_strategy_title: 'Agent 5 Content Strategy',
+  subAgent_cmo_agent_5_content_strategy_description: 'Builds topic backlog and funnel-aligned content plan.',
+  subAgent_cmo_agent_9_traffic_title: 'Agent 9 Traffic',
+  subAgent_cmo_agent_9_traffic_description: 'Creates acquisition hypotheses with dependencies and priorities.',
   /** Evidence taxonomy (director Layer 1); compact badges on timeline / pack panel (V6). */
   evidenceTaxonomyGroupAriaLabel: 'Evidence taxonomy counts',
   evidenceTaxonomyObservedAbbr: 'O',
@@ -278,6 +329,9 @@ export const ORCHESTRATION_UI_COPY = {
   dataGapsDanglingDependenciesLabel: 'Dangling dependencies:',
   /** Client label when manifest state is unknown to the UI mapping (legacy payloads). */
   timelineManifestStateUnknown: 'Roadmap status: see your consultant if this looks wrong.',
+  marketingTeaserTitle: 'Get a delivery-ready roadmap',
+  marketingTeaserBody:
+    'Every package now includes a client-friendly execution narrative with phases, milestones, and next priorities.',
 } as const;
 
 /** Client-facing manifest state line on the portal timeline (no internal enum names). */
@@ -338,6 +392,21 @@ export const ORCHESTRATION_LANE_LABELS = {
   processes_automation: 'Processes and automation',
   risk_compliance: 'Risk and compliance',
 } as const;
+
+export const ORCHESTRATION_LANE_PROMISES: Record<OrchestrationLaneId, string> = {
+  product_change: 'Clarify what to ship and when value appears.',
+  tech_delivery: 'Reduce delivery risk with implementation sequencing.',
+  marketing_narrative: 'Align positioning and messaging with execution.',
+  seo: 'Build compounding organic acquisition foundations.',
+  processes_automation: 'Remove operational drag with repeatable systems.',
+  risk_compliance: 'Protect growth with explicit controls and safeguards.',
+};
+
+export const ORCHESTRATION_PRIORITY_REASON_CODES: Record<string, string> = {
+  near_term: 'Highest short-term leverage',
+  critical_path: 'Unblocks the critical path',
+  time_to_value: 'Fast path to measurable value',
+};
 
 export type OrchestrationLaneId = keyof typeof ORCHESTRATION_LANE_LABELS;
 

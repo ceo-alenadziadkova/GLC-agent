@@ -2,9 +2,11 @@ import { DIRECTOR_SUB_AGENTS, type DirectorSubAgentId } from '../../config/direc
 import { routeCmoOperatingMode } from './director-cmo-router.service.js';
 import { DIRECTOR_MODE_AGENT_DEPTHS, type DirectorOperatingMode } from '../../config/director-operating-modes.js';
 import { DIRECTOR_CMO_ORCHESTRATOR_POLICY } from '../../config/director-cmo-orchestrator-policy.js';
+import { SUB_AGENT_TOKEN_BUDGET_BY_DEPTH } from '../../config/director-orchestration-policy.js';
 import { CmoAgent3Positioning } from '../../agents/sub/cmo/agent-3-positioning.js';
 import { CmoAgent5ContentStrategy } from '../../agents/sub/cmo/agent-5-content-strategy.js';
 import { CmoAgent9Traffic } from '../../agents/sub/cmo/agent-9-traffic.js';
+import { logger } from '../logger.js';
 
 export async function runCmoSubAgentOrchestrator(args: {
   auditId?: string;
@@ -41,13 +43,26 @@ export async function runCmoSubAgentOrchestrator(args: {
   for (const subAgentId of runOrder) {
     const runtime = agents[subAgentId];
     const depth = DIRECTOR_MODE_AGENT_DEPTHS[mode][subAgentId];
-    const output = buildDeterministicOutput({
-      subAgentId,
-      goals: args.goals,
-      constraints: args.constraints,
-      depth,
-    });
-    const parsed = runtime.outputSchema.parse(output);
+    let parsed: unknown;
+    try {
+      parsed = await runtime.runSubAgent({
+        context: buildSubAgentContext(args.goals, args.constraints),
+        mode,
+        maxTokens: SUB_AGENT_TOKEN_BUDGET_BY_DEPTH[depth === 'deferred' ? 'min' : depth],
+      });
+    } catch (error) {
+      logger.warn('director_cmo_orchestrator.sub_agent_fallback_deterministic', {
+        sub_agent_id: subAgentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      const fallbackOutput = buildDeterministicOutput({
+        subAgentId,
+        goals: args.goals,
+        constraints: args.constraints,
+        depth,
+      });
+      parsed = runtime.outputSchema.parse(fallbackOutput);
+    }
     agentOutputs[subAgentId] = {
       output: parsed,
       metadata: {
@@ -69,6 +84,13 @@ export async function runCmoSubAgentOrchestrator(args: {
       measurement: [...DIRECTOR_CMO_ORCHESTRATOR_POLICY.qaBlock.measurement],
     },
   };
+}
+
+function buildSubAgentContext(goals: string[], constraints: string[]): string {
+  return [
+    `Goals: ${goals.join('; ') || 'n/a'}`,
+    `Constraints: ${constraints.join('; ') || 'n/a'}`,
+  ].join('\n');
 }
 
 function buildTopoOrder(selected: DirectorSubAgentId[]): DirectorSubAgentId[] {

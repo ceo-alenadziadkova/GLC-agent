@@ -18,6 +18,8 @@ function effectiveAccepted(
 
 export function useLegalConsentsSettings(enabled: boolean) {
   const [loading, setLoading] = useState(false);
+  const [tosAcceptance, setTosAcceptance] = useState(false);
+  const [privacyAcknowledgment, setPrivacyAcknowledgment] = useState(false);
   const [productAnalytics, setProductAnalytics] = useState(false);
   const [caseStudyUse, setCaseStudyUse] = useState(false);
   const [evaluationInternal, setEvaluationInternal] = useState(false);
@@ -28,6 +30,8 @@ export function useLegalConsentsSettings(enabled: boolean) {
     setLoading(true);
     try {
       const body = await api.getLegalConsents();
+      setTosAcceptance(effectiveAccepted(body.effective, LEGAL_CONSENT_KEYS.tosAcceptance));
+      setPrivacyAcknowledgment(effectiveAccepted(body.effective, LEGAL_CONSENT_KEYS.privacyAcknowledgment));
       setProductAnalytics(effectiveAccepted(body.effective, LEGAL_CONSENT_KEYS.productAnalytics));
       setCaseStudyUse(effectiveAccepted(body.effective, LEGAL_CONSENT_KEYS.caseStudyUse));
       setEvaluationInternal(effectiveAccepted(body.effective, LEGAL_CONSENT_KEYS.evaluationInternal));
@@ -59,10 +63,20 @@ export function useLegalConsentsSettings(enabled: boolean) {
 
   return {
     loading,
+    tosAcceptance,
+    privacyAcknowledgment,
     productAnalytics,
     caseStudyUse,
     evaluationInternal,
     dpaAcceptance,
+    setTosAcceptance: async (next: boolean) => {
+      setTosAcceptance(next);
+      await persist(LEGAL_CONSENT_KEYS.tosAcceptance, next);
+    },
+    setPrivacyAcknowledgment: async (next: boolean) => {
+      setPrivacyAcknowledgment(next);
+      await persist(LEGAL_CONSENT_KEYS.privacyAcknowledgment, next);
+    },
     setProductAnalytics: async (next: boolean) => {
       setProductAnalytics(next);
       await persist(LEGAL_CONSENT_KEYS.productAnalytics, next);

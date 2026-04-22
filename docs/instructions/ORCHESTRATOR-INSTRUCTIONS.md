@@ -8,7 +8,7 @@ The authoritative product/implementation contract is:
 
 - `docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md`
 
-## Current implementation contract (Phase 1-2)
+## Current implementation contract (Phase A-C runtime baseline)
 
 Deterministic backend flow is implemented in separate steps to keep SRP boundaries clear:
 
@@ -27,6 +27,11 @@ Source-of-truth contracts:
 - Policy constants: `server/src/config/orchestration-graph-policy.ts`, `server/src/config/orchestration-roadmap-presets.ts`, `server/src/config/orchestration-lanes.ts`.
 
 No hardcoded thresholds/weights/lane ids are allowed in orchestration services; runtime behavior must read from config/policy modules.
+
+Phase A-C addenda:
+- Timeline narrative fields are additive (`milestones`, `top_priorities`) and must not break `top_7d` / `top_30d` readers.
+- Director deep-dive is asynchronous and feature-flagged; status reads must stay owner-scoped.
+- CMO sub-agent dispatch is currently scaffolded under feature flags and must remain config-driven (registry/modes/policies).
 
 ## UX contract (client canonical flow)
 

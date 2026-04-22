@@ -26,6 +26,8 @@ import { postOrchestratorPreviewController } from './controllers/post-orchestrat
 import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
 import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
+import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
+import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -145,6 +147,18 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getAuditTimelineController,
+);
+auditsRouter.post(
+  '/:id/directors/:domain/deep-dive',
+  attachProfile,
+  rejectGuestFromPortal,
+  postDirectorDeepDiveController,
+);
+auditsRouter.get(
+  '/:id/directors/:domain/deep-dive/:jobId',
+  attachProfile,
+  rejectGuestFromPortal,
+  getDirectorDeepDiveStatusController,
 );
 auditsRouter.post(
   '/:id/orchestration/commercial-offer',

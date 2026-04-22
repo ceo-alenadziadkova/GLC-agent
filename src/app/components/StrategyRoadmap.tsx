@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { TrendUp, Lightning, Calendar, Target } from '@phosphor-icons/react';
 import type { StrategyInitiative } from '../data/audit';
 import { getEffortTone, getImpactTone } from '../design-system/tokens/report-semantic-tokens';
+import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 
 interface StrategyRoadmapProps {
   initiatives: StrategyInitiative[];
@@ -33,6 +34,13 @@ function InitiativeCard({ initiative, index }: InitiativeCardProps) {
       <p className="mb-4 text-sm leading-relaxed text-[var(--text-secondary)]">
         {initiative.description}
       </p>
+      {initiative.outcome ? (
+        <div className="mb-4 rounded-md border border-[var(--panel-border)] bg-[var(--bg-muted)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <span className="font-medium text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.initiativeOutcomeLabel}: </span>
+          {initiative.outcome.description}
+          {initiative.outcome.timeframe ? ` (${initiative.outcome.timeframe})` : ''}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
@@ -52,7 +60,7 @@ function InitiativeCard({ initiative, index }: InitiativeCardProps) {
       {initiative.dependencies && initiative.dependencies.length > 0 && (
         <div className="mt-3 border-t border-[var(--panel-border)] pt-3">
           <span className="text-xs text-[var(--text-tertiary)]">
-            Dependencies: {initiative.dependencies.join(', ')}
+            {ORCHESTRATION_UI_COPY.strategyRoadmapDependenciesLabel}: {initiative.dependencies.join(', ')}
           </span>
         </div>
       )}
@@ -98,42 +106,42 @@ export function StrategyRoadmap({ initiatives }: StrategyRoadmapProps) {
           ))}
         </div>
       ) : (
-        <div className="py-4 text-sm text-[var(--text-tertiary)]">No initiatives in this timeframe</div>
+        <div className="py-4 text-sm text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.strategyRoadmapEmptyTimeframe}</div>
       )}
     </div>
   );
 
   return (
     <section className="mb-12">
-      <div className="mb-2 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">STRATEGIC ROADMAP</div>
-      <h2 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">Implementation Timeline</h2>
+      <div className="mb-2 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.strategyRoadmapEyebrow}</div>
+      <h2 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.strategyRoadmapTitle}</h2>
 
       <div className="space-y-6">
         <TimeframeSection
-          title="Quick Wins"
+          title={ORCHESTRATION_UI_COPY.strategyRoadmapQuickWinsTitle}
           icon={Lightning}
           items={quickWins}
           iconClassName="text-[var(--score-5)]"
           iconBgClassName="bg-[var(--score-5-bg)]"
-          timeLabel="≤ 1 week"
+          timeLabel={ORCHESTRATION_UI_COPY.strategyRoadmapQuickWinsWindow}
         />
 
         <TimeframeSection
-          title="Medium Term"
+          title={ORCHESTRATION_UI_COPY.strategyRoadmapMediumTermTitle}
           icon={Calendar}
           items={mediumTerm}
           iconClassName="text-[var(--score-3)]"
           iconBgClassName="bg-[var(--score-3-bg)]"
-          timeLabel="≈ 1 month"
+          timeLabel={ORCHESTRATION_UI_COPY.strategyRoadmapMediumTermWindow}
         />
 
         <TimeframeSection
-          title="Strategic Initiatives"
+          title={ORCHESTRATION_UI_COPY.strategyRoadmapStrategicTitle}
           icon={Target}
           items={strategic}
           iconClassName="text-[var(--glc-blue)]"
           iconBgClassName="bg-[var(--glc-blue-muted)]"
-          timeLabel="1-3 months"
+          timeLabel={ORCHESTRATION_UI_COPY.strategyRoadmapStrategicWindow}
         />
       </div>
     </section>

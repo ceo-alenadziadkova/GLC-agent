@@ -14,4 +14,17 @@ describe('director sub-agent registry consistency', () => {
       expect(content).toContain('docs/instructions/CMO-INSTRUCTIONS.md');
     }
   });
+
+  it('registry refs point to existing schema modules and frontend copy keys', () => {
+    const copyPath = resolve(process.cwd(), '../src/app/config/orchestration-roadmap-ui-copy.en.ts');
+    const copyContent = readFileSync(copyPath, 'utf8');
+    for (const agent of DIRECTOR_SUB_AGENTS) {
+      const schemaPath = resolve(process.cwd(), `../server/src/${agent.output_schema_ref}.ts`);
+      expect(existsSync(schemaPath)).toBe(true);
+      const titleNeedle = `${agent.id.replaceAll('.', '_')}_title`;
+      const descriptionNeedle = `${agent.id.replaceAll('.', '_')}_description`;
+      expect(copyContent).toContain(titleNeedle);
+      expect(copyContent).toContain(descriptionNeedle);
+    }
+  });
 });

@@ -8,7 +8,9 @@ import { laneIdsForOrchestrationDisplayPreset } from '../config/orchestration-cl
 import { AppShell } from '../components/AppShell';
 import { PortalTimelinePackGraphPanel } from '../components/glc/PortalTimelinePackGraphPanel';
 import { Button } from '../components/ui/button';
+import { DirectorDeepDiveDialog } from '../components/DirectorDeepDiveDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { useIsMobile } from '../components/ui/use-mobile';
 import { useAudit } from '../hooks/useAudit';
 import {
   formatManifestStateForClient,
@@ -17,6 +19,8 @@ import {
   formatTimelineCalendarPlanWindowLineClient,
   ORCHESTRATION_IA_COPY,
   ORCHESTRATION_LANE_LABELS,
+  ORCHESTRATION_LANE_PROMISES,
+  ORCHESTRATION_PRIORITY_REASON_CODES,
   ORCHESTRATION_SEASON_BUCKET_LABELS_BY_PRESET,
   ORCHESTRATION_SEASON_LABELS,
   ORCHESTRATION_UI_COPY,
@@ -183,6 +187,9 @@ export function PortalTimelinePage() {
   const { isClient } = useProfile();
   const queryClient = useQueryClient();
   const [executionPackPendingNodeId, setExecutionPackPendingNodeId] = useState<string | null>(null);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  const [selectedSubAgentFilter, setSelectedSubAgentFilter] = useState<string>('all');
+  const isMobile = useIsMobile();
 
   const auditIdForQuery = id ?? '';
   const timelineQueryEnabled = Boolean(id) && !loading && !error && Boolean(audit);
@@ -238,6 +245,17 @@ export function PortalTimelinePage() {
     }
     return out;
   }, [timeline?.lanes, isClient]);
+  const subAgentFilterOptions = useMemo(() => {
+    const ids = new Set<string>();
+    for (const lane of orderedTimelineLanes) {
+      for (const item of lane.items) {
+        if (typeof item.source === 'string' && item.source.startsWith('sub_agent:')) {
+          ids.add(item.source.slice('sub_agent:'.length));
+        }
+      }
+    }
+    return ['all', ...Array.from(ids)];
+  }, [orderedTimelineLanes]);
 
   const evidenceTaxonomyByNodeId = useMemo(() => {
     const m = new Map<string, OrchestrationEvidenceTaxonomy>();
@@ -267,6 +285,7 @@ export function PortalTimelinePage() {
   const blockingDeps = timeline?.dependencies.filter((row) => row.blocking) ?? [];
   const parallelTracks = timeline?.dependencies.filter((row) => !row.blocking) ?? [];
   const crossLaneBlocking = blockingDeps.filter((row) => row.cross_lane);
+  const isDependencyCardMode = isMobile;
   const nodeTitleById = new Map(
     (timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item.title] as const)),
   );
@@ -305,6 +324,13 @@ export function PortalTimelinePage() {
     const lid = laneByNodeId.get(nodeId);
     return lid ? ORCHESTRATION_LANE_LABELS[lid] : null;
   };
+  const filteredTimelineLanes = useMemo(() => {
+    if (selectedSubAgentFilter === 'all') return orderedTimelineLanes;
+    return orderedTimelineLanes.map((lane) => ({
+      ...lane,
+      items: lane.items.filter((item) => item.source === `sub_agent:${selectedSubAgentFilter}`),
+    }));
+  }, [orderedTimelineLanes, selectedSubAgentFilter]);
   const formatDepRow = (from: string, to: string): string => {
     const a = readNodeTitle(from);
     const b = readNodeTitle(to);
@@ -433,6 +459,21 @@ export function PortalTimelinePage() {
 
   const topActionsBlock = timeline ? (
     <div className="space-y-3">
+      {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled && (timeline.top_priorities?.length ?? 0) > 0 ? (
+        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+          <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topPriorityReasonLabel}</div>
+          <ul className="space-y-2 text-sm ds-text-secondary">
+            {(timeline.top_priorities ?? []).map((item) => (
+              <li key={`${item.bucket}-${item.action_id}`} className="rounded-md border border-[var(--border-default)] px-3 py-2">
+                <span className="font-medium ds-text-primary">{readNodeTitle(item.action_id)}</span>
+                <span className="ml-2 text-xs ds-text-tertiary">
+                  {ORCHESTRATION_PRIORITY_REASON_CODES[item.reason_code] ?? item.reason_code}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {clientTimelinePackOneClickCta ? (
         <p className="text-sm leading-relaxed ds-text-tertiary">{ORCHESTRATION_UI_COPY.executionPackFromTopActionsHint}</p>
       ) : null}
@@ -580,6 +621,11 @@ export function PortalTimelinePage() {
                   />
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setDeepDiveOpen(true)}>
+                      {ORCHESTRATION_UI_COPY.deepDiveCta}
+                    </Button>
+                  ) : null}
                   {isClient &&
                   APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled &&
                   APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled ? (
@@ -720,11 +766,22 @@ export function PortalTimelinePage() {
             ) : null}
 
             <Tabs defaultValue="overview" className="gap-4">
+              <p id="timeline-tabs-description" className="sr-only">
+                Use Arrow keys to move between timeline sections.
+              </p>
               <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 sm:flex-nowrap">
-                <TabsTrigger value="overview">{ORCHESTRATION_UI_COPY.portalTimelineTabOverview}</TabsTrigger>
-                <TabsTrigger value="workstreams">{ORCHESTRATION_UI_COPY.portalTimelineTabWorkstreams}</TabsTrigger>
-                <TabsTrigger value="dependencies">{ORCHESTRATION_UI_COPY.portalTimelineTabDependencies}</TabsTrigger>
-                <TabsTrigger value="planmap">{ORCHESTRATION_UI_COPY.portalTimelineTabPlanMap}</TabsTrigger>
+                <TabsTrigger aria-describedby="timeline-tabs-description" value="overview">
+                  {ORCHESTRATION_UI_COPY.portalTimelineTabOverview}
+                </TabsTrigger>
+                <TabsTrigger aria-describedby="timeline-tabs-description" value="workstreams">
+                  {ORCHESTRATION_UI_COPY.portalTimelineTabWorkstreams}
+                </TabsTrigger>
+                <TabsTrigger aria-describedby="timeline-tabs-description" value="dependencies">
+                  {ORCHESTRATION_UI_COPY.portalTimelineTabDependencies}
+                </TabsTrigger>
+                <TabsTrigger aria-describedby="timeline-tabs-description" value="planmap">
+                  {ORCHESTRATION_UI_COPY.portalTimelineTabPlanMap}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="mt-4 space-y-6 outline-none">
@@ -796,6 +853,19 @@ export function PortalTimelinePage() {
                     </div>
                   ))}
                 </div>
+                {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled && (timeline.milestones?.length ?? 0) > 0 ? (
+                  <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+                    <h3 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineMilestonesTitle}</h3>
+                    <ul className="mt-2 space-y-2 text-sm ds-text-secondary">
+                      {(timeline.milestones ?? []).map((milestone) => (
+                        <li key={milestone.id} className="rounded-md border border-[var(--border-default)] px-3 py-2">
+                          <div className="font-medium ds-text-primary">{milestone.label}</div>
+                          <div className="text-xs ds-text-tertiary">{milestone.target_window_days}d</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {topActionsBlock}
                 {clientTimelinePackOneClickCta ? (
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
@@ -833,11 +903,33 @@ export function PortalTimelinePage() {
               </TabsContent>
 
               <TabsContent value="workstreams" className="mt-4 space-y-4 outline-none">
+                {subAgentFilterOptions.length > 1 ? (
+                  <label className="flex flex-col gap-1 text-sm ds-text-secondary">
+                    <span className="font-medium ds-text-primary">{ORCHESTRATION_UI_COPY.timelineSubAgentFilterLabel}</span>
+                    <select
+                      className="w-full max-w-sm rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm"
+                      value={selectedSubAgentFilter}
+                      onChange={(event) => setSelectedSubAgentFilter(event.target.value)}
+                    >
+                      <option value="all">{ORCHESTRATION_UI_COPY.timelineSubAgentFilterAll}</option>
+                      {subAgentFilterOptions
+                        .filter((id) => id !== 'all')
+                        .map((id) => (
+                          <option key={id} value={id}>
+                            {id}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="sm:col-span-2 lg:col-span-3 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.lanesTitle}</div>
-                  {orderedTimelineLanes.map((lane) => (
+                  {filteredTimelineLanes.map((lane) => (
                     <div key={lane.lane_id} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-3">
                       <h3 className="text-sm font-medium ds-text-primary">{ORCHESTRATION_LANE_LABELS[lane.lane_id]}</h3>
+                      {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled ? (
+                        <p className="mt-1 text-xs ds-text-tertiary">{ORCHESTRATION_LANE_PROMISES[lane.lane_id]}</p>
+                      ) : null}
                       <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-relaxed ds-text-secondary">
                         {lane.items.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
                         {lane.items.map((item) => (
@@ -859,7 +951,10 @@ export function PortalTimelinePage() {
                     <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineBlockingDepsTitle}</div>
                     <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
                       {blockingDeps.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
-                      {blockingDeps.map((dep, i) => (
+                      {(isDependencyCardMode
+                        ? blockingDeps.slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
+                        : blockingDeps
+                      ).map((dep, i) => (
                         <li key={`blk-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
                       ))}
                     </ul>
@@ -868,7 +963,10 @@ export function PortalTimelinePage() {
                     <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineParallelTracksTitle}</div>
                     <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
                       {parallelTracks.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
-                      {parallelTracks.map((dep, i) => (
+                      {(isDependencyCardMode
+                        ? parallelTracks.slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
+                        : parallelTracks
+                      ).map((dep, i) => (
                         <li key={`par-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
                       ))}
                     </ul>
@@ -936,6 +1034,14 @@ export function PortalTimelinePage() {
                 </div>
               </TabsContent>
             </Tabs>
+            {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+              <DirectorDeepDiveDialog
+                open={deepDiveOpen}
+                onOpenChange={setDeepDiveOpen}
+                auditId={id}
+                domainKey="marketing_utp"
+              />
+            ) : null}
           </>
         )}
       </div>

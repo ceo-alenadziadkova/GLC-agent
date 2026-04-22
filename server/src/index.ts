@@ -19,6 +19,7 @@ import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
 import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
 import { startPipelineWorker } from './services/pipeline-jobs.js';
+import { startDirectorDeepDiveWorker } from './services/orchestration/run-director-deep-dive.service.js';
 import { warnPlatformAdminUserIdsEnvBootstrap } from './lib/platform-admin.js';
 import { warnSelfServeAuditOwnerEnvIfSet } from './lib/self-serve-audit-owner.js';
 import { getEffectiveFeatureFlagsSnapshot } from './config/feature-flags-snapshot.js';
@@ -116,6 +117,7 @@ app.listen(PORT, LISTEN_HOST, () => {
     }
   });
   startPipelineWorker();
+  startDirectorDeepDiveWorker();
   startAlertsWorker();
 });
 

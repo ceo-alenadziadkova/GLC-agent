@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { PortalTimelinePage } from '../PortalTimelinePage';
 
 const useAuditMock = vi.fn();
@@ -61,8 +62,12 @@ function renderWithProviders(node: ReactNode) {
 }
 
 describe('PortalTimelinePage', () => {
+  const originalNarrativeFlag = APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
+      originalNarrativeFlag;
     listStrategyExecutionPacksMock.mockResolvedValue({ items: [] });
     postStrategyExecutionPackMock.mockResolvedValue({ id: 'pack-1', payload: { packs: [] } });
     getAuditTimelineMock.mockResolvedValue({
@@ -96,6 +101,55 @@ describe('PortalTimelinePage', () => {
         strategy: { quick_wins: [] },
       },
     });
+  });
+
+  it('renders milestones and top priority reasons when narrative flag is enabled', async () => {
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
+      true;
+    useProfileMock.mockReturnValue({ isClient: true });
+    getAuditTimelineMock.mockResolvedValue({
+      timeline: {
+        status: 'ready',
+        version: {
+          roadmap_version: 3,
+          manifest_snapshot_id: 'snap-1',
+          latest_manifest_snapshot_id: 'snap-1',
+          stale_manifest: false,
+          manifest_state: 'confirmed',
+        },
+        seasons: [
+          { id: 'near', node_ids: [] },
+          { id: 'mid', node_ids: [] },
+          { id: 'far', node_ids: [] },
+        ],
+        lanes: [
+          {
+            lane_id: 'seo',
+            items: [{ id: 'n1', title: 'Improve crawl budget', lane: 'seo', domain: 'seo_digital' }],
+          },
+        ],
+        dependencies: [],
+        milestones: [{ id: 'ms_1_n1', label: 'Improve crawl budget', target_window_days: 7, unlocks: ['n1'] }],
+        top_7d: ['n1'],
+        top_30d: [],
+        top_priorities: [{ bucket: '7d', action_id: 'n1', reason_code: 'near_term' }],
+        waiting_list_domains: [],
+        data_gaps: null,
+      },
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/timeline/audit-1']}>
+        <Routes>
+          <Route path="/portal/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelineMilestonesTitle)).toBeInTheDocument();
+    expect(screen.getAllByText('Improve crawl budget').length).toBeGreaterThan(0);
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.topPriorityReasonLabel)).toBeInTheDocument();
+    expect(screen.getByText('Highest short-term leverage')).toBeInTheDocument();
   });
 
   it('uses portal links for client role', () => {
@@ -669,5 +723,48 @@ describe('PortalTimelinePage', () => {
     await user.click(summaries[0]!);
     expect(screen.getAllByText(ORCHESTRATION_UI_COPY.timelineLimitedContextBadge).length).toBeGreaterThan(0);
     expect(screen.getAllByText(ORCHESTRATION_UI_COPY.timelineDecisionWhyLabel).length).toBeGreaterThan(0);
+  });
+
+  it('shows sub-agent filter when timeline contains sub-agent sources', async () => {
+    const user = userEvent.setup();
+    useProfileMock.mockReturnValue({ isClient: true });
+    getAuditTimelineMock.mockResolvedValue({
+      timeline: {
+        status: 'ready',
+        version: {
+          roadmap_version: 1,
+          manifest_snapshot_id: null,
+          latest_manifest_snapshot_id: null,
+          stale_manifest: false,
+          manifest_state: 'draft',
+        },
+        seasons: [{ id: 'near', node_ids: [] }, { id: 'mid', node_ids: [] }, { id: 'far', node_ids: [] }],
+        lanes: [
+          {
+            lane_id: 'marketing_narrative',
+            items: [
+              { id: 'n1', title: 'Positioning', lane: 'marketing_narrative', domain: 'marketing_utp', source: 'sub_agent:cmo.agent_3_positioning' },
+            ],
+          },
+        ],
+        dependencies: [],
+        top_7d: [],
+        top_30d: [],
+        waiting_list_domains: [],
+        data_gaps: null,
+      },
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/timeline/audit-1']}>
+        <Routes>
+          <Route path="/portal/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await user.click(
+      await screen.findByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabWorkstreams }),
+    );
+    expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelineSubAgentFilterLabel)).toBeInTheDocument();
   });
 });

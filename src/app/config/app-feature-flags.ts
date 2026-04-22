@@ -53,4 +53,10 @@ export const APP_FEATURE_FLAGS = {
    * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
    */
   orchestrationTimelinePrimaryUxEnabled: true,
+  /** Client timeline narrative enhancements (lane promises, milestones, priority reasons). */
+  orchestrationRoadmapNarrativeEnabled: false,
+  /** On-demand director deep-dive from timeline/report surfaces. */
+  directorDeepDiveOnDemandEnabled: false,
+  /** Sub-agent selection for director deep-dive (CMO MVP). */
+  directorSubAgentsEnabled: false,
 } as const;

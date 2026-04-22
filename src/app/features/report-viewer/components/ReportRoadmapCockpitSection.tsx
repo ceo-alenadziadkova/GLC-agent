@@ -9,6 +9,8 @@ import { REPORT_VIEWER_CONSTANTS } from '../config/report-viewer.constants';
 import { REPORT_VIEWER_COPY, formatRoadmapCockpitCoverageLine } from '../config/report-viewer.copy.en';
 import type { ReportPageViewModel } from '../domain/types';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
+import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
+import { ORCHESTRATION_UI_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
 
 type ReportRoadmapCockpitSectionProps = {
   audit: AuditState;
@@ -131,6 +133,11 @@ export function ReportRoadmapCockpitSection({
         <Button asChild variant="outline" size="sm" className="no-underline">
           <Link to={`${pathname}#${anchorIds.domainScorecard}`}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaScorecard}</Link>
         </Button>
+        {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+          <Button asChild variant="outline" size="sm" className="no-underline">
+            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.deepDiveCta}</Link>
+          </Button>
+        ) : null}
       </div>
     </motion.div>
   );

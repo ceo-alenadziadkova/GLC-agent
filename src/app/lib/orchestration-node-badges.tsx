@@ -7,7 +7,7 @@ function findOrchestrationNode(pack: GlcOrchestrationPackView, nodeId: string) {
 }
 
 export type OrchestrationNodeProvenance = {
-  source?: 'strategy' | 'director';
+  source?: 'strategy' | 'director' | `sub_agent:${string}`;
   analysis_depth?: 'baseline' | 'deep';
 };
 
@@ -95,6 +95,11 @@ export function OrchestrationTimelineProvenanceBadges({
       {source === 'strategy' ? (
         <Badge variant="outline" className="text-[length:var(--text-2xs)] font-normal">
           {ORCHESTRATION_UI_COPY.nodeBadgeStrategy}
+        </Badge>
+      ) : null}
+      {typeof source === 'string' && source.startsWith('sub_agent:') ? (
+        <Badge variant="outline" className="text-[length:var(--text-2xs)] font-normal">
+          {ORCHESTRATION_UI_COPY.nodeBadgeSubAgent}
         </Badge>
       ) : null}
     </span>

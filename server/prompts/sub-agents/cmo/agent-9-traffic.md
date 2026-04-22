@@ -1,5 +1,4 @@
-
-
+<!-- version: 1.0 date: 2026-04-22 -->
 Source of truth: docs/instructions/CMO-INSTRUCTIONS.md §14 (Agent 9 Traffic)
 Invariant: if this section changes, update this prompt in the same PR.
 

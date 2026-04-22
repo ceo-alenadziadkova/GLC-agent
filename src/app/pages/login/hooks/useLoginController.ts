@@ -17,10 +17,22 @@ import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../../lib/storage-ke
 import { EMPTY_FIELD_ERRORS, type AuthMode, type FieldErrors, type SignupLegalFieldState } from '../types';
 import { resolveLoginRedirect } from '../services/login-session-reconcile-service';
 import { createLoginAuthService } from '../services/login-auth-service';
+import type { LegalConsentsResponse } from '../../../data/api/brief-profile-platform';
+import { APP_ROUTE_PATHS } from '../../../config/route-paths';
 const INITIAL_SIGNUP_LEGAL: SignupLegalFieldState = {
   acceptTos: false,
   acceptPrivacy: false,
 };
+
+function hasAcceptedRequiredLegalConsents(payload: LegalConsentsResponse): boolean {
+  const tosAccepted = payload.effective.some(
+    consent => consent.consent_key === 'tos_acceptance' && consent.accepted,
+  );
+  const privacyAccepted = payload.effective.some(
+    consent => consent.consent_key === 'privacy_acknowledgment' && consent.accepted,
+  );
+  return tosAccepted && privacyAccepted;
+}
 
 export function useLoginController() {
   const navigate = useNavigate();
@@ -103,6 +115,18 @@ export function useLoginController() {
 
     let cancelled = false;
     void (async () => {
+      try {
+        const consents = await api.getLegalConsents();
+        if (!hasAcceptedRequiredLegalConsents(consents)) {
+          if (!cancelled) {
+            setGlobalError(LC.legalConsentsUpdateRequired);
+            navigate(`${APP_ROUTE_PATHS.settings}#legal-consents`, { replace: true });
+          }
+          return;
+        }
+      } catch {
+        // Consent check is best-effort. Do not block sign-in if the endpoint is temporarily unavailable.
+      }
       const nextPath = await resolveLoginRedirect(window.location.search);
       if (cancelled) {
         return;

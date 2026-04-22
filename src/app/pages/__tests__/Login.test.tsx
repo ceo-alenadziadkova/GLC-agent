@@ -7,6 +7,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../lib/storage-keys';
 import { Login } from '../Login';
 import { useAuth } from '../../hooks/useAuth';
+import { api } from '../../data/apiService';
 
 vi.mock('../../hooks/useAuth', async importOriginal => {
   const actual = await importOriginal<typeof import('../../hooks/useAuth')>();
@@ -29,6 +30,38 @@ vi.mock('../../lib/logger', () => ({
 
 vi.mock('../../data/apiService', () => ({
   api: {
+    getLegalConsents: vi.fn().mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [
+        {
+          consent_key: 'tos_acceptance',
+          accepted: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+          document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+          tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+          privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+          dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+          source: 'api',
+        },
+        {
+          consent_key: 'privacy_acknowledgment',
+          accepted: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+          document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+          tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+          privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+          dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+          source: 'api',
+        },
+      ],
+    }),
     postLegalConsents: vi.fn().mockResolvedValue({
       published: {
         bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
@@ -44,6 +77,7 @@ vi.mock('../../data/apiService', () => ({
 }));
 
 const mockUseAuth = vi.mocked(useAuth);
+const mockApi = vi.mocked(api);
 
 const navigate = vi.fn();
 
@@ -84,6 +118,38 @@ function renderLogin(initialPath = '/login') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockApi.getLegalConsents.mockResolvedValue({
+    published: {
+      bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+      terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+      privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+      data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+      legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+      cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+    },
+    effective: [
+      {
+        consent_key: 'tos_acceptance',
+        accepted: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+        tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        source: 'api',
+      },
+      {
+        consent_key: 'privacy_acknowledgment',
+        accepted: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+        tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        source: 'api',
+      },
+    ],
+  });
   signInWithPassword.mockResolvedValue({ error: null });
   signUpWithPassword.mockResolvedValue({ error: null, session: null });
   signInWithGoogle.mockResolvedValue({ error: null });
@@ -166,6 +232,32 @@ describe('Login', () => {
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
     });
+  });
+
+  it('redirects authenticated user to settings legal-consents when required consents are missing', async () => {
+    mockApi.getLegalConsents.mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [],
+    });
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'a@a.com', identities: [{ provider: 'email' }] } as User,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/settings#legal-consents', { replace: true });
+    });
+    expect(navigate).not.toHaveBeenCalledWith('/portfolio', { replace: true });
   });
 
   it('does not navigate away for anonymous user (upgrade path)', async () => {

@@ -79,6 +79,13 @@ export const SETTINGS_PAGE_COPY = {
     title: 'Client consent preferences',
     description:
       'Optional marketing, analytics, case-study, and evaluation preferences. You can change these choices anytime.',
+    requiredTitle: 'Updated legal policies',
+    requiredDescription:
+      'To continue using the platform, please review and accept the updated Terms of Service and Privacy Policy.',
+    requiredTos: 'I accept the updated Terms of Service',
+    requiredPrivacy: 'I acknowledge the updated Privacy Policy',
+    termsLink: 'Terms of Service',
+    privacyLink: 'Privacy Policy',
     loading: 'Loading consent preferences…',
     loadFailed: 'Consent preferences could not be loaded.',
     saved: 'Preferences updated.',

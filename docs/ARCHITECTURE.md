@@ -379,6 +379,15 @@ ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAY
 
 ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md).
 
+### Director deep-dive two-stage
+
+- On-demand deep-dive uses dedicated API routes under `/api/audits/:id/directors/:domain/deep-dive`.
+- Runtime lifecycle reuses `job_runs` (`queued`/`running`/`completed`/`failed`/`dead_letter`) with queue name `director_deep_dive` and a dedicated BullMQ worker started at server bootstrap.
+- Portal deep-dive dialog tracks status through Supabase Realtime updates on `job_runs` row (`queue_job_id` filter), not via client-side polling loops.
+- Quotas and package-tier gates are read from `director-orchestration-policy` (`execution_plan.coverage_package` remains SSOT).
+- CMO sub-agent MVP runs through config-driven registry/modes/router/orchestrator and is fully feature-flagged.
+- Current CMO orchestrator dispatch is deterministic scaffolded output; production gating stays behind `FEATURE_DIRECTOR_SUB_AGENTS` until runtime execution path is promoted.
+
 ---
 
 ## ADR — TypeScript-first (v1)
@@ -471,5 +480,7 @@ There is no single `audit_state.json` file in production. Persistent state is no
 **Intake contract:** progressive layers, collection modes, and field semantics are defined in product terms in [PRODUCT.md](./PRODUCT.md#intake-experience-progressive-model) (`intake_brief` table plus derived readiness fields — see [DATABASE.md](./DATABASE.md)).
 
 **Unified intake resolver (ADR):** Runtime entry point `buildIntakePlan()` ships in the workspace package `**@glc/intake-core`** (`[packages/intake-core](../packages/intake-core/src/index.ts)`). Canon rules: `[branch-rules.ts](../packages/intake-core/src/branch-rules.ts)` + `[question-bank.v1.json](../packages/intake-core/src/question-bank.v1.json)`. Policy artifact: `[intake-policy.v1.json](../packages/intake-core/src/intake-policy.v1.json)`. Layout artifact: `[layout-rules.v1.json](../packages/intake-core/src/layout-rules.v1.json)`. The SPA imports `**@glc/intake-core**` (e.g. `[src/app/hooks/useIntakeWizard.ts](../src/app/hooks/useIntakeWizard.ts)`, `[src/app/lib/discovery-flow.ts](../src/app/lib/discovery-flow.ts)`). Server build compiles the package to `packages/intake-core/dist` before `tsc`. Full decision record: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
+
+**Decision-Intelligence Sprint 1 gate:** `lintIntelligenceContractV1` enforces hard errors for P0 `required_now` metadata and invalid `semanticDomain`; anti-pattern checks are warning-only in this phase. Runtime path (`buildIntakePlan`) remains fail-open for incomplete non-P0 metadata and emits `intelligence_metadata_incomplete` diagnostics instead of breaking plan construction.
 
 **Classic consultant brief catalog:** Rows for the “all sections” / interview UI are built in `**intake-brief-catalog-meta.ts`** from policy `**modes.classic_brief.main**` (export `**BRIEF_QUESTIONS**`). `**GET /api/audits/:id/brief**` returns `**getBriefQuestionsByIds(plan.visible)**` — only ids present in `**plan.visible**`, not the whole catalog. **Pre-brief public link** (`GET /api/intake/:token`) prepends `**INTAKE_IDENTITY_BRIEF_QUESTIONS`** (`**modes.pre_brief.identityFieldIds**` as bank stems + conditional `**intake_industry_specify**`) before the same `**plan.visible**` slice. Details: [QUESTION_BANK.md](./QUESTION_BANK.md), [API.md](./API.md).

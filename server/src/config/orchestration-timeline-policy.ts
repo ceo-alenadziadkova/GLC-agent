@@ -12,6 +12,8 @@ export const ORCHESTRATION_TIMELINE_POLICY = {
   staleManifestStatusEnabled: true,
   /** Snapshot list fetch size to resolve latest manifest id vs pack (timeline read model). */
   latestManifestSnapshotsPeekLimit: 1,
+  milestoneMinCount: 3,
+  milestoneMaxCount: 6,
   /**
    * Minimum default per-node window (days) when building a calendar partition without `target_window_days`.
    * Actual default also scales with `ceil(inclusiveSpan / max(1, criticalPathLength))`.

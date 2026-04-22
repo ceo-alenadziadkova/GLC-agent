@@ -49,6 +49,14 @@ export const ORCHESTRATION_UI_LIMITS = {
   portalTimelinePackGraphCanvasMinHeightPx: 260,
   /** Portal execution timeline: expanded map min canvas height. */
   portalTimelinePackGraphCanvasExpandedMinHeightPx: 320,
+  /** Mobile breakpoint for dependency card mode. */
+  timelineDependencyCardModeMaxWidthPx: 768,
+  /** Max dependency cards shown per list in mobile mode. */
+  timelineDependencyCardsPerSectionMobile: 10,
+  /** Deep-dive status polling interval after enqueue succeeds. */
+  deepDiveStatusPollIntervalMs: 2000,
+  /** Deep-dive status polling hard cap to avoid infinite waits. */
+  deepDiveStatusPollMaxAttempts: 30,
 } as const;
 
 /** Rolling timeline windows used by roadmap projection (days). */

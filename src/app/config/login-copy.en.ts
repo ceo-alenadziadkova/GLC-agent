@@ -64,4 +64,6 @@ export const LOGIN_PAGE_COPY_EN = {
   errorPasswordMinLength: 'Password must be at least 8 characters.',
   errorPasswordsMismatch: 'Passwords do not match.',
   errorInvalidEmail: 'Enter a valid email address.',
+  legalConsentsUpdateRequired:
+    'Our legal policies were updated. Please review and accept them in Settings to continue.',
 } as const;

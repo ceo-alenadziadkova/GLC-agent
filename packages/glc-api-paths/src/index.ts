@@ -217,6 +217,14 @@ export function apiAuditsTimeline(auditId: string): string {
   return `${apiAuditsPath(auditId)}/timeline`;
 }
 
+export function apiAuditsDirectorDeepDive(auditId: string, domainKey: string): string {
+  return `${apiAuditsPath(auditId)}/directors/${encodeURIComponent(domainKey)}/deep-dive`;
+}
+
+export function apiAuditsDirectorDeepDiveStatus(auditId: string, domainKey: string, jobId: string): string {
+  return `${apiAuditsDirectorDeepDive(auditId, domainKey)}/${encodeURIComponent(jobId)}`;
+}
+
 /** Platform admin: clear `cancelled` so the audit owner can retry or continue. */
 export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string {
   return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;

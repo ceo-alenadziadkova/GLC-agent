@@ -56,7 +56,7 @@ const TimelineNodeCardSchema = z.object({
   season_index: z.number().int().positive().optional(),
   time_bucket: z.enum(['now', 'next', 'later']).optional(),
   analysis_depth: z.enum(['baseline', 'deep']).optional(),
-  source: z.enum(['strategy', 'director']).optional(),
+  source: z.union([z.enum(['strategy', 'director']), z.string().regex(/^sub_agent:/)]).optional(),
   explain: z
     .object({
       why: z.array(z.string().min(1)).optional(),
@@ -104,6 +104,19 @@ const TimelineSeasonSchema = z.object({
   node_ids: z.array(z.string().min(1)),
 });
 
+const TimelineMilestoneSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  target_window_days: z.number().int().positive(),
+  unlocks: z.array(z.string().min(1)),
+});
+
+const TimelineTopPrioritySchema = z.object({
+  bucket: z.enum(['7d', '30d']),
+  action_id: z.string().min(1),
+  reason_code: z.string().min(1),
+});
+
 const planHorizonIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
 const TimelinePlanHorizonSchema = z.object({
   start_date: z.string().regex(planHorizonIsoRegex),
@@ -136,8 +149,12 @@ export const OrchestratorTimelineDtoSchema = z.object({
   seasons: z.array(TimelineSeasonSchema),
   lanes: z.array(TimelineLaneSchema),
   dependencies: z.array(TimelineDependencySchema),
+  milestones: z.array(TimelineMilestoneSchema).optional(),
+  /** @deprecated Prefer `top_priorities` for client-facing priority narrative. */
   top_7d: z.array(z.string().min(1)),
+  /** @deprecated Prefer `top_priorities` for client-facing priority narrative. */
   top_30d: z.array(z.string().min(1)),
+  top_priorities: z.array(TimelineTopPrioritySchema).optional(),
   waiting_list_domains: z.array(z.enum(domainTuple)),
   data_gaps: TimelineDataGapsSchema.nullable(),
 });

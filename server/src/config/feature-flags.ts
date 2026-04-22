@@ -206,6 +206,22 @@ export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
   );
 }
 
+/** On-demand director deep-dive API/UI flow. Env: FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND */
+export function isDirectorDeepDiveOnDemandEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND,
+    FF.directorDeepDiveOnDemandEnabled,
+  );
+}
+
+/** Director sub-agent orchestration layer. Env: FEATURE_DIRECTOR_SUB_AGENTS */
+export function isDirectorSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_SUB_AGENTS,
+    FF.directorSubAgentsEnabled,
+  );
+}
+
 /**
  * Diagnostic Adaptive Intake pilot — readiness blocking on pipeline start / discover convert.
  * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT=true
