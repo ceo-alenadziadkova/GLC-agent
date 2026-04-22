@@ -1,4 +1,4 @@
-<!-- version: 1.9 date: 2026-04-22 -->
+<!-- version: 1.10 date: 2026-04-22 -->
 # Agent Prompts
 
 System prompts for each AI agent, loaded at runtime via `loadPrompt(name)` in `server/src/agents/base.ts`.
@@ -44,6 +44,17 @@ The version is written to `audit_domains.prompt_version` when a domain result is
 | `sub-agents/cmo/agent-3-positioning.md` | CMO Agent 3 Positioning |
 | `sub-agents/cmo/agent-5-content-strategy.md` | CMO Agent 5 Content Strategy |
 | `sub-agents/cmo/agent-9-traffic.md` | CMO Agent 9 Traffic |
+| `sub-agents/cdo/funnel-architect.md` | CDO materialized — Funnel architect (MVP) |
+| `sub-agents/cdo/friction.md` | CDO materialized — Friction |
+| `sub-agents/cdo/experimentation.md` | CDO materialized — Experimentation |
+| `sub-agents/cao/process-map.md` | CAO materialized — Process map |
+| `sub-agents/cao/automation-candidates.md` | CAO materialized — Automation candidates |
+| `sub-agents/cao/throughput.md` | CAO materialized — Throughput |
+| `sub-agents/cso/case-classifier.md` | CSO materialized — Case classifier |
+| `sub-agents/cso/threat-model.md` | CSO materialized — Threat model |
+| `sub-agents/cso/compliance-map.md` | CSO materialized — Compliance map |
+
+Paths are listed in `server/src/config/director-domain-materialized-prompt-refs.ts` and attached to deterministic wave actions via `evidence.derived`.
 
 ## Editing Prompts
 

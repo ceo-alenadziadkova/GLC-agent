@@ -212,6 +212,17 @@ export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
   );
 }
 
+/**
+ * When true, roadmap narrative timeline fields are enabled for all users (mirrors SPA `orchestrationRoadmapNarrativeEnabled`).
+ * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED
+ */
+export function isOrchestrationRoadmapNarrativeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED,
+    FF.orchestrationRoadmapNarrativeEnabled,
+  );
+}
+
 /** Staged rollout mode for client roadmap narrative. Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE */
 export function getOrchestrationRoadmapNarrativeRolloutMode(): FeatureRolloutMode {
   return readFeatureRolloutMode(

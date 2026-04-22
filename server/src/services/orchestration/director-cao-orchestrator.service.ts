@@ -1,10 +1,10 @@
-import { buildDirectorDomainStubBundle } from './director-domain-stub-bundles.service.js';
 import { routeCaoDeepDive } from './director-cao-router.service.js';
+import { buildCaoMaterializedWaveBundle } from './director-domain-materialized-bundles.service.js';
 import { logger } from '../logger.js';
 import type { DirectorWaveBundle } from '../../schemas/glc-director-orchestration-slice.js';
 
 /**
- * CAO deep-dive path until 13 zones are materialized as sub-agent registry entries.
+ * CAO deep-dive: two-stage heuristics + deterministic MVP zone wave.
  */
 export function runCaoDirectorDeepDiveOrchestrator(input: {
   domainKey: string;
@@ -17,9 +17,10 @@ export function runCaoDirectorDeepDiveOrchestrator(input: {
     cao_zone_stage: route.zone_stage,
     cao_zone_focus: route.zone_focus,
   });
-  return buildDirectorDomainStubBundle('cao_stub', {
+  return buildCaoMaterializedWaveBundle({
     domainKey: input.domainKey,
     goals: input.goals,
     constraints: input.constraints,
+    route,
   });
 }

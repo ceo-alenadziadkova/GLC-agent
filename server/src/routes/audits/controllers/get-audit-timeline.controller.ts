@@ -9,6 +9,7 @@ import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { ORCHESTRATION_TELEMETRY_METRICS } from '../../../config/orchestration-telemetry-policy.js';
 import { buildClientTimelineReadModel } from '../../../services/orchestration/orchestrator-timeline-read.service.js';
+import { redactOrchestratorTimelineNarrativeIfDisabled } from '../../../services/orchestration/orchestrator-timeline-narrative-gate.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 export async function getAuditTimelineController(req: AuthRequest, res: Response) {
@@ -36,7 +37,8 @@ export async function getAuditTimelineController(req: AuthRequest, res: Response
         roadmap_version: result.timeline.version.roadmap_version,
       });
     }
-    res.json({ timeline: result.timeline });
+    const timeline = redactOrchestratorTimelineNarrativeIfDisabled(result.timeline, req.userEmail);
+    res.json({ timeline });
   } catch (err) {
     const error = err as Error;
     logger.error('route.audit_timeline_failed', {

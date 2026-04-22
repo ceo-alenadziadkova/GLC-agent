@@ -75,6 +75,7 @@ export const REPORT_VIEWER_COPY = {
       'Review domain scores and findings below, then open Timeline to sequence execution across teams.',
     ctaManifest: 'Open timeline setup',
     ctaTimeline: 'View execution timeline',
+    ctaMarkNextStepOnTimeline: 'Set next step (timeline)',
     ctaCompare: 'Compare roadmap versions',
     ctaScorecard: 'Domain scorecard',
     latestPlanChangeLabel: 'Latest plan change',

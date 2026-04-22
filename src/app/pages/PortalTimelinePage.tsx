@@ -641,7 +641,7 @@ export function PortalTimelinePage() {
     );
 
   const topActionsBlock = timeline ? (
-    <div className="space-y-3" data-testid="portal-timeline-top-actions">
+    <div id="portal-timeline-priorities" className="space-y-3 scroll-mt-8" data-testid="portal-timeline-top-actions">
       {effectiveNarrative && (timeline.top_priorities?.length ?? 0) > 0 ? (
         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
           <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topPriorityReasonLabel}</div>
@@ -663,7 +663,11 @@ export function PortalTimelinePage() {
       {milestoneTopActionPlan.useMilestoneTranches && milestoneTopActionPlan.sections.length > 0 ? (
         <div className="space-y-5">
           {milestoneTopActionPlan.sections.map(({ milestone: m, items }) => (
-            <section key={m.id} id={`timeline-milestone-${m.id}`} className="scroll-mt-6">
+            <section
+              key={m.id}
+              id={`timeline-milestone-${m.id}`}
+              className="scroll-mt-6 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)]/50 p-4"
+            >
               <h3 className="text-sm font-semibold ds-text-primary">{m.label}</h3>
               <p className="mt-1 text-xs leading-relaxed ds-text-tertiary">
                 {ORCHESTRATION_UI_COPY.milestoneUnlocksLabel}: {items.map((r) => readNodeTitle(r.id)).join(' · ')} · {m.target_window_days}d

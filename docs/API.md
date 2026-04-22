@@ -604,6 +604,8 @@ Returns the **client timeline read model** (seasonal buckets, lanes, truncated d
 
 **Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` when the pack API flag is off, `404` when the audit is missing or inaccessible.
 
+**Narrative gating (milestones, top_priorities):** the server may omit `milestones` and `top_priorities` when the caller is not entitled under `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` and staged `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (allowlist; mirrors SPA `orchestration-client-feature-gates`). Legacy `top_7d` / `top_30d` remain.
+
 ---
 
 ### `POST /api/audits/:id/orchestration/pack`

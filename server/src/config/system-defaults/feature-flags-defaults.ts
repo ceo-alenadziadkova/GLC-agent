@@ -60,6 +60,12 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   orchestrationTimelinePrimaryUxEnabled: true,
   /**
+   * When true, timeline API may emit narrative fields to all users (milestones, top_priorities).
+   * When false, staged access uses `orchestrationRoadmapNarrativeRolloutMode` + allowlist (see orchestration-rollout-gates).
+   * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED
+   */
+  orchestrationRoadmapNarrativeEnabled: false,
+  /**
    * Rollout mode for client roadmap narrative surface.
    * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE
    */

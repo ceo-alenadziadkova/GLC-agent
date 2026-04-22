@@ -126,6 +126,13 @@ export function ReportRoadmapCockpitSection({
         <Button asChild variant="default" size="sm" className="no-underline">
           <Link to={timelineHref}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaTimeline}</Link>
         </Button>
+        {hasOrchestrationPack ? (
+          <Button asChild variant="outline" size="sm" className="no-underline">
+            <Link to={`${timelineHref}#portal-timeline-priorities`}>
+              {REPORT_VIEWER_COPY.roadmapCockpit.ctaMarkNextStepOnTimeline}
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild variant={hasOrchestrationPack ? 'outline' : 'default'} size="sm" className="no-underline">
           <Link to={manifestHref}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaManifest}</Link>
         </Button>

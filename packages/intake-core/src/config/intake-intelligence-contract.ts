@@ -383,6 +383,126 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
     ],
     todo: DEFAULT_TODO,
   },
+  b2: {
+    whyAsked: 'Buying triggers determine timing, creative angles, and which proof assets to prepare first.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'strategy.demand_window',
+        weight: 'medium',
+        effectDescription: 'Aligns GTM waves and follow-up SLAs to real purchase events.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b3: {
+    whyAsked: 'Objection patterns shape landing narrative, risk-reversal, and success metrics in trials.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.friction_map',
+        weight: 'high',
+        effectDescription: 'Links copy and UX fixes to the highest-frequency drop-off reasons.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b4: {
+    whyAsked: 'Proof inventory determines credibility depth on site, ads, and sales collateral.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.proof_layer',
+        weight: 'high',
+        effectDescription: 'Selects which evidence to lift into hero, retargeting, and case studies.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c1: {
+    whyAsked: 'Channel efficiency caps set realistic CAC/ROAS plans and where to reallocate when limits hit.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.acquisition_guardrails',
+        weight: 'high',
+        effectDescription: 'Prevents over-spend before measurement loops are trusted.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c3: {
+    whyAsked: 'Funnel shape exposes whether to fix top-of-funnel, mid-funnel nurture, or closing.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'strategy.pipeline_diagnosis',
+        weight: 'high',
+        effectDescription: 'Sequencing of experiments and content against the true bottleneck stage.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c4: {
+    whyAsked: 'Cycle length sets forecast realism, sales capacity planning, and nurture depth.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.sales_cadence',
+        weight: 'medium',
+        effectDescription: 'Drives handoff design between marketing, SDR, and account teams.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c5: {
+    whyAsked: 'Revenue model clarity avoids mixed messaging, pricing page drift, and wrong KPI dashboards.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.unit_economics',
+        weight: 'high',
+        effectDescription: 'Connects CAC, ARPA, and expansion assumptions to a single view.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c6: {
+    whyAsked: 'Gross margin bounds what channels, SLAs, and support depth the business can fund.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.margin_floor',
+        weight: 'high',
+        effectDescription: 'Informs whether paid scale or product-led growth is structurally allowed.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c7: {
+    whyAsked: 'Runway and burn inform aggressiveness of experiments and hiring in the delivery path.',
+    semanticDomain: 'risks',
+    decisionImpact: [
+      {
+        target: 'strategy.risk_register',
+        weight: 'high',
+        effectDescription: 'Sets time-boxes for roadmap bets and default stall policies.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d1: {
+    whyAsked: 'Stack snapshot reveals integration risk, analytics reliability, and security blast radius.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'tech_infrastructure.dependency_footprint',
+        weight: 'high',
+        effectDescription: 'Guides which connectors, migrations, and observability to prioritize.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
 };
 
 function collectCriticalSignalBankIds(): Set<string> {

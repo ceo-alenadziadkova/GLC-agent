@@ -56,7 +56,10 @@ export const APP_FEATURE_FLAGS = {
    * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
    */
   orchestrationTimelinePrimaryUxEnabled: true,
-  /** Client timeline narrative enhancements (lane promises, milestones, priority reasons). */
+  /**
+   * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
+   * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
+   */
   orchestrationRoadmapNarrativeEnabled: false,
   /** Client timeline narrative staged rollout mode. */
   orchestrationRoadmapNarrativeRolloutMode: 'internal' as FeatureRolloutMode,

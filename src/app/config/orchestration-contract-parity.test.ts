@@ -41,6 +41,8 @@ import { ORCHESTRATION_LANE_LABELS } from './orchestration-roadmap-ui-copy.en';
 import { DIRECTOR_DEEP_DIVE_API_ERROR_CODES } from './director-deep-dive-api-error-codes';
 import { API_ERROR_CODES } from '../../../server/src/config/api-error-codes';
 import { DIRECTOR_SUB_AGENT_IDS as SERVER_DIRECTOR_SUB_AGENT_IDS } from '../../../server/src/config/director-sub-agents';
+import { ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS } from '../../../server/src/config/orchestration-rollout-gates';
+import { ORCHESTRATION_CLIENT_ROLLOUT_ALLOWLIST_EMAILS } from './orchestration-client-feature-gates';
 import { DIRECTOR_SUB_AGENT_OPTIONS } from './director-sub-agents';
 
 describe('orchestration contract parity', () => {
@@ -86,6 +88,12 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps roadmap narrative base toggle default aligned (server env default vs APP_FEATURE_FLAGS static map)', () => {
+    expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled,
+    );
+  });
+
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
     expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
@@ -107,6 +115,12 @@ describe('orchestration contract parity', () => {
   it('keeps CMO sub-agent option ids aligned with server registry ids', () => {
     expect(DIRECTOR_SUB_AGENT_OPTIONS.map((option) => option.id).sort()).toEqual(
       [...SERVER_DIRECTOR_SUB_AGENT_IDS].sort(),
+    );
+  });
+
+  it('keeps orchestration staged rollout allowlist identical on client and server (see docs/DEPLOYMENT.md)', () => {
+    expect([...ORCHESTRATION_CLIENT_ROLLOUT_ALLOWLIST_EMAILS].sort()).toEqual(
+      [...ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS].sort(),
     );
   });
 });

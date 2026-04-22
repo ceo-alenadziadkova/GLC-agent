@@ -263,11 +263,11 @@ export function DirectorDeepDiveDialog(props: {
             <div className="space-y-2">
             <div className="text-xs font-medium text-[var(--text-secondary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerLabel}</div>
             <p className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerHint}</p>
-            <div className="space-y-2">
+            <div className="max-h-[min(50vh,24rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 sm:max-h-[min(60vh,28rem)]">
               {availableSubAgents.map((option) => {
                 const checked = selectedSubAgentIds.includes(option.id);
                 return (
-                  <label key={option.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-[var(--border-default)] px-3 py-2">
+                  <label key={option.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-[var(--border-default)] px-3 py-2 touch-manipulation">
                     <input
                       type="checkbox"
                       className="mt-0.5"

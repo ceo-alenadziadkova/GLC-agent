@@ -37,9 +37,9 @@ describe('intake intelligence contract', () => {
     const summary = getIntakeIntelligenceCoverageSummary();
     expect(summary.totalQuestions).toBe(78);
     expect(summary.p0Questions).toBe(INTAKE_INTELLIGENCE_P0_IDS.length);
-    expect(summary.fullyCoveredQuestions).toBe(28);
+    expect(summary.fullyCoveredQuestions).toBe(38);
     expect(summary.fullyCoveredP0Questions).toBe(summary.p0Questions);
-    expect(summary.coverageRatio).toBeCloseTo(28 / 78, 8);
+    expect(summary.coverageRatio).toBeCloseTo(38 / 78, 8);
     expect(summary.p0CoverageRatio).toBe(1);
   });
 
@@ -49,7 +49,7 @@ describe('intake intelligence contract', () => {
     expect(p0Projected?.whyAsked).toBeTruthy();
     expect(Array.isArray(p0Projected?.decisionImpact)).toBe(true);
 
-    const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('b2'));
+    const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('b6'));
     expect(nonP0Projected).toBeUndefined();
   });
 });

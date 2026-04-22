@@ -7,8 +7,10 @@ import type { FeatureRolloutMode } from './feature-flags.js';
 import {
   getDirectorDeepDiveRolloutMode,
   getDirectorSubAgentsRolloutMode,
+  getOrchestrationRoadmapNarrativeRolloutMode,
   isDirectorDeepDiveOnDemandEnabled,
   isDirectorSubAgentsEnabled,
+  isOrchestrationRoadmapNarrativeEnabled,
 } from './feature-flags.js';
 
 export const ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS: readonly string[] = [
@@ -59,6 +61,21 @@ export function isDirectorSubAgentsEnabledForRequest(
   if (isDirectorSubAgentsEnabled()) return true;
   return isRolloutModeUnlockedForUser(
     getDirectorSubAgentsRolloutMode(),
+    userEmail,
+    ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS,
+  );
+}
+
+/**
+ * Roadmap narrative fields on `GET /timeline` (milestones, top_priorities):
+ * base env flag, else staged mode + allowlist (mirrors SPA `getEffectiveOrchestrationRoadmapNarrativeEnabled`).
+ */
+export function isOrchestrationRoadmapNarrativeEnabledForRequest(
+  userEmail: string | null | undefined,
+): boolean {
+  if (isOrchestrationRoadmapNarrativeEnabled()) return true;
+  return isRolloutModeUnlockedForUser(
+    getOrchestrationRoadmapNarrativeRolloutMode(),
     userEmail,
     ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS,
   );
