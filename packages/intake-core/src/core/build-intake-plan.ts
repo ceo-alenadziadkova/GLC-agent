@@ -7,6 +7,10 @@ import {
   isIntakeNextRecommendedEnabled,
   isIntakePolicyRichnessEnabled,
 } from '../config/intake-flags.js';
+import {
+  getIntakeIntelligenceContract,
+  hasIntakeIntelligenceRequiredNow,
+} from '../config/intake-intelligence-contract.js';
 
 import { evaluateCanonEligibility, recomputeCanonEligibilityIncremental } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';
@@ -326,6 +330,18 @@ function buildIntakePlanInternal(
     collectionMode,
     surface: input.surface,
   });
+
+  for (const questionId of finalVisible) {
+    if (!hasIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(questionId))) {
+      debugTrace.push({
+        layer: 'resolver',
+        level: 'warn',
+        code: 'intelligence_metadata_incomplete',
+        message: `Intelligence metadata is incomplete for "${questionId}"; runtime fallback keeps question visible.`,
+      });
+    }
+  }
+
   for (const te of diagnostics.remediation.trace) {
     debugTrace.push({
       layer: 'resolver',

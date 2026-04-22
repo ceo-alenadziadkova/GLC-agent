@@ -94,6 +94,49 @@ export interface IntakeReadinessTraceEntry {
   detail?: Record<string, unknown>;
 }
 
+/**
+ * Decision-intelligence metadata (Sprint 1): immutable semantic spine used by adaptive intake.
+ * Keep categories broad and stable; question-level metadata maps into one of these buckets.
+ */
+export type DiagnosticSpineCategory =
+  | 'market'
+  | 'value'
+  | 'economics'
+  | 'operations'
+  | 'resources'
+  | 'risks';
+
+export const DIAGNOSTIC_SPINE_CATEGORIES: DiagnosticSpineCategory[] = [
+  'market',
+  'value',
+  'economics',
+  'operations',
+  'resources',
+  'risks',
+];
+
+export interface DecisionImpact {
+  target: string;
+  weight: 'low' | 'medium' | 'high';
+  effectDescription: string;
+}
+
+export interface SignalContribution {
+  signalKey: string;
+  expectedInfoGainBits?: number;
+  confidenceLift?: 'low' | 'medium' | 'high';
+}
+
+export interface FollowupPolicy {
+  deeperIf?: string;
+  stopIf?: string;
+}
+
+export interface StopCondition {
+  when: string;
+  reason?: string;
+}
+
 export interface IntakeReadinessEnvelope {
   flowReadinessStatus: FlowReadinessStatus;
   auditReadinessStatus: AuditReadinessStatus;

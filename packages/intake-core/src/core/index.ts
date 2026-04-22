@@ -56,6 +56,7 @@ export {
   lintDuplicateDiscoveryIncluded,
   lintLayoutReferencesUnknownBankIds,
   lintMissingPolicyCoverage,
+  lintIntelligenceContractV1,
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
   lintPreBriefBankIncludedBranchConflicts,

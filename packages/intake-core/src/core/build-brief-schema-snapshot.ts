@@ -11,6 +11,11 @@ import type {
   IntakeVersionTuple,
   ProductMode,
 } from '../audit-contract.js';
+import type { IntakeIntelligenceContract } from '../config/intake-intelligence-contract.js';
+import {
+  getIntakeIntelligenceContract,
+  hasIntakeIntelligenceRequiredNow,
+} from '../config/intake-intelligence-contract.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
 import { evaluateIntakeReadinessEnvelope } from './intake-readiness-envelope.js';
@@ -23,6 +28,8 @@ export interface BriefSchemaQuestionRow {
   priority: string;
   /** Canon answer contract; `optionsRef` expanded to `options` for clients. */
   answer?: IntakeAnswerContract;
+  /** Sprint 1: expose only complete intelligence metadata; incomplete contracts are omitted by fallback. */
+  intelligence?: Pick<IntakeIntelligenceContract, 'whyAsked' | 'semanticDomain' | 'decisionImpact'>;
 }
 
 export interface BriefSchemaStepRow {
@@ -106,12 +113,22 @@ export function buildBriefSchemaSnapshot(args: {
     const meta = getQuestionBankSchemaMeta(id);
     if (!meta) continue;
     const ac = getQuestionBankAnswerContract(id);
+    const intelligence = getIntakeIntelligenceContract(id);
     questions.push({
       id,
       label: meta.label,
       section: meta.section,
       priority: meta.priority,
       ...(ac ? { answer: expandAnswerContractForApi(ac) } : {}),
+      ...(hasIntakeIntelligenceRequiredNow(intelligence)
+        ? {
+            intelligence: {
+              whyAsked: intelligence.whyAsked,
+              semanticDomain: intelligence.semanticDomain,
+              decisionImpact: intelligence.decisionImpact,
+            },
+          }
+        : {}),
     });
   }
 

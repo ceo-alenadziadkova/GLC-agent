@@ -179,6 +179,22 @@ export {
   INTAKE_DIAGNOSTIC_ANALYTICS_KINDS,
   type IntakeDiagnosticAnalyticsKind,
 } from './config/intake-rollout-analytics-kinds.js';
+export {
+  getIntakeIntelligenceContract,
+  getIntakeIntelligenceCoverageSummary,
+  hasIntakeIntelligenceOptionalWithTodo,
+  hasIntakeIntelligenceRequiredNow,
+  INTAKE_INTELLIGENCE_OPTIONAL_WITH_TODO_FIELDS,
+  INTAKE_INTELLIGENCE_P0_IDS,
+  INTAKE_INTELLIGENCE_REQUIRED_NOW_FIELDS,
+  isValidIntakeIntelligenceTodo,
+  isIntakeIntelligenceP0Question,
+  type IntakeIntelligenceContract,
+  type IntakeIntelligenceOptionalWithTodoField,
+  type IntakeIntelligenceOwnerDomain,
+  type IntakeIntelligenceRequiredNowField,
+  type IntakeIntelligenceTodo,
+} from './config/intake-intelligence-contract.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
   AuditReadinessStatus,
@@ -189,16 +205,21 @@ export type {
   BriefResponseValue,
   BriefRevenueSignal,
   DomainKey,
+  DecisionImpact,
+  DiagnosticSpineCategory,
   FlowReadinessStatus,
+  FollowupPolicy,
   IntakeBriefCollectionMode,
   IntakeCriticalSignalConfidence,
   IntakeReadinessEnvelope,
   IntakeReadinessTraceEntry,
+  SignalContribution,
+  StopCondition,
   IntakeVersionMigration,
   IntakeVersionTuple,
   ProductMode,
 } from './audit-contract.js';
-export { DOMAIN_KEYS } from './audit-contract.js';
+export { DIAGNOSTIC_SPINE_CATEGORIES, DOMAIN_KEYS } from './audit-contract.js';
 export {
   INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
   INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,

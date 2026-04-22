@@ -13,6 +13,7 @@ import {
 } from './lint-policy-modes.js';
 import { lintSyntheticCollision } from './lint-synthetic-express.js';
 import { lintCriticalSignalRegistry } from './lint-critical-signals-registry.js';
+import { lintIntelligenceContractV1 } from './lint-intelligence-contract.js';
 import { lintSequencingPilotGuardrails } from './lint-sequencing-pilot-guardrails.js';
 import type { LintFinding } from './types.js';
 
@@ -36,6 +37,7 @@ export function lintBankAndPolicyAll(): LintFinding[] {
     ...lintQuestionFeedRolesAlignBank(),
     ...lintSyntheticCollision(),
     ...lintCriticalSignalRegistry(),
+    ...lintIntelligenceContractV1(),
     ...lintSequencingPilotGuardrails(),
     ...lintDeprecatedStillRequired(),
   ];

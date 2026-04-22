@@ -7,6 +7,7 @@ export const INTAKE_DIAGNOSTIC_ANALYTICS_KINDS = [
   'intake_readiness_blocked',
   'intake_remediation_step',
   'intake_guard_triggered',
+  'intelligence_metadata_incomplete',
 ] as const;
 
 export type IntakeDiagnosticAnalyticsKind = (typeof INTAKE_DIAGNOSTIC_ANALYTICS_KINDS)[number];

@@ -17,5 +17,6 @@ export {
 } from './lint-policy-modes.js';
 export { lintSyntheticCollision } from './lint-synthetic-express.js';
 export { lintCriticalSignalRegistry } from './lint-critical-signals-registry.js';
+export { lintIntelligenceContractV1 } from './lint-intelligence-contract.js';
 export { lintBankAndPolicyAll } from './run-all.js';
 export type { LintFinding, LintSeverity } from './types.js';
