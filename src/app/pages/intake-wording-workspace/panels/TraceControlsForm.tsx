@@ -2,6 +2,7 @@ import type { IntakeBriefCollectionMode, ProductMode } from '../../../data/audit
 import type { IntakeSurface } from '@glc/intake-core';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
 import { COLLECTION_OPTIONS, PRODUCT_OPTIONS, SURFACE_OPTIONS } from '../config';
+import { Textarea } from '../../../components/ui/textarea';
 
 export function TraceControlsForm(props: {
   productMode: ProductMode;
@@ -56,7 +57,7 @@ export function TraceControlsForm(props: {
 
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">{W.fields.responsesJson}</span>
-        <textarea
+        <Textarea
           className="glc-input ds-intake-wording-trace-textarea font-mono text-xs"
           value={responsesText}
           onChange={e => onResponsesTextChange(e.target.value)}

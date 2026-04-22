@@ -15,6 +15,7 @@ import {
   previewClientIdSegment,
 } from '../domain/admin-request-queue.domain';
 import { AdminRequestQueueStatusBadge } from './AdminRequestQueueStatusBadge';
+import { Textarea } from '../../../components/ui/textarea';
 
 type RejectState = { id: string; text: string } | null;
 
@@ -103,7 +104,7 @@ export function AuditRequestQueueCard({
           </button>
           {rejectNote?.id === req.id ? (
             <div className="flex flex-col gap-2 w-full">
-              <textarea
+              <Textarea
                 className="w-full rounded-lg border border-[var(--border-default)] bg-transparent px-3 py-2 text-xs text-[var(--text-primary)]"
                 placeholder={ADMIN_REQUEST_QUEUE_COPY.rejectReasonPlaceholder}
                 rows={2}

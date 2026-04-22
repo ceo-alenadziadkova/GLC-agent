@@ -24,4 +24,11 @@ describe('extractDirectorDeepDiveContextFromBrief', () => {
     });
     expect(ctx.goals).toContain('B2B ops teams 50–500 employees');
   });
+
+  it('prefers repeat-purchase signal (b7) in automation_processes constraint list', () => {
+    const ctx = extractDirectorDeepDiveContextFromBrief('automation_processes', {
+      b7: { value: 'Mostly repeat customers', source: 'client' },
+    });
+    expect(ctx.constraints).toContain('Mostly repeat customers');
+  });
 });

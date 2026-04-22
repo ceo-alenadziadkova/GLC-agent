@@ -1,4 +1,5 @@
 import { cn } from '../../ui/utils';
+import { Input } from '../../ui/input';
 
 type StudioLogicMetaSectionProps = {
   sectionKeys: string[];
@@ -72,13 +73,12 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
       </div>
 
       <div className="flex flex-col gap-1 max-w-md">
-        <input
+        <Input
           type="search"
           placeholder="Search by id/label/section/domain"
           value={search}
           onChange={e => onSearchChange(e.target.value)}
-          className="w-full px-3 py-2 text-xs rounded-md ds-panel-canvas-primary"
-          
+          className="ds-panel-canvas-primary h-auto w-full min-h-7 px-3 py-2 text-xs"
         />
         {debouncedSearch.length > 0 ? (
           <span className="text-[length:var(--text-2xs)] ds-text-quaternary" >

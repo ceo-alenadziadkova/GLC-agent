@@ -3,6 +3,7 @@ import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { Callout } from '../../../components/ui/callout';
 import { Surface } from '../../../components/ui/surface';
 import { cn } from '../../../components/ui/utils';
+import { Textarea } from '../../../components/ui/textarea';
 
 export function BriefHelpSection({
   helpMessage,
@@ -28,12 +29,12 @@ export function BriefHelpSection({
       <p className="text-xs leading-[1.5] text-[var(--text-secondary)]">
         {CLIENT_AUDIT_VIEW_COPY.help.body}
       </p>
-      <textarea
+      <Textarea
         value={helpMessage}
         onChange={(event) => setHelpMessage(event.target.value)}
         placeholder={CLIENT_AUDIT_VIEW_COPY.help.placeholder}
         rows={3}
-        className="ds-brief-help-textarea-minh w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-3 py-2 text-sm text-[var(--text-primary)]"
+        className="ds-brief-help-textarea-minh w-full !resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-3 py-2 text-sm text-[var(--text-primary)]"
       />
       {helpError && (
         <Callout intent="danger">

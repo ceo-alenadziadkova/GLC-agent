@@ -1,5 +1,6 @@
 import { User } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/button';
+import { Input } from '../../../../design-system/ui';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { SettingsCard } from '../components/SettingsCard';
 
@@ -22,12 +23,12 @@ export function ProfileSection({ fullName, onFullNameChange, onSave, saving, dis
         {SETTINGS_PAGE_COPY.profile.displayName}
       </label>
       <div className="flex items-center gap-3">
-        <input
+        <Input
           type="text"
           value={fullName}
           onChange={e => onFullNameChange(e.target.value)}
           placeholder={SETTINGS_PAGE_COPY.profile.yourNamePlaceholder}
-          className="ds-settings-field-input flex-1 px-3 py-2 text-sm"
+          className="ds-settings-field-input min-w-0 flex-1 px-3 py-2 text-sm"
         />
         <Button
           type="button"

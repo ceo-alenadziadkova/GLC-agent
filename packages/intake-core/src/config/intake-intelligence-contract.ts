@@ -371,6 +371,42 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
     ],
     todo: DEFAULT_TODO,
   },
+  a10: {
+    whyAsked: 'Monetization model sets unit economics, payback windows, and which growth loops are structurally available.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.unit_economics',
+        weight: 'high',
+        effectDescription: 'Calibrates CAC tolerance, LTV models, and which channels are viable at scale.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a11: {
+    whyAsked: 'Primary revenue source concentration determines diversification vs doubling-down in the execution plan.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.revenue_diversification',
+        weight: 'high',
+        effectDescription: 'Influences risk of single-channel dependency in roadmap and experiments.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a12: {
+    whyAsked: 'Revenue range bands scope feasible tooling, headcount, and marketing investment without fantasy scenarios.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.spend_guardrails',
+        weight: 'medium',
+        effectDescription: 'Bounds recommended initiative cost and expected proof thresholds.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
   b1: {
     whyAsked: 'Ideal customer definition narrows ICP, channel choice, and pricing tolerance before tactical plans.',
     semanticDomain: 'market',
@@ -487,6 +523,54 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
         target: 'strategy.risk_register',
         weight: 'high',
         effectDescription: 'Sets time-boxes for roadmap bets and default stall policies.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b7: {
+    whyAsked: 'Repeat purchase rate drives retention program priority, CAC payback, and LTV-based channel choices.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.retention_posture',
+        weight: 'high',
+        effectDescription: 'Chooses whether acquisition vs lifecycle messaging gets top roadmap slots.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b10: {
+    whyAsked: 'Referral and word-of-mouth mix affects proof strategy, creative hooks, and incentive design.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.amplification',
+        weight: 'medium',
+        effectDescription: 'Allocates social proof and community touches vs paid acquisition work.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c8: {
+    whyAsked: 'Attribution confidence determines how aggressively to scale paid and outbound vs nurture investments.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.measurement_maturity',
+        weight: 'high',
+        effectDescription: 'Gates whether experiments require baseline instrumentation before scale.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c9: {
+    whyAsked: 'Data hygiene for funnel metrics affects dashboard trust, experiment readouts, and director slice quality.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'automation_processes.data_readiness',
+        weight: 'medium',
+        effectDescription: 'Flags cleanup work before automations or advanced routing ship.',
       },
     ],
     todo: DEFAULT_TODO,

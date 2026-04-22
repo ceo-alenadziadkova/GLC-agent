@@ -19,15 +19,32 @@ type DictationContextValue = {
 
 const DictationContext = React.createContext<DictationContextValue | null>(null);
 
+/**
+ * Minimal Web Speech API types for Chromium (lib.dom may not expose these in all tsconfigs).
+ */
+type WebSpeechResult = { isFinal: boolean; 0: { transcript: string } };
+type WebSpeechResultList = { length: number; [k: number]: WebSpeechResult };
+type WebSpeechRecognitionEvent = { resultIndex: number; results: WebSpeechResultList };
+type WebSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: ((ev: WebSpeechRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+};
+
 function getBrowserSpeechRecognition():
-  | (new () => SpeechRecognition)
+  | (new () => WebSpeechRecognition)
   | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
   return (
-    (window as unknown as { SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition ??
-    (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition })
+    (window as unknown as { SpeechRecognition?: new () => WebSpeechRecognition }).SpeechRecognition ??
+    (window as unknown as { webkitSpeechRecognition?: new () => WebSpeechRecognition })
       .webkitSpeechRecognition
   );
 }
@@ -51,7 +68,7 @@ function defaultDictationLang(): string {
 }
 
 export function DictationProvider({ children }: { children: React.ReactNode }) {
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<WebSpeechRecognition | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 
@@ -73,10 +90,6 @@ export function DictationProvider({ children }: { children: React.ReactNode }) {
     setActiveFieldId(null);
   }, []);
 
-  const stop = useCallback(() => {
-    stopInternal();
-  }, [stopInternal]);
-
   const start = useCallback(
     (fieldId: string, onAppend: AppendHandler, lang?: string) => {
       const Ctor = getBrowserSpeechRecognition();
@@ -91,7 +104,7 @@ export function DictationProvider({ children }: { children: React.ReactNode }) {
       const resolvedLang = lang && lang.trim() ? lang : defaultDictationLang();
       rec.lang = resolvedLang;
 
-      rec.onresult = (event: SpeechRecognitionEvent) => {
+      rec.onresult = (event: WebSpeechRecognitionEvent) => {
         const active = sessionRef.current;
         if (!active || active.fieldId !== fieldId) {
           return;

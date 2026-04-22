@@ -18,6 +18,7 @@ import {
 } from '../../../config/new-audit-coverage-policy';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { cn } from '../../../components/ui/utils';
+import { Input } from '../../../../design-system/ui';
 
 export type Step0BasicsProps = {
   step0Valid: boolean;
@@ -144,7 +145,7 @@ export function Step0Basics({
               <div className="ds-new-audit-step0-url-addon" aria-hidden>
                 <Globe className="h-4 w-4 text-muted-foreground" />
               </div>
-              <input
+              <Input
                 id="url"
                 type="text"
                 inputMode="url"
@@ -159,7 +160,7 @@ export function Step0Basics({
                 required={!noPublicWebsite}
                 disabled={noPublicWebsite}
                 autoFocus
-                className="ds-new-audit-step0-url-input"
+                className="ds-new-audit-step0-url-input h-auto min-h-9 border-0 bg-transparent shadow-none"
               />
             </div>
             <label className="ds-new-audit-step0-no-site-row">
@@ -183,13 +184,13 @@ export function Step0Basics({
             label={WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}
             optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.optionalLabel}
           >
-            <input
+            <Input
               id="cname"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyNamePlaceholder}
-              className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
+              className="glc-field-control h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
             />
           </FormField>
 
@@ -233,7 +234,7 @@ export function Step0Basics({
                   label={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherLabel}
                   requiredMark
                 >
-                  <input
+                  <Input
                     id="industry-specify"
                     type="text"
                     value={industrySpecify}
@@ -252,7 +253,7 @@ export function Step0Basics({
                       });
                     }}
                     placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherPlaceholder}
-                    className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
+                    className="glc-field-control h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
                   />
                   <p className="text-muted-foreground m-0 text-xs">
                     {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherRequiredNote}

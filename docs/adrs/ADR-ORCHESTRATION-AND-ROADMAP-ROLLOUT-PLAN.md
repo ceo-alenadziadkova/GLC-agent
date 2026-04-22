@@ -67,6 +67,7 @@ Re-run and append a row when orchestration, timeline, manifest, graph, or govern
 | 2026-04-22 | Internal rollout step + server/client parity for staged deep-dive                         | Default rollout modes set to `internal` (SPA + `SYSTEM_DEFAULTS`); added `server/src/config/orchestration-rollout-gates.ts` so POST/GET deep-dive and quota honor the same allowlist as `orchestration-client-feature-gates.ts`; jobs carry `subAgentsEntitled` for CMO multi-agent path when allowlisted. Base product flags remain `false` until GA. Smoke: `cd server && pnpm vitest run src/tests/director-deep-dive-controllers.test.ts src/tests/director-deep-dive-jobs.test.ts` and `pnpm vitest run src/app/config/orchestration-contract-parity.test.ts src/app/config/orchestration-client-feature-gates.test.ts`. |
 | 2026-04-22 | v4 closure pass — doc parity, report cockpit gates, CDO/CAO/CSO orchestrator shells | `DEPLOYMENT.md` ADR matrix updated: rollout code defaults `internal` (not `shadow`) for deep-dive/sub-agents, added `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` + CDO/CAO/CSO env rows, documented allowlist SSOT. `ReportRoadmapCockpitSection` uses `getEffectiveDirectorDeepDiveOnDemandEnabled` + `useAuthEmail` (aligns with portal timeline). Non-CMO deep-dive paths delegate to `director-cdo/cao/cso-orchestrator.service` (router + stub bundle; replaces inline `buildDirectorDomainStubBundle` in worker). Re-run smokes: server director tests + `orchestration-client-feature-gates.test.ts` + `director-domain-deep-dive-dispatch.test.ts` after change. |
 | 2026-04-22 | v4 implement pass — narrative server gate, materialized CDO/CAO/CSO waves, intake coverage+10, UX | Added `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` + `redactOrchestratorTimelineNarrativeIfDisabled` on `GET /timeline` (staged allowlist vs SPA). CDO/CAO/CSO orchestrators emit deterministic multi-action `sub_agent:*` waves (`director-domain-materialized-bundles.service.ts`). Intake: +10 P0 `required_now` metadata rows (`b2`–`b4`, `c1`, `c3`–`c7`, `d1`); `fullyCoveredQuestions` 38/78. UI: deep-dive agent list scroll, report cockpit “Set next step” anchor, milestone card chrome. Smokes: `orchestrator-timeline-narrative-gate`, `director-domain-materialized-bundles`, `intake-intelligence-contract`, `orchestration-contract-parity`, portal/dialog tests. |
+| 2026-04-22 | v4 verify pass — allowlist parity test, CMO fallback counts, UI dictation test harness, ADR non-CMO epics, intake +7 | `orchestration-contract-parity.test.ts` asserts client/server staged rollout allowlists match. `director-cmo-orchestrator.test.ts` covers deterministic fallback sizes (50 ideas / 20 hypotheses). `DirectorDeepDiveDialog` tests wrap `DictationProvider` (design-system `Textarea`). ADR: new **Non-CMO director epics** section. Intake: P0 metadata for `a10`–`a12`, `b7`, `b10`, `c8`, `c9` (`fullyCoveredQuestions` 45/78); `DEEP_DIVE_CONTEXT_BY_DOMAIN` for `automation_processes` + `security_compliance`. Smokes: `pnpm vitest run` for parity, portal/dialog, director batch, `packages/intake-core` intelligence + extract tests. |
 
 
 **Note:** Later migrations (e.g. `072_`*) may exist for unrelated product concerns; they do not replace the orchestration baseline above unless they alter pack/manifest schema — then update this ADR and `server/src/services/orchestration/README.md` in the same change.
@@ -223,6 +224,22 @@ Track **vision** work here; do **not** merge into Phase 0–7 % above. Full row 
 | Flag matrix confusion     | Single env table in `DEPLOYMENT.md`                                                      |
 | Over-engineering graph UI | Textual critical path first (already); fancy viz only after API stable                   |
 
+
+---
+
+## Non-CMO director epics (CDO / CAO / CSO) — after deterministic bundles
+
+The repo already ships **deterministic** deep-dive waves for `ux_conversion` (CDO), `automation_processes` (CAO), and `security_compliance` (CSO) via `director-cdo/cao/cso-orchestrator.service.ts`, `director-domain-materialized-bundles.service.ts`, and `FEATURE_DIRECTOR_CDO/CAO/CSO_SUB_AGENTS` (see `server/src/config/feature-flags.ts`). The following are **separate product/engineering epics** — not a single “Phase 4” PR — to reach full instruction parity:
+
+| Epic | Intent | Primary modules / contracts |
+| ---- | ------ | ----------------------------- |
+| **CDO-LLM** | LLM sub-agents for funnel / friction / experimentation per `CDO-INSTRUCTIONS.md`; access-aware depth matrix. | `director-cdo-router.service`, new sub-agent classes + Zod, prompts under `server/prompts/sub-agents/cdo/` |
+| **CDO-DTO** | Optional **three solution options (A/B/C)** on action nodes where ADR requires it; keep backward-compatible graph merge. | `glc-director-orchestration-slice` / `map-domain-director-bundle-to-action-nodes` |
+| **CAO-ZONES** | Map CAO “zones” and two-stage (discovery → deep-audit) to registry + orchestrator (single `director-sub-agents` discriminator pattern). | `director-cao-orchestrator.service`, `director-sub-agents.ts` metadata |
+| **CSO-CASES** | Case classification (A/B/C/D) before depth; threat model + compliance map as lead zones. | `director-cso-orchestrator.service`, `director-cso-router` (or dedicated classifier) |
+| **Rollout** | Per-domain flags already exist; promote **shadow → internal → pilot → ga** independently per `DEPLOYMENT.md` matrix. | Same allowlist + staged mode pattern as CMO deep-dive |
+
+**Explicit non-scope (YAGNI):** cross-director LLM conflict synthesis, parallel sub-agent fan-out inside one domain, CTO/SEO deep-dive lanes (separate epics once CDO/CAO/CSO are stable).
 
 ---
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DiceSix, Eye, EyeSlash, SignOut } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/button';
+import { Input } from '../../../../design-system/ui';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { SETTINGS_PAGE_DEFAULTS } from '../../../config/settings-page-defaults';
 import { generateSettingsFormPassword } from '../../../lib/settings-password-generator';
@@ -61,7 +62,7 @@ export function AccountSecuritySection({
                 {SETTINGS_PAGE_COPY.account.changeEmailDescription}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                <input
+                <Input
                   type="email"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
@@ -92,14 +93,15 @@ export function AccountSecuritySection({
                 <input type="text" name="username" autoComplete="username" value={email} readOnly tabIndex={-1} aria-hidden="true" className="sr-only" />
                 <div className="mb-4 space-y-2">
                   <div className="relative">
-                    <input
+                    <Input
                       type={showPassword ? 'text' : 'password'}
                       name="new-password"
                       autoComplete="new-password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder={SETTINGS_PAGE_COPY.account.newPasswordPlaceholder}
-                      className="ds-settings-field-input w-full py-2 pl-3 pr-10 text-sm"
+                      voiceInput={false}
+                      className="ds-settings-field-input h-auto w-full min-h-8 py-2 pl-3 pr-10 text-sm"
                     />
                     <button
                       type="button"
@@ -111,14 +113,15 @@ export function AccountSecuritySection({
                       {showPassword ? <EyeSlash className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
                     </button>
                   </div>
-                  <input
+                  <Input
                     type={showPassword ? 'text' : 'password'}
                     name="confirm-new-password"
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     placeholder={SETTINGS_PAGE_COPY.account.confirmNewPasswordPlaceholder}
-                    className="ds-settings-field-input w-full px-3 py-2 text-sm"
+                    voiceInput={false}
+                    className="ds-settings-field-input h-auto w-full min-h-8 px-3 py-2 text-sm"
                   />
                 </div>
                 <div className="ds-settings-account-panel-actions">

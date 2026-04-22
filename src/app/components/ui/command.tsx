@@ -4,6 +4,8 @@ import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { MagnifyingGlass as SearchIcon } from "@phosphor-icons/react";
 
+import { DictationButton } from "../dictation/dictation-button";
+import { mergeAppendedText } from "../dictation/merge-dictation-text";
 import { cn } from "./utils";
 import {
   Dialog,
@@ -53,24 +55,54 @@ function CommandDialog({
   );
 }
 
+function applyChunkToInput(el: HTMLInputElement, chunk: string) {
+  const next = mergeAppendedText(el.value, chunk);
+  const setValue = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
+  if (setValue) {
+    setValue.call(el, next);
+  } else {
+    el.value = next;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function CommandInput({
   className,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const onAppend = React.useCallback((chunk: string) => {
+    const el = inputRef.current;
+    if (!el) {
+      return;
+    }
+    applyChunkToInput(el, chunk);
+  }, []);
+
   return (
     <div
       data-slot="command-input-wrapper"
       className="flex h-9 items-center gap-2 border-b px-3"
     >
       <SearchIcon className="size-4 shrink-0 opacity-50" />
-      <CommandPrimitive.Input
-        data-slot="command-input"
-        className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-          className,
-        )}
-        {...props}
-      />
+      <div className="relative flex min-w-0 flex-1 items-center">
+        <CommandPrimitive.Input
+          ref={inputRef}
+          data-slot="command-input"
+          className={cn(
+            "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 pr-8 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            className,
+          )}
+          {...props}
+        />
+        <div className="absolute right-0 top-1/2 z-[1] -translate-y-1/2">
+          <DictationButton onAppend={onAppend} />
+        </div>
+      </div>
     </div>
   );
 }

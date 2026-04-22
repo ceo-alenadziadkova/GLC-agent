@@ -4,6 +4,7 @@ import type { IntakeSurface } from '@glc/intake-core';
 import { TRACE_COLLECTION_OPTIONS, TRACE_PRODUCT_OPTIONS, TRACE_SURFACE_OPTIONS } from '../config';
 import type { StudioPolicyMode } from '../../../lib/question-bank-studio-policy';
 import type { StudioLayoutSurfaceKey } from '../../../lib/question-bank-studio-graph';
+import { Textarea } from '../../ui/textarea';
 
 type ContextInputsPanelProps = {
   customProductMode: ProductMode;
@@ -85,7 +86,7 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
         <label className="block text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
           Responses JSON
         </label>
-        <textarea
+        <Textarea
           className="min-h-[110px] w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1.5 font-mono text-xs text-[var(--text-primary)]"
           value={customResponsesText}
           onChange={e => onCustomResponsesTextChange(e.target.value)}

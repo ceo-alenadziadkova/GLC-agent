@@ -8,6 +8,7 @@ import { APP_ROUTE_PATHS } from '../../../../config/route-paths';
 import type { AuthMode, FieldErrors, SignupLegalFieldState } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
 import { cn } from '../../../../components/ui/utils';
+import { Input } from '../../../../design-system/ui';
 
 type SignupLegalConsentRowProps = {
   checked: boolean;
@@ -119,7 +120,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
         className="space-y-3"
       >
         <FormField label={<span className="sr-only">{LC.labelEmail}</span>} htmlFor="auth-email" error={fieldErrors.email ? <span id={emailErrorId}>{fieldErrors.email}</span> : undefined}>
-          <input
+          <Input
             id="auth-email"
             type="email"
             name="email"
@@ -130,13 +131,13 @@ export function SignInUpForm(props: SignInUpFormProps) {
             autoComplete="email"
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? emailErrorId : undefined}
-            className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
+            className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
           />
         </FormField>
         <FormField label={<span className="sr-only">{LC.labelPassword}</span>} htmlFor="auth-password" error={fieldErrors.password ? <span id={passwordErrorId}>{fieldErrors.password}</span> : undefined}>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
+            <Input
               id="auth-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -147,7 +148,8 @@ export function SignInUpForm(props: SignInUpFormProps) {
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
-              className="glc-auth-input glc-auth-input--field w-full py-3 pl-9 pr-11 outline-none"
+              voiceInput={false}
+              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"

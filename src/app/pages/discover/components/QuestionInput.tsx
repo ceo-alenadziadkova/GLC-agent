@@ -3,6 +3,7 @@ import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import { getQuestion, type DiscoveryAnswers } from '../../../lib/discovery-flow';
 import discoveryUiCopy from '../../../data/discovery-ui-copy.en.json';
 import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import { Input, Textarea } from '../../../../design-system/ui';
 
 type QuestionInputProps = {
   qId: string;
@@ -29,13 +30,13 @@ export function QuestionInput({
   if (question.type === 'free_text') {
     return (
       <div className="space-y-1.5">
-        <textarea
+        <Textarea
           autoFocus
           rows={3}
           value={strVal}
           onChange={event => onChange(event.target.value || null)}
           placeholder={freeTextPlaceholderById[qId] ?? discoveryUiCopy.freeTextDefaultPlaceholder}
-          className="ds-discover-question-textarea glc-field-control w-full resize-none rounded-xl px-4 py-3 text-sm outline-none"
+          className="ds-discover-question-textarea glc-field-control w-full rounded-xl border-0 bg-transparent px-4 py-3 text-sm shadow-none outline-none"
         />
         <p className="m-0 text-[length:var(--discover-question-help-font-size)] ds-text-tertiary">
           {discoverResultsUi.copy.questionInputHelp}
@@ -65,12 +66,12 @@ export function QuestionInput({
           })}
         </div>
         {needsSpec && (
-          <input
+          <Input
             type="text"
             value={specifyValue}
             onChange={event => onSpecifyChange(event.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="ds-discover-specify-field glc-field-control w-full rounded-xl px-4 py-3 text-sm outline-none"
+            className="ds-discover-specify-field glc-field-control h-auto w-full rounded-xl border-0 bg-transparent py-3 pr-2 text-sm shadow-none outline-none"
           />
         )}
       </div>
@@ -102,12 +103,12 @@ export function QuestionInput({
           })}
         </div>
         {needsSpec && (
-          <input
+          <Input
             type="text"
             value={specifyValue}
             onChange={event => onSpecifyChange(event.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="ds-discover-specify-field glc-field-control w-full rounded-xl px-4 py-3 text-sm outline-none"
+            className="ds-discover-specify-field glc-field-control h-auto w-full rounded-xl border-0 bg-transparent py-3 pr-2 text-sm shadow-none outline-none"
           />
         )}
       </div>

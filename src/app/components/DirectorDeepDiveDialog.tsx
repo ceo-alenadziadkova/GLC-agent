@@ -12,6 +12,7 @@ import { DIRECTOR_SUB_AGENT_OPTIONS } from '../config/director-sub-agents';
 import { ApiError } from '../data/api-error';
 import { DIRECTOR_DEEP_DIVE_API_ERROR_CODES } from '../config/director-deep-dive-api-error-codes';
 import { useDirectorDeepDiveJob } from '../hooks/useDirectorDeepDiveJob';
+import { Textarea } from '../../design-system/ui';
 
 function createIdempotencyKey(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -231,7 +232,7 @@ export function DirectorDeepDiveDialog(props: {
           </div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">
             {ORCHESTRATION_UI_COPY.deepDiveGoalsLabel}
-            <textarea
+            <Textarea
               className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm"
               value={goalsText}
               onChange={(event) => setGoalsText(event.target.value)}
@@ -239,7 +240,7 @@ export function DirectorDeepDiveDialog(props: {
           </label>
           <label className="text-xs font-medium text-[var(--text-secondary)]">
             {ORCHESTRATION_UI_COPY.deepDiveConstraintsLabel}
-            <textarea
+            <Textarea
               className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm"
               value={constraintsText}
               onChange={(event) => setConstraintsText(event.target.value)}

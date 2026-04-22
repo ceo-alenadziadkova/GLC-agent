@@ -5,6 +5,7 @@ import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
 import type { FieldErrors } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
 import { cn } from '../../../../components/ui/utils';
+import { Input } from '../../../../design-system/ui';
 
 type RecoveryFormProps = {
   userEmail: string | null | undefined;
@@ -58,7 +59,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
         >
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
+            <Input
               id="recovery-password"
               type={showPassword ? 'text' : 'password'}
               value={recoveryPassword}
@@ -69,7 +70,8 @@ export function RecoveryForm(props: RecoveryFormProps) {
               autoComplete="new-password"
               aria-invalid={Boolean(fieldErrors.recoveryPassword)}
               aria-describedby={fieldErrors.recoveryPassword ? recoveryPasswordErrorId : undefined}
-              className="glc-auth-input glc-auth-input--field w-full py-3 pl-9 pr-11 outline-none"
+              voiceInput={false}
+              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
@@ -86,7 +88,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
           label={<span className="sr-only">{LC.labelConfirmNewPassword}</span>}
           error={fieldErrors.recoveryConfirm ? <span id={recoveryConfirmErrorId}>{fieldErrors.recoveryConfirm}</span> : undefined}
         >
-          <input
+          <Input
             id="recovery-confirm"
             type="password"
             value={recoveryConfirm}
@@ -97,7 +99,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
             autoComplete="new-password"
             aria-invalid={Boolean(fieldErrors.recoveryConfirm)}
             aria-describedby={fieldErrors.recoveryConfirm ? recoveryConfirmErrorId : undefined}
-            className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
+            className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
           />
         </FormField>
         <motion.button

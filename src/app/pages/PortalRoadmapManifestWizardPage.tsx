@@ -4,6 +4,7 @@ import { ArrowLeft, Path } from '@phosphor-icons/react';
 
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/button';
+import { Input } from '../../design-system/ui';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { ApiError } from '../data/api-error';
@@ -347,7 +348,7 @@ export function PortalRoadmapManifestWizardPage() {
                 <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
                   {ORCHESTRATION_UI_COPY.planHorizonStartLabel}
                 </span>
-                <input
+                <Input
                   type="date"
                   className="border-border bg-background text-foreground h-9 rounded-md border px-2 text-xs"
                   value={planHorizonStart}
@@ -358,7 +359,7 @@ export function PortalRoadmapManifestWizardPage() {
                 <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
                   {ORCHESTRATION_UI_COPY.planHorizonEndLabel}
                 </span>
-                <input
+                <Input
                   type="date"
                   className="border-border bg-background text-foreground h-9 rounded-md border px-2 text-xs"
                   value={planHorizonEnd}

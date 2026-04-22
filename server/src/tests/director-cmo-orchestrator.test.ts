@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CmoAgent5ContentStrategy } from '../agents/sub/cmo/agent-5-content-strategy.js';
+import { CmoAgent9Traffic } from '../agents/sub/cmo/agent-9-traffic.js';
 import { runCmoSubAgentOrchestrator } from '../services/orchestration/director-cmo-orchestrator.service.js';
+import { DIRECTOR_CMO_ORCHESTRATOR_POLICY } from '../config/director-cmo-orchestrator-policy.js';
 
 describe('runCmoSubAgentOrchestrator', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('returns selected agents and qa block', async () => {
     const out = await runCmoSubAgentOrchestrator({
       goals: ['Increase qualified leads', 'Improve positioning'],
@@ -23,5 +30,25 @@ describe('runCmoSubAgentOrchestrator', () => {
         expect(row?.metadata?.evidence_gap_reason).toContain('deterministic fallback');
       }
     }
+  });
+
+  it('deterministic fallback meets §10/§14 minimum list sizes (ideas + hypotheses) per policy', async () => {
+    vi.spyOn(CmoAgent5ContentStrategy.prototype, 'runSubAgent').mockRejectedValue(new Error('force fallback'));
+    vi.spyOn(CmoAgent9Traffic.prototype, 'runSubAgent').mockRejectedValue(new Error('force fallback'));
+    const out = await runCmoSubAgentOrchestrator({
+      goals: ['Test goal'],
+      constraints: ['Test constraint'],
+      requestedSubAgentIds: ['cmo.agent_5_content_strategy', 'cmo.agent_9_traffic'],
+    });
+    const content = (
+      out.agent_outputs['cmo.agent_5_content_strategy'] as { output: { ideas: unknown[] } } | undefined
+    )?.output;
+    const traffic = (
+      out.agent_outputs['cmo.agent_9_traffic'] as { output: { hypotheses: unknown[] } } | undefined
+    )?.output;
+    expect(content?.ideas.length).toBe(DIRECTOR_CMO_ORCHESTRATOR_POLICY.deterministicDefaults.contentIdeasMinCount);
+    expect(traffic?.hypotheses.length).toBe(
+      DIRECTOR_CMO_ORCHESTRATOR_POLICY.deterministicDefaults.trafficHypothesesMinCount,
+    );
   });
 });

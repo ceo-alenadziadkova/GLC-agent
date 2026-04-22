@@ -17,6 +17,7 @@ import { api } from '../../data/apiService';
 import { ApiError } from '../../data/api-error';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../../design-system/ui';
 import { toast } from 'sonner';
 import {
   encodeManifestChangeSignature,
@@ -606,7 +607,7 @@ export function StrategyLabOrchestrationPanel({
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonStartLabel}</span>
-              <input
+              <Input
                 type="date"
                 className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
                 value={planHorizonStart}
@@ -615,7 +616,7 @@ export function StrategyLabOrchestrationPanel({
             </label>
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonEndLabel}</span>
-              <input
+              <Input
                 type="date"
                 className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
                 value={planHorizonEnd}

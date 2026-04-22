@@ -24,6 +24,16 @@ export const DEEP_DIVE_CONTEXT_BY_DOMAIN: Readonly<
     constraints: ['f6', 'f8', 'f9'],
     timeframe: ['f4', 'f5'],
   },
+  automation_processes: {
+    goals: ['f1', 'b1', 'e3', 'c2'],
+    constraints: ['f6', 'f8', 'f9', 'b7'],
+    timeframe: ['f4', 'f5'],
+  },
+  security_compliance: {
+    goals: ['f1', 'e3', 'c2'],
+    constraints: ['f6', 'f8', 'f9', 'b5', 'b6'],
+    timeframe: ['f4', 'f5'],
+  },
   default: {
     goals: [...DEEP_DIVE_CONTEXT_GOAL_QUESTION_IDS],
     constraints: [...DEEP_DIVE_CONTEXT_CONSTRAINT_QUESTION_IDS],

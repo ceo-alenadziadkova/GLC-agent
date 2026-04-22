@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 
 import { DirectorDeepDiveDialog } from '../DirectorDeepDiveDialog';
+import { DictationProvider } from '../dictation/dictation-context';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ApiError } from '../../data/api-error';
@@ -22,7 +23,11 @@ function renderWithClient(ui: ReactNode, client?: QueryClient) {
     });
   return {
     queryClient,
-    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <DictationProvider>{ui}</DictationProvider>
+      </QueryClientProvider>,
+    ),
   };
 }
 
@@ -313,12 +318,14 @@ describe('DirectorDeepDiveDialog', () => {
     };
     rerender(
       <QueryClientProvider client={queryClient}>
-        <DirectorDeepDiveDialog
-          open
-          onOpenChange={() => undefined}
-          auditId="audit-1"
-          domainKey="marketing_utp"
-        />
+        <DictationProvider>
+          <DirectorDeepDiveDialog
+            open
+            onOpenChange={() => undefined}
+            auditId="audit-1"
+            domainKey="marketing_utp"
+          />
+        </DictationProvider>
       </QueryClientProvider>,
     );
     expect(await screen.findByText(new RegExp(`${ORCHESTRATION_UI_COPY.deepDiveStatusLabel}: completed`))).toBeInTheDocument();
