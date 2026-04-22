@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 
 import { DirectorDeepDiveDialog } from '../DirectorDeepDiveDialog';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
@@ -8,11 +10,27 @@ import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-cop
 import { ApiError } from '../../data/api-error';
 
 const postDirectorDeepDiveMock = vi.fn();
+const getBriefMock = vi.fn();
+const getDirectorDeepDiveQuotaMock = vi.fn();
 const useDirectorDeepDiveJobMock = vi.fn(() => ({ status: null }));
+
+function renderWithClient(ui: ReactNode, client?: QueryClient) {
+  const queryClient =
+    client ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+  return {
+    queryClient,
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+  };
+}
 
 vi.mock('../../data/apiService', () => ({
   api: {
     postDirectorDeepDive: (...args: unknown[]) => postDirectorDeepDiveMock(...args),
+    getBrief: (...args: unknown[]) => getBriefMock(...args),
+    getDirectorDeepDiveQuota: (...args: unknown[]) => getDirectorDeepDiveQuotaMock(...args),
   },
 }));
 
@@ -27,11 +45,18 @@ describe('DirectorDeepDiveDialog', () => {
     vi.clearAllMocks();
     (APP_FEATURE_FLAGS as { directorSubAgentsEnabled: boolean }).directorSubAgentsEnabled = originalSubAgentsFlag;
     useDirectorDeepDiveJobMock.mockReturnValue({ status: null });
+    getBriefMock.mockResolvedValue({ brief: null, questions: [] });
+    getDirectorDeepDiveQuotaMock.mockResolvedValue({
+      coverage_package: 'starter',
+      per_domain_limit: 1,
+      used_count: 0,
+      remaining: 1,
+    });
   });
 
   it('shows validation error when goals are missing', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -44,6 +69,47 @@ describe('DirectorDeepDiveDialog', () => {
     expect(postDirectorDeepDiveMock).not.toHaveBeenCalled();
   });
 
+  it('prefills goals and constraints from intake brief when available', async () => {
+    getBriefMock.mockResolvedValue({
+      brief: {
+        id: 'b1',
+        audit_id: 'audit-1',
+        responses: { f1: { value: 'Intake growth goal from brief', source: 'client' } },
+        status: 'draft',
+        collection_mode: 'self_serve',
+        layer_completed: 0,
+        collected_by: 'client',
+        data_quality_score: 0.5,
+        sla_met: true,
+        answered_required: 0,
+        answered_recommended: 0,
+        answered_optional: 0,
+        total_required: 0,
+        total_recommended: 0,
+        total_optional: 0,
+        recon_prefills: {},
+        recon_conflicts: [],
+        post_audit_questions: [],
+        progress_pct: 0,
+        readiness_badge: 'low',
+        next_best_action: 'none',
+        responses_format: 2,
+        created_at: '',
+        updated_at: '',
+      },
+      questions: [],
+    });
+    renderWithClient(
+      <DirectorDeepDiveDialog
+        open
+        onOpenChange={() => undefined}
+        auditId="audit-1"
+        domainKey="marketing_utp"
+      />,
+    );
+    expect(await screen.findByDisplayValue('Intake growth goal from brief')).toBeInTheDocument();
+  });
+
   it('submits request and displays queued/running metadata', async () => {
     const user = userEvent.setup();
     postDirectorDeepDiveMock.mockResolvedValue({
@@ -51,7 +117,7 @@ describe('DirectorDeepDiveDialog', () => {
       status: 'queued',
       estimated_duration_minutes: 4,
     });
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -82,7 +148,7 @@ describe('DirectorDeepDiveDialog', () => {
       status: 'queued',
       estimated_duration_minutes: 6,
     });
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -109,7 +175,7 @@ describe('DirectorDeepDiveDialog', () => {
       status: 'queued',
       estimated_duration_minutes: 6,
     });
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -133,7 +199,7 @@ describe('DirectorDeepDiveDialog', () => {
     postDirectorDeepDiveMock.mockRejectedValue(
       new ApiError('quota', 409, 'DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED'),
     );
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -151,7 +217,7 @@ describe('DirectorDeepDiveDialog', () => {
     postDirectorDeepDiveMock.mockRejectedValue(
       new ApiError('token cap', 409, 'DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_EXCEEDED'),
     );
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -169,7 +235,7 @@ describe('DirectorDeepDiveDialog', () => {
     postDirectorDeepDiveMock.mockRejectedValue(
       new ApiError('mismatch', 409, 'IDEMPOTENCY_PAYLOAD_MISMATCH'),
     );
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -193,7 +259,7 @@ describe('DirectorDeepDiveDialog', () => {
         measurement: ['M1'],
       },
     });
-    render(
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -226,7 +292,7 @@ describe('DirectorDeepDiveDialog', () => {
       status: realtimeState.status,
       qaBlock: realtimeState.qaBlock,
     }));
-    const view = render(
+    const { rerender, queryClient } = renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -245,7 +311,28 @@ describe('DirectorDeepDiveDialog', () => {
       risks: ['R1'],
       measurement: ['M1'],
     };
-    view.rerender(
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DirectorDeepDiveDialog
+          open
+          onOpenChange={() => undefined}
+          auditId="audit-1"
+          domainKey="marketing_utp"
+        />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(new RegExp(`${ORCHESTRATION_UI_COPY.deepDiveStatusLabel}: completed`))).toBeInTheDocument();
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.deepDiveQaBlockTitle)).toBeInTheDocument();
+  });
+
+  it('disables start and shows exhausted hint when quota remaining is 0', async () => {
+    getDirectorDeepDiveQuotaMock.mockResolvedValue({
+      coverage_package: 'pro',
+      per_domain_limit: 2,
+      used_count: 2,
+      remaining: 0,
+    });
+    renderWithClient(
       <DirectorDeepDiveDialog
         open
         onOpenChange={() => undefined}
@@ -253,7 +340,51 @@ describe('DirectorDeepDiveDialog', () => {
         domainKey="marketing_utp"
       />,
     );
-    expect(await screen.findByText(new RegExp(`${ORCHESTRATION_UI_COPY.deepDiveStatusLabel}: completed`))).toBeInTheDocument();
-    expect(screen.getByText(ORCHESTRATION_UI_COPY.deepDiveQaBlockTitle)).toBeInTheDocument();
+    expect(await screen.findByText(ORCHESTRATION_UI_COPY.deepDiveQuotaExhaustedHint)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.deepDiveStartCta })).toBeDisabled();
+  });
+
+  it('shows package badge from quota response', async () => {
+    getDirectorDeepDiveQuotaMock.mockResolvedValue({
+      coverage_package: 'complete',
+      per_domain_limit: 3,
+      used_count: 0,
+      remaining: 3,
+    });
+    renderWithClient(
+      <DirectorDeepDiveDialog
+        open
+        onOpenChange={() => undefined}
+        auditId="audit-1"
+        domainKey="marketing_utp"
+      />,
+    );
+    expect(
+      await screen.findByText(
+        new RegExp(
+          `${ORCHESTRATION_UI_COPY.deepDivePackageBadgePrefix}\\s*${ORCHESTRATION_UI_COPY.deepDivePackageLabel_complete}`,
+        ),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  /** Mobile/narrow layout: quota row uses responsive flex so badges stack on small viewports. */
+  it('uses responsive quota badge layout (sm: breakpoint) for phone-sized surfaces', async () => {
+    getDirectorDeepDiveQuotaMock.mockResolvedValue({
+      coverage_package: 'starter',
+      per_domain_limit: 1,
+      used_count: 0,
+      remaining: 1,
+    });
+    renderWithClient(
+      <DirectorDeepDiveDialog
+        open
+        onOpenChange={() => undefined}
+        auditId="audit-1"
+        domainKey="marketing_utp"
+      />,
+    );
+    expect(await screen.findByText(/0\s*\/\s*1/)).toBeInTheDocument();
+    expect(document.body.innerHTML).toContain('sm:flex-row');
   });
 });

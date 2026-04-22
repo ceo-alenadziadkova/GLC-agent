@@ -28,6 +28,7 @@ import { getOrchestratorLatestController } from './controllers/get-orchestrator-
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
 import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
+import { getDirectorDeepDiveQuotaController } from './controllers/get-director-deep-dive-quota.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -147,6 +148,12 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getAuditTimelineController,
+);
+auditsRouter.get(
+  '/:id/directors/:domain/deep-dive/quota',
+  attachProfile,
+  rejectGuestFromPortal,
+  getDirectorDeepDiveQuotaController,
 );
 auditsRouter.post(
   '/:id/directors/:domain/deep-dive',

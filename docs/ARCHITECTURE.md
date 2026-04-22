@@ -393,6 +393,8 @@ ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-
 - CMO deep-dive output is materialized back into `audit_domains.raw_data.glc_director_execution.deep` and then merged through the existing pack pipeline (`buildOrchestrationPackForAudit` path) so timeline nodes can carry `source: sub_agent:*`.
 - Deep-dive completion stores `qa_block` metadata in `job_runs`; portal dialog renders this summary after status becomes `completed`.
 - Rollout stage telemetry is carried through feature-flag facades (`getDirectorDeepDiveRolloutMode`, `getDirectorSubAgentsRolloutMode`, client mirrors in `APP_FEATURE_FLAGS`) for shadow/internal/pilot/ga release progression.
+- Staged “internal / pilot / GA” unlock for **authenticated users** is enforced in parallel on the **server** via `orchestration-rollout-gates.ts` (allowlist + rollout mode, aligned with the SPA’s `orchestration-client-feature-gates.ts`); CMO sub-agent work items carry `subAgentsEntitled` on the job payload when the user qualifies under rollout but the global `FEATURE_DIRECTOR_SUB_AGENTS` env is still off.
+- Non-CMO domains route through `director-domain-deep-dive-dispatch.ts`: `cdo_stub` for CDO/UX+related domains (including `ux_conversion`), `cao_stub` for `automation_processes`, `cso_stub` for `security_compliance`, and `single_fallback` elsewhere until dedicated sub-agent stacks ship.
 
 ---
 

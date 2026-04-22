@@ -207,6 +207,42 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
       },
     ],
   },
+  c2: {
+    whyAsked: 'Revenue and pipeline shape determine whether to prioritize growth, retention, or unit economics in the first roadmap wave.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.revenue_reality',
+        weight: 'high',
+        effectDescription: 'Tightens ICP, pricing, and channel advice to the actual revenue motion.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  e3: {
+    whyAsked: 'Adoption and usage truth separates product issues from GTM issues when triaging bottlenecks.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.activation_narrative',
+        weight: 'high',
+        effectDescription: 'Shifts focus between product UX work and marketing/packaging if adoption is the gap.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b5: {
+    whyAsked: 'Team and operating capacity bounds what can be executed in parallel in the 30–90 day plan.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.throughput_ceiling',
+        weight: 'medium',
+        effectDescription: 'Scales or caps initiative counts and parallel workstreams to realistic headcount.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
   f_idea_1: {
     whyAsked: 'Problem evidence level indicates whether to prioritize validation experiments or scaling actions.',
     semanticDomain: 'market',
@@ -250,6 +286,102 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
         effectDescription: 'Defines first unblock action in launch roadmap.',
       },
     ],
+  },
+  a1: {
+    whyAsked: 'A crisp company one-liner calibrates recon prompts and sets default narrative for downstream strategy synthesis.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'strategy.macro_positioning',
+        weight: 'medium',
+        effectDescription: 'Influences how initiative titles and problem framing are phrased for the client.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a3: {
+    whyAsked: 'Geography and operating footprint affect compliance, localization, and channel reality for the roadmap.',
+    semanticDomain: 'market',
+    decisionImpact: [
+      {
+        target: 'recon.operating_context',
+        weight: 'medium',
+        effectDescription: 'Tightens region-specific constraints and go-to-market assumptions.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a4: {
+    whyAsked: 'Headcount range bounds parallel initiative capacity and the feasible pace of execution.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'automation_processes.throughput_ceiling',
+        weight: 'high',
+        effectDescription: 'Scales the number and complexity of recommended concurrent workstreams.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a6: {
+    whyAsked: 'Current payment-surface scope determines whether e-commerce, billing, and trust UX are in play.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.trust_ladder',
+        weight: 'high',
+        effectDescription: 'Gates how aggressively payment and conversion experiments can be recommended.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a7: {
+    whyAsked: 'Business stage calibrates risk appetite, time horizon, and the balance of quick wins vs foundation work.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.execution_pacing',
+        weight: 'high',
+        effectDescription: 'Reorders the roadmap to match launch vs growth vs optimization phases.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a8: {
+    whyAsked: 'Order volume situates the business on a scale curve so recommendations stay proportionate to operating load.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.capacity_assumptions',
+        weight: 'medium',
+        effectDescription: 'Influences whether automation, outsourcing, or manual processes are the default play.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  a9: {
+    whyAsked: 'Customer language footprint affects copy, support depth, and localized acquisition surfaces.',
+    semanticDomain: 'market',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.localisation_scope',
+        weight: 'medium',
+        effectDescription: 'Turns on or off multi-locale GTM, SEO, and creative variants.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  b1: {
+    whyAsked: 'Ideal customer definition narrows ICP, channel choice, and pricing tolerance before tactical plans.',
+    semanticDomain: 'market',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.targeting_model',
+        weight: 'high',
+        effectDescription: 'Drives message-market fit, offer shape, and organic vs paid mix.',
+      },
+    ],
+    todo: DEFAULT_TODO,
   },
 };
 
@@ -306,7 +438,7 @@ export function hasIntakeIntelligenceRequiredNow(
 export function projectIntakeIntelligenceRequiredNow(
   contract: IntakeIntelligenceContract | undefined,
 ): Pick<IntakeIntelligenceContract, 'whyAsked' | 'semanticDomain' | 'decisionImpact'> | undefined {
-  if (!hasIntakeIntelligenceRequiredNow(contract)) return undefined;
+  if (!contract || !hasIntakeIntelligenceRequiredNow(contract)) return undefined;
   return {
     whyAsked: contract.whyAsked,
     semanticDomain: contract.semanticDomain,

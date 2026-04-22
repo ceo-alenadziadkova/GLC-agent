@@ -565,10 +565,8 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 }
 ```
 
-`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and currently supports the CMO MVP ids:
-- `cmo.agent_3_positioning`
-- `cmo.agent_5_content_strategy`
-- `cmo.agent_9_traffic`
+`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and supports the full CMO set:
+- `cmo.agent_1_market`, `cmo.agent_2_awareness_ladder`, `cmo.agent_3_positioning`, `cmo.agent_4_voice`, `cmo.agent_5_content_strategy`, `cmo.agent_6_viral`, `cmo.agent_7_storytelling`, `cmo.agent_8_ready_posts`, `cmo.agent_9_traffic`, `cmo.agent_10_distribution`, `cmo.agent_11_founder_brand`, `cmo.agent_12_growth_loops`
 
 - **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
 - **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
@@ -1427,14 +1425,36 @@ See [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) for the full grouped li
 
 ## Director deep-dive (Phase B/C)
 
+### `GET /api/audits/:id/directors/:domain/deep-dive/quota`
+
+Returns remaining deep-dive capacity for a domain, derived from the audit’s execution plan coverage package and `job_runs` rows for the director queue (same statuses as quota enforcement: `queued`, `running`, `completed`).
+
+**Auth:** same as other audit director routes.
+
+**Access:** returns `503` `DIRECTOR_DEEP_DIVE_DISABLED` when deep-dive is not enabled for the caller. Server evaluates base env `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND` and staged `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` together with the allowlist in `orchestration-rollout-gates.ts` (must stay aligned with the SPA’s `orchestration-client-feature-gates.ts`).
+
+**Response `200`:**
+
+```json
+{
+  "coverage_package": "pro",
+  "per_domain_limit": 2,
+  "used_count": 1,
+  "remaining": 1
+}
+```
+
+**Errors:** `404` `AUDITS_NOT_FOUND` if the audit/execution plan row is missing for this user.
+
 ### `POST /api/audits/:id/directors/:domain/deep-dive`
 
 Queues an on-demand director deep-dive job.
 
 **Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
 
-**Feature flag:** `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND=true` on server.
-**Rollout mode env:** `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` (`shadow|internal|pilot|ga`), read via server feature-flag facade.
+**Access:** same as quota route — `503` `DIRECTOR_DEEP_DIVE_DISABLED` when not enabled. Base toggle: `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`; staged rollout: `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` + allowlist (see `server/src/config/orchestration-rollout-gates.ts`).
+
+**Client initiative hint:** there is no separate `selected-initiative` route. The client re-ranks priorities by passing **`selected_action_ids`** on existing orchestration endpoints (for example `POST /api/audits/:id/orchestrator/run` and pack regenerate paths); the server applies `applySelectedActionHint` during pack persistence. See the manifest and orchestration pack subsections above.
 
 **Request body (JSON):**
 
@@ -1448,7 +1468,7 @@ Queues an on-demand director deep-dive job.
   },
   "idempotency_key": "required-string",
   "operating_mode": "discovery",
-  "sub_agent_ids": ["cmo.agent_3_positioning"]
+  "sub_agent_ids": ["cmo.agent_3_positioning", "cmo.agent_1_market"]
 }
 ```
 

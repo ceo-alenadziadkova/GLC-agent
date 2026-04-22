@@ -9,7 +9,8 @@ import { REPORT_VIEWER_CONSTANTS } from '../config/report-viewer.constants';
 import { REPORT_VIEWER_COPY, formatRoadmapCockpitCoverageLine } from '../config/report-viewer.copy.en';
 import type { ReportPageViewModel } from '../domain/types';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
-import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
+import { getEffectiveDirectorDeepDiveOnDemandEnabled } from '../../../config/orchestration-client-feature-gates';
+import { useAuthEmail } from '../../../hooks/useAuthEmail';
 import { ORCHESTRATION_UI_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
 
 type ReportRoadmapCockpitSectionProps = {
@@ -34,6 +35,9 @@ export function ReportRoadmapCockpitSection({
   const maxDx = REPORT_VIEWER_CONSTANTS.roadmapCockpit.maxDiagnosisIssues;
   const primaryIssue = (reportVm.criticalIssues ?? []).slice(0, maxDx)[0];
   const diagnosis = primaryIssue?.title ?? null;
+
+  const userEmail = useAuthEmail();
+  const effectiveDeepDiveOnDemand = getEffectiveDirectorDeepDiveOnDemandEnabled(userEmail);
 
   const inContract =
     audit.meta.execution_plan?.selected_domains?.length ??
@@ -133,7 +137,7 @@ export function ReportRoadmapCockpitSection({
         <Button asChild variant="outline" size="sm" className="no-underline">
           <Link to={`${pathname}#${anchorIds.domainScorecard}`}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaScorecard}</Link>
         </Button>
-        {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+        {effectiveDeepDiveOnDemand ? (
           <Button asChild variant="outline" size="sm" className="no-underline">
             <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.deepDiveCta}</Link>
           </Button>

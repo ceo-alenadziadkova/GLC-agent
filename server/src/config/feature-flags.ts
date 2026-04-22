@@ -244,6 +244,21 @@ export function isDirectorSubAgentsEnabled(): boolean {
   );
 }
 
+/** CDO deep-dive stub (tech + SEO digital domains). Env: FEATURE_DIRECTOR_CDO_SUB_AGENTS */
+export function isDirectorCdoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CDO_SUB_AGENTS, FF.directorCdoSubAgentsEnabled);
+}
+
+/** CAO deep-dive stub (automation / processes). Env: FEATURE_DIRECTOR_CAO_SUB_AGENTS */
+export function isDirectorCaoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CAO_SUB_AGENTS, FF.directorCaoSubAgentsEnabled);
+}
+
+/** CSO deep-dive stub (security / compliance). Env: FEATURE_DIRECTOR_CSO_SUB_AGENTS */
+export function isDirectorCsoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CSO_SUB_AGENTS, FF.directorCsoSubAgentsEnabled);
+}
+
 /** Staged rollout mode for sub-agent picker and orchestration. Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE */
 export function getDirectorSubAgentsRolloutMode(): FeatureRolloutMode {
   return readFeatureRolloutMode(

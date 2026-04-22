@@ -63,19 +63,23 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Rollout mode for client roadmap narrative surface.
    * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE
    */
-  orchestrationRoadmapNarrativeRolloutMode: 'shadow',
+  orchestrationRoadmapNarrativeRolloutMode: 'internal',
   /**
    * Rollout mode for on-demand director deep-dive flow.
    * Env: FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE
    */
-  directorDeepDiveRolloutMode: 'shadow',
+  directorDeepDiveRolloutMode: 'internal',
   /**
    * Rollout mode for director sub-agent experience.
    * Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE
    */
-  directorSubAgentsRolloutMode: 'shadow',
+  directorSubAgentsRolloutMode: 'internal',
   directorDeepDiveOnDemandEnabled: false,
   directorSubAgentsEnabled: false,
+  /** CDO/CAO/CSO deep-dive stub bundles (non-CMO). Env: FEATURE_DIRECTOR_CDO_SUB_AGENTS, etc. */
+  directorCdoSubAgentsEnabled: false,
+  directorCaoSubAgentsEnabled: false,
+  directorCsoSubAgentsEnabled: false,
   /**
    * When true, pipeline start and discovery convert apply `evaluateIntakeReadinessEnvelope` blocking rules.
    * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT

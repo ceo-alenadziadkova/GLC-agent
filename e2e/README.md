@@ -25,6 +25,7 @@ These tests are **not** executed in GitHub Actions; run them locally (or in stag
 | `orchestration-snapshot-regenerate.spec.ts` | Protected orchestration snapshot -> pack regenerate -> diff history flow |
 | `orchestration-governance-conflicts.spec.ts` | Protected orchestration governance payload contract (`200/409`) |
 | `orchestration-depth-lanes-sync.spec.ts` | Protected orchestration pack contract for director depth/lane sync |
+| `orchestration-deep-dive.spec.ts` | `GET` quota on deep-dive API; optional `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` runs the same check under a mobile viewport project |
 
 ## Scope
 

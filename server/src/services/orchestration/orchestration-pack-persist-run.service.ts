@@ -39,7 +39,8 @@ import { applySelectedActionHint } from './apply-selected-action-hint.js';
 export type OrchestrationPackPersistLogComponent =
   | 'route.orchestration_pack'
   | 'route.orchestration_commercial_offer'
-  | 'pipeline.auto_pack_after_strategy';
+  | 'pipeline.auto_pack_after_strategy'
+  | 'director.deep_dive';
 
 export type TryPersistOrchestrationPackWithGovernanceOk = {
   ok: true;

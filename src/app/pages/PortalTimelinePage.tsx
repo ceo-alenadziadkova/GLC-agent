@@ -36,10 +36,18 @@ import {
   ORCHESTRATION_UI_LIMITS,
 } from '../config/orchestration-ui-limits';
 import { useProfile } from '../hooks/useProfile';
+import { useAuthEmail } from '../hooks/useAuthEmail';
+import {
+  getEffectiveDirectorDeepDiveOnDemandEnabled,
+  getEffectiveDirectorSubAgentsEnabled,
+  getEffectiveOrchestrationRoadmapNarrativeEnabled,
+} from '../config/orchestration-client-feature-gates';
 import { buildAppRoute } from '../config/route-paths';
 import { ApiError } from '../data/api-error';
 import { api } from '../data/apiService';
 import type { AuditTimelineDto } from '../data/api/audits-orchestration';
+
+type TimelineLaneItem = AuditTimelineDto['lanes'][number]['items'][number];
 import { glcKeys } from '../lib/glc-keys';
 import { formatAppMediumDateTime } from '../lib/date-format';
 import {
@@ -105,6 +113,104 @@ function buildPlanSnapshotLines(timeline: AuditTimelineDto, isClient: boolean): 
   }
   parts.push(isClient ? formatManifestStateForClient(v.manifest_state) : `${ORCHESTRATION_UI_COPY.timelineManifestStateLabel} ${v.manifest_state}`);
   return parts;
+}
+
+function collectMilestoneNodeRows(
+  milestone: { unlocks: string[] },
+  top7d: string[],
+  top30d: string[],
+): Array<{ id: string; bucket: '7d' | '30d' }> {
+  const want = new Set(milestone.unlocks);
+  const rows: Array<{ id: string; bucket: '7d' | '30d' }> = [];
+  for (const x of top7d) {
+    if (want.has(x)) rows.push({ id: x, bucket: '7d' });
+  }
+  for (const x of top30d) {
+    if (want.has(x)) rows.push({ id: x, bucket: '30d' });
+  }
+  return rows;
+}
+
+type TopActionItemRowProps = {
+  nid: string;
+  readNodeTitle: (id: string) => string;
+  nodeById: Map<string, TimelineLaneItem>;
+  nodeProvenanceById: Map<string, { source?: 'strategy' | 'director'; analysis_depth?: 'baseline' | 'deep' }>;
+  evidenceTaxonomyByNodeId: Map<string, OrchestrationEvidenceTaxonomy | undefined>;
+  clientTimelinePackOneClickCta: boolean;
+  executionPackPendingNodeId: string | null;
+  onRequestExecutionPack: (id: string) => void;
+  canMarkInitiative: boolean;
+  initiativeMarkPendingId: string | null;
+  onMarkInitiative: (id: string) => void;
+  bucketForAria: string;
+};
+
+function TopActionItemRow({
+  nid,
+  readNodeTitle,
+  nodeById,
+  nodeProvenanceById,
+  evidenceTaxonomyByNodeId,
+  clientTimelinePackOneClickCta,
+  executionPackPendingNodeId,
+  onRequestExecutionPack,
+  canMarkInitiative,
+  initiativeMarkPendingId,
+  onMarkInitiative,
+  bucketForAria,
+}: TopActionItemRowProps) {
+  return (
+    <li className="rounded-md border border-[var(--border-default)] px-2 py-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+          <span>{readNodeTitle(nid)}</span>
+          <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
+          <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {canMarkInitiative ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="inline-flex shrink-0"
+              disabled={initiativeMarkPendingId === nid}
+              aria-busy={initiativeMarkPendingId === nid}
+              onClick={() => void onMarkInitiative(nid)}
+            >
+              {initiativeMarkPendingId === nid ? (
+                <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+              ) : null}
+              {initiativeMarkPendingId === nid
+                ? ORCHESTRATION_UI_COPY.initiativeMarkNextStepBusy
+                : ORCHESTRATION_UI_COPY.initiativeMarkNextStepCta}
+            </Button>
+          ) : null}
+          {clientTimelinePackOneClickCta ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="inline-flex shrink-0 items-center gap-1"
+              disabled={executionPackPendingNodeId === nid}
+              aria-busy={executionPackPendingNodeId === nid}
+              onClick={() => void onRequestExecutionPack(nid)}
+              aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${bucketForAria})`}
+            >
+              {executionPackPendingNodeId === nid ? (
+                <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+              ) : null}
+              {executionPackPendingNodeId === nid
+                ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
+                : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {nodeById.get(nid)?.explain ? <TimelineDecisionCard explain={nodeById.get(nid)!.explain!} /> : null}
+    </li>
+  );
 }
 
 function TimelineDecisionCard({
@@ -185,8 +291,13 @@ export function PortalTimelinePage() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error } = useAudit(id);
   const { isClient } = useProfile();
+  const userEmail = useAuthEmail();
   const queryClient = useQueryClient();
+  const effectiveNarrative = getEffectiveOrchestrationRoadmapNarrativeEnabled(userEmail);
+  const effectiveDeepDiveOnDemand = getEffectiveDirectorDeepDiveOnDemandEnabled(userEmail);
+  const effectiveDirectorSubAgents = getEffectiveDirectorSubAgentsEnabled(userEmail);
   const [executionPackPendingNodeId, setExecutionPackPendingNodeId] = useState<string | null>(null);
+  const [initiativeMarkPendingId, setInitiativeMarkPendingId] = useState<string | null>(null);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const [selectedSubAgentFilter, setSelectedSubAgentFilter] = useState<string>('all');
   const isMobile = useIsMobile();
@@ -289,7 +400,9 @@ export function PortalTimelinePage() {
   const nodeTitleById = new Map(
     (timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item.title] as const)),
   );
-  const nodeById = new Map((timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item] as const)));
+  const nodeById = new Map<string, TimelineLaneItem>(
+    (timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item] as const)),
+  );
   const nodeProvenanceById = useMemo(() => {
     const m = new Map<string, { source?: 'strategy' | 'director'; analysis_depth?: 'baseline' | 'deep' }>();
     for (const lane of timeline?.lanes ?? []) {
@@ -318,6 +431,67 @@ export function PortalTimelinePage() {
     },
     [id, queryClient],
   );
+
+  const requestMarkAsNextInitiative = useCallback(
+    async (actionId: string) => {
+      if (!id) return;
+      const snap = timeline?.version.latest_manifest_snapshot_id;
+      if (!snap) {
+        toast.error(ORCHESTRATION_UI_COPY.initiativeMarkNextStepUnavailable);
+        return;
+      }
+      setInitiativeMarkPendingId(actionId);
+      try {
+        await api.postOrchestrationPack(id, { manifest_snapshot_id: snap, selected_action_ids: [actionId] });
+        await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(id) });
+        await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(id) });
+        toast.success(ORCHESTRATION_UI_COPY.initiativeMarkNextStepSuccess);
+      } catch {
+        toast.error(ORCHESTRATION_UI_COPY.initiativeMarkNextStepError);
+      } finally {
+        setInitiativeMarkPendingId(null);
+      }
+    },
+    [id, queryClient, timeline?.version.latest_manifest_snapshot_id],
+  );
+
+  const milestoneTopActionPlan = useMemo(() => {
+    if (!timeline) {
+      return {
+        sections: [] as Array<{
+          milestone: NonNullable<NonNullable<AuditTimelineDto['milestones']>[number]>;
+          items: ReturnType<typeof collectMilestoneNodeRows>;
+        }>,
+        other7d: [] as string[],
+        other30d: [] as string[],
+        useMilestoneTranches: false,
+      };
+    }
+    if (!effectiveNarrative || !timeline.milestones?.length) {
+      return {
+        sections: [],
+        other7d: timeline.top_7d,
+        other30d: timeline.top_30d,
+        useMilestoneTranches: false,
+      };
+    }
+    const used = new Set<string>();
+    const sections: Array<{
+      milestone: NonNullable<NonNullable<AuditTimelineDto['milestones']>[number]>;
+      items: ReturnType<typeof collectMilestoneNodeRows>;
+    }> = [];
+    for (const m of timeline.milestones) {
+      const itemRows = collectMilestoneNodeRows(m, timeline.top_7d, timeline.top_30d);
+      for (const { id: xid } of itemRows) used.add(xid);
+      if (itemRows.length > 0) sections.push({ milestone: m, items: itemRows });
+    }
+    return {
+      sections,
+      other7d: timeline.top_7d.filter((x) => !used.has(x)),
+      other30d: timeline.top_30d.filter((x) => !used.has(x)),
+      useMilestoneTranches: true,
+    };
+  }, [timeline, effectiveNarrative]);
 
   const readNodeTitle = (nodeId: string): string => nodeTitleById.get(nodeId) ?? nodeId;
   const readLaneLabel = (nodeId: string): string | null => {
@@ -457,9 +631,18 @@ export function PortalTimelinePage() {
   const showDegradedEmptyBucketHint =
     timeline?.status === 'degraded' && seasonsAllEmpty && hasLaneWorkstreamItems;
 
+  const canClientMarkInitiative =
+    isClient &&
+    effectiveNarrative &&
+    Boolean(
+      timeline &&
+        timeline.status === 'ready' &&
+        timeline.version.latest_manifest_snapshot_id,
+    );
+
   const topActionsBlock = timeline ? (
-    <div className="space-y-3">
-      {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled && (timeline.top_priorities?.length ?? 0) > 0 ? (
+    <div className="space-y-3" data-testid="portal-timeline-top-actions">
+      {effectiveNarrative && (timeline.top_priorities?.length ?? 0) > 0 ? (
         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
           <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topPriorityReasonLabel}</div>
           <ul className="space-y-2 text-sm ds-text-secondary">
@@ -477,82 +660,139 @@ export function PortalTimelinePage() {
       {clientTimelinePackOneClickCta ? (
         <p className="text-sm leading-relaxed ds-text-tertiary">{ORCHESTRATION_UI_COPY.executionPackFromTopActionsHint}</p>
       ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
-          <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions7dLabel}</div>
-          <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
-            {timeline.top_7d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
-            {timeline.top_7d.map((nid) => (
-              <li key={`top7-${nid}`} className="rounded-md border border-[var(--border-default)] px-2 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                    <span>{readNodeTitle(nid)}</span>
-                    <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
-                    <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
-                  </div>
-                  {clientTimelinePackOneClickCta ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex shrink-0 items-center gap-1"
-                      disabled={executionPackPendingNodeId === nid}
-                      aria-busy={executionPackPendingNodeId === nid}
-                      onClick={() => void requestExecutionPackFromTimeline(nid)}
-                      aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions7dLabel})`}
-                    >
-                      {executionPackPendingNodeId === nid ? (
-                        <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : null}
-                      {executionPackPendingNodeId === nid
-                        ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
-                        : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
-                    </Button>
-                  ) : null}
+      {milestoneTopActionPlan.useMilestoneTranches && milestoneTopActionPlan.sections.length > 0 ? (
+        <div className="space-y-5">
+          {milestoneTopActionPlan.sections.map(({ milestone: m, items }) => (
+            <section key={m.id} id={`timeline-milestone-${m.id}`} className="scroll-mt-6">
+              <h3 className="text-sm font-semibold ds-text-primary">{m.label}</h3>
+              <p className="mt-1 text-xs leading-relaxed ds-text-tertiary">
+                {ORCHESTRATION_UI_COPY.milestoneUnlocksLabel}: {items.map((r) => readNodeTitle(r.id)).join(' · ')} · {m.target_window_days}d
+              </p>
+              <ul className="mt-2 list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
+                {items.map((row) => (
+                  <TopActionItemRow
+                    key={`ms-${m.id}-${row.id}-${row.bucket}`}
+                    nid={row.id}
+                    readNodeTitle={readNodeTitle}
+                    nodeById={nodeById}
+                    nodeProvenanceById={nodeProvenanceById}
+                    evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
+                    clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
+                    executionPackPendingNodeId={executionPackPendingNodeId}
+                    onRequestExecutionPack={requestExecutionPackFromTimeline}
+                    canMarkInitiative={canClientMarkInitiative}
+                    initiativeMarkPendingId={initiativeMarkPendingId}
+                    onMarkInitiative={requestMarkAsNextInitiative}
+                    bucketForAria={row.bucket === '7d' ? ORCHESTRATION_UI_COPY.topActions7dLabel : ORCHESTRATION_UI_COPY.topActions30dLabel}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+          {milestoneTopActionPlan.other7d.length > 0 || milestoneTopActionPlan.other30d.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActionsTitle}</h3>
+              <div className="mt-2 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+                  <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions7dLabel}</div>
+                  <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
+                    {milestoneTopActionPlan.other7d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
+                    {milestoneTopActionPlan.other7d.map((nid) => (
+                      <TopActionItemRow
+                        key={`oth7-${nid}`}
+                        nid={nid}
+                        readNodeTitle={readNodeTitle}
+                        nodeById={nodeById}
+                        nodeProvenanceById={nodeProvenanceById}
+                        evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
+                        clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
+                        executionPackPendingNodeId={executionPackPendingNodeId}
+                        onRequestExecutionPack={requestExecutionPackFromTimeline}
+                        canMarkInitiative={canClientMarkInitiative}
+                        initiativeMarkPendingId={initiativeMarkPendingId}
+                        onMarkInitiative={requestMarkAsNextInitiative}
+                        bucketForAria={ORCHESTRATION_UI_COPY.topActions7dLabel}
+                      />
+                    ))}
+                  </ul>
                 </div>
-                {nodeById.get(nid)?.explain ? <TimelineDecisionCard explain={nodeById.get(nid)!.explain!} /> : null}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
-          <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions30dLabel}</div>
-          <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
-            {timeline.top_30d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
-            {timeline.top_30d.map((nid) => (
-              <li key={`top30-${nid}`} className="rounded-md border border-[var(--border-default)] px-2 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                    <span>{readNodeTitle(nid)}</span>
-                    <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
-                    <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
-                  </div>
-                  {clientTimelinePackOneClickCta ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex shrink-0 items-center gap-1"
-                      disabled={executionPackPendingNodeId === nid}
-                      aria-busy={executionPackPendingNodeId === nid}
-                      onClick={() => void requestExecutionPackFromTimeline(nid)}
-                      aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions30dLabel})`}
-                    >
-                      {executionPackPendingNodeId === nid ? (
-                        <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : null}
-                      {executionPackPendingNodeId === nid
-                        ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
-                        : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
-                    </Button>
-                  ) : null}
+                <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+                  <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions30dLabel}</div>
+                  <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
+                    {milestoneTopActionPlan.other30d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
+                    {milestoneTopActionPlan.other30d.map((nid) => (
+                      <TopActionItemRow
+                        key={`oth30-${nid}`}
+                        nid={nid}
+                        readNodeTitle={readNodeTitle}
+                        nodeById={nodeById}
+                        nodeProvenanceById={nodeProvenanceById}
+                        evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
+                        clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
+                        executionPackPendingNodeId={executionPackPendingNodeId}
+                        onRequestExecutionPack={requestExecutionPackFromTimeline}
+                        canMarkInitiative={canClientMarkInitiative}
+                        initiativeMarkPendingId={initiativeMarkPendingId}
+                        onMarkInitiative={requestMarkAsNextInitiative}
+                        bucketForAria={ORCHESTRATION_UI_COPY.topActions30dLabel}
+                      />
+                    ))}
+                  </ul>
                 </div>
-                {nodeById.get(nid)?.explain ? <TimelineDecisionCard explain={nodeById.get(nid)!.explain!} /> : null}
-              </li>
-            ))}
-          </ul>
+              </div>
+            </div>
+          ) : null}
         </div>
-      </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+            <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions7dLabel}</div>
+            <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
+              {timeline.top_7d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
+              {timeline.top_7d.map((nid) => (
+                <TopActionItemRow
+                  key={`top7-${nid}`}
+                  nid={nid}
+                  readNodeTitle={readNodeTitle}
+                  nodeById={nodeById}
+                  nodeProvenanceById={nodeProvenanceById}
+                  evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
+                  clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
+                  executionPackPendingNodeId={executionPackPendingNodeId}
+                  onRequestExecutionPack={requestExecutionPackFromTimeline}
+                  canMarkInitiative={canClientMarkInitiative}
+                  initiativeMarkPendingId={initiativeMarkPendingId}
+                  onMarkInitiative={requestMarkAsNextInitiative}
+                  bucketForAria={ORCHESTRATION_UI_COPY.topActions7dLabel}
+                />
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+            <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.topActions30dLabel}</div>
+            <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
+              {timeline.top_30d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
+              {timeline.top_30d.map((nid) => (
+                <TopActionItemRow
+                  key={`top30-${nid}`}
+                  nid={nid}
+                  readNodeTitle={readNodeTitle}
+                  nodeById={nodeById}
+                  nodeProvenanceById={nodeProvenanceById}
+                  evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
+                  clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
+                  executionPackPendingNodeId={executionPackPendingNodeId}
+                  onRequestExecutionPack={requestExecutionPackFromTimeline}
+                  canMarkInitiative={canClientMarkInitiative}
+                  initiativeMarkPendingId={initiativeMarkPendingId}
+                  onMarkInitiative={requestMarkAsNextInitiative}
+                  bucketForAria={ORCHESTRATION_UI_COPY.topActions30dLabel}
+                />
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   ) : null;
 
@@ -621,7 +861,7 @@ export function PortalTimelinePage() {
                   />
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+                  {effectiveDeepDiveOnDemand ? (
                     <Button type="button" variant="outline" size="sm" onClick={() => setDeepDiveOpen(true)}>
                       {ORCHESTRATION_UI_COPY.deepDiveCta}
                     </Button>
@@ -784,7 +1024,7 @@ export function PortalTimelinePage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="mt-4 space-y-6 outline-none">
+              <TabsContent value="overview" className="mt-4 space-y-6 outline-none" forceMount>
                 {planSnapshotCard}
                 {timeline.status === 'ready' &&
                 roadmapRevisionDiff &&
@@ -853,7 +1093,9 @@ export function PortalTimelinePage() {
                     </div>
                   ))}
                 </div>
-                {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled && (timeline.milestones?.length ?? 0) > 0 ? (
+                {effectiveNarrative &&
+                (timeline.milestones?.length ?? 0) > 0 &&
+                !milestoneTopActionPlan.useMilestoneTranches ? (
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
                     <h3 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineMilestonesTitle}</h3>
                     <ul className="mt-2 space-y-2 text-sm ds-text-secondary">
@@ -927,7 +1169,7 @@ export function PortalTimelinePage() {
                   {filteredTimelineLanes.map((lane) => (
                     <div key={lane.lane_id} className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-3">
                       <h3 className="text-sm font-medium ds-text-primary">{ORCHESTRATION_LANE_LABELS[lane.lane_id]}</h3>
-                      {APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled ? (
+                      {effectiveNarrative ? (
                         <p className="mt-1 text-xs ds-text-tertiary">{ORCHESTRATION_LANE_PROMISES[lane.lane_id]}</p>
                       ) : null}
                       <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-relaxed ds-text-secondary">
@@ -1013,18 +1255,39 @@ export function PortalTimelinePage() {
                       <p className="mt-2 text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelineCrossLaneNarrativeBody}</p>
                     </div>
                   ) : null}
-                  <ul className="space-y-3 text-sm leading-relaxed ds-text-secondary">
-                    {crossLaneBlocking.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
-                    {crossLaneBlocking.map((dep, i) => (
-                      <li key={`sync-${dep.from}-${dep.to}-${i}`} className="rounded-lg border border-[var(--border-default)] px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wide ds-text-tertiary">
-                          {ORCHESTRATION_UI_COPY.timelineSyncMarkerCrossLane}
-                        </div>
-                        <div className="mt-2 font-medium ds-text-primary">{formatDepRow(dep.from, dep.to)}</div>
-                        <div className="mt-1 text-xs ds-text-tertiary">{dep.relation}</div>
-                      </li>
-                    ))}
-                  </ul>
+                  {isDependencyCardMode ? (
+                    <div className="space-y-2">
+                      {crossLaneBlocking.length === 0 ? (
+                        <p className="text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelineNoDeps}</p>
+                      ) : (
+                        crossLaneBlocking.map((dep, i) => (
+                          <article
+                            key={`sync-${dep.from}-${dep.to}-${i}`}
+                            className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm leading-relaxed ds-text-secondary"
+                          >
+                            <div className="text-xs font-semibold uppercase tracking-wide ds-text-tertiary">
+                              {ORCHESTRATION_UI_COPY.timelineSyncMarkerCrossLane}
+                            </div>
+                            <div className="mt-2 font-medium ds-text-primary">{formatDepRow(dep.from, dep.to)}</div>
+                            <div className="mt-1 text-xs ds-text-tertiary">{dep.relation}</div>
+                          </article>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <ul className="space-y-3 text-sm leading-relaxed ds-text-secondary">
+                      {crossLaneBlocking.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
+                      {crossLaneBlocking.map((dep, i) => (
+                        <li key={`sync-${dep.from}-${dep.to}-${i}`} className="rounded-lg border border-[var(--border-default)] px-4 py-3">
+                          <div className="text-xs font-semibold uppercase tracking-wide ds-text-tertiary">
+                            {ORCHESTRATION_UI_COPY.timelineSyncMarkerCrossLane}
+                          </div>
+                          <div className="mt-2 font-medium ds-text-primary">{formatDepRow(dep.from, dep.to)}</div>
+                          <div className="mt-1 text-xs ds-text-tertiary">{dep.relation}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </TabsContent>
 
@@ -1066,12 +1329,13 @@ export function PortalTimelinePage() {
                 </div>
               </TabsContent>
             </Tabs>
-            {APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled ? (
+            {effectiveDeepDiveOnDemand ? (
               <DirectorDeepDiveDialog
                 open={deepDiveOpen}
                 onOpenChange={setDeepDiveOpen}
                 auditId={id}
                 domainKey="marketing_utp"
+                subAgentsEnabledOverride={effectiveDirectorSubAgents}
               />
             ) : null}
           </>

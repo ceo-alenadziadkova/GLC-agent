@@ -8,7 +8,13 @@ export const DIRECTOR_CMO_ORCHESTRATOR_POLICY = {
     primaryGoal: 'Increase qualified pipeline',
     primaryConstraint: 'Keep execution complexity manageable',
     positioning: {
-      differentiationAxes: ['speed_to_value', 'proof_quality', 'execution_clarity'],
+      differentiationAxes: [
+        'speed_to_value',
+        'proof_quality',
+        'execution_clarity',
+        'message_signal_fit',
+        'distribution_repeatability',
+      ],
       targetNiche: 'B2B growth teams needing execution clarity',
       categoryStrategy: 'Outcome-first advisory with operational follow-through',
     },

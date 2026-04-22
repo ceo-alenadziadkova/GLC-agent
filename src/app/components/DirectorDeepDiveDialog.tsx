@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { extractDirectorDeepDiveContextFromBrief } from '@glc/intake-core';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { api } from '../data/apiService';
 import type { DomainKey } from '../data/auditTypes';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
@@ -35,10 +38,14 @@ export function DirectorDeepDiveDialog(props: {
   onOpenChange: (open: boolean) => void;
   auditId: string;
   domainKey: DomainKey;
+  /** When set, overrides `APP_FEATURE_FLAGS.directorSubAgentsEnabled` (rollout gating on parent). */
+  subAgentsEnabledOverride?: boolean;
 }) {
-  const { open, onOpenChange, auditId, domainKey } = props;
+  const { open, onOpenChange, auditId, domainKey, subAgentsEnabledOverride } = props;
+  const subAgentsPickerEnabled = subAgentsEnabledOverride ?? APP_FEATURE_FLAGS.directorSubAgentsEnabled;
   const [goalsText, setGoalsText] = useState('');
   const [constraintsText, setConstraintsText] = useState('');
+  const [timeframeDays, setTimeframeDays] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState<DeepDiveStatus>('idle');
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +53,37 @@ export function DirectorDeepDiveDialog(props: {
   const [selectedSubAgentIds, setSelectedSubAgentIds] = useState<string[]>([]);
   const [selectedMode, setSelectedMode] = useState<DirectorOperatingModeOption>('auto');
   const { status: realtimeJobStatus, qaBlock } = useDirectorDeepDiveJob({ jobId, auditId, domainKey });
+  const prefillFromBriefRef = useRef(false);
+  const briefQuery = useQuery({
+    queryKey: ['directorDeepDiveBrief', auditId],
+    queryFn: () => api.getBrief(auditId),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const quotaQuery = useQuery({
+    queryKey: ['directorDeepDiveQuota', auditId, domainKey],
+    queryFn: () => api.getDirectorDeepDiveQuota(auditId, domainKey),
+    enabled: open,
+    retry: false,
+  });
   const availableSubAgents = useMemo(
     () => DIRECTOR_SUB_AGENT_OPTIONS.filter((option) => option.domainKey === domainKey),
     [domainKey],
   );
+  const quota = quotaQuery.data;
+  const quotaExhausted = Boolean(
+    quotaQuery.isSuccess && quota != null && quota.remaining === 0,
+  );
+  const coveragePackageLabel = useMemo(() => {
+    if (quota == null) return null;
+    if (quota.coverage_package === 'starter') {
+      return ORCHESTRATION_UI_COPY.deepDivePackageLabel_starter;
+    }
+    if (quota.coverage_package === 'pro') {
+      return ORCHESTRATION_UI_COPY.deepDivePackageLabel_pro;
+    }
+    return ORCHESTRATION_UI_COPY.deepDivePackageLabel_complete;
+  }, [quota]);
 
   const goals = useMemo(
     () => goalsText.split('\n').map((v) => v.trim()).filter(Boolean),
@@ -59,6 +93,31 @@ export function DirectorDeepDiveDialog(props: {
     () => constraintsText.split('\n').map((v) => v.trim()).filter(Boolean),
     [constraintsText],
   );
+
+  useEffect(() => {
+    if (!open) {
+      prefillFromBriefRef.current = false;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const brief = briefQuery.data?.brief;
+    if (!open || prefillFromBriefRef.current || !brief?.responses) return;
+    const fromBrief = extractDirectorDeepDiveContextFromBrief(
+      domainKey,
+      brief.responses as Record<string, unknown>,
+    );
+    if (fromBrief.goals.length > 0 && goalsText === '') {
+      setGoalsText(fromBrief.goals.join('\n'));
+    }
+    if (fromBrief.constraints.length > 0 && constraintsText === '') {
+      setConstraintsText(fromBrief.constraints.join('\n'));
+    }
+    if (fromBrief.timeframe_days != null) {
+      setTimeframeDays((prev) => (prev === undefined ? fromBrief.timeframe_days : prev));
+    }
+    prefillFromBriefRef.current = true;
+  }, [open, briefQuery.data, domainKey, goalsText, constraintsText]);
 
   function mapDeepDiveApiError(error: unknown): string {
     if (!(error instanceof ApiError) || !error.code) {
@@ -98,6 +157,7 @@ export function DirectorDeepDiveDialog(props: {
         client_context: {
           goals,
           constraints,
+          ...(timeframeDays != null ? { timeframe_days: timeframeDays } : {}),
         },
         idempotency_key: createIdempotencyKey(),
         operating_mode: selectedMode === 'auto' ? undefined : selectedMode,
@@ -139,6 +199,36 @@ export function DirectorDeepDiveDialog(props: {
           <DialogDescription>{ORCHESTRATION_UI_COPY.deepDiveDialogDescription}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          {briefQuery.isSuccess &&
+          briefQuery.data?.brief &&
+          Object.keys(briefQuery.data.brief.responses).length > 0 ? (
+            <p className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveIntakePrefillHint}</p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {quotaQuery.isLoading ? (
+              <span className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveQuotaLoading}</span>
+            ) : null}
+            {quotaQuery.isSuccess && quota ? (
+              <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                {coveragePackageLabel ? (
+                  <Badge variant="outline" className="w-fit text-xs font-normal">
+                    {ORCHESTRATION_UI_COPY.deepDivePackageBadgePrefix} {coveragePackageLabel}
+                  </Badge>
+                ) : null}
+                <Badge variant="secondary" className="w-fit text-xs font-normal">
+                  {ORCHESTRATION_UI_COPY.deepDiveQuotaLabel} {quota.used_count} / {quota.per_domain_limit}
+                </Badge>
+              </div>
+            ) : null}
+            {quotaExhausted ? (
+              <p className="text-sm text-[var(--ui-warning-fg-strong)]" role="status">
+                {ORCHESTRATION_UI_COPY.deepDiveQuotaExhaustedHint}
+              </p>
+            ) : null}
+            {quotaQuery.isError ? (
+              <span className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveQuotaUnavailable}</span>
+            ) : null}
+          </div>
           <label className="text-xs font-medium text-[var(--text-secondary)]">
             {ORCHESTRATION_UI_COPY.deepDiveGoalsLabel}
             <textarea
@@ -169,7 +259,7 @@ export function DirectorDeepDiveDialog(props: {
               ))}
             </select>
           </label>
-          {APP_FEATURE_FLAGS.directorSubAgentsEnabled ? (
+          {subAgentsPickerEnabled ? (
             <div className="space-y-2">
             <div className="text-xs font-medium text-[var(--text-secondary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerLabel}</div>
             <p className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerHint}</p>
@@ -239,7 +329,11 @@ export function DirectorDeepDiveDialog(props: {
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {ORCHESTRATION_UI_COPY.deepDiveCloseCta}
           </Button>
-          <Button type="button" onClick={() => void startDeepDive()}>
+          <Button
+            type="button"
+            disabled={quotaExhausted || (status !== 'idle' && status !== 'failed')}
+            onClick={() => void startDeepDive()}
+          >
             {ORCHESTRATION_UI_COPY.deepDiveStartCta}
           </Button>
         </DialogFooter>

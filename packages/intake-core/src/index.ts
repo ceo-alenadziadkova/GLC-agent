@@ -196,6 +196,17 @@ export {
   type IntakeIntelligenceRequiredNowField,
   type IntakeIntelligenceTodo,
 } from './config/intake-intelligence-contract.js';
+export {
+  DEEP_DIVE_CONTEXT_BY_DOMAIN,
+  DEEP_DIVE_CONTEXT_CONSTRAINT_QUESTION_IDS,
+  DEEP_DIVE_CONTEXT_GOAL_QUESTION_IDS,
+  DEEP_DIVE_CONTEXT_TIMEFRAME_QUESTION_IDS,
+  getDeepDiveExtractionIdLists,
+} from './config/deep-dive-context-extraction.js';
+export {
+  extractDirectorDeepDiveContextFromBrief,
+  type DirectorDeepDiveBriefContext,
+} from './core/extract-director-deep-dive-context-from-brief.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
   AuditReadinessStatus,

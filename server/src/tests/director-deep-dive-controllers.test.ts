@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const sendApiErrorMock = vi.hoisted(() => vi.fn());
 const enqueueMock = vi.hoisted(() => vi.fn());
 const getStatusMock = vi.hoisted(() => vi.fn());
-const isDirectorDeepDiveOnDemandEnabledMock = vi.hoisted(() => vi.fn(() => true));
+const isDirectorDeepDiveOnDemandEnabledForRequestMock = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock('../config/feature-flags.js', () => ({
-  isDirectorDeepDiveOnDemandEnabled: isDirectorDeepDiveOnDemandEnabledMock,
+vi.mock('../config/orchestration-rollout-gates.js', () => ({
+  isDirectorDeepDiveOnDemandEnabledForRequest: isDirectorDeepDiveOnDemandEnabledForRequestMock,
 }));
 
 vi.mock('../routes/audits/mappers/audits-http.mapper.js', () => ({
@@ -27,7 +27,7 @@ function createRes() {
 describe('director deep-dive controllers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isDirectorDeepDiveOnDemandEnabledMock.mockReturnValue(true);
+    isDirectorDeepDiveOnDemandEnabledForRequestMock.mockReturnValue(true);
   });
 
   it('post maps quota_exceeded to 409 API error', async () => {
@@ -106,7 +106,7 @@ describe('director deep-dive controllers', () => {
   });
 
   it('get returns 503 when feature is disabled', async () => {
-    isDirectorDeepDiveOnDemandEnabledMock.mockReturnValue(false);
+    isDirectorDeepDiveOnDemandEnabledForRequestMock.mockReturnValue(false);
     const { getDirectorDeepDiveStatusController } = await import('../routes/audits/controllers/get-director-deep-dive-status.controller.js');
     const res = createRes();
     await getDirectorDeepDiveStatusController({

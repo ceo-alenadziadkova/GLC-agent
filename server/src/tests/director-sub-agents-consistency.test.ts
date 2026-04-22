@@ -34,9 +34,18 @@ describe('director sub-agent registry consistency', () => {
 
   it('prompt templates preserve required root payload keys', () => {
     const expectedRoots: Record<string, string[]> = {
+      'cmo.agent_1_market': ['market_thesis'],
+      'cmo.agent_2_awareness_ladder': ['ladder'],
       'cmo.agent_3_positioning': ['core_problem', 'unique_mechanism', 'positioning_statement'],
+      'cmo.agent_4_voice': ['tone_label'],
       'cmo.agent_5_content_strategy': ['ideas'],
+      'cmo.agent_6_viral': ['concepts'],
+      'cmo.agent_7_storytelling': ['frameworks'],
+      'cmo.agent_8_ready_posts': ['posts'],
       'cmo.agent_9_traffic': ['hypotheses'],
+      'cmo.agent_10_distribution': ['system_map'],
+      'cmo.agent_11_founder_brand': ['narrative_pillars'],
+      'cmo.agent_12_growth_loops': ['loops'],
     };
     for (const agent of DIRECTOR_SUB_AGENTS) {
       const fromServerCwd = resolve(process.cwd(), agent.prompt_ref);

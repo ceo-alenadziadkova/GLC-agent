@@ -225,6 +225,10 @@ export function apiAuditsDirectorDeepDiveStatus(auditId: string, domainKey: stri
   return `${apiAuditsDirectorDeepDive(auditId, domainKey)}/${encodeURIComponent(jobId)}`;
 }
 
+export function apiAuditsDirectorDeepDiveQuota(auditId: string, domainKey: string): string {
+  return `${apiAuditsDirectorDeepDive(auditId, domainKey)}/quota`;
+}
+
 /** Platform admin: clear `cancelled` so the audit owner can retry or continue. */
 export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string {
   return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;

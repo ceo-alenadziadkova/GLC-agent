@@ -59,13 +59,13 @@ export const APP_FEATURE_FLAGS = {
   /** Client timeline narrative enhancements (lane promises, milestones, priority reasons). */
   orchestrationRoadmapNarrativeEnabled: false,
   /** Client timeline narrative staged rollout mode. */
-  orchestrationRoadmapNarrativeRolloutMode: 'shadow' as FeatureRolloutMode,
+  orchestrationRoadmapNarrativeRolloutMode: 'internal' as FeatureRolloutMode,
   /** On-demand director deep-dive from timeline/report surfaces. */
   directorDeepDiveOnDemandEnabled: false,
   /** Director deep-dive staged rollout mode. */
-  directorDeepDiveRolloutMode: 'shadow' as FeatureRolloutMode,
+  directorDeepDiveRolloutMode: 'internal' as FeatureRolloutMode,
   /** Sub-agent selection for director deep-dive (CMO MVP). */
   directorSubAgentsEnabled: false,
   /** Director sub-agent staged rollout mode. */
-  directorSubAgentsRolloutMode: 'shadow' as FeatureRolloutMode,
+  directorSubAgentsRolloutMode: 'internal' as FeatureRolloutMode,
 } as const;

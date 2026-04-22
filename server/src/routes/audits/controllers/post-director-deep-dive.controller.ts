@@ -1,14 +1,14 @@
 import type { Response } from 'express';
 import { API_ERROR_CODES } from '../../../config/api-error-codes.js';
 import { DIRECTOR_DEEP_DIVE_QUEUE } from '../../../config/director-deep-dive-queue.js';
-import { isDirectorDeepDiveOnDemandEnabled } from '../../../config/feature-flags.js';
+import { isDirectorDeepDiveOnDemandEnabledForRequest } from '../../../config/orchestration-rollout-gates.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { DirectorDeepDiveRequestSchema } from '../../../schemas/director-deep-dive-request.js';
 import { enqueueDirectorDeepDive } from '../../../services/orchestration/run-director-deep-dive.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 export async function postDirectorDeepDiveController(req: AuthRequest, res: Response) {
-  if (!isDirectorDeepDiveOnDemandEnabled()) {
+  if (!isDirectorDeepDiveOnDemandEnabledForRequest(req.userEmail)) {
     sendApiError(res, 503, API_ERROR_CODES.DIRECTOR_DEEP_DIVE_DISABLED, 'feature_disabled');
     return;
   }
@@ -26,6 +26,7 @@ export async function postDirectorDeepDiveController(req: AuthRequest, res: Resp
   const queued = await enqueueDirectorDeepDive({
     auditId: req.params.id as string,
     userId: req.userId!,
+    userEmail: req.userEmail,
     domainKey: req.params.domain as string,
     idempotencyKey: parsed.data.idempotency_key,
     goals: parsed.data.client_context.goals,

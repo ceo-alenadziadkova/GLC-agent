@@ -10,6 +10,7 @@ import {
   apiAuditsTimeline,
   apiAuditsDirectorDeepDive,
   apiAuditsDirectorDeepDiveStatus,
+  apiAuditsDirectorDeepDiveQuota,
   apiAuditsRoadmapManifestPreview,
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
@@ -353,5 +354,14 @@ export const auditsOrchestrationApi = {
     }>(apiAuditsDirectorDeepDiveStatus(auditId, domainKey, jobId), {
       method: 'GET',
     });
+  },
+
+  async getDirectorDeepDiveQuota(auditId: string, domainKey: DomainKey) {
+    return apiFetch<{
+      coverage_package: 'starter' | 'pro' | 'complete';
+      per_domain_limit: number;
+      used_count: number;
+      remaining: number;
+    }>(apiAuditsDirectorDeepDiveQuota(auditId, domainKey), { method: 'GET' });
   },
 };

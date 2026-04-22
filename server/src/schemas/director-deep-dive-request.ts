@@ -24,7 +24,7 @@ export const DirectorDeepDiveRequestSchema = z.object({
   }),
   idempotency_key: z.string().min(8),
   operating_mode: z.enum(modeTuple).optional(),
-  sub_agent_ids: z.array(z.enum(DIRECTOR_SUB_AGENT_IDS)).max(3).optional(),
+  sub_agent_ids: z.array(z.enum(DIRECTOR_SUB_AGENT_IDS)).max(12).optional(),
 });
 
 export type DirectorDeepDiveRequest = z.infer<typeof DirectorDeepDiveRequestSchema>;

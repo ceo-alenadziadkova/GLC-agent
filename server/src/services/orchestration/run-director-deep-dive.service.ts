@@ -10,8 +10,15 @@ import {
   MAX_SUB_AGENTS_PER_DEEP_DIVE,
   SUB_AGENT_TOKEN_BUDGET_BY_DEPTH,
 } from '../../config/director-orchestration-policy.js';
-import { isDirectorSubAgentsEnabled } from '../../config/feature-flags.js';
+import {
+  isDirectorCaoSubAgentsEnabled,
+  isDirectorCdoSubAgentsEnabled,
+  isDirectorCsoSubAgentsEnabled,
+  isDirectorSubAgentsEnabled,
+} from '../../config/feature-flags.js';
 import { DIRECTOR_CMO_ROUTING_POLICY } from '../../config/director-cmo-routing-policy.js';
+import { resolveDirectorDeepDiveHandler } from '../../config/director-domain-deep-dive-dispatch.js';
+import { isDirectorSubAgentsEnabledForRequest } from '../../config/orchestration-rollout-gates.js';
 import { DIRECTOR_MODE_AGENT_DEPTHS, type DirectorOperatingMode } from '../../config/director-operating-modes.js';
 import { DIRECTOR_SUB_AGENT_IDS, type DirectorSubAgentId } from '../../config/director-sub-agents.js';
 import { loadAuditExecutionPlanRow } from './orchestration-read.service.js';
@@ -21,6 +28,9 @@ import { supabase } from '../supabase.js';
 import { fetchLatestRoadmapManifestSnapshotIdForAudit } from './roadmap-manifest.service.js';
 import { runOrchestrationPackPersistFlowFromManifest } from './orchestration-pack-persist-run.service.js';
 import { runCmoSubAgentOrchestrator } from './director-cmo-orchestrator.service.js';
+import { runCaoDirectorDeepDiveOrchestrator } from './director-cao-orchestrator.service.js';
+import { runCdoDirectorDeepDiveOrchestrator } from './director-cdo-orchestrator.service.js';
+import { runCsoDirectorDeepDiveOrchestrator } from './director-cso-orchestrator.service.js';
 import { persistGlcDirectorOrchestrationSliceForAuditOwner } from './director-orchestration-persistence.service.js';
 import type { DomainKey } from '@glc/intake-core';
 import type { DirectorWaveBundle } from '../../schemas/glc-director-orchestration-slice.js';
@@ -37,6 +47,8 @@ type DirectorDeepDiveJobPayload = {
   constraints: string[];
   requestedMode?: DirectorDeepDiveMode;
   requestedSubAgentIds?: string[];
+  /** When true, run CMO sub-agent orchestrator even if global `FEATURE_DIRECTOR_SUB_AGENTS` is off (staged rollout / allowlist). */
+  subAgentsEntitled?: boolean;
 };
 
 type JobRunMetadata = {
@@ -77,6 +89,7 @@ function ensureDirectorDeepDiveQueue(): Queue<DirectorDeepDiveJobPayload> | null
 export async function enqueueDirectorDeepDive(args: {
   auditId: string;
   userId: string;
+  userEmail?: string | null;
   domainKey: string;
   idempotencyKey: string;
   goals: string[];
@@ -137,6 +150,7 @@ export async function enqueueDirectorDeepDive(args: {
     constraints: args.constraints,
     requestedMode: args.requestedMode,
     requestedSubAgentIds: args.requestedSubAgentIds,
+    subAgentsEntitled: isDirectorSubAgentsEnabledForRequest(args.userEmail),
   };
   await supabase.from('job_runs').upsert(
     {
@@ -195,8 +209,16 @@ async function processDirectorDeepDiveJob(jobId: string, payload: DirectorDeepDi
   await setJobStatus(jobId, 'running', { started_at: new Date().toISOString() });
   try {
     let qaBlock: JobRunMetadata['qa_block'] | undefined;
-    const subAgentDomainEnabled = DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS.includes(payload.domainKey as DomainKey);
-    if (isDirectorSubAgentsEnabled() && subAgentDomainEnabled) {
+    const cmoSubAgentDomainEnabled = DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS.includes(payload.domainKey as DomainKey);
+    const deepHandler = resolveDirectorDeepDiveHandler(payload.domainKey);
+    const cdoOn = isDirectorCdoSubAgentsEnabled() && deepHandler === 'cdo_stub';
+    const caoOn = isDirectorCaoSubAgentsEnabled() && deepHandler === 'cao_stub';
+    const csoOn = isDirectorCsoSubAgentsEnabled() && deepHandler === 'cso_stub';
+    if (
+      (isDirectorSubAgentsEnabled() || payload.subAgentsEntitled === true) &&
+      cmoSubAgentDomainEnabled &&
+      deepHandler === 'cmo'
+    ) {
       const maxAllowed = MAX_SUB_AGENTS_PER_DEEP_DIVE[payload.coveragePackage];
       const subAgentResult = await runCmoSubAgentOrchestrator({
         auditId: payload.auditId,
@@ -212,6 +234,45 @@ async function processDirectorDeepDiveJob(jobId: string, payload: DirectorDeepDi
         slice: {
           schema_version: GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
           deep: subAgentResult.director_bundle,
+        },
+      });
+    } else if (cdoOn) {
+      await persistGlcDirectorOrchestrationSliceForAuditOwner({
+        auditId: payload.auditId,
+        domainKey: payload.domainKey as DomainKey,
+        slice: {
+          schema_version: GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
+          deep: runCdoDirectorDeepDiveOrchestrator({
+            domainKey: payload.domainKey,
+            goals: payload.goals,
+            constraints: payload.constraints,
+          }),
+        },
+      });
+    } else if (caoOn) {
+      await persistGlcDirectorOrchestrationSliceForAuditOwner({
+        auditId: payload.auditId,
+        domainKey: payload.domainKey as DomainKey,
+        slice: {
+          schema_version: GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
+          deep: runCaoDirectorDeepDiveOrchestrator({
+            domainKey: payload.domainKey,
+            goals: payload.goals,
+            constraints: payload.constraints,
+          }),
+        },
+      });
+    } else if (csoOn) {
+      await persistGlcDirectorOrchestrationSliceForAuditOwner({
+        auditId: payload.auditId,
+        domainKey: payload.domainKey as DomainKey,
+        slice: {
+          schema_version: GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
+          deep: runCsoDirectorDeepDiveOrchestrator({
+            domainKey: payload.domainKey,
+            goals: payload.goals,
+            constraints: payload.constraints,
+          }),
         },
       });
     } else {

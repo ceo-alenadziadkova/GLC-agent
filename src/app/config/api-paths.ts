@@ -30,6 +30,7 @@ export {
   apiAuditsTimeline,
   apiAuditsDirectorDeepDive,
   apiAuditsDirectorDeepDiveStatus,
+  apiAuditsDirectorDeepDiveQuota,
   apiPlatformAuditPipelineResumeCancelled,
   apiAuditsQualityGate,
   apiAuditsReportQuery,

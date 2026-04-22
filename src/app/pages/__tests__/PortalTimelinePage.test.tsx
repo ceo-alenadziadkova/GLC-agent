@@ -15,6 +15,11 @@ const useAuditMock = vi.fn();
 const useProfileMock = vi.fn();
 const getAuditTimelineMock = vi.fn();
 const useIsMobileMock = vi.fn(() => false);
+const useAuthEmailMock = vi.fn(() => null);
+
+vi.mock('../../hooks/useAuthEmail', () => ({
+  useAuthEmail: () => useAuthEmailMock(),
+}));
 
 vi.mock('../../hooks/useAudit', () => ({
   useAudit: (...args: unknown[]) => useAuditMock(...args),
@@ -42,12 +47,14 @@ vi.mock('../../features/report-viewer/components/ReportOrchestrationRoadmapSecti
 
 const listStrategyExecutionPacksMock = vi.fn();
 const postStrategyExecutionPackMock = vi.fn();
+const postOrchestrationPackMock = vi.fn();
 
 vi.mock('../../data/apiService', () => ({
   api: {
     getAuditTimeline: (...args: unknown[]) => getAuditTimelineMock(...args),
     listStrategyExecutionPacks: (...args: unknown[]) => listStrategyExecutionPacksMock(...args),
     postStrategyExecutionPack: (...args: unknown[]) => postStrategyExecutionPackMock(...args),
+    postOrchestrationPack: (...args: unknown[]) => postOrchestrationPackMock(...args),
   },
 }));
 
@@ -73,10 +80,33 @@ describe('PortalTimelinePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useIsMobileMock.mockReturnValue(false);
+    useAuthEmailMock.mockReturnValue(null);
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
       originalNarrativeFlag;
     listStrategyExecutionPacksMock.mockResolvedValue({ items: [] });
     postStrategyExecutionPackMock.mockResolvedValue({ id: 'pack-1', payload: { packs: [] } });
+    postOrchestrationPackMock.mockResolvedValue({
+      pack: { graph: { nodes: [] }, lanes: {} },
+      orchestration_pack_version: 1,
+      roadmap_version: 1,
+      last_revision_diff: null,
+      last_revision_diff_summary: null,
+      plan_governance: {
+        unresolved_conflicts: 0,
+        cycles_detected: 0,
+        dangling_deps_count: 0,
+        invalid_lane_assignments: 0,
+        dependency_integrity_score: 1,
+        confidence_coverage_score: 1,
+        risk_coverage_score: 1,
+        decision: 'allow',
+        decision_hint: 'ok',
+        reason_codes: [],
+        blocking_reasons: [],
+        warnings_soft: [],
+        warnings: [],
+      },
+    });
     getAuditTimelineMock.mockResolvedValue({
       timeline: {
         status: 'ready',
@@ -153,7 +183,8 @@ describe('PortalTimelinePage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelineMilestonesTitle)).toBeInTheDocument();
+    const topActions = await screen.findByTestId('portal-timeline-top-actions');
+    expect(topActions.textContent).toContain(ORCHESTRATION_UI_COPY.milestoneUnlocksLabel);
     expect(screen.getAllByText('Improve crawl budget').length).toBeGreaterThan(0);
     expect(screen.getByText(ORCHESTRATION_UI_COPY.topPriorityReasonLabel)).toBeInTheDocument();
     expect(screen.getByText('Highest short-term leverage')).toBeInTheDocument();
