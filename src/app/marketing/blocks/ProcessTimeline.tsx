@@ -13,7 +13,7 @@ export function ProcessTimeline({
   return (
     <div>
       {title && (
-        <h3 className="mb-6 font-display text-lg font-bold tracking-tight ds-text-primary" >
+        <h3 className="mb-6 font-display text-lg font-semibold tracking-tight text-[var(--text-primary)]/90">
           {title}
         </h3>
       )}
@@ -28,16 +28,16 @@ export function ProcessTimeline({
             className="relative flex gap-4 pb-8 pl-1 last:pb-0"
           >
             {i < steps.length - 1 && (
-              <span className="ds-bg-border-default ds-process-timeline-connector" aria-hidden />
+              <span className="ds-marketing-timeline-connector" aria-hidden />
             )}
-            <div className="ds-process-step-badge relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+            <div className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-xs font-semibold text-[var(--text-primary)] shadow-sm backdrop-blur-md">
               {i + 1}
             </div>
-            <div className="min-w-0 pt-0.5">
-              <p className="font-semibold ds-text-primary" >
+            <div className="min-w-0 pt-1">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
                 {s.title}
               </p>
-              <p className="mt-1 text-sm leading-relaxed ds-text-secondary" >
+              <p className="ds-marketing-text-muted mt-2 text-sm leading-relaxed">
                 {s.detail}
               </p>
             </div>

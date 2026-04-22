@@ -1533,6 +1533,496 @@ html:not(.dark) .glc-hover-row:hover {
   background-color: unset;
 }
 
+/* --- Marketing spatial glass (public package + home) — SSOT in tokens.css + these bridges only --- */
+.ds-marketing-mesh-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background-color: var(--marketing-canvas-deep);
+}
+
+.ds-marketing-mesh-blobs-wrap {
+  position: absolute;
+  inset: -50%;
+  height: 200%;
+  width: 200%;
+  opacity: 0.6;
+}
+
+.ds-marketing-mesh-blob {
+  position: absolute;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+}
+
+.ds-marketing-mesh-blob--tl {
+  left: 25%;
+  top: 25%;
+  width: 800px;
+  height: 800px;
+  background: color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  filter: blur(120px);
+}
+
+.ds-marketing-mesh-blob--br {
+  right: 25%;
+  bottom: 25%;
+  width: 600px;
+  height: 600px;
+  background: color-mix(in oklab, var(--glc-orange) 10%, transparent);
+  filter: blur(100px);
+}
+
+.ds-marketing-mesh-blob--c {
+  left: 50%;
+  top: 50%;
+  width: 700px;
+  height: 700px;
+  translate: -50% -50%;
+  background: color-mix(in oklab, var(--glc-green) 15%, transparent);
+  filter: blur(140px);
+}
+
+/* Marketing: `class="dark"` on subtree does not set `html.dark` — use light copy on deep canvas. */
+.dark.ds-marketing-page-home,
+.dark.ds-marketing-page-express {
+  --text-primary: #e6edf3;
+  --text-secondary: #9ea8b3;
+  --text-tertiary: #7d8793;
+  --text-quaternary: #6a737d;
+  --border-subtle: #2a313b;
+  --border-default: #3a4451;
+  color: var(--text-primary);
+}
+
+/* Light "paper" island on marketing canvas (body copy on elevated surface). */
+.ds-marketing-elevated-paper {
+  --text-primary: oklch(0.2 0.03 255);
+  --text-secondary: oklch(0.37 0.03 252);
+  --text-tertiary: oklch(0.58 0.02 252);
+  --border-subtle: oklch(0.88 0.014 248);
+  --border-default: oklch(0.8 0.017 248);
+  color: var(--text-primary);
+}
+
+.ds-marketing-page-express {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--marketing-canvas-deep);
+  color: var(--text-primary);
+}
+
+.ds-marketing-page-express ::selection,
+.dark.ds-marketing-page-home ::selection {
+  background: color-mix(in oklab, var(--glc-blue) 30%, transparent);
+}
+
+.ds-marketing-glass-panel {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ds-marketing-glass-panel--padded {
+  padding: 1.5rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-panel--padded {
+    padding: 2rem 2.5rem;
+  }
+}
+
+.ds-marketing-glass-mid-cta {
+  max-width: var(--marketing-max-w-content);
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 2.5rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-mid-cta {
+    padding: 3.5rem 3rem;
+  }
+}
+
+.ds-marketing-glass-hero-tilt-wrap {
+  perspective: var(--marketing-cockpit-perspective);
+}
+
+.ds-marketing-glass-hero-tilt-inner {
+  transform-origin: top center;
+}
+
+.ds-marketing-glass-hero-coverage {
+  max-width: var(--marketing-max-w-hero-content);
+}
+
+.ds-marketing-glass-hero-coverage-box {
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-hero-coverage-box {
+    padding: 2rem;
+  }
+}
+
+.ds-marketing-text-muted {
+  color: var(--marketing-text-muted);
+}
+
+.ds-marketing-hero-display-title {
+  display: block;
+  font-size: var(--marketing-hero-title-size);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: var(--marketing-hero-title-track);
+  text-shadow: var(--marketing-hero-title-shadow);
+}
+
+.ds-marketing-hero-cockpit-surface {
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--marketing-cockpit-ambient);
+  -webkit-mask-image: linear-gradient(to bottom, #fff 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #fff 60%, transparent 100%);
+}
+
+.ds-marketing-hero-cockpit-perspective {
+  perspective: var(--marketing-cockpit-perspective);
+}
+
+.ds-marketing-cta-glass {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, #ffffff 20%, transparent);
+  background: color-mix(in oklab, #ffffff 10%, transparent);
+  padding: 0.75rem 2rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--marketing-fg-on-glass);
+  text-decoration: none;
+  box-shadow: var(--marketing-shadow-cta);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ds-marketing-cta-glass:hover {
+  background: color-mix(in oklab, #ffffff 20%, transparent);
+  box-shadow: var(--marketing-shadow-cta-hover);
+}
+
+.ds-marketing-eyebrow-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 0.375rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--marketing-fg-on-glass);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--glc-ink) 8%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease;
+}
+
+.ds-marketing-eyebrow-chip:hover {
+  background: color-mix(in oklab, #ffffff 5%, transparent);
+}
+
+.ds-marketing-eyebrow-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--glc-blue) 0%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue) 20%, transparent) 50%,
+    color-mix(in oklab, var(--glc-blue) 0%, transparent) 100%
+  );
+  transform: translateX(-100%);
+  animation: marketing-shimmer 3s ease-in-out infinite;
+}
+
+@keyframes marketing-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.ds-marketing-outcome-pill {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 3%, transparent);
+  color: var(--marketing-text-muted);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ds-marketing-outcome-pill:hover {
+  background: color-mix(in oklab, #ffffff 8%, transparent);
+}
+
+.ds-marketing-outcome-pill--active {
+  border-color: color-mix(in oklab, var(--glc-blue) 30%, transparent);
+  background: color-mix(in oklab, var(--glc-blue) 10%, transparent);
+  color: var(--marketing-fg-on-glass);
+  box-shadow: var(--marketing-outcome-pill-glow);
+}
+
+.ds-marketing-outcome-specimen {
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ds-marketing-outcome-specimen-glow {
+  position: absolute;
+  z-index: 0;
+  right: -5rem;
+  top: -5rem;
+  height: 10rem;
+  width: 10rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  filter: blur(var(--marketing-specimen-orb));
+  mix-blend-mode: screen;
+}
+
+.ds-marketing-outcome-glass-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: var(--marketing-glass-tint-soft);
+  box-shadow: 0 25px 50px -12px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.ds-marketing-outcome-glass-card:hover {
+  background: var(--marketing-glass-tint);
+  border-color: color-mix(in oklab, #ffffff 10%, transparent);
+}
+
+.ds-marketing-scope-truth-surface {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  border-radius: 2rem;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 2.5rem 1.5rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-scope-truth-surface {
+    padding: 4rem 3rem;
+  }
+}
+
+.ds-marketing-scope-coverage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: color-mix(in oklab, #ffffff 3%, transparent);
+  padding: 1rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: color-mix(in oklab, #ffffff 50%, transparent);
+}
+
+.ds-marketing-next-steps-card {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Audience / teaser: compact glass card (package + home rails). */
+.ds-marketing-audience-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ds-marketing-audience-card:hover {
+  background: color-mix(in oklab, #0a0a0c 90%, #ffffff 4%);
+  border-color: color-mix(in oklab, #ffffff 20%, transparent);
+}
+
+.ds-marketing-teaser-card {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-sm);
+  padding: 1.5rem;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-teaser-card {
+    padding: 2rem;
+  }
+}
+
+.ds-marketing-teaser-card:hover {
+  background: color-mix(in oklab, #0a0a0c 90%, #ffffff 2%);
+  border-color: color-mix(in oklab, #ffffff 20%, transparent);
+}
+
+.ds-marketing-timeline-connector {
+  position: absolute;
+  bottom: 0;
+  left: 15px;
+  top: 2rem;
+  width: 1px;
+  background: color-mix(in oklab, #ffffff 10%, transparent);
+}
+
+/* Home guided path — large rounded glass (matches home hero rhythm). */
+.ds-marketing-guided-path {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-guided-path {
+    padding: 2.5rem;
+  }
+}
+
+.ds-marketing-hero-billboard {
+  position: relative;
+  display: flex;
+  max-width: var(--marketing-max-w-content);
+  margin-left: auto;
+  margin-right: auto;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 4rem;
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .ds-marketing-hero-billboard {
+    padding-top: 6rem;
+  }
+}
+
+.ds-marketing-cta-glow-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, #ffffff 10%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.group:hover .ds-marketing-cta-glow-sweep,
+.ds-marketing-cta-glass:hover .ds-marketing-cta-glow-sweep {
+  transform: translateX(100%);
+}
+
+.ds-marketing-glass-tile {
+  height: 100%;
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px 0 color-mix(in oklab, var(--glc-ink) 5%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ds-marketing-express-glass-grid {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  border-radius: 2rem;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 2.5rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-express-glass-grid {
+    padding: 3rem 2.5rem;
+  }
+}
+
 .ds-marketing-surface-muted-band {
   border-radius: var(--radius-2xl);
   border: var(--border-width-default) solid var(--border-subtle);
@@ -3563,9 +4053,6 @@ html:not(.dark) .glc-hover-row:hover {
   padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
 }
 
-.ds-dashboard-search-minw {
-}
-
 @media (min-width: 640px) {
   .ds-dashboard-search-minw {
     min-width: 220px;
@@ -3921,9 +4408,6 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-snapshot-preview-caps-tracking {
   letter-spacing: 0.16em;
-}
-
-.ds-login-aside-panel-max {
 }
 
 @media (min-width: 768px) {

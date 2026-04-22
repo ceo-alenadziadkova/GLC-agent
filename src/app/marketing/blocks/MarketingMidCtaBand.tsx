@@ -30,24 +30,27 @@ export function MarketingMidCtaBand({
 }) {
   return (
     <aside
-      className={cn(
-        'glc-info-glass-surface -mx-4 border-y border-[var(--border-subtle)] px-4 py-12 sm:-mx-6 sm:px-8 sm:py-14',
-        className,
-      )}
+      className={cn('ds-marketing-glass-mid-cta', className)}
       aria-label={landmarkLabel ?? title}
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+      <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
         <div className="min-w-0">
-          <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl ds-text-primary" >
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-3xl">
             {title}
           </h2>
-          <p className="ds-marketing-mid-cta-body ds-text-secondary">
+          <p className="ds-marketing-text-muted mt-4 max-w-2xl text-base leading-relaxed">
             {body}
           </p>
           {recoveryLabel && recoveryCtaLabel && recoveryCtaTo ? (
-            <p className="mt-3 text-xs leading-relaxed text-[var(--text-tertiary)] sm:text-sm">
+            <p className="mt-4 text-xs leading-relaxed text-white/50 sm:text-sm">
               {recoveryLabel}{' '}
-              <Link to={recoveryCtaTo} className="font-semibold text-[var(--glc-blue)] underline underline-offset-4">
+              <Link
+                to={recoveryCtaTo}
+                className={cn(
+                  'font-medium text-[var(--text-primary)] underline underline-offset-4 transition-colors hover:text-[var(--text-primary)]/80',
+                  FOCUS,
+                )}
+              >
                 {recoveryCtaLabel}
               </Link>
             </p>
@@ -56,12 +59,9 @@ export function MarketingMidCtaBand({
         <Button
           asChild
           variant="default"
-          className={cn(
-            'ds-cta-primary group inline-flex shrink-0 items-center justify-center gap-2 text-sm font-semibold transition-[opacity,transform] duration-200',
-            FOCUS,
-          )}
+          className="group relative inline-flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/10 px-6 py-6 text-sm font-medium text-[var(--text-primary)] backdrop-blur-md transition-all duration-300 hover:bg-white/20"
         >
-          <Link to={ctaTo} className="no-underline">
+          <Link to={ctaTo} className={cn('no-underline', FOCUS)}>
             {ctaLabel}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </Link>

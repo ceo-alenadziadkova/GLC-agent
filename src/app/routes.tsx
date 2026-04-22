@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useParams } from 'react-router';
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  ScrollRestoration,
+  useLocation,
+  useParams,
+} from 'react-router';
 import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
@@ -39,6 +46,7 @@ import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineCont
 import { RouteErrorPage }   from './components/RouteErrorPage';
 import { CookieConsentProvider } from './components/cookie-consent/CookieConsentProvider';
 import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
+import { applyGlcColorScheme } from './lib/glc-theme';
 
 function PNoGuest({ children }: { children: ReactNode }) {
   return <ProtectedRoute blockedForRoles={['guest']}>{children}</ProtectedRoute>;
@@ -62,6 +70,11 @@ function ClientPortalShell({ children }: { children: ReactNode }) {
 }
 
 function RootOutlet() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    applyGlcColorScheme();
+  }, [pathname]);
+
   useEffect(() => {
     document.body.classList.add('glc-site-polish');
     return () => {

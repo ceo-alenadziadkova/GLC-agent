@@ -78,6 +78,9 @@ export function buildMarketingHomeViewModel(brandName: string): MarketingHomeVie
       expandBody: marketingHomeCopy.homeScopeTruthExpandBody,
       coverageItems: marketingHomeCopy.homeScopeTruthCoverageItems,
       boundaryNote: marketingHomeCopy.homeScopeTruthBoundaryNote,
+      coverageMapHeadingLeft: marketingHomeCopy.homeScopeTruthCoverageMapHeadingLeft,
+      coverageMapHeadingRight: marketingHomeCopy.homeScopeTruthCoverageMapHeadingRight,
+      coverageStatusIncludedLabel: marketingHomeCopy.homeScopeTruthCoverageStatusIncludedLabel,
     },
     outcomes: {
       title: pack.outcomes_section.title,

@@ -5,7 +5,7 @@ import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
 import type { FieldErrors } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
 import { cn } from '../../../../components/ui/utils';
-import { Input } from '../../../../design-system/ui';
+import { Input } from '../../../../../design-system/ui';
 
 type RecoveryFormProps = {
   userEmail: string | null | undefined;

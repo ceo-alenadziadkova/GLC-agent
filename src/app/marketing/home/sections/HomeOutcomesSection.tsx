@@ -5,8 +5,8 @@ import {
   MARKETING_CARD_MOTION,
   MARKETING_IN_VIEW_MARGIN,
   MARKETING_MOTION_EASE_PREMIUM,
+  MARKETING_SPRING_PREMIUM,
 } from '../../../config/marketing-motion';
-import { HOME_SURFACE_CARD_STYLE } from '../config/home-ui.config';
 import { homeOutcomeCardVariants } from '../motion/home-motion';
 import { SectionHeading } from '../components/SectionHeading';
 import type { MarketingHomeViewModel } from '../types/home-content.types';
@@ -46,9 +46,9 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
                 key={lens.id}
                 type="button"
                 className={cn(
-                  'rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition-colors sm:text-sm',
-                  isActive &&
-                    'border-[var(--glc-blue)] bg-[color-mix(in_oklab,var(--glc-blue)_14%,var(--bg-surface))] text-[var(--glc-blue)]',
+                  'px-3.5 py-1.5 text-xs font-medium transition-all duration-300 sm:text-sm',
+                  'ds-marketing-outcome-pill',
+                  isActive && 'ds-marketing-outcome-pill--active',
                 )}
                 aria-pressed={isActive}
                 onClick={() => setActiveRoleId(lens.id)}
@@ -71,23 +71,25 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
           </motion.p>
         ) : null}
       </AnimatePresence>
-      <div className="ds-home-outcome-specimen mt-8 grid gap-4 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-4 sm:mt-10 sm:gap-6 sm:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{data.specimenEyebrow}</p>
+      <div className="ds-marketing-outcome-specimen relative mt-12 grid gap-4 p-6 sm:mt-16 sm:gap-6 sm:p-10">
+        <div className="ds-marketing-outcome-specimen-glow" aria-hidden />
+        <p className="relative z-10 text-xs font-bold uppercase tracking-[var(--marketing-kicker-track)] text-[var(--glc-blue)]">
+          {data.specimenEyebrow}
+        </p>
         <AnimatePresence mode="wait" initial={false}>
           <motion.p
             key={`specimen-${activeLens?.id ?? 'default'}`}
-            className="max-w-[70ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base"
+            className="relative z-10 max-w-[50ch] text-lg font-medium leading-relaxed text-[var(--text-primary)] sm:text-2xl"
             {...roleMotionProps}
-            transition={{ duration: 0.16, ease: MARKETING_MOTION_EASE_PREMIUM }}
+            transition={{ ...MARKETING_SPRING_PREMIUM }}
           >
             {specimenBody}
           </motion.p>
         </AnimatePresence>
       </div>
-      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-12 lg:gap-8">
+      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-12 lg:gap-6">
         <motion.article
-          className="ds-home-outcome-card flex flex-col justify-between p-6 sm:p-8 lg:col-span-7 will-change-transform"
-          style={HOME_SURFACE_CARD_STYLE}
+          className="ds-marketing-outcome-glass-card relative flex flex-col justify-between p-6 sm:p-12 lg:col-span-7 will-change-transform"
           variants={homeOutcomeCardVariants}
           custom={0}
           initial={reduceMotion ? false : 'hidden'}
@@ -111,15 +113,15 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
           }
         >
           <div>
-            <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h3 className="font-display text-4xl font-semibold leading-none tracking-[var(--marketing-section-heading-track)] text-[var(--text-primary)] sm:text-5xl lg:text-6xl">
               {data.primary.title}
             </h3>
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={`primary-${activeLens?.id ?? 'default'}`}
-                className="mt-4 max-w-[60ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base"
+                className="ds-marketing-text-muted mt-6 max-w-[40ch] text-base leading-relaxed sm:text-lg lg:text-xl"
                 {...roleMotionProps}
-                transition={{ duration: 0.16, ease: MARKETING_MOTION_EASE_PREMIUM }}
+                transition={{ ...MARKETING_SPRING_PREMIUM }}
               >
                 {primaryBody}
               </motion.p>
@@ -130,8 +132,7 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
           {data.secondary.map((item, cardIdx) => (
             <motion.article
               key={item.title}
-              className="ds-home-outcome-card flex-1 p-5 sm:p-6 will-change-transform"
-              style={HOME_SURFACE_CARD_STYLE}
+              className="ds-marketing-outcome-glass-card relative flex-1 p-6 sm:p-10 will-change-transform"
               variants={homeOutcomeCardVariants}
               custom={cardIdx + 1}
               initial={reduceMotion ? false : 'hidden'}
@@ -154,15 +155,15 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
                   : { scale: 0.992, transition: { duration: 0.12, ease: MARKETING_MOTION_EASE_PREMIUM } }
               }
             >
-              <h3 className="font-display text-base font-bold tracking-tight text-[var(--text-primary)] sm:text-lg">
+              <h3 className="font-display text-2xl font-semibold tracking-[var(--marketing-section-heading-track)] text-[var(--text-primary)] sm:text-3xl">
                 {item.title}
               </h3>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p
                   key={`secondary-${cardIdx}-${activeLens?.id ?? 'default'}`}
-                  className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]"
+                  className="ds-marketing-text-muted mt-4 text-base leading-relaxed"
                   {...roleMotionProps}
-                  transition={{ duration: 0.16, ease: MARKETING_MOTION_EASE_PREMIUM }}
+                  transition={{ ...MARKETING_SPRING_PREMIUM }}
                 >
                   {secondaryBodies?.[cardIdx] ?? item.body}
                 </motion.p>

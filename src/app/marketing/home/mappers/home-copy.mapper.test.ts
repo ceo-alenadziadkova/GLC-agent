@@ -44,6 +44,11 @@ describe('home-copy.mapper', () => {
     expect(vm.scopeTruth.body).toBe(marketingHomeCopy.homeScopeTruthBody);
     expect(vm.scopeTruth.expandTriggerLabel).toBe(marketingHomeCopy.homeScopeTruthExpandTriggerLabel);
     expect(vm.scopeTruth.expandBody).toBe(marketingHomeCopy.homeScopeTruthExpandBody);
+    expect(vm.scopeTruth.coverageMapHeadingLeft).toBe(marketingHomeCopy.homeScopeTruthCoverageMapHeadingLeft);
+    expect(vm.scopeTruth.coverageMapHeadingRight).toBe(marketingHomeCopy.homeScopeTruthCoverageMapHeadingRight);
+    expect(vm.scopeTruth.coverageStatusIncludedLabel).toBe(
+      marketingHomeCopy.homeScopeTruthCoverageStatusIncludedLabel,
+    );
     expect(vm.landmarks.scopeTruth).toBe(workspacePackaging.marketing_home.landmarks.scope_truth);
   });
 

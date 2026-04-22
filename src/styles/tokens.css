@@ -221,17 +221,17 @@
 
   --mesh-brand: radial-gradient(
       ellipse 80% 60% at 15% 40%,
-      color-mix(in oklab, var(--glc-blue) 13%, transparent) 0%,
+      color-mix(in oklab, var(--glc-blue) 35%, transparent) 0%,
       transparent 60%
     ),
     radial-gradient(
       ellipse 60% 40% at 80% 15%,
-      color-mix(in oklab, var(--glc-green) 9%, transparent) 0%,
+      color-mix(in oklab, var(--glc-green) 25%, transparent) 0%,
       transparent 50%
     ),
     radial-gradient(
       ellipse 40% 60% at 65% 80%,
-      color-mix(in oklab, var(--glc-orange) 7%, transparent) 0%,
+      color-mix(in oklab, var(--glc-orange) 20%, transparent) 0%,
       transparent 50%
     );
   --mesh-ink: radial-gradient(
@@ -277,6 +277,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --marketing-dropdown-min-width: 12rem;
   --sidebar-width: 16rem;
   --sidebar-width-mobile: 18rem;
   --sidebar-width-icon: 3rem;
@@ -284,6 +285,38 @@
   --app-shell-drawer-width: min(20rem, 88vw);
   --client-audit-brief-form-max-height: min(55vh, 28rem);
   --client-audit-brief-progress-track-height: 3px;
+
+  /**
+   * Public marketing “spatial” glass surfaces (dark package + home overdrive).
+   * Visual literals live only here; TSX uses `var(--marketing-*)` and `.ds-marketing-*` bridges.
+   */
+  --marketing-canvas-deep: #050510;
+  --marketing-glass-tint: color-mix(in oklab, #0a0a0c 80%, transparent);
+  --marketing-glass-tint-soft: color-mix(in oklab, #0a0a0c 60%, transparent);
+  --marketing-text-muted: #a0acb0;
+  /** Main label on deep canvas / glass — not `--text-primary` (follows :root) or `--text-inverse` (inverts in html.dark). */
+  --marketing-fg-on-canvas: #e6edf3;
+  --marketing-fg-on-glass: #e6edf3;
+  --marketing-border-on-glass: color-mix(in oklab, #ffffff 20%, transparent);
+  --marketing-shadow-glass-lg: 0 0 50px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-glass-md: 0 0 40px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-glass-sm: 0 0 20px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-cta: 0 0 20px color-mix(in oklab, #ffffff 10%, transparent);
+  --marketing-shadow-cta-hover: 0 0 30px color-mix(in oklab, #ffffff 20%, transparent);
+  --marketing-max-w-content: 62.5rem;
+  --marketing-max-w-hero-content: 50rem;
+  --marketing-hero-title-shadow: 0 4px 20px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-hero-title-size: clamp(2.5rem, 8vw, 5.5rem);
+  --marketing-hero-title-track: -0.04em;
+  --marketing-cockpit-ambient: 0 50px 150px -20px color-mix(in oklab, var(--glc-ink) 80%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #ffffff 10%, transparent);
+  --marketing-cockpit-perspective: 1200px;
+  --marketing-radius-card-3xl: 1.5rem;
+  --marketing-outcome-pill-glow: 0 0 15px color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  --marketing-specimen-orb: 50px;
+  --marketing-section-heading-track: -0.03em;
+  --marketing-kicker-track: 0.15em;
+  --marketing-compression-kicker-track: 0.08em;
 
   /* Snapshot landing (marketing hero + quota) */
   --snapshot-command-shell-outline: linear-gradient(
@@ -737,17 +770,17 @@ html.dark {
   --gradient-surface: linear-gradient(180deg, #161B22 0%, #0D1117 100%);
   --mesh-brand: radial-gradient(
       ellipse 85% 65% at 12% 35%,
-      color-mix(in oklab, var(--glc-blue) 9%, transparent) 0%,
+      color-mix(in oklab, var(--glc-blue) 30%, transparent) 0%,
       transparent 58%
     ),
     radial-gradient(
       ellipse 55% 45% at 82% 18%,
-      color-mix(in oklab, var(--glc-green) 6%, transparent) 0%,
+      color-mix(in oklab, var(--glc-green) 22%, transparent) 0%,
       transparent 52%
     ),
     radial-gradient(
       ellipse 45% 55% at 68% 82%,
-      color-mix(in oklab, var(--glc-orange) 6%, transparent) 0%,
+      color-mix(in oklab, var(--glc-orange) 20%, transparent) 0%,
       transparent 52%
     );
   --mesh-ink: var(--mesh-brand);

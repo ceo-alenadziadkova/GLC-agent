@@ -8,7 +8,7 @@ import { APP_ROUTE_PATHS } from '../../../../config/route-paths';
 import type { AuthMode, FieldErrors, SignupLegalFieldState } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
 import { cn } from '../../../../components/ui/utils';
-import { Input } from '../../../../design-system/ui';
+import { Input } from '../../../../../design-system/ui';
 
 type SignupLegalConsentRowProps = {
   checked: boolean;

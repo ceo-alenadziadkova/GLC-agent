@@ -17,6 +17,7 @@ import {
 } from './marketing-nav';
 import { cn } from '../components/ui/utils';
 import { usePublicBrand } from './PublicBrandContext';
+import { useGlcTempLightThemeLock } from '../hooks/useGlcTempLightThemeLock';
 import { useScrolled } from '../hooks/useScrolled';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
@@ -29,6 +30,7 @@ export function MarketingHeader({
 }) {
   const scrolled = useScrolled();
   const location = useLocation();
+  const isLightThemeTempDisabled = useGlcTempLightThemeLock();
   const { footer } = usePublicBrand();
   const navCopy = WORKSPACE_PAGE_COPY.marketingLayout;
   const briefLink = MARKETING_LINKS.find(link => link.to === '/brief');
@@ -129,7 +131,7 @@ export function MarketingHeader({
                   <span>{navCopy.packagesMenuLabel}</span>
                   <CaretDown className="h-3.5 w-3.5 shrink-0 opacity-70" weight="bold" aria-hidden />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="min-w-[12rem]">
+                <DropdownMenuContent align="center" className="min-w-[var(--marketing-dropdown-min-width)]">
                   {MARKETING_PACKAGE_LINKS.map(({ to, label }) => (
                     <DropdownMenuItem key={to} asChild className="cursor-pointer p-0">
                       <NavLink
@@ -152,7 +154,7 @@ export function MarketingHeader({
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
+          {!isLightThemeTempDisabled && <ThemeToggle />}
           {/* TODO(ds): Spec and implement dedicated marketing-header CTA appearance in the design system (Brief link). */}
           <Link
             to={briefLink?.to ?? '/brief'}

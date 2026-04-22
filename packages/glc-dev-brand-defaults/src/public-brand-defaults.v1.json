@@ -9,7 +9,7 @@
   "footer": {
     "introParagraph": "Audits of digital systems, processes, and your website. Bottlenecks, priorities, automation, and a clear roadmap—from diagnosis to implementation.",
     "routesSectionTitle": "Routes",
-    "clientSignInLabel": "Client sign-in",
+    "clientSignInLabel": "Sign-in",
     "nextStepSectionTitle": "Next step",
     "nextStepBeforeSnapshot": "Not sure where to start? Try ",
     "snapshotLinkLabel": "Snapshot",

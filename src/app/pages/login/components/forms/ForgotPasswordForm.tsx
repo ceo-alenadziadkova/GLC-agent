@@ -5,7 +5,7 @@ import type { FieldErrors } from '../../types';
 import { cn } from '../../../../components/ui/utils';
 import { Callout } from '../../../../components/ui/callout';
 import { FormField } from '../../../../components/ui/form-field';
-import { Input } from '../../../../design-system/ui';
+import { Input } from '../../../../../design-system/ui';
 
 type ForgotPasswordFormProps = {
   email: string;

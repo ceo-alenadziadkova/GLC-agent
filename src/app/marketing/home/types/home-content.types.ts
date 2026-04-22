@@ -114,6 +114,9 @@ export type MarketingHomeViewModel = {
     expandBody: string;
     coverageItems: string[];
     boundaryNote: string;
+    coverageMapHeadingLeft: string;
+    coverageMapHeadingRight: string;
+    coverageStatusIncludedLabel: string;
   };
   outcomes: {
     title: string;

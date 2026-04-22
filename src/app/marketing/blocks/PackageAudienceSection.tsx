@@ -13,31 +13,31 @@ export function PackageAudienceSection({
 }) {
   return (
     <section
-      className="glc-info-glass-surface -mx-4 mt-8 px-4 py-10 sm:-mx-6 sm:mt-10 sm:px-6 sm:py-12"
+      className="mx-auto mt-8 max-w-[var(--marketing-max-w-content)] px-4 py-10 sm:mt-10 sm:px-6 sm:py-12"
       aria-label={title}
     >
-      <h2 className="font-display text-xl font-bold sm:text-2xl ds-text-primary" >
+      <h2 className="text-center font-display text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
         {title}
       </h2>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
         {cards.map(card => (
           <article
             key={card.situation}
-            className="ds-package-audience-section-card rounded-[var(--radius-xl)] border p-4"
+            className="ds-marketing-audience-card p-6"
           >
-            <p className="text-[length:var(--text-2xs)] font-semibold uppercase ds-package-audience-caps ds-text-tertiary">
+            <p className="text-[length:var(--text-2xs)] font-semibold uppercase text-[var(--text-primary)]/50">
               Situation
             </p>
-            <p className="mt-1 text-sm font-semibold leading-relaxed ds-text-primary" >
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--text-primary)]">
               {card.situation}
             </p>
-            <p className="mt-3 text-[length:var(--text-2xs)] font-semibold uppercase ds-package-audience-caps ds-text-tertiary">
+            <p className="mt-5 text-[length:var(--text-2xs)] font-semibold uppercase text-[var(--text-primary)]/50">
               What is happening now
             </p>
-            <p className="mt-1 text-sm leading-relaxed ds-text-secondary" >
+            <p className="ds-marketing-text-muted mt-2 text-sm leading-relaxed">
               {card.happening_now}
             </p>
-            <p className="ds-text-brand-deeper mt-3 text-xs font-semibold">
+            <p className="mt-5 text-xs font-semibold text-[var(--glc-blue)]">
               {card.best_fit}
             </p>
           </article>

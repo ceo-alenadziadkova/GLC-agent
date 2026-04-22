@@ -1,4 +1,5 @@
 import { useReducedMotion } from 'motion/react';
+import { MarketingMeshBackdrop } from '../components/MarketingMeshBackdrop';
 import { MarketingLayout } from '../MarketingLayout';
 import { MarketingSection } from '../blocks/MarketingSection';
 import { usePublicBrand } from '../PublicBrandContext';
@@ -13,9 +14,12 @@ import { HomeScopeTruthSection } from './sections/HomeScopeTruthSection';
 
 export function MarketingHomePage() {
   return (
-    <MarketingLayout>
-      <MarketingHomePageContent />
-    </MarketingLayout>
+    <div className="dark ds-bg-canvas ds-marketing-page-home relative min-h-screen">
+      <MarketingMeshBackdrop />
+      <MarketingLayout>
+        <MarketingHomePageContent />
+      </MarketingLayout>
+    </div>
   );
 }
 
@@ -28,7 +32,7 @@ function MarketingHomePageContent() {
     <>
       <div
         data-testid="marketing-home"
-        className="flex flex-col gap-14 sm:gap-16 lg:gap-20"
+        className="flex flex-col gap-24 sm:gap-32 lg:gap-40"
       >
         <MarketingSection
           className="glc-light-home-hero relative -mx-4 align-top overflow-hidden px-4 pb-12 pt-6 sm:-mx-6 sm:px-6 sm:pb-20 sm:pt-10"
@@ -55,8 +59,8 @@ function MarketingHomePageContent() {
 
         <MarketingSection delay={0.11}>
           <div className="mx-auto w-full max-w-5xl px-5 sm:px-6">
-            <div className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-4 sm:px-6 sm:py-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <div className="ds-marketing-elevated-paper rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-4 sm:px-6 sm:py-5">
+              <p className="text-xs font-semibold uppercase tracking-[var(--marketing-compression-kicker-track)] text-[var(--text-tertiary)]">
                 {viewModel.compressionBridge.kicker}
               </p>
               <p className="mt-2 max-w-[68ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">

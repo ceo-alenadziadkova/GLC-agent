@@ -3,7 +3,6 @@
 import { CaretDown } from '@phosphor-icons/react';
 import { cn } from '../../../components/ui/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
-import { HOME_DISPLAY_H2 } from '../config/home-ui.config';
 import type { MarketingHomeViewModel } from '../types/home-content.types';
 
 type HomeScopeTruthSectionProps = {
@@ -18,55 +17,76 @@ export function HomeScopeTruthSection({ data }: HomeScopeTruthSectionProps) {
   const secondGroup = data.coverageItems.slice(3);
 
   return (
-    <div className="ds-marketing-surface-muted-band ds-home-scope-band px-5 py-8 sm:px-8 sm:py-10">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        {data.kicker}
-      </p>
-      <h2 className={cn(HOME_DISPLAY_H2, 'ds-text-primary max-w-[40ch] tracking-tight')}>
-        {data.title}
-      </h2>
-      <p className="mt-4 max-w-[62ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
-        {data.body}
-      </p>
-      <div className="ds-home-coverage-visual mt-7" aria-label="Whole-business coverage map">
-        <div className="ds-home-coverage-visual-head">
-          <span>Coverage areas</span>
-          <span>Included in shared reading</span>
+    <div className="ds-marketing-scope-truth-surface text-[var(--text-primary)]">
+      <div className="flex flex-col items-center text-center">
+        <p className="ds-marketing-text-muted mb-4 text-xs font-semibold uppercase tracking-[var(--marketing-kicker-track)]">
+          {data.kicker}
+        </p>
+        <h2 className="max-w-[40ch] text-3xl font-semibold tracking-[var(--marketing-section-heading-track)] sm:text-4xl lg:text-5xl">
+          {data.title}
+        </h2>
+        <p className="ds-marketing-text-muted mt-6 max-w-[62ch] text-base leading-relaxed sm:text-lg">
+          {data.body}
+        </p>
+      </div>
+      <div
+        className="mt-12 overflow-hidden rounded-2xl border border-white/5 bg-black/40"
+        aria-label="Whole-business coverage map"
+      >
+        <div className="ds-marketing-scope-coverage-header">
+          <span>{data.coverageMapHeadingLeft}</span>
+          <span>{data.coverageMapHeadingRight}</span>
         </div>
-        <div className="ds-home-coverage-map ds-home-coverage-map-columns">
-          <div className="ds-home-coverage-map-group">
+        <div className="grid gap-px bg-white/5 sm:grid-cols-2">
+          <div className="flex flex-col bg-black/40">
             {firstGroup.map((item) => (
-              <div key={item} className="ds-home-coverage-map-row">
-                <span className="ds-home-coverage-map-label">{item}</span>
-                <span className="ds-home-coverage-map-status">Included</span>
+              <div
+                key={item}
+                className="flex items-center justify-between border-b border-white/5 px-6 py-4 last:border-0 hover:bg-white/[0.02]"
+              >
+                <span className="text-sm font-medium text-[var(--text-primary)]">{item}</span>
+                <span className="text-xs font-medium text-[var(--glc-blue)]">
+                  <span className="sr-only">{data.coverageStatusIncludedLabel}</span>
+                  <span aria-hidden>✓</span>
+                </span>
               </div>
             ))}
           </div>
-          <div className="ds-home-coverage-map-group">
+          <div className="flex flex-col bg-black/40">
             {secondGroup.map((item) => (
-              <div key={item} className="ds-home-coverage-map-row">
-                <span className="ds-home-coverage-map-label">{item}</span>
-                <span className="ds-home-coverage-map-status">Included</span>
+              <div
+                key={item}
+                className="flex items-center justify-between border-b border-white/5 px-6 py-4 last:border-0 hover:bg-white/[0.02]"
+              >
+                <span className="text-sm font-medium text-[var(--text-primary)]">{item}</span>
+                <span className="text-xs font-medium text-[var(--glc-blue)]">
+                  <span className="sr-only">{data.coverageStatusIncludedLabel}</span>
+                  <span aria-hidden>✓</span>
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <p className="mt-4 max-w-[62ch] text-xs leading-relaxed text-[var(--text-secondary)] sm:text-sm">
+      <p className="ds-marketing-text-muted mt-8 text-center text-xs leading-relaxed">
         {data.boundaryNote}
       </p>
 
-      <Collapsible>
-        <CollapsibleTrigger className="ds-home-scope-truth-expand-trigger">
+      <Collapsible className="mt-6 flex flex-col items-center">
+        <CollapsibleTrigger
+          className={cn(
+            'group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-semibold text-[var(--text-primary)] transition-colors',
+            'hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
+          )}
+        >
+          {data.expandTriggerLabel}
           <CaretDown
-            className="ds-home-scope-truth-expand-chevron h-4 w-4 shrink-0 text-[var(--glc-blue-deeper)]"
-            weight="bold"
+            className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180"
             aria-hidden
           />
-          {data.expandTriggerLabel}
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden pt-1">
-          <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
+        <CollapsibleContent className="overflow-hidden pt-4 text-center">
+          <p className="ds-marketing-text-muted max-w-[62ch] text-sm leading-relaxed">
             {data.expandBody}
           </p>
         </CollapsibleContent>

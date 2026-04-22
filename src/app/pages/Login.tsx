@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { SyncPathLoader } from '../components/SyncPathLoader';
 import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
+import { useGlcTempLightThemeLock } from '../hooks/useGlcTempLightThemeLock';
 import { useLoginController } from './login/hooks/useLoginController';
 import { LoginBrandSection } from './login/sections/LoginBrandSection';
 import { LoginAuthCardSection } from './login/sections/LoginAuthCardSection';
@@ -9,6 +10,7 @@ import { LoginAsideSection } from './login/sections/LoginAsideSection';
 
 export function Login() {
   const reduceMotion = useReducedMotion();
+  const isLightThemeTempDisabled = useGlcTempLightThemeLock();
   const controller = useLoginController();
   if (controller.isOAuthCallbackProcessing) {
     return <SyncPathLoader variant="indeterminate" loadingText="Signing you in..." />;
@@ -16,9 +18,11 @@ export function Login() {
 
   return (
     <main className="glc-login-main relative ds-marketing-layout-canvas">
-      <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
-        <ThemeToggle />
-      </div>
+      {!isLightThemeTempDisabled && (
+        <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle />
+        </div>
+      )}
 
       <div className="glc-login-bg-mesh absolute inset-0 pointer-events-none ds-login-mesh-backdrop" />
 
