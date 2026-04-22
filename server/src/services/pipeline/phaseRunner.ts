@@ -16,6 +16,7 @@ import {
 } from '../../config/director-orchestration-policy.js';
 import { isDirectorOrchestrationAgentOutputEnabled } from '../../config/feature-flags.js';
 import { extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed } from '../orchestration/extract-glc-director-slice-from-agent-output.js';
+import { isStrictReadyDirectorSlice } from '../../schemas/glc-director-orchestration-slice.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -123,7 +124,18 @@ export async function runPhaseDomainExecution(
       );
       const directorSlice = directorExtraction.slice;
       const persistenceMode = directorOrchestrationPersistenceModeForPhase(phase);
+      const strictDirectorSliceReady = isStrictReadyDirectorSlice(directorSlice);
       if (directorSlice) {
+        if (persistenceMode === 'strict_for_selected_domains' && !strictDirectorSliceReady) {
+          logger.warn('pipeline.director_orchestration_slice_strict_not_ready', {
+            auditId,
+            phase,
+            domainKey,
+            mode: persistenceMode,
+            parse_mode: directorExtraction.mode,
+          });
+          throw new Error('Director orchestration slice in strict mode requires non-empty baseline.actions');
+        }
         const persistDirector = await persistGlcDirectorOrchestrationSliceForAuditOwner({
           auditId,
           domainKey: domainKey as DomainKey,

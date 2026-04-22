@@ -74,8 +74,8 @@ exports[`no-regression snapshots across intake surfaces > pre_brief + client_for
   "remediationQueue": [],
   "surface": "client_form",
   "topRecommended": [
-    "f1",
     "f2",
+    "f1",
     "a10",
     "a6",
     "a7",

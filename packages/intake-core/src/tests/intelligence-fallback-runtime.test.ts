@@ -19,4 +19,17 @@ describe('intelligence metadata fallback runtime', () => {
     expect(fallbackTrace.length).toBeGreaterThan(0);
     expect(plan.visible.length).toBeGreaterThan(0);
   });
+
+  it('keeps fallback diagnostics across collection modes', () => {
+    const plan = buildIntakePlan({
+      responses: {},
+      productMode: 'full',
+      collectionMode: 'pre_brief',
+      surface: 'client_form',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+    });
+
+    const fallbackTrace = plan.debugTrace?.filter(t => t.code === 'intelligence_metadata_incomplete') ?? [];
+    expect(fallbackTrace.length).toBeGreaterThan(0);
+  });
 });

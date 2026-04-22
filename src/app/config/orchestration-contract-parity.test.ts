@@ -38,6 +38,10 @@ import { ORCHESTRATION_INPUT_GATE_STATUSES, ORCHESTRATION_PLAN_GATE_OUTCOMES } f
 import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_CODES as FE_GOVERNANCE_REASON_CODES } from './orchestration-plan-governance';
 import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS } from './orchestration-plan-governance';
 import { ORCHESTRATION_LANE_LABELS } from './orchestration-roadmap-ui-copy.en';
+import { DIRECTOR_DEEP_DIVE_API_ERROR_CODES } from './director-deep-dive-api-error-codes';
+import { API_ERROR_CODES } from '../../../server/src/config/api-error-codes';
+import { DIRECTOR_SUB_AGENT_IDS as SERVER_DIRECTOR_SUB_AGENT_IDS } from '../../../server/src/config/director-sub-agents';
+import { DIRECTOR_SUB_AGENT_OPTIONS } from './director-sub-agents';
 
 describe('orchestration contract parity', () => {
   it('keeps manifest enums and schema version in sync with server', () => {
@@ -79,6 +83,30 @@ describe('orchestration contract parity', () => {
   it('keeps timeline-primary UX rollout default aligned (server SYSTEM_DEFAULTS vs APP_FEATURE_FLAGS)', () => {
     expect(APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled,
+    );
+  });
+
+  it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
+    expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
+    );
+    expect(APP_FEATURE_FLAGS.directorDeepDiveRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.directorDeepDiveRolloutMode,
+    );
+    expect(APP_FEATURE_FLAGS.directorSubAgentsRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.directorSubAgentsRolloutMode,
+    );
+  });
+
+  it('keeps deep-dive api error subset aligned with server codes', () => {
+    for (const code of Object.values(DIRECTOR_DEEP_DIVE_API_ERROR_CODES)) {
+      expect(Object.values(API_ERROR_CODES)).toContain(code);
+    }
+  });
+
+  it('keeps CMO sub-agent option ids aligned with server registry ids', () => {
+    expect(DIRECTOR_SUB_AGENT_OPTIONS.map((option) => option.id).sort()).toEqual(
+      [...SERVER_DIRECTOR_SUB_AGENT_IDS].sort(),
     );
   });
 });

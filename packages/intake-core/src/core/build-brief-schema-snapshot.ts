@@ -14,7 +14,7 @@ import type {
 import type { IntakeIntelligenceContract } from '../config/intake-intelligence-contract.js';
 import {
   getIntakeIntelligenceContract,
-  hasIntakeIntelligenceRequiredNow,
+  projectIntakeIntelligenceRequiredNow,
 } from '../config/intake-intelligence-contract.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
@@ -65,7 +65,10 @@ export interface BriefSchemaSnapshot {
   missing_for_report: string[];
   next_recommended: string[];
   /** ADR Diagnostic Adaptive Intake — execution / flow readiness (authoritative at enforcement points). */
-  readiness: Pick<IntakeReadinessEnvelope, 'flowReadinessStatus' | 'auditReadinessStatus' | 'trace'>;
+  readiness: Pick<
+    IntakeReadinessEnvelope,
+    'flowReadinessStatus' | 'auditReadinessStatus' | 'signalPrioritization' | 'trace'
+  >;
   /**
    * Pilot critical signals — `by_key` is ADR `signalConfidence` (not `derived.confidence_overall`).
    */
@@ -113,22 +116,14 @@ export function buildBriefSchemaSnapshot(args: {
     const meta = getQuestionBankSchemaMeta(id);
     if (!meta) continue;
     const ac = getQuestionBankAnswerContract(id);
-    const intelligence = getIntakeIntelligenceContract(id);
+    const intelligence = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(id));
     questions.push({
       id,
       label: meta.label,
       section: meta.section,
       priority: meta.priority,
       ...(ac ? { answer: expandAnswerContractForApi(ac) } : {}),
-      ...(hasIntakeIntelligenceRequiredNow(intelligence)
-        ? {
-            intelligence: {
-              whyAsked: intelligence.whyAsked,
-              semanticDomain: intelligence.semanticDomain,
-              decisionImpact: intelligence.decisionImpact,
-            },
-          }
-        : {}),
+      ...(intelligence ? { intelligence } : {}),
     });
   }
 
@@ -179,6 +174,7 @@ export function buildBriefSchemaSnapshot(args: {
     readiness: {
       flowReadinessStatus: readiness.flowReadinessStatus,
       auditReadinessStatus: readiness.auditReadinessStatus,
+      signalPrioritization: readiness.signalPrioritization,
       trace: readiness.trace,
     },
     critical_signals: {

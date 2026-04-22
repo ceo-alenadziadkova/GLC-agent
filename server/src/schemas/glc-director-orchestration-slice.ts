@@ -49,3 +49,10 @@ export const GlcDirectorOrchestrationSliceSchema = z.object({
 });
 
 export type GlcDirectorOrchestrationSlice = z.infer<typeof GlcDirectorOrchestrationSliceSchema>;
+
+/**
+ * Strict-domain quality gate: a slice is "strict-ready" only when baseline exists with at least one action.
+ */
+export function isStrictReadyDirectorSlice(slice: GlcDirectorOrchestrationSlice | null | undefined): boolean {
+  return Boolean(slice?.baseline && slice.baseline.actions.length > 0);
+}

@@ -201,4 +201,41 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     expect(env.caveats).toContain('full_scope_required_gaps');
     expect(env.flowReadinessStatus).toBe('flow_ready');
   });
+
+  it('stage-aware signal prioritization differs for Launching vs Scaling', () => {
+    const tuple = currentIntakeVersionTuple();
+    const common = {
+      a2: 'Healthcare',
+      a5: 'multi_page_website',
+      f1: ['Too much manual work and operational overload'],
+      f2: ['Website performance and technology (speed, stability, technical health)'],
+      d2: 'Managing team tasks and handoffs',
+      d_closing_flow: ['I send a quote or price manually'],
+    };
+    const launching = evaluateIntakeReadinessEnvelope({
+      responses: { ...common, a7: 'Launching' },
+      slaProductMode: 'full',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: tuple,
+    });
+    const scaling = evaluateIntakeReadinessEnvelope({
+      responses: { ...common, a7: 'Scaling' },
+      slaProductMode: 'full',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: tuple,
+    });
+    expect(
+      launching.signalPrioritization?.bySignalKey.operations_bottleneck?.skipPolicy,
+      'Launching should defer operations depth',
+    ).toBe('defer');
+    expect(
+      scaling.signalPrioritization?.bySignalKey.operations_bottleneck?.currentPriority,
+      'Scaling should prioritize operations depth',
+    ).toBe('P0');
+    expect(launching.trace.some(t => t.code === 'signal_priority_evaluated')).toBe(true);
+    expect(scaling.trace.some(t => t.code === 'signal_priority_evaluated')).toBe(true);
+  });
+
 });

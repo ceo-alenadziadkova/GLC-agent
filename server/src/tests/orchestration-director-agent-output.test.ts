@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { GLC_DIRECTOR_EXECUTION_LEGACY_KEYS } from '../config/director-orchestration-policy.js';
 import { DomainOutputSchema } from '../schemas/domain-output.js';
 import {
   extractGlcDirectorOrchestrationSliceFromAgentOutput,
@@ -60,12 +61,20 @@ describe('extractGlcDirectorOrchestrationSliceFromAgentOutput', () => {
     });
     const slice = details.slice;
     expect(slice).toBeNull();
-    expect(details.mode).toBe('missing');
+    expect(details.mode).toBe('invalid');
   });
 
   it('marks explicit invalid payload as invalid mode', () => {
     const details = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed({
       glc_director_execution: { schema_version: 1, baseline: { actions: [{ id: 1 }] } },
+    });
+    expect(details.slice).toBeNull();
+    expect(details.mode).toBe('invalid');
+  });
+
+  it('marks malformed legacy wave payload as invalid mode', () => {
+    const details = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed({
+      baseline: { actions: [{ id: 1, title: 'bad' }] },
     });
     expect(details.slice).toBeNull();
     expect(details.mode).toBe('invalid');
@@ -132,7 +141,7 @@ describe('extractGlcDirectorOrchestrationSliceFromAgentOutput edge cases', () =>
     expect(details.slice?.baseline?.actions[1]?.dependencies).toEqual(['root']);
   });
 
-  it('accepts director_orchestration alias when shape matches schema', () => {
+  it('accepts director_orchestration alias in legacy compatibility mode', () => {
     const details = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed({
       director_orchestration: {
         schema_version: 1,
@@ -152,9 +161,36 @@ describe('extractGlcDirectorOrchestrationSliceFromAgentOutput edge cases', () =>
         },
       },
     });
-    expect(details.mode).toBe('canonical');
+    expect(details.mode).toBe('legacy');
     expect(details.slice?.baseline?.actions[0]?.id).toBe('alias');
   });
+
+  it.each(GLC_DIRECTOR_EXECUTION_LEGACY_KEYS)(
+    'accepts %s alias in legacy compatibility mode',
+    (legacyKey) => {
+      const details = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed({
+        [legacyKey]: {
+          schema_version: 1,
+          baseline: {
+            actions: [
+              {
+                id: 'alias-key',
+                title: 'Alias key',
+                impact: 3,
+                effort: 3,
+                risk: 2,
+                urgency: 3,
+                confidence: 'medium',
+                dependencies: [],
+              },
+            ],
+          },
+        },
+      });
+      expect(details.mode).toBe('legacy');
+      expect(details.slice?.baseline?.actions[0]?.id).toBe('alias-key');
+    },
+  );
 });
 
 describe('DomainOutputSchema director field', () => {

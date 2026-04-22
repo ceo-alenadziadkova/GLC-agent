@@ -15,4 +15,10 @@ export const DIRECTOR_CMO_ORCHESTRATOR_POLICY = {
     contentIdeasMinCount: 50,
     trafficHypothesesMinCount: 20,
   },
+  actionMaterialization: {
+    maxActionsPerSubAgent: 3,
+    positioning: { impact: 4, effort: 3, risk: 2, urgency: 4, confidence: 'medium' as const },
+    content: { impact: 3, effort: 2, risk: 2, urgency: 3, confidence: 'medium' as const },
+    traffic: { impact: 4, effort: 3, risk: 3, urgency: 4, confidence: 'medium' as const },
+  },
 } as const;

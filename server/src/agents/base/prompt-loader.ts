@@ -70,6 +70,32 @@ const SUB_AGENT_SAFETY_CORE_APPEND = (() => {
   }
 })();
 
+const DIRECTOR_RESEARCH_RIGOR_CORE_APPEND = (() => {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, '_append-director-research-rigor-core.md'), 'utf-8');
+    return stripVersionHeader(raw).trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-director-research-rigor-core.md',
+    });
+    return '';
+  }
+})();
+
+const NON_DOMAIN_SECURITY_CORE_APPEND = (() => {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, '_append-non-domain-security-core.md'), 'utf-8');
+    return stripVersionHeader(raw).trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-non-domain-security-core.md',
+    });
+    return '';
+  }
+})();
+
 const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
   try {
     const raw = readFileSync(join(PROMPTS_DIR, '_append-runtime-output-contract.md'), 'utf-8');
@@ -84,6 +110,10 @@ const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
 })();
 
 const DOMAIN_PROMPT_SET = new Set<string>(DOMAIN_KEYS);
+const NON_DOMAIN_SECURITY_PROMPT_SET = new Set<string>([
+  'strategy-execution-pack',
+  'orchestration-pack-synthesis',
+]);
 
 /**
  * Load a prompt from server/prompts/<name>.md, stripping the version comment header.
@@ -102,8 +132,14 @@ export function loadPrompt(name: string): string {
     if (DOMAIN_PROMPT_SET.has(name) && DOMAIN_DIRECTOR_EXECUTION_APPEND) {
       body = `${body}\n\n${DOMAIN_DIRECTOR_EXECUTION_APPEND}`;
     }
+    if (name.startsWith('sub-agents/') && DIRECTOR_RESEARCH_RIGOR_CORE_APPEND) {
+      body = `${body}\n\n${DIRECTOR_RESEARCH_RIGOR_CORE_APPEND}`;
+    }
     if (name.startsWith('sub-agents/') && SUB_AGENT_SAFETY_CORE_APPEND) {
       body = `${body}\n\n${SUB_AGENT_SAFETY_CORE_APPEND}`;
+    }
+    if (NON_DOMAIN_SECURITY_PROMPT_SET.has(name) && NON_DOMAIN_SECURITY_CORE_APPEND) {
+      body = `${body}\n\n${NON_DOMAIN_SECURITY_CORE_APPEND}`;
     }
     if (RUNTIME_OUTPUT_CONTRACT_APPEND) {
       body = `${body}\n\n${RUNTIME_OUTPUT_CONTRACT_APPEND}`;

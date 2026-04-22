@@ -63,4 +63,65 @@ describe('lintIntelligenceContractV1', () => {
       ),
     ).toBe(true);
   });
+
+  it('warns when non-P0 todo metadata is missing', () => {
+    const targetNonP0 = 'a1';
+    const findings = lintIntelligenceContractV1({
+      contractResolver: questionId => {
+        if (questionId === targetNonP0) {
+          return {};
+        }
+        return getIntakeIntelligenceContract(questionId);
+      },
+    });
+    expect(findings.some(f => f.code === 'INTELLIGENCE_TODO_METADATA_MISSING')).toBe(true);
+  });
+
+  it('keeps anti-pattern checks as warnings only', () => {
+    const findings = lintIntelligenceContractV1();
+    const genericWarnings = findings.filter(f => f.code === 'INTELLIGENCE_ANTIPATTERN_GENERIC');
+    expect(genericWarnings.length).toBeGreaterThan(0);
+    expect(genericWarnings.every(f => f.severity === 'warn')).toBe(true);
+  });
+
+  it('warns about duplicate intent when semantic domain and impact target are indistinguishable', () => {
+    const findings = lintIntelligenceContractV1({
+      contractResolver: questionId => {
+        if (questionId === 'f1' || questionId === 'f2') {
+          return {
+            whyAsked: 'This decides the same roadmap path for the same goal.',
+            semanticDomain: 'value',
+            decisionImpact: [
+              {
+                target: 'strategy.primary_problem',
+                weight: 'high',
+                effectDescription: 'same effect',
+              },
+            ],
+          };
+        }
+        return getIntakeIntelligenceContract(questionId);
+      },
+    });
+    expect(findings.some(f => f.code === 'INTELLIGENCE_DUPLICATE_INTENT' && f.severity === 'warn')).toBe(
+      true,
+    );
+  });
+
+  it('warns about low-gain whyAsked phrases', () => {
+    const findings = lintIntelligenceContractV1({
+      contractResolver: questionId => {
+        if (questionId === 'f1') {
+          return {
+            ...getIntakeIntelligenceContract(questionId),
+            whyAsked: 'This is just for context only.',
+          };
+        }
+        return getIntakeIntelligenceContract(questionId);
+      },
+    });
+    expect(findings.some(f => f.code === 'INTELLIGENCE_LOW_GAIN_WHY_ASKED' && f.severity === 'warn')).toBe(
+      true,
+    );
+  });
 });

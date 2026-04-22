@@ -14,6 +14,8 @@ import {
  */
 
 const FF = SYSTEM_DEFAULTS.featureFlags;
+const ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
+export type FeatureRolloutMode = (typeof ROLLOUT_MODES)[number];
 
 /** Env string → boolean; unknown non-empty values fall back to `defaultValue`. */
 function readFeatureFlagEnv(env: string | undefined, defaultValue: boolean): boolean {
@@ -166,6 +168,10 @@ function readEnumFeatureFlag<T extends string>(
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : defaultValue;
 }
 
+function readFeatureRolloutMode(env: string | undefined, defaultValue: FeatureRolloutMode): FeatureRolloutMode {
+  return readEnumFeatureFlag(env, ROLLOUT_MODES, defaultValue);
+}
+
 /**
  * Plan-level governance rollout mode for orchestration persistence gate.
  * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
@@ -206,6 +212,14 @@ export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
   );
 }
 
+/** Staged rollout mode for client roadmap narrative. Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE */
+export function getOrchestrationRoadmapNarrativeRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE,
+    FF.orchestrationRoadmapNarrativeRolloutMode,
+  );
+}
+
 /** On-demand director deep-dive API/UI flow. Env: FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND */
 export function isDirectorDeepDiveOnDemandEnabled(): boolean {
   return readFeatureFlagEnv(
@@ -214,11 +228,27 @@ export function isDirectorDeepDiveOnDemandEnabled(): boolean {
   );
 }
 
+/** Staged rollout mode for director deep-dive API/UI flow. Env: FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE */
+export function getDirectorDeepDiveRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE,
+    FF.directorDeepDiveRolloutMode,
+  );
+}
+
 /** Director sub-agent orchestration layer. Env: FEATURE_DIRECTOR_SUB_AGENTS */
 export function isDirectorSubAgentsEnabled(): boolean {
   return readFeatureFlagEnv(
     process.env.FEATURE_DIRECTOR_SUB_AGENTS,
     FF.directorSubAgentsEnabled,
+  );
+}
+
+/** Staged rollout mode for sub-agent picker and orchestration. Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE */
+export function getDirectorSubAgentsRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE,
+    FF.directorSubAgentsRolloutMode,
   );
 }
 

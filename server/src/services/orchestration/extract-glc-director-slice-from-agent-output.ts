@@ -1,4 +1,7 @@
-import { GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION } from '../../config/director-orchestration-policy.js';
+import {
+  GLC_DIRECTOR_EXECUTION_LEGACY_KEYS,
+  GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
+} from '../../config/director-orchestration-policy.js';
 import {
   DirectorWaveBundleSchema,
   GlcDirectorOrchestrationSliceSchema,
@@ -40,6 +43,18 @@ function buildSliceFromWaveCandidates(raw: Record<string, unknown>): GlcDirector
   return parsed.success ? parsed.data : null;
 }
 
+function hasLegacyWaveCandidateKeys(raw: Record<string, unknown>): boolean {
+  return (
+    raw.baseline !== undefined ||
+    raw.director_baseline !== undefined ||
+    raw.actions !== undefined ||
+    raw.director_actions !== undefined ||
+    raw.recommendations !== undefined ||
+    raw.deep !== undefined ||
+    raw.director_deep !== undefined
+  );
+}
+
 /**
  * Best-effort parser for director orchestration payload emitted by domain agents.
  * Keeps pipeline deterministic: invalid or absent payload is ignored safely.
@@ -58,20 +73,23 @@ export function extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed(
   }
   const raw = rawAgentOutput as Record<string, unknown>;
 
-  const explicitCandidates = [
-    raw.glc_director_execution,
-    raw.director_orchestration,
-    raw.director_bundle,
-    raw.orchestration,
-  ];
-  for (const candidate of explicitCandidates) {
-    const parsed = GlcDirectorOrchestrationSliceSchema.safeParse(candidate);
-    if (parsed.success) return { slice: parsed.data, mode: 'canonical' };
+  const canonicalParsed = GlcDirectorOrchestrationSliceSchema.safeParse(raw.glc_director_execution);
+  if (canonicalParsed.success) {
+    return { slice: canonicalParsed.data, mode: 'canonical' };
   }
 
-  const hasAnyExplicitCandidate = explicitCandidates.some(candidate => candidate !== undefined);
+  const aliasCandidates = GLC_DIRECTOR_EXECUTION_LEGACY_KEYS.map(key => raw[key]);
+  for (const candidate of aliasCandidates) {
+    const parsed = GlcDirectorOrchestrationSliceSchema.safeParse(candidate);
+    if (parsed.success) return { slice: parsed.data, mode: 'legacy' };
+  }
+
+  const hasAnyExplicitCandidate = [raw.glc_director_execution, ...aliasCandidates].some(
+    candidate => candidate !== undefined,
+  );
+  const hasAnyLegacyWaveCandidate = hasLegacyWaveCandidateKeys(raw);
   const legacy = buildSliceFromWaveCandidates(raw);
   if (legacy) return { slice: legacy, mode: 'legacy' };
-  if (hasAnyExplicitCandidate) return { slice: null, mode: 'invalid' };
+  if (hasAnyExplicitCandidate || hasAnyLegacyWaveCandidate) return { slice: null, mode: 'invalid' };
   return { slice: null, mode: 'missing' };
 }

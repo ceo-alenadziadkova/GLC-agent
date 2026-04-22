@@ -565,6 +565,11 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 }
 ```
 
+`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and currently supports the CMO MVP ids:
+- `cmo.agent_3_positioning`
+- `cmo.agent_5_content_strategy`
+- `cmo.agent_9_traffic`
+
 - **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
 - **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
 - **`selected_action_ids`:** optional client intent (manifest-level). Used as a **soft prioritization hint** on run/regenerate when no request override is provided.
@@ -641,6 +646,81 @@ Returns the latest persisted **`glc_orchestration_pack`** and **`orchestration_p
 
 ---
 
+### `POST /api/audits/:id/orchestration/pack/regenerate`
+
+Forces pack recomputation for the provided `manifest_snapshot_id` and persists a new version when governance allows it. Request/response shape mirrors `POST /api/audits/:id/orchestration/pack`.
+
+**Request body:** `{ "manifest_snapshot_id": "<uuid>", "selected_action_ids"?: ["..."] }`
+
+**Response `200`:** same payload as `POST /api/audits/:id/orchestration/pack` (`pack`, `orchestration_pack_version`, `roadmap_version`, `last_revision_diff`, `plan_governance`).
+
+**Errors:** same family as `POST /api/audits/:id/orchestration/pack` (`*_PAYLOAD_INVALID`, `*_NOT_READY`, `*_FAILED`, `ORCHESTRATION_PACK_API_DISABLED`).
+
+---
+
+### `GET /api/audits/:id/orchestration/pack-diff`
+
+Returns one persisted version diff.
+
+**Query params (required):**
+
+- `from_version` (integer)
+- `to_version` (integer)
+
+**Response `200`:** `{ "item": { "from_version", "to_version", "diff": { ...revision diff... } } }`
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_DIFF_QUERY_INVALID`, `404 AUDITS_ORCHESTRATION_PACK_DIFF_NOT_FOUND`, `500 AUDITS_ORCHESTRATION_PACK_DIFF_FETCH_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/pack-diff-history`
+
+Lists recent persisted diff history for an audit.
+
+**Query params (optional):**
+
+- `limit` (integer, server-clamped)
+
+**Response `200`:** `{ "items": [ { "from_version", "to_version", "diff": { ... } } ], "latest_plan_governance": { ... } | null }`
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_DIFF_QUERY_INVALID`, `500 AUDITS_ORCHESTRATION_PACK_DIFF_FETCH_FAILED`.
+
+---
+
+### `POST /api/audits/:id/orchestration/commercial-offer`
+
+Builds commercial upsell offer candidates from the current roadmap manifest context and optionally accepts one domain expansion.
+
+**Request body:** roadmap manifest body plus optional `accept_domain`.
+
+**Response `200`:**
+
+```json
+{
+  "offers": [{ "domain": "seo_digital", "value_message": "...", "estimated_incremental_effort_weeks": 2, "why_now_bullets": ["..."] }],
+  "accepted_domain": "seo_digital",
+  "base_preview": { "lanes_included": [], "lanes_cut": [], "waiting_list_domains": [], "execution_compression_hint": "balanced", "lane_density_band": "medium", "confidence_callouts": [] },
+  "recalculated_preview": null,
+  "accepted_pack_result": null
+}
+```
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED`, `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `500 AUDITS_ORCHESTRATION_COMMERCIAL_OFFER_FAILED`.
+
+---
+
+### Legacy orchestrator aliases
+
+Backward-compatible aliases remain available for one release train while clients migrate:
+
+- `POST /api/audits/:id/orchestrator/preview` -> `POST /api/audits/:id/roadmap/manifest-preview`
+- `POST /api/audits/:id/orchestrator/run` -> `POST /api/audits/:id/orchestration/pack`
+- `GET /api/audits/:id/orchestrator/latest` -> `GET /api/audits/:id/orchestration/pack`
+
+Use orchestration/roadmap endpoints for all new integrations.
+
+---
+
 ### `DELETE /api/audits/:id`
 
 Delete audit and all related data (CASCADE). Irreversible.
@@ -675,7 +755,7 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients. 
 - **`intelligence`** (optional per question) — emitted only when the question has complete Sprint-1 `required_now` metadata (`whyAsked`, `semanticDomain`, `decisionImpact`). Questions with incomplete metadata stay visible and rely on runtime fallback tracing instead of schema failure.
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate, … }` (`confidence_overall` is a **UX / resolver aggregate**, not the ADR `signalConfidence` contract and not phase-level analysis confidence)
-- **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, trace, caveats?, caveatDetails? }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `blocked` is a **baseline** audit-execution status (package-aware insufficiency remains Phase-B/C), and `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`) and for advisory boundaries with unknown-sourced critical signal evidence (`unknown_source_signal_evidence` with `surface_limited_context`). `caveatDetails` adds stable ownership/severity metadata (`code`, `owner`, `severity`, `rolloutPhase`, `semanticIntent`) for ops tooling; **`trace`** entries include **`semanticCause`** strings for supportability
+- **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, signalPrioritization?, trace, caveats?, caveatDetails? }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `blocked` is a **baseline** audit-execution status (package-aware insufficiency remains Phase-B/C), and `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`) and for advisory boundaries with unknown-sourced critical signal evidence (`unknown_source_signal_evidence` with `surface_limited_context`). `signalPrioritization` is additive Phase-2 metadata (`bySignalKey`, `nextSignalKeys`) for stage-aware sequencing hints; callers may ignore it. `caveatDetails` adds stable ownership/severity metadata (`code`, `owner`, `severity`, `rolloutPhase`, `semanticIntent`) for ops tooling; **`trace`** entries include **`semanticCause`** strings for supportability
 - **`critical_signals`** — `{ by_key, summary }` pilot **signal confidence** per ADR (orthogonal to **`derived.confidence_overall`**, which remains a UX / resolver aggregate)
 - **`remediation_queue`** — ordered bank ids (max **2**) suggested when pilot remediation applies; subset of **`eligible`**
 
@@ -734,6 +814,18 @@ Notes for consumers:
 **GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion, sequencingVersion }`), optional **`intake_version_migration`** (see below). **Additive (ADR diagnostic pilot, same shapes as `GET …/brief/schema`):** **`readiness`**, **`critical_signals`**, **`remediation_queue`**, **`next_recommended`** (ordered bank ids after pilot sequencing when applicable). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** — each id is resolved against the **classic brief catalog** (same **`BRIEF_QUESTIONS`** export from `@glc/intake-core`, derived from policy **`modes.classic_brief.main`**). Only ids in **`plan.visible`** appear; **identity** bank stubs from **`identityFieldIds`** show up in **`questions`** only if they are also in **`plan.visible`**. Answer cells live in **`brief.responses`** under **bank ids** (and side keys such as **`…__other`**, **`intake_industry_specify`**). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
 
 **PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
+
+**PUT `200`:** `{ brief, validation, gates, intakeProgress }` and, when `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, additive **`intake_trace`** with minimal public-safe entries:
+
+```json
+{
+  "intake_trace": [
+    { "code": "critical_signal_unknown", "questionId": "f1" }
+  ]
+}
+```
+
+`intake_trace` intentionally excludes `semanticCause` and verbose internals; full diagnostics remain in server logs / schema snapshot APIs.
 
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
 - **`intake_versions` present** — must include all **five** keys (`sequencingVersion` included), **or** the legacy **four** keys (`questionBankVersion`, `policyVersion`, `layoutVersion`, `resolverVersion`) only — in the four-key case the server treats **`sequencingVersion`** as the current pilot default on parse. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
@@ -1342,6 +1434,7 @@ Queues an on-demand director deep-dive job.
 **Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
 
 **Feature flag:** `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND=true` on server.
+**Rollout mode env:** `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` (`shadow|internal|pilot|ga`), read via server feature-flag facade.
 
 **Request body (JSON):**
 
@@ -1361,13 +1454,16 @@ Queues an on-demand director deep-dive job.
 
 **Response `202`:** `{ "job_id": "<string>", "status": "queued", "estimated_duration_minutes": 4 }`
 
-**Runtime notes:** idempotent by `idempotency_key` (replays return the same `job_id`), queue lifecycle runs through BullMQ worker `director_deep_dive`, and status is persisted in `job_runs` (frontend can subscribe to `job_runs` realtime updates by `queue_job_id`).
+**Runtime notes:** idempotent by `idempotency_key` (replays return the same `job_id`), queue lifecycle runs through BullMQ worker `director_deep_dive`, and status is persisted in `job_runs` (frontend subscribes to `job_runs` realtime updates by `queue_job_id` and uses a bounded status-poll fallback to avoid stale UI). Sub-agent metadata stores stable `prompt_ref` paths (not raw prompt bodies) for deterministic traceability.
+Sub-agent execution remains domain-scoped by policy (`DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS`); unsupported domains fall back to single-agent deep-wave output while preserving the same API contract.
 
 **Errors:**
 
 - `503` `DIRECTOR_DEEP_DIVE_DISABLED` when feature flag is off.
 - `400` `DIRECTOR_DEEP_DIVE_PAYLOAD_INVALID` when request body fails schema validation.
 - `409` `DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED` when per-domain quota is exhausted for the package tier.
+- `409` `IDEMPOTENCY_PAYLOAD_MISMATCH` when the same `idempotency_key` is reused with a different payload.
+- `409` `DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_EXCEEDED` when selected operating mode + sub-agent depth exceeds package token budget policy.
 
 ### `GET /api/audits/:id/directors/:domain/deep-dive/:jobId`
 
@@ -1381,7 +1477,14 @@ Returns deep-dive job status.
   "status": "queued",
   "started_at": "2026-04-22T12:00:00.000Z",
   "completed_at": null,
-  "error_code": "DIRECTOR_DEEP_DIVE_FAILED"
+  "error_code": "DIRECTOR_DEEP_DIVE_FAILED",
+  "qa_block": {
+    "coherence": "Selected analyses align with goals.",
+    "feasibility": "Recommendations fit package constraints.",
+    "top_3_actions": ["..."],
+    "risks": ["..."],
+    "measurement": ["..."]
+  }
 }
 ```
 

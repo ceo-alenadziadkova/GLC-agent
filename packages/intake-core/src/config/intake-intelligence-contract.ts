@@ -303,6 +303,17 @@ export function hasIntakeIntelligenceRequiredNow(
   return true;
 }
 
+export function projectIntakeIntelligenceRequiredNow(
+  contract: IntakeIntelligenceContract | undefined,
+): Pick<IntakeIntelligenceContract, 'whyAsked' | 'semanticDomain' | 'decisionImpact'> | undefined {
+  if (!hasIntakeIntelligenceRequiredNow(contract)) return undefined;
+  return {
+    whyAsked: contract.whyAsked,
+    semanticDomain: contract.semanticDomain,
+    decisionImpact: contract.decisionImpact,
+  };
+}
+
 export function hasIntakeIntelligenceOptionalWithTodo(
   contract: IntakeIntelligenceContract | undefined,
 ): boolean {

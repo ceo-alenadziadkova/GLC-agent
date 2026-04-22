@@ -11,10 +11,33 @@ import { DIAGNOSTIC_SPINE_CATEGORIES } from '../../audit-contract.js';
 import type { LintFinding } from './types.js';
 
 const CORE_SPINE = new Set(DIAGNOSTIC_SPINE_CATEGORIES);
+const LOW_GAIN_WHY_ASKED_FRAGMENTS = [
+  'just for context',
+  'for context only',
+  'nice to know',
+  'general background',
+];
+
+function normalizeIntentText(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function compactIntentFingerprint(raw: string): string {
+  const tokens = normalizeIntentText(raw)
+    .split(' ')
+    .filter(Boolean)
+    .filter(token => token.length > 2);
+  return [...new Set(tokens)].sort().join(' ');
+}
 
 function warnForAntiPatternHeuristics(questionId: string, label: string): LintFinding[] {
   const findings: LintFinding[] = [];
   const text = label.toLowerCase();
+  const normalized = text.replace(/\s+/g, ' ').trim();
   if (text.includes('tell us about your business') || text.includes('anything else')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_GENERIC',
@@ -28,6 +51,42 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
       code: 'INTELLIGENCE_ANTIPATTERN_LEADING',
       severity: 'warn',
       message: `question "${questionId}" may be leading; wording should remain neutral.`,
+      detail: label,
+    });
+  }
+  if (text.includes('how important is importance') || text.includes('important importance')) {
+    findings.push({
+      code: 'INTELLIGENCE_ANTIPATTERN_TAUTOLOGICAL',
+      severity: 'warn',
+      message: `question "${questionId}" may be tautological and not add diagnostic signal.`,
+      detail: label,
+    });
+  }
+  if (text.includes('likes') || text.includes('followers') || text.includes('vanity')) {
+    findings.push({
+      code: 'INTELLIGENCE_ANTIPATTERN_VANITY',
+      severity: 'warn',
+      message: `question "${questionId}" may optimize vanity metrics instead of decision signal.`,
+      detail: label,
+    });
+  }
+  if (
+    normalized === 'what do you do?' ||
+    normalized === 'tell us more' ||
+    normalized === 'describe your company'
+  ) {
+    findings.push({
+      code: 'INTELLIGENCE_ANTIPATTERN_OUTSIDE_SCOPE',
+      severity: 'warn',
+      message: `question "${questionId}" may be outside Core Diagnostic Spine scope.`,
+      detail: label,
+    });
+  }
+  if (text.includes('any comments') || text.includes('other notes')) {
+    findings.push({
+      code: 'INTELLIGENCE_ANTIPATTERN_LOW_GAIN',
+      severity: 'warn',
+      message: `question "${questionId}" may have low information gain without explicit decision impact.`,
       detail: label,
     });
   }
@@ -86,6 +145,7 @@ export function lintIntelligenceContractV1(args?: {
   const p0Set = new Set(INTAKE_INTELLIGENCE_P0_IDS);
   const knownIds = new Set(QUESTION_BANK_V1_IDS);
   const resolver = args?.contractResolver ?? getIntakeIntelligenceContract;
+  const completeContracts: Array<{ questionId: string; contract: IntakeIntelligenceContract }> = [];
 
   for (const p0Id of INTAKE_INTELLIGENCE_P0_IDS) {
     if (!knownIds.has(p0Id)) {
@@ -127,6 +187,59 @@ export function lintIntelligenceContractV1(args?: {
 
     if (meta?.label) {
       findings.push(...warnForAntiPatternHeuristics(questionId, meta.label));
+    }
+
+    if (
+      typeof contract.whyAsked === 'string' &&
+      LOW_GAIN_WHY_ASKED_FRAGMENTS.some(fragment =>
+        normalizeIntentText(contract.whyAsked as string).includes(fragment),
+      )
+    ) {
+      findings.push({
+        code: 'INTELLIGENCE_LOW_GAIN_WHY_ASKED',
+        severity: 'warn',
+        message: `question "${questionId}" whyAsked may be too generic and low-information.`,
+        detail: contract.whyAsked,
+      });
+    }
+
+    if (hasIntakeIntelligenceRequiredNow(contract)) {
+      completeContracts.push({ questionId, contract });
+    }
+  }
+
+  const seenDuplicateIntentPairs = new Set<string>();
+  for (let i = 0; i < completeContracts.length; i += 1) {
+    const left = completeContracts[i];
+    if (!left) continue;
+    const leftTarget = left.contract.decisionImpact?.[0]?.target;
+    const leftWhy = left.contract.whyAsked;
+    if (!leftTarget || !leftWhy || !left.contract.semanticDomain) continue;
+    const leftFingerprint = compactIntentFingerprint(leftWhy);
+    if (!leftFingerprint) continue;
+
+    for (let j = i + 1; j < completeContracts.length; j += 1) {
+      const right = completeContracts[j];
+      if (!right) continue;
+      const rightTarget = right.contract.decisionImpact?.[0]?.target;
+      const rightWhy = right.contract.whyAsked;
+      if (!rightTarget || !rightWhy || !right.contract.semanticDomain) continue;
+      if (left.contract.semanticDomain !== right.contract.semanticDomain) continue;
+      if (leftTarget !== rightTarget) continue;
+      const rightFingerprint = compactIntentFingerprint(rightWhy);
+      if (!rightFingerprint) continue;
+      if (leftFingerprint !== rightFingerprint) continue;
+      const pair = [left.questionId, right.questionId].sort((a, b) => a.localeCompare(b)).join('::');
+      if (seenDuplicateIntentPairs.has(pair)) continue;
+      seenDuplicateIntentPairs.add(pair);
+      findings.push({
+        code: 'INTELLIGENCE_DUPLICATE_INTENT',
+        severity: 'warn',
+        message:
+          `questions "${left.questionId}" and "${right.questionId}" have indistinguishable intent` +
+          ` for semanticDomain="${left.contract.semanticDomain}" and target="${leftTarget}".`,
+        detail: pair,
+      });
     }
   }
 

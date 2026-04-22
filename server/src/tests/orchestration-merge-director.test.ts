@@ -5,6 +5,7 @@ import { ORCHESTRATION_GRAPH_MAX_NODES } from '../config/orchestration-graph-pol
 import { ORCHESTRATION_NODE_SOURCE_DIRECTOR, ORCHESTRATION_NODE_SOURCE_STRATEGY } from '../config/director-orchestration-policy.js';
 import {
   GlcDirectorOrchestrationSliceSchema,
+  isStrictReadyDirectorSlice,
   type GlcDirectorOrchestrationSlice,
 } from '../schemas/glc-director-orchestration-slice.js';
 import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
@@ -72,6 +73,45 @@ describe('GlcDirectorOrchestrationSliceSchema', () => {
     expect(p.success).toBe(true);
     expect(p.data?.baseline?.actions).toHaveLength(1);
     expect(p.data?.deep?.actions).toHaveLength(1);
+  });
+
+  it('marks deep-only slices as not strict-ready', () => {
+    const deepOnly = GlcDirectorOrchestrationSliceSchema.parse({
+      schema_version: 1,
+      deep: {
+        actions: [
+          {
+            id: 'd-only',
+            title: 'Deep action',
+            impact: 4,
+            effort: 3,
+            risk: 2,
+            urgency: 4,
+            confidence: 'medium',
+            dependencies: [],
+          },
+        ],
+      },
+    });
+    const withBaseline = GlcDirectorOrchestrationSliceSchema.parse({
+      schema_version: 1,
+      baseline: {
+        actions: [
+          {
+            id: 'b-only',
+            title: 'Baseline action',
+            impact: 4,
+            effort: 3,
+            risk: 2,
+            urgency: 4,
+            confidence: 'medium',
+            dependencies: [],
+          },
+        ],
+      },
+    });
+    expect(isStrictReadyDirectorSlice(deepOnly)).toBe(false);
+    expect(isStrictReadyDirectorSlice(withBaseline)).toBe(true);
   });
 });
 
@@ -141,6 +181,32 @@ describe('mapDirectorWaveBundleToActionNodes', () => {
       assumed: 0,
       missing: 1,
     });
+  });
+
+  it('marks node source as sub_agent when director action id has sub-agent prefix', () => {
+    const bundle = GlcDirectorOrchestrationSliceSchema.parse({
+      schema_version: 1,
+      deep: {
+        actions: [
+          {
+            id: 'sub_agent:cmo.agent_3_positioning:positioning_statement',
+            title: 'Positioning statement',
+            impact: 4,
+            effort: 3,
+            risk: 2,
+            urgency: 4,
+            confidence: 'medium',
+            dependencies: [],
+          },
+        ],
+      },
+    });
+    const r = mapDirectorWaveBundleToActionNodes({
+      domainKey: 'marketing_utp',
+      wave: 'deep',
+      bundle: bundle.deep!,
+    });
+    expect(r.nodes[0]?.source).toBe('sub_agent:cmo.agent_3_positioning');
   });
 
   it('emits conflict for missing evidence taxonomy in director action', () => {
@@ -311,6 +377,35 @@ describe('mergeOrchestrationActionInputs', () => {
     expect(merged.nodes.some((node) => node.id === 'anchor:strategy:node')).toBe(true);
     expect(merged.nodes.some((node) => node.id === 'other-strategy-node')).toBe(false);
     expect(merged.conflicts_resolved.some((row) => row.id === 'strategy-replaced-by-director')).toBe(true);
+  });
+
+  it('keeps strategy nodes when director slice is deep-only without baseline coverage', () => {
+    const strategyMapped = mapStrategyInitiativesToActionNodes([minimalInitiative('strategy-deep-only-fallback')]);
+    const deepOnlySlice = GlcDirectorOrchestrationSliceSchema.parse({
+      schema_version: 1,
+      deep: {
+        actions: [
+          {
+            id: 'deep-only-node',
+            title: 'Deep only action',
+            impact: 4,
+            effort: 3,
+            risk: 2,
+            urgency: 4,
+            confidence: 'medium',
+            dependencies: [],
+          },
+        ],
+      },
+    });
+    const merged = mergeOrchestrationActionInputs({
+      strategyNodes: strategyMapped.nodes,
+      slicesByDomain: new Map<DomainKey, GlcDirectorOrchestrationSlice>([['marketing_utp', deepOnlySlice]]),
+      selectedDomains: ['marketing_utp'],
+    });
+    expect(merged.nodes.some((node) => node.id === 'strategy-deep-only-fallback')).toBe(true);
+    expect(merged.nodes.some((node) => node.id === 'dir:marketing_utp:deep:deep-only-node')).toBe(true);
+    expect(merged.input_quality.fallback_reason_code).toBe('director_slice_partial');
   });
 
   it('sets invalid fallback reason when director parse status is invalid', () => {

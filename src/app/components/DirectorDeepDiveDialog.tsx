@@ -5,6 +5,7 @@ import { api } from '../data/apiService';
 import type { DomainKey } from '../data/auditTypes';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
+import { DIRECTOR_SUB_AGENT_OPTIONS } from '../config/director-sub-agents';
 import { ApiError } from '../data/api-error';
 import { DIRECTOR_DEEP_DIVE_API_ERROR_CODES } from '../config/director-deep-dive-api-error-codes';
 import { useDirectorDeepDiveJob } from '../hooks/useDirectorDeepDiveJob';
@@ -29,24 +30,6 @@ const DIRECTOR_OPERATING_MODE_OPTIONS: ReadonlyArray<{ id: DirectorOperatingMode
   { id: 'defense', label: ORCHESTRATION_UI_COPY.deepDiveMode_defense },
 ];
 
-const CMO_SUB_AGENT_OPTIONS = [
-  {
-    id: 'cmo.agent_3_positioning',
-    title: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_3_positioning_title,
-    description: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_3_positioning_description,
-  },
-  {
-    id: 'cmo.agent_5_content_strategy',
-    title: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_5_content_strategy_title,
-    description: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_5_content_strategy_description,
-  },
-  {
-    id: 'cmo.agent_9_traffic',
-    title: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_9_traffic_title,
-    description: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_9_traffic_description,
-  },
-] as const;
-
 export function DirectorDeepDiveDialog(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +45,11 @@ export function DirectorDeepDiveDialog(props: {
   const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState<number | null>(null);
   const [selectedSubAgentIds, setSelectedSubAgentIds] = useState<string[]>([]);
   const [selectedMode, setSelectedMode] = useState<DirectorOperatingModeOption>('auto');
-  const { status: realtimeJobStatus } = useDirectorDeepDiveJob(jobId);
+  const { status: realtimeJobStatus, qaBlock } = useDirectorDeepDiveJob({ jobId, auditId, domainKey });
+  const availableSubAgents = useMemo(
+    () => DIRECTOR_SUB_AGENT_OPTIONS.filter((option) => option.domainKey === domainKey),
+    [domainKey],
+  );
 
   const goals = useMemo(
     () => goalsText.split('\n').map((v) => v.trim()).filter(Boolean),
@@ -82,8 +69,12 @@ export function DirectorDeepDiveDialog(props: {
         return ORCHESTRATION_UI_COPY.deepDiveErrorFeatureDisabled;
       case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.DIRECTOR_DEEP_DIVE_PAYLOAD_INVALID:
         return ORCHESTRATION_UI_COPY.deepDiveErrorPayloadInvalid;
+      case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH:
+        return ORCHESTRATION_UI_COPY.deepDiveErrorIdempotencyMismatch;
       case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED:
         return ORCHESTRATION_UI_COPY.deepDiveErrorQuotaExceeded;
+      case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_EXCEEDED:
+        return ORCHESTRATION_UI_COPY.deepDiveErrorTokenBudgetExceeded;
       case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.DIRECTOR_DEEP_DIVE_JOB_NOT_FOUND:
         return ORCHESTRATION_UI_COPY.deepDiveErrorJobNotFound;
       case DIRECTOR_DEEP_DIVE_API_ERROR_CODES.DIRECTOR_DEEP_DIVE_FAILED:
@@ -183,7 +174,7 @@ export function DirectorDeepDiveDialog(props: {
             <div className="text-xs font-medium text-[var(--text-secondary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerLabel}</div>
             <p className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveAgentPickerHint}</p>
             <div className="space-y-2">
-              {CMO_SUB_AGENT_OPTIONS.map((option) => {
+              {availableSubAgents.map((option) => {
                 const checked = selectedSubAgentIds.includes(option.id);
                 return (
                   <label key={option.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-[var(--border-default)] px-3 py-2">
@@ -212,16 +203,37 @@ export function DirectorDeepDiveDialog(props: {
           ) : null}
           {estimatedDurationMinutes != null ? (
             <p className="text-xs text-[var(--text-tertiary)]">
-              {ORCHESTRATION_UI_COPY.deepDiveEstimatedTimeLabel}: {estimatedDurationMinutes} min
+              {ORCHESTRATION_UI_COPY.deepDiveEstimatedTimeLabel}: {estimatedDurationMinutes}{' '}
+              {ORCHESTRATION_UI_COPY.deepDiveEstimatedTimeMinutesSuffix}
             </p>
           ) : null}
           {jobId ? <p className="text-xs text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.deepDiveJobPrefix}: {jobId}</p> : null}
           {status !== 'idle' ? (
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-secondary)]" aria-live="polite">
               {ORCHESTRATION_UI_COPY.deepDiveStatusLabel}: {status}
             </p>
           ) : null}
-          {error ? <p className="text-sm text-[var(--ui-danger-fg-strong)]">{error}</p> : null}
+          {status === 'completed' && qaBlock ? (
+            <div className="space-y-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+              <p className="font-medium text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.deepDiveQaBlockTitle}</p>
+              <p>{qaBlock.coherence}</p>
+              <p>{qaBlock.feasibility}</p>
+              <p>
+                {ORCHESTRATION_UI_COPY.deepDiveQaTop3Label}: {qaBlock.top_3_actions.join(', ')}
+              </p>
+              <p>
+                {ORCHESTRATION_UI_COPY.deepDiveQaRisksLabel}: {qaBlock.risks.join(', ')}
+              </p>
+              <p>
+                {ORCHESTRATION_UI_COPY.deepDiveQaMeasurementLabel}: {qaBlock.measurement.join(', ')}
+              </p>
+            </div>
+          ) : null}
+          {error ? (
+            <p className="text-sm text-[var(--ui-danger-fg-strong)]" aria-live="assertive">
+              {error}
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

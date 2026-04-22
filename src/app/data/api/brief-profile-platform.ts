@@ -35,6 +35,13 @@ export type BriefSchemaSnapshot = {
   readiness?: {
     flowReadinessStatus: 'flow_ready' | 'blocked';
     auditReadinessStatus: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+    signalPrioritization?: {
+      bySignalKey: Record<
+        string,
+        { currentPriority: 'P0' | 'P1' | 'P2'; skipPolicy: 'ask_now' | 'defer' | 'skip'; reason: string }
+      >;
+      nextSignalKeys: string[];
+    };
     trace: Array<{ code: string; semanticCause: string; questionId?: string; signalKey?: string }>;
   };
   critical_signals?: {

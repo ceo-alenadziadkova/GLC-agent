@@ -159,6 +159,15 @@ interface BaseCollector {
 - **GLC Orchestrator (Meta-Director)** is the cross-domain “decision graph engine” contract for turning multiple Director outputs into **one** dependency-aware execution plan (conflict resolution + global prioritization). See `docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md` and the human prompt canon in `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`.
 - **Pipeline today:** Phase 7 remains `StrategyAgent` synthesis into `audit_strategy`. The Orchestrator is the intended evolution once Director outputs are normalized into the machine-readable action graph contract.
 
+## Director Prompt Governance
+
+- Director sub-agent prompts are treated as deep-research contracts and must remain analytically strong and progressive by default.
+- This applies to all director tracks (CMO, CTO, and any future director families).
+- Prompt maintenance must not lower investigation depth, scope coverage, evidence standards, or reasoning strictness.
+- If contracts diverge, align implementation to the prompt intent by strengthening schema constraints, deterministic fallbacks, and regression tests instead of simplifying prompt requirements.
+- New director-family onboarding is complete only when prompt, schema, fallback, and schema-rigor tests are added together; partial onboarding is not allowed.
+- Coverage gate is enforced by `server/src/tests/director-schema-rigor-coverage.test.ts`, which requires one `director-<family>-schema-rigor.test.ts` per `server/src/schemas/sub-agents/<family>`.
+
 ---
 
 ## Fact Checker (`services/fact-checker.ts`)

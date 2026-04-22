@@ -59,6 +59,21 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
    */
   orchestrationTimelinePrimaryUxEnabled: true,
+  /**
+   * Rollout mode for client roadmap narrative surface.
+   * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE
+   */
+  orchestrationRoadmapNarrativeRolloutMode: 'shadow',
+  /**
+   * Rollout mode for on-demand director deep-dive flow.
+   * Env: FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE
+   */
+  directorDeepDiveRolloutMode: 'shadow',
+  /**
+   * Rollout mode for director sub-agent experience.
+   * Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE
+   */
+  directorSubAgentsRolloutMode: 'shadow',
   directorDeepDiveOnDemandEnabled: false,
   directorSubAgentsEnabled: false,
   /**

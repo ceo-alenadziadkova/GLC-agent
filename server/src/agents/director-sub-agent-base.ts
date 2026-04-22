@@ -9,6 +9,7 @@ import { BaseAgent } from './base.js';
 export abstract class DirectorSubAgentBase extends BaseAgent {
   abstract readonly id: string;
   abstract readonly directorDomain: string;
+  abstract readonly promptRef: string;
   abstract readonly outputSchema: z.ZodSchema;
   abstract buildInstructions(context: string, mode: string): string;
 

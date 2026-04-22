@@ -37,7 +37,8 @@ export function mergeOrchestrationActionInputs(
 ): MergeOrchestrationActionInputsResult {
   const conflicts_resolved: OrchestrationConflictResolvedEntry[] = [];
   const directorChunks: OrchestrationActionNode[] = [];
-  const domainsWithDirector = new Set<DomainKey>();
+  const domainsWithAnyDirector = new Set<DomainKey>();
+  const domainsWithBaselineDirector = new Set<DomainKey>();
   const directorDependencyTargets = new Set<string>();
 
   const domains = [...args.selectedDomains].sort((a, b) => a.localeCompare(b));
@@ -52,7 +53,10 @@ export function mergeOrchestrationActionInputs(
       });
       directorChunks.push(...b.nodes);
       conflicts_resolved.push(...b.conflicts_resolved);
-      if (b.nodes.length > 0) domainsWithDirector.add(domainKey);
+      if (b.nodes.length > 0) {
+        domainsWithAnyDirector.add(domainKey);
+        domainsWithBaselineDirector.add(domainKey);
+      }
       for (const node of b.nodes) {
         for (const dep of node.dependencies ?? []) {
           directorDependencyTargets.add(dep);
@@ -67,7 +71,7 @@ export function mergeOrchestrationActionInputs(
       });
       directorChunks.push(...d.nodes);
       conflicts_resolved.push(...d.conflicts_resolved);
-      if (d.nodes.length > 0) domainsWithDirector.add(domainKey);
+      if (d.nodes.length > 0) domainsWithAnyDirector.add(domainKey);
       for (const node of d.nodes) {
         for (const dep of node.dependencies ?? []) {
           directorDependencyTargets.add(dep);
@@ -78,7 +82,7 @@ export function mergeOrchestrationActionInputs(
 
   const strategyFallbackNodes = args.strategyNodes.filter(node => {
     const domain = node.domain as DomainKey;
-    if (!domainsWithDirector.has(domain)) return true;
+    if (!domainsWithBaselineDirector.has(domain)) return true;
     if (!ORCHESTRATION_SOURCE_PRECEDENCE.retainStrategyDependencyAnchors) return false;
     return directorDependencyTargets.has(node.id);
   });
@@ -91,10 +95,10 @@ export function mergeOrchestrationActionInputs(
   }
   for (const domain of [...selectedSet].sort((a, b) => a.localeCompare(b))) {
     if ((strategyByDomain.get(domain) ?? 0) === 0) continue;
-    if (domainsWithDirector.has(domain)) continue;
+    if (domainsWithBaselineDirector.has(domain)) continue;
     conflicts_resolved.push({
       id: `director-fallback:${domain}`,
-      summary: `Director slice missing for "${domain}"; strategy nodes kept as fallback.`,
+      summary: `Director baseline coverage missing for "${domain}"; strategy nodes kept as fallback.`,
       resolution: ORCHESTRATION_CONFLICT_RESOLUTION_FOR_GRAPH_REPAIR,
     });
   }
@@ -108,7 +112,7 @@ export function mergeOrchestrationActionInputs(
 
   const combined = [...strategyFallbackNodes, ...directorChunks];
   const selectedDomainCount = Math.max(1, selectedSet.size);
-  const directorCoverageRatio = Math.min(1, domainsWithDirector.size / selectedDomainCount);
+  const directorCoverageRatio = Math.min(1, domainsWithBaselineDirector.size / selectedDomainCount);
   const parseStatusByDomain = args.inputStatusByDomain ?? new Map<DomainKey, DirectorInputParseStatus | undefined>();
   let domainsWithValidDirectorInput = 0;
   let domainsWithInvalidDirectorInput = 0;
@@ -118,8 +122,8 @@ export function mergeOrchestrationActionInputs(
     if (status === 'invalid') domainsWithInvalidDirectorInput += 1;
   }
   const directorInputCoverageRatio = Math.min(1, domainsWithValidDirectorInput / selectedDomainCount);
-  const hasAnyDirectorCoverage = domainsWithDirector.size > 0;
-  const hasFallbackDomains = domainsWithDirector.size < selectedSet.size;
+  const hasAnyDirectorCoverage = domainsWithAnyDirector.size > 0;
+  const hasFallbackDomains = domainsWithBaselineDirector.size < selectedSet.size;
   const input_quality: OrchestrationInputQuality = {
     input_mode: hasAnyDirectorCoverage ? 'director_enriched' : 'strategy_fallback',
     director_coverage_ratio: directorCoverageRatio,

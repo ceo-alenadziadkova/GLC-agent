@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildBriefSchemaSnapshot, currentIntakeVersionTuple } from '@glc/intake-core';
 import { api, ApiError } from '../../../data/apiService';
 import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
 import {
@@ -10,6 +11,7 @@ import {
   websitePresenceMeansNoPublicSite,
 } from '../../../data/briefQuestions';
 import { normalizeIntakeToResponses } from '../../../data/intakeBriefMap';
+import { briefResponsesToIntakeMap } from '../../../data/intakeBriefMap';
 import {
   applyIntakeMetadataPrefill,
   parseIntakeClientMetadata,
@@ -25,6 +27,7 @@ import {
   patchUnknownResponse,
   patchWebsitePresenceResponse,
 } from '../lib/intake-brief-response-updates';
+import { INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID } from '../../../config/intake-critical-signal-map';
 
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
 
@@ -48,15 +51,91 @@ export function useIntakeBriefController(rawToken: string | undefined) {
 
   const hadSubmissionOnLoadRef = useRef(false);
 
-  const visibleQuestions = useMemo(
-    () => questions.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses))),
-    [questions, responses],
-  );
+  const intakeSchemaSnapshot = useMemo(() => {
+    try {
+      return buildBriefSchemaSnapshot({
+        responses: briefResponsesToIntakeMap(responses),
+        productMode: 'full',
+        collectionMode: 'pre_brief',
+        surface: 'client_form',
+        intakeVersionTuple: currentIntakeVersionTuple(),
+      });
+    } catch {
+      return null;
+    }
+  }, [responses]);
+
+  const intelligenceByQuestionId = useMemo(() => {
+    const byId: Record<
+      string,
+      {
+        whyAsked: string;
+        semanticDomain: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
+        decisionImpact: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
+      }
+    > = {};
+    const rows = intakeSchemaSnapshot?.questions ?? [];
+    for (const row of rows) {
+      if (row.intelligence) {
+        byId[row.id] = row.intelligence;
+      }
+    }
+    return byId;
+  }, [intakeSchemaSnapshot]);
+
+  const signalConfidenceByQuestionId = useMemo(() => {
+    const byQuestion: Record<string, { signalKey: string; confidence: 'high' | 'medium' | 'low' | 'unknown' }> = {};
+    const byKey = intakeSchemaSnapshot?.critical_signals?.by_key ?? {};
+    for (const [questionId, signalKeys] of Object.entries(INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID)) {
+      const signalKey = signalKeys[0];
+      if (!signalKey) continue;
+      byQuestion[questionId] = {
+        signalKey,
+        confidence: byKey[signalKey] ?? 'unknown',
+      };
+    }
+    return byQuestion;
+  }, [intakeSchemaSnapshot]);
+
+  const visibleQuestions = useMemo(() => {
+    const filtered = questions.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses)));
+    return filtered.map(q => ({
+      ...q,
+      ...(intelligenceByQuestionId[q.id] ? intelligenceByQuestionId[q.id] : {}),
+    }));
+  }, [questions, responses, intelligenceByQuestionId]);
 
   const questionSections = useMemo(
     () => groupBriefQuestionsBySection(visibleQuestions),
     [visibleQuestions],
   );
+
+  const readinessPanel = useMemo(() => {
+    const readiness = intakeSchemaSnapshot?.readiness;
+    const state = answered === 0
+      ? 'pristine'
+      : readiness?.auditReadinessStatus === 'blocked' || readiness?.flowReadinessStatus === 'blocked'
+        ? 'blocked'
+        : 'partial';
+    const questionLabelById = new Map(questions.map(q => [q.id, q.question]));
+    const remediation = (intakeSchemaSnapshot?.remediation_queue ?? []).map(id => ({
+      id,
+      label: questionLabelById.get(id) ?? id,
+    }));
+    const trace = (readiness?.trace ?? []).map(item => ({
+      code: item.code,
+      questionId: item.questionId,
+      signalKey: item.signalKey,
+    }));
+    return {
+      state,
+      flowReadinessStatus: readiness?.flowReadinessStatus ?? 'flow_ready',
+      auditReadinessStatus: readiness?.auditReadinessStatus ?? 'audit_ready',
+      criticalSignals: intakeSchemaSnapshot?.critical_signals?.by_key ?? {},
+      remediation,
+      trace,
+    };
+  }, [answered, intakeSchemaSnapshot, questions]);
 
   const clientMeta = useMemo(() => parseIntakeClientMetadata(metadataRecord), [metadataRecord]);
   const consultantPrefilledIdentity = useMemo(
@@ -181,6 +260,9 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     questions,
     responses,
     questionSections,
+    readinessPanel,
+    intelligenceByQuestionId,
+    signalConfidenceByQuestionId,
     submittedAt,
     expiresAtIso,
     submitting,

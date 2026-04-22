@@ -68,6 +68,13 @@ export {
   type LintSeverity,
 } from './lint-bank-policy.js';
 export {
+  buildIntakeQuestionQualityReport,
+  INTAKE_QUESTION_QUALITY_BASELINE_V1,
+  type IntakeQuestionQualityBaseline,
+  type IntakeQuestionQualityDelta,
+  type IntakeQuestionQualityReport,
+} from './question-quality-engine/index.js';
+export {
   isFrozenArtifactTuple,
   isSupportedIntakeArtifactTuple,
   listSupportedFrozenArtifactKeys,

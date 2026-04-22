@@ -949,27 +949,59 @@ export function PortalTimelinePage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
                     <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineBlockingDepsTitle}</div>
-                    <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
-                      {blockingDeps.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
-                      {(isDependencyCardMode
-                        ? blockingDeps.slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
-                        : blockingDeps
-                      ).map((dep, i) => (
-                        <li key={`blk-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
-                      ))}
-                    </ul>
+                    {isDependencyCardMode ? (
+                      <div className="space-y-2">
+                        {blockingDeps.length === 0 ? (
+                          <p className="text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelineNoDeps}</p>
+                        ) : (
+                          blockingDeps
+                            .slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
+                            .map((dep, i) => (
+                              <article
+                                key={`blk-${dep.from}-${dep.to}-${i}`}
+                                className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm leading-relaxed ds-text-secondary"
+                              >
+                                {formatDepRow(dep.from, dep.to)}
+                              </article>
+                            ))
+                        )}
+                      </div>
+                    ) : (
+                      <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
+                        {blockingDeps.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
+                        {blockingDeps.map((dep, i) => (
+                          <li key={`blk-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
                     <div className="mb-2 text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.timelineParallelTracksTitle}</div>
-                    <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
-                      {parallelTracks.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
-                      {(isDependencyCardMode
-                        ? parallelTracks.slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
-                        : parallelTracks
-                      ).map((dep, i) => (
-                        <li key={`par-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
-                      ))}
-                    </ul>
+                    {isDependencyCardMode ? (
+                      <div className="space-y-2">
+                        {parallelTracks.length === 0 ? (
+                          <p className="text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelineNoDeps}</p>
+                        ) : (
+                          parallelTracks
+                            .slice(0, ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile)
+                            .map((dep, i) => (
+                              <article
+                                key={`par-${dep.from}-${dep.to}-${i}`}
+                                className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2 text-sm leading-relaxed ds-text-secondary"
+                              >
+                                {formatDepRow(dep.from, dep.to)}
+                              </article>
+                            ))
+                        )}
+                      </div>
+                    ) : (
+                      <ul className="list-inside list-disc space-y-2 text-sm leading-relaxed ds-text-secondary">
+                        {parallelTracks.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineNoDeps}</li>}
+                        {parallelTracks.map((dep, i) => (
+                          <li key={`par-${dep.from}-${dep.to}-${i}`}>{formatDepRow(dep.from, dep.to)}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
                 <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">

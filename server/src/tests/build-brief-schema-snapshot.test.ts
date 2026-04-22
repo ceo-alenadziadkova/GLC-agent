@@ -45,4 +45,18 @@ describe('buildBriefSchemaSnapshot', () => {
     expect(schema.surface).toBeNull();
     expect(schema.collection_mode).toBe('discovery');
   });
+
+  it('omits incomplete intelligence metadata from question rows', () => {
+    const schema = buildBriefSchemaSnapshot({
+      responses: {},
+      productMode: 'full',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+    });
+
+    const a1 = schema.questions.find(q => q.id === 'a1');
+    expect(a1).toBeDefined();
+    expect(a1?.intelligence).toBeUndefined();
+  });
 });

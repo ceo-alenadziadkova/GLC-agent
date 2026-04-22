@@ -37,6 +37,19 @@ export async function postDirectorDeepDiveController(req: AuthRequest, res: Resp
     sendApiError(res, 409, API_ERROR_CODES.DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED, 'quota_exceeded');
     return;
   }
+  if (queued.status === 'idempotency_mismatch') {
+    sendApiError(res, 409, API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH, 'idempotency_payload_mismatch');
+    return;
+  }
+  if (queued.status === 'token_budget_exceeded') {
+    sendApiError(
+      res,
+      409,
+      API_ERROR_CODES.DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_EXCEEDED,
+      'token_budget_exceeded',
+    );
+    return;
+  }
   res.status(202).json({
     job_id: queued.job_id,
     status: 'queued' as const,

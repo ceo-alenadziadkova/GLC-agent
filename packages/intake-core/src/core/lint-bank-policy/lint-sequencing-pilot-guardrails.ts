@@ -9,6 +9,7 @@ interface SequencingPilotArtifactShape {
   transitionTypes?: Array<{ id: string }>;
   dependencyRules?: Array<{
     id: string;
+    requiresAnsweredBankIds?: string[];
     lifecycle?: {
       owner?: string;
       kpiMetric?: string;
@@ -17,6 +18,7 @@ interface SequencingPilotArtifactShape {
     };
   }>;
   strictRecommendedOrderWhenPilot?: string[];
+  maxDepthLevels?: number;
   askSlotContract?: Record<
     string,
     {
@@ -36,6 +38,7 @@ interface SequencingPilotArtifactShape {
 export function lintSequencingPilotGuardrails(): LintFinding[] {
   const findings: LintFinding[] = [];
   const artifact = sequencingPilot as SequencingPilotArtifactShape;
+  const maxDepthLevels = artifact.maxDepthLevels ?? 3;
 
   const verticals = artifact.pilotIndustryLabels ?? [];
   if (verticals.length > INTAKE_SEQUENCING_PILOT_POLICY.maxPilotVerticals) {
@@ -92,6 +95,15 @@ export function lintSequencingPilotGuardrails(): LintFinding[] {
   const allowedOwners = new Set(INTAKE_BRIDGE_QUESTION_GOVERNANCE_POLICY.allowedOwners);
   const allowedStates = new Set(INTAKE_BRIDGE_QUESTION_GOVERNANCE_POLICY.allowedLifecycleStates);
   for (const rule of artifact.dependencyRules ?? []) {
+    const depth = Array.isArray(rule.requiresAnsweredBankIds) ? rule.requiresAnsweredBankIds.length : 0;
+    if (depth > maxDepthLevels) {
+      findings.push({
+        code: 'SEQUENCING_PILOT_DEPTH_EXCEEDS_LIMIT',
+        severity: 'error',
+        message: `Bridge dependency rule "${rule.id}" depth=${depth} exceeds maxDepthLevels=${maxDepthLevels}.`,
+        detail: String(depth),
+      });
+    }
     const lc = rule.lifecycle;
     if (!lc) {
       findings.push({

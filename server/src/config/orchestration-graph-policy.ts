@@ -39,7 +39,9 @@ export type OrchestrationExecutionMode = (typeof ORCHESTRATION_EXECUTION_MODES)[
 
 /** Node provenance in persisted pack graph (strategy initiatives vs domain director bundles). */
 export const ORCHESTRATION_GRAPH_NODE_SOURCES = ['strategy', 'director'] as const;
-export type OrchestrationGraphNodeSource = (typeof ORCHESTRATION_GRAPH_NODE_SOURCES)[number];
+export type OrchestrationGraphNodeSource =
+  | (typeof ORCHESTRATION_GRAPH_NODE_SOURCES)[number]
+  | `sub_agent:${string}`;
 
 export const ORCHESTRATION_GRAPH_NODE_ANALYSIS_DEPTHS = ['baseline', 'deep'] as const;
 export type OrchestrationGraphNodeAnalysisDepth =

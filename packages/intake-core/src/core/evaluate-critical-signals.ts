@@ -73,7 +73,7 @@ function normalizeSource(value: string | undefined): SignalEvidenceSource | null
  */
 export function evaluateCriticalSignalsPilot(args: {
   responses: Record<string, unknown>;
-  plan: IntakePlan;
+  plan: Pick<IntakePlan, 'eligible'>;
 }): { satisfied: boolean; trace: IntakeReadinessTraceEntry[]; confidenceByKey: Record<string, IntakeCriticalSignalConfidence> } {
   const trace: IntakeReadinessTraceEntry[] = [];
   const confidenceByKey: Record<string, IntakeCriticalSignalConfidence> = {};

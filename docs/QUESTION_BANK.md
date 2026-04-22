@@ -841,7 +841,7 @@ This section defines the Decision-Intelligence baseline introduced in Sprint 1.
   - `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) for non-P0 questions
 
 P0 scope in Sprint 1 is computed from:
-- all bank ids used by critical signals registry (`intake-critical-signals-pilot-1.0.0.json`)
+- all bank ids used by critical signals registry (`packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`)
 - all Section `F` (goals) bank questions
 
 Lint and fallback behavior:
@@ -904,6 +904,21 @@ Promotion path after Sprint 1:
 Sprint 1 `go/no-go` rule:
 - `go` only when every row above is green in the same branch.
 - Any failure is `no-go` until code + docs are reconciled.
+
+### 16.3 Post-Sprint roadmap lock (sequence)
+
+To prevent scope creep and preserve deterministic rollout behavior, post-Sprint work follows this fixed order:
+
+1. `Sprint 2 / Phase 1b`: explanatory UI surface on public intake (`whyAsked`, `decisionImpact`, readiness + signal state).
+2. `Sprint 2.5`: deterministic Question Quality Engine v2 (anti-pattern heuristics calibration, selective promotion to hard errors).
+3. `Sprint 3`: runtime prioritization and depth policy (`currentPriority`, `skipPolicy`, follow-up/stop execution semantics).
+4. `After Sprint 3`: NL ingress orchestration mapped into the same decision graph (no parallel logic path).
+
+Strict out-of-scope until steps 1-3 are green:
+- embedding-based semantic dedup gates,
+- numeric info-gain runtime scoring,
+- NL-first intake experience,
+- stage-aware branching expansion and new vertical activation packs.
 
 ## Для разработчиков
 

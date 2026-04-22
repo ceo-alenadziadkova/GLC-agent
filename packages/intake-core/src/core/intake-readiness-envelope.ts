@@ -28,6 +28,7 @@ import {
 import { evaluateFlowReadinessBlocked, missingRequiredForMode } from './intake-readiness-sla-helpers.js';
 import type { IntakeSurface } from './types.js';
 import { isSurfaceReadinessEnforcedAt, type SurfaceMatrixEnforcementPoint } from './load-surface-matrix-pilot.js';
+import { deriveSignalPrioritization } from './signal-prioritization.js';
 
 const INTAKE_SLA_FULL: ProductMode = 'full';
 
@@ -130,6 +131,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     critMode === 'sla_only'
       ? {
           satisfied: true,
+          confidenceByKey: {},
           trace: [
             {
               code: 'pilot_critical_signals_skipped',
@@ -273,6 +275,15 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     });
   }
 
+  const signalPrioritization =
+    critMode === 'full'
+      ? deriveSignalPrioritization({
+          responses,
+          confidenceByKey: critical.confidenceByKey ?? {},
+          trace,
+        })
+      : undefined;
+
   return {
     flowReadinessStatus,
     auditReadinessStatus,
@@ -283,6 +294,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
             .slice(0, 3)
             .map(code => ({ code, ...INTAKE_READINESS_CAVEAT_TAXONOMY[code] }))
         : undefined,
+    ...(signalPrioritization ? { signalPrioritization } : {}),
     trace,
   };
 }

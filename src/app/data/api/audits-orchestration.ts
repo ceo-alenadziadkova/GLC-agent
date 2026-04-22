@@ -343,6 +343,13 @@ export const auditsOrchestrationApi = {
       started_at: string | null;
       completed_at: string | null;
       error_code?: string;
+      qa_block?: {
+        coherence: string;
+        feasibility: string;
+        top_3_actions: string[];
+        risks: string[];
+        measurement: string[];
+      };
     }>(apiAuditsDirectorDeepDiveStatus(auditId, domainKey, jobId), {
       method: 'GET',
     });

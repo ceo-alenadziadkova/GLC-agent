@@ -15,6 +15,12 @@ import {
 
 /** Key inside `audit_domains.raw_data` for the versioned director execution bundle. */
 export const GLC_DIRECTOR_EXECUTION_RAW_DATA_KEY = 'glc_director_execution' as const;
+/** Temporary legacy aliases accepted during deprecation window (read-only compatibility). */
+export const GLC_DIRECTOR_EXECUTION_LEGACY_KEYS = [
+  'director_orchestration',
+  'director_bundle',
+  'orchestration',
+] as const;
 
 export const GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION = 1 as const;
 
@@ -87,11 +93,31 @@ export const MAX_SUB_AGENTS_PER_DEEP_DIVE: Record<AuditCoveragePackage, number> 
   complete: 3,
 };
 
+/**
+ * Domain-scoped rollout for director sub-agent orchestration.
+ * Keep this list config-driven; runtime services must not hardcode domain literals.
+ */
+export const DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS: readonly DomainKey[] = ['marketing_utp'];
+
 export const SUB_AGENT_TOKEN_BUDGET_BY_DEPTH: Record<'min' | 'standard' | 'max', number> = {
   min: 8_000,
   standard: 16_000,
   max: 24_000,
 };
+
+export const DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_BY_PACKAGE: Record<AuditCoveragePackage, number> = {
+  starter: 24_000,
+  pro: 64_000,
+  complete: 96_000,
+};
+
+export const DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES = {
+  impact: 3,
+  effort: 3,
+  risk: 2,
+  urgency: 3,
+  confidence: 'medium',
+} as const;
 
 /**
  * Builds a stable graph node id for a director action (avoids collisions with strategy initiative ids).

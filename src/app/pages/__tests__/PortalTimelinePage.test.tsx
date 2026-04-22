@@ -7,12 +7,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { PortalTimelinePage } from '../PortalTimelinePage';
 
 const useAuditMock = vi.fn();
 const useProfileMock = vi.fn();
 const getAuditTimelineMock = vi.fn();
+const useIsMobileMock = vi.fn(() => false);
 
 vi.mock('../../hooks/useAudit', () => ({
   useAudit: (...args: unknown[]) => useAuditMock(...args),
@@ -20,6 +22,10 @@ vi.mock('../../hooks/useAudit', () => ({
 
 vi.mock('../../hooks/useProfile', () => ({
   useProfile: () => useProfileMock(),
+}));
+
+vi.mock('../../components/ui/use-mobile', () => ({
+  useIsMobile: () => useIsMobileMock(),
 }));
 
 vi.mock('../../components/AppShell', () => ({
@@ -66,6 +72,7 @@ describe('PortalTimelinePage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useIsMobileMock.mockReturnValue(false);
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
       originalNarrativeFlag;
     listStrategyExecutionPacksMock.mockResolvedValue({ items: [] });
@@ -766,5 +773,78 @@ describe('PortalTimelinePage', () => {
       await screen.findByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabWorkstreams }),
     );
     expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelineSubAgentFilterLabel)).toBeInTheDocument();
+  });
+
+  it('supports keyboard navigation between timeline tabs', async () => {
+    const user = userEvent.setup();
+    useProfileMock.mockReturnValue({ isClient: true });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/timeline/audit-1']}>
+        <Routes>
+          <Route path="/portal/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const overviewTab = await screen.findByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabOverview });
+    overviewTab.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabWorkstreams })).toHaveFocus();
+  });
+
+  it('renders dependency cards and limits rows on mobile dependency card mode', async () => {
+    const user = userEvent.setup();
+    useIsMobileMock.mockReturnValue(true);
+    useProfileMock.mockReturnValue({ isClient: true });
+    const seoItems = Array.from({ length: 12 }, (_, idx) => ({
+      id: `a-${idx}`,
+      title: `SEO item ${idx + 1}`,
+      lane: 'seo',
+    }));
+    const techItems = Array.from({ length: 12 }, (_, idx) => ({
+      id: `c-${idx}`,
+      title: `Tech item ${idx + 1}`,
+      lane: 'tech_delivery',
+    }));
+    const blockingDependencies = Array.from({ length: 12 }, (_, idx) => ({
+      from: `a-${idx}`,
+      to: `c-${idx}`,
+      relation: 'strong' as const,
+      cross_lane: true,
+      blocking: true,
+    }));
+    getAuditTimelineMock.mockResolvedValue({
+      timeline: {
+        status: 'ready',
+        version: {
+          roadmap_version: 1,
+          manifest_snapshot_id: null,
+          latest_manifest_snapshot_id: null,
+          stale_manifest: false,
+          manifest_state: 'draft',
+        },
+        seasons: [{ id: 'near', node_ids: [] }, { id: 'mid', node_ids: [] }, { id: 'far', node_ids: [] }],
+        lanes: [
+          { lane_id: 'seo', items: seoItems },
+          { lane_id: 'tech_delivery', items: techItems },
+        ],
+        dependencies: blockingDependencies,
+        top_7d: [],
+        top_30d: [],
+        waiting_list_domains: [],
+        data_gaps: null,
+      },
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/timeline/audit-1']}>
+        <Routes>
+          <Route path="/portal/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await user.click(await screen.findByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabDependencies }));
+    const blockingTitle = await screen.findByText(ORCHESTRATION_UI_COPY.timelineBlockingDepsTitle);
+    const blockingCards = blockingTitle.parentElement?.querySelectorAll('article') ?? [];
+    expect(blockingCards.length).toBe(ORCHESTRATION_UI_LIMITS.timelineDependencyCardsPerSectionMobile);
   });
 });

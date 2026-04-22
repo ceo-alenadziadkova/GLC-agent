@@ -14,6 +14,26 @@ type SectionBlock = { section: string; questions: BriefQuestion[] };
 export function IntakeBriefFormPhase(props: {
   questionSections: SectionBlock[];
   responses: BriefResponses;
+  readinessPanel: {
+    state: 'pristine' | 'partial' | 'blocked';
+    flowReadinessStatus: 'flow_ready' | 'blocked';
+    auditReadinessStatus: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+    criticalSignals: Record<string, 'high' | 'medium' | 'low' | 'unknown'>;
+    remediation: Array<{ id: string; label: string }>;
+    trace: Array<{ code: string; questionId?: string; signalKey?: string }>;
+  };
+  intelligenceByQuestionId: Record<
+    string,
+    {
+      whyAsked: string;
+      semanticDomain: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
+      decisionImpact: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
+    }
+  >;
+  signalConfidenceByQuestionId: Record<
+    string,
+    { signalKey: string; confidence: 'high' | 'medium' | 'low' | 'unknown' }
+  >;
   companyName: string;
   message: string;
   submittedAt: string | null;
@@ -32,6 +52,9 @@ export function IntakeBriefFormPhase(props: {
   const {
     questionSections,
     responses,
+    readinessPanel,
+    intelligenceByQuestionId,
+    signalConfidenceByQuestionId,
     companyName,
     message,
     submittedAt,
@@ -50,6 +73,18 @@ export function IntakeBriefFormPhase(props: {
 
   const title = companyName || copy.formTitleFallback;
   const expiresDisplay = expiresAtIso ? formatIntakeBriefSavedAt(expiresAtIso) : '';
+  const readinessStateLabel =
+    readinessPanel.state === 'pristine'
+      ? copy.readinessStatePristine
+      : readinessPanel.state === 'blocked'
+        ? copy.readinessStateBlocked
+        : copy.readinessStatePartial;
+  const confidenceToneClass = (confidence: 'high' | 'medium' | 'low' | 'unknown') => {
+    if (confidence === 'high') return 'text-[var(--ds-semantic-success)]';
+    if (confidence === 'medium') return 'text-[var(--ds-semantic-warning)]';
+    if (confidence === 'low') return 'text-[var(--ds-semantic-danger)]';
+    return 'text-[var(--ds-text-muted)]';
+  };
 
   return (
     <motion.div
@@ -87,6 +122,54 @@ export function IntakeBriefFormPhase(props: {
         </p>
       )}
       <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice">{copy.shortAnswersHint}</p>
+
+      <div className="glc-card p-4 space-y-3 ds-radius-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide ds-text-tertiary m-0">{copy.readinessPanelTitle}</p>
+            <p className="text-sm font-semibold m-0">{readinessStateLabel}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs ds-text-tertiary m-0">{copy.readinessFlowLabel}</p>
+            <p className="text-xs font-medium m-0">{readinessPanel.flowReadinessStatus}</p>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium m-0">{copy.readinessSignalsLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(readinessPanel.criticalSignals).map(([signalKey, confidence]) => (
+              <span key={signalKey} className={`text-xs rounded-md px-2 py-1 border ${confidenceToneClass(confidence)}`}>
+                {signalKey}: {confidence}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {readinessPanel.remediation.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium m-0">{copy.readinessRemediationLabel}</p>
+            <ul className="text-xs m-0 pl-4 space-y-1">
+              {readinessPanel.remediation.map(item => (
+                <li key={item.id}>{item.label}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {readinessPanel.trace.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium m-0">{copy.readinessTraceLabel}</p>
+            <div className="flex flex-wrap gap-2">
+              {readinessPanel.trace.slice(0, 6).map((item, idx) => (
+                <span key={`${item.code}-${idx}`} className="text-xs rounded-md px-2 py-1 border ds-text-tertiary">
+                  {item.code}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div>
         <div className="flex justify-between text-xs mb-1 ds-text-tertiary" >
@@ -132,6 +215,28 @@ export function IntakeBriefFormPhase(props: {
                       : '';
                 return (
                   <div key={q.id} id={`intake-q-${q.id}`}>
+                    {signalConfidenceByQuestionId[q.id] && (
+                      <p className="text-xs mb-2 ds-text-tertiary">
+                        {copy.signalConfidencePrefix}{' '}
+                        <span className={confidenceToneClass(signalConfidenceByQuestionId[q.id]!.confidence)}>
+                          {signalConfidenceByQuestionId[q.id]!.confidence}
+                        </span>
+                      </p>
+                    )}
+                    {intelligenceByQuestionId[q.id] && (
+                      <div className="mb-2 rounded-lg border p-2 space-y-1">
+                        <p className="text-xs m-0">
+                          <span className="font-medium">{copy.whyAskedLabel}: </span>
+                          {intelligenceByQuestionId[q.id]!.whyAsked}
+                        </p>
+                        {intelligenceByQuestionId[q.id]!.decisionImpact.length > 0 && (
+                          <p className="text-xs m-0 ds-text-tertiary">
+                            <span className="font-medium">{copy.decisionImpactLabel}: </span>
+                            {intelligenceByQuestionId[q.id]!.decisionImpact[0]!.effectDescription}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <BriefField
                       q={q}
                       value={responses[q.id]}

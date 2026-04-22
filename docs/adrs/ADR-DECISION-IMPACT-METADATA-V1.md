@@ -40,6 +40,10 @@ P0 coverage in Sprint 1 is strictly:
 1. all question ids referenced by critical signals registry
 2. all Section `F` (goals) questions
 
+Canonical critical-signals registry path:
+
+- `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`
+
 Lint policy in Sprint 1:
 
 - hard error if a P0 question misses any required-now field
@@ -72,6 +76,15 @@ Runtime policy in Sprint 1:
 - NL ingress orchestration
 - stage-aware runtime branching expansion
 
+## Sequenced follow-up roadmap (locked)
+
+Post-Sprint implementation order is fixed to avoid policy drift:
+
+1. Sprint 2 (Phase 1b): explanatory UI surface consumes `whyAsked` and `decisionImpact`.
+2. Sprint 2.5: deterministic Question Quality Engine v2 with calibrated anti-pattern policy.
+3. Sprint 3: runtime prioritization/depth execution (`currentPriority`, `skipPolicy`, stop/follow-up semantics).
+4. Only after Sprint 3: NL ingress orchestration into the same decision graph.
+
 ## Baseline Metrics (Sprint 1)
 
 - total questions: 78
@@ -82,6 +95,7 @@ Runtime policy in Sprint 1:
 ## References
 
 - `packages/intake-core/src/config/intake-intelligence-contract.ts`
+- `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`
 - `packages/intake-core/src/core/lint-bank-policy/lint-intelligence-contract.ts`
 - `packages/intake-core/src/core/build-intake-plan.ts`
 - `docs/QUESTION_BANK.md`

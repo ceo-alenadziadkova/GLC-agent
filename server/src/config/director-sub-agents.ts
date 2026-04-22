@@ -46,3 +46,8 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     depends_on: ['cmo.agent_3_positioning', 'cmo.agent_5_content_strategy'],
   },
 ] as const;
+
+export const DIRECTOR_SUB_AGENT_IDS = DIRECTOR_SUB_AGENTS.map((agent) => agent.id) as [
+  DirectorSubAgentId,
+  ...DirectorSubAgentId[],
+];

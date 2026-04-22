@@ -48,6 +48,13 @@ function evidenceTaxonomyCounts(action: DirectorAction):
   return { observed, derived, assumed, missing };
 }
 
+function deriveNodeSource(action: DirectorAction) {
+  if (!action.id.startsWith('sub_agent:')) return ORCHESTRATION_NODE_SOURCE_DIRECTOR;
+  const parts = action.id.split(':');
+  if (parts.length < 2 || parts[1].trim().length === 0) return ORCHESTRATION_NODE_SOURCE_DIRECTOR;
+  return `sub_agent:${parts[1]}` as const;
+}
+
 function mapOneDirectorAction(args: {
   action: DirectorAction;
   domainKey: DomainKey;
@@ -72,7 +79,7 @@ function mapOneDirectorAction(args: {
     lane,
     dependencies,
     weight,
-    source: ORCHESTRATION_NODE_SOURCE_DIRECTOR,
+    source: deriveNodeSource(args.action),
     analysis_depth: args.wave,
     confidence: normalizeDirectorConfidence(args.action.confidence),
     impact_score: args.action.impact,

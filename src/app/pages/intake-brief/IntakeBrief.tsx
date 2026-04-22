@@ -49,6 +49,9 @@ export function IntakeBrief() {
               <IntakeBriefFormPhase
                 questionSections={c.questionSections}
                 responses={c.responses}
+                readinessPanel={c.readinessPanel}
+                intelligenceByQuestionId={c.intelligenceByQuestionId}
+                signalConfidenceByQuestionId={c.signalConfidenceByQuestionId}
                 companyName={c.companyName}
                 message={c.message}
                 submittedAt={c.submittedAt}

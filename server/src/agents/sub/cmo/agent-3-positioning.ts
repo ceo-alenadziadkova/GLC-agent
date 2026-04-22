@@ -5,6 +5,7 @@ import { CmoPositioningOutputSchema } from '../../../schemas/sub-agents/cmo/posi
 export class CmoAgent3Positioning extends DirectorSubAgentBase {
   readonly id = 'cmo.agent_3_positioning';
   readonly directorDomain = 'marketing_utp';
+  readonly promptRef = 'server/prompts/sub-agents/cmo/agent-3-positioning.md';
   readonly outputSchema = CmoPositioningOutputSchema;
 
   buildInstructions(_context: string, _mode: string): string {

@@ -6,6 +6,7 @@ import {
   hasIntakeIntelligenceRequiredNow,
   INTAKE_INTELLIGENCE_P0_IDS,
   isValidIntakeIntelligenceTodo,
+  projectIntakeIntelligenceRequiredNow,
 } from '../config/intake-intelligence-contract.js';
 import { QUESTION_BANK_V1_IDS } from '../question-bank.js';
 
@@ -40,5 +41,15 @@ describe('intake intelligence contract', () => {
     expect(summary.fullyCoveredP0Questions).toBe(summary.p0Questions);
     expect(summary.coverageRatio).toBeCloseTo(17 / 78, 8);
     expect(summary.p0CoverageRatio).toBe(1);
+  });
+
+  it('projects required_now payload only for complete contracts', () => {
+    const p0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('f1'));
+    expect(p0Projected).toBeDefined();
+    expect(p0Projected?.whyAsked).toBeTruthy();
+    expect(Array.isArray(p0Projected?.decisionImpact)).toBe(true);
+
+    const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('a1'));
+    expect(nonP0Projected).toBeUndefined();
   });
 });

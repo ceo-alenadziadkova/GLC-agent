@@ -383,10 +383,16 @@ ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-
 
 - On-demand deep-dive uses dedicated API routes under `/api/audits/:id/directors/:domain/deep-dive`.
 - Runtime lifecycle reuses `job_runs` (`queued`/`running`/`completed`/`failed`/`dead_letter`) with queue name `director_deep_dive` and a dedicated BullMQ worker started at server bootstrap.
-- Portal deep-dive dialog tracks status through Supabase Realtime updates on `job_runs` row (`queue_job_id` filter), not via client-side polling loops.
+- Portal deep-dive dialog tracks status through Supabase Realtime updates on `job_runs` row (`queue_job_id` filter) with a bounded API polling fallback (`GET .../deep-dive/:jobId`) to avoid stale state when realtime delivery is delayed.
 - Quotas and package-tier gates are read from `director-orchestration-policy` (`execution_plan.coverage_package` remains SSOT).
+- Token-budget enforcement for deep-dive is policy-driven (`DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_BY_PACKAGE` + `SUB_AGENT_TOKEN_BUDGET_BY_DEPTH`) and returns stable API error code when exceeded.
 - CMO sub-agent MVP runs through config-driven registry/modes/router/orchestrator and is fully feature-flagged.
-- Current CMO orchestrator dispatch is deterministic scaffolded output; production gating stays behind `FEATURE_DIRECTOR_SUB_AGENTS` until runtime execution path is promoted.
+- Sub-agent domain activation is policy-driven (`DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS`) to avoid runtime hardcoded domain literals in services.
+- Deep-dive request schema validates `sub_agent_ids` against registry ids (no free-form strings).
+- Orchestrator metadata persists prompt references as stable file paths (`prompt_ref`) to keep auditability deterministic across runs.
+- CMO deep-dive output is materialized back into `audit_domains.raw_data.glc_director_execution.deep` and then merged through the existing pack pipeline (`buildOrchestrationPackForAudit` path) so timeline nodes can carry `source: sub_agent:*`.
+- Deep-dive completion stores `qa_block` metadata in `job_runs`; portal dialog renders this summary after status becomes `completed`.
+- Rollout stage telemetry is carried through feature-flag facades (`getDirectorDeepDiveRolloutMode`, `getDirectorSubAgentsRolloutMode`, client mirrors in `APP_FEATURE_FLAGS`) for shadow/internal/pilot/ga release progression.
 
 ---
 

@@ -137,6 +137,15 @@ export interface StopCondition {
   reason?: string;
 }
 
+export type IntakeSignalPriorityLevel = 'P0' | 'P1' | 'P2';
+export type IntakeSignalSkipPolicy = 'ask_now' | 'defer' | 'skip';
+
+export interface IntakeSignalPriorityState {
+  currentPriority: IntakeSignalPriorityLevel;
+  skipPolicy: IntakeSignalSkipPolicy;
+  reason: string;
+}
+
 export interface IntakeReadinessEnvelope {
   flowReadinessStatus: FlowReadinessStatus;
   auditReadinessStatus: AuditReadinessStatus;
@@ -146,6 +155,14 @@ export interface IntakeReadinessEnvelope {
    */
   caveats?: IntakeReadinessCaveatClass[];
   caveatDetails?: IntakeReadinessCaveatDetail[];
+  /**
+   * Sprint 3 (Phase 2): runtime signal prioritization for adaptive sequencing.
+   * Additive-only contract; callers may ignore when unavailable.
+   */
+  signalPrioritization?: {
+    bySignalKey: Record<string, IntakeSignalPriorityState>;
+    nextSignalKeys: string[];
+  };
   trace: IntakeReadinessTraceEntry[];
 }
 

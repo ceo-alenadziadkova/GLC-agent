@@ -6,6 +6,9 @@
 import { INTAKE_TRACE_IA_V2_ENABLED_DEFAULT } from './intake-trace-defaults';
 import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-defaults';
 
+export const FEATURE_ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
+export type FeatureRolloutMode = (typeof FEATURE_ROLLOUT_MODES)[number];
+
 export const APP_FEATURE_FLAGS = {
   questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
   intakeTraceIaV2Enabled: INTAKE_TRACE_IA_V2_ENABLED_DEFAULT,
@@ -55,8 +58,14 @@ export const APP_FEATURE_FLAGS = {
   orchestrationTimelinePrimaryUxEnabled: true,
   /** Client timeline narrative enhancements (lane promises, milestones, priority reasons). */
   orchestrationRoadmapNarrativeEnabled: false,
+  /** Client timeline narrative staged rollout mode. */
+  orchestrationRoadmapNarrativeRolloutMode: 'shadow' as FeatureRolloutMode,
   /** On-demand director deep-dive from timeline/report surfaces. */
   directorDeepDiveOnDemandEnabled: false,
+  /** Director deep-dive staged rollout mode. */
+  directorDeepDiveRolloutMode: 'shadow' as FeatureRolloutMode,
   /** Sub-agent selection for director deep-dive (CMO MVP). */
   directorSubAgentsEnabled: false,
+  /** Director sub-agent staged rollout mode. */
+  directorSubAgentsRolloutMode: 'shadow' as FeatureRolloutMode,
 } as const;

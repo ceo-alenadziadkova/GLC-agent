@@ -9,7 +9,7 @@ import {
 } from '../config/intake-flags.js';
 import {
   getIntakeIntelligenceContract,
-  hasIntakeIntelligenceRequiredNow,
+  projectIntakeIntelligenceRequiredNow,
 } from '../config/intake-intelligence-contract.js';
 
 import { evaluateCanonEligibility, recomputeCanonEligibilityIncremental } from './evaluate-canon.js';
@@ -17,7 +17,9 @@ import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { computeIntakePlanDerived } from './plan-derived.js';
 import { computeNextRecommended } from './plan-next-recommended.js';
+import { evaluateCriticalSignalsPilot } from './evaluate-critical-signals.js';
 import { runSequencingEvaluator } from './intake-plan/resolver-pipeline.js';
+import { reorderNextRecommendedForSignalPriorityRespectingTiers } from './reorder-next-recommended-for-signal-priority.js';
 import { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
 import { INTAKE_RESOLVER_VERSION, currentIntakeVersionTuple } from './versions.js';
@@ -296,7 +298,34 @@ function buildIntakePlanInternal(
   }
 
   const finalVisibleSet = new Set(finalVisible);
-  const layoutProjectedRecommended = seqApplied.nextRecommended.filter(id => finalVisibleSet.has(id));
+  let layoutProjectedRecommended = seqApplied.nextRecommended.filter(id => finalVisibleSet.has(id));
+  if (isIntakeNextRecommendedEnabled() && layoutProjectedRecommended.length > 0) {
+    const criticalForOrder = evaluateCriticalSignalsPilot({
+      responses: r,
+      plan: { eligible: sortUniqueIds(eligibleAfterPolicy) },
+    });
+    const pilotSkipsRegistry = criticalForOrder.trace.some(t => t.code === 'pilot_signals_skipped');
+    if (!pilotSkipsRegistry) {
+      const before = layoutProjectedRecommended.join('\u0000');
+      const reordered = reorderNextRecommendedForSignalPriorityRespectingTiers({
+        nextRecommended: layoutProjectedRecommended,
+        responses: r,
+        confidenceByKey: criticalForOrder.confidenceByKey,
+        stubs,
+      });
+      layoutProjectedRecommended = reordered.nextRecommended;
+      if (before !== layoutProjectedRecommended.join('\u0000')) {
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'next_recommended_reordered_by_signal_priority',
+          message: `Reordered nextRecommended using pilot signal priority (nextSignalKeys: ${reordered.nextSignalKeys.join(
+            ', ',
+          )})`,
+        });
+      }
+    }
+  }
 
   const planCore: IntakePlan = {
     eligible: eligibleAfterPolicy,
@@ -332,7 +361,8 @@ function buildIntakePlanInternal(
   });
 
   for (const questionId of finalVisible) {
-    if (!hasIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(questionId))) {
+    const projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(questionId));
+    if (!projected) {
       debugTrace.push({
         layer: 'resolver',
         level: 'warn',

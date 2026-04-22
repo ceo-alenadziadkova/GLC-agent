@@ -48,6 +48,9 @@ export interface BriefQuestion {
   consultant_hint?: string;
   revenue_signal?: BriefRevenueSignal;
   triggers_followup?: string[];
+  whyAsked?: string;
+  semanticDomain?: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
+  decisionImpact?: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
   type: BriefQuestionType;
   options?: string[];
 }
