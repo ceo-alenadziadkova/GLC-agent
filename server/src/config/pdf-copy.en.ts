@@ -6,6 +6,11 @@ export const PDF_COPY_EN = {
   brandName: 'GLC Audit Platform',
   documentTitlePrefix: 'GLC Audit —',
   metaAuthor: 'GLC Audit Platform',
+  pageChrome: {
+    headerSeparator: '·',
+    footerSeparator: '·',
+    pageCounter: (pageNumber: number, totalPages: number) => `${pageNumber} / ${totalPages}`,
+  },
   cover: {
     dateLabel: 'DATE',
     industryLabel: 'INDUSTRY',
@@ -38,6 +43,7 @@ export const PDF_COPY_EN = {
     executiveSummary: 'Executive Summary',
     priorityIssues: 'Priority Issues',
     recommendedActions: 'Recommended Actions',
+    recDomainLabel: (domain: string) => `(${domain})`,
   },
   full: {
     executiveSummary: 'Executive Summary',
@@ -47,6 +53,16 @@ export const PDF_COPY_EN = {
     phaseQuickWins: 'Quick Wins (up to 1 week)',
     phaseMediumTerm: 'Medium Term (~1 month)',
     phaseStrategic: 'Strategic (1–3 months)',
+  },
+  ideaStageReadiness: {
+    sectionTitle: 'Idea-stage readiness',
+    validationSignalLabel: 'Validation signal',
+    icpClarityLabel: 'ICP clarity',
+    gtmTestsReadyLabel: 'GTM tests ready',
+    launchConstraintLabel: 'Main launch constraint',
+    noteLabel: 'Assessment note',
+    gtmYes: 'yes',
+    gtmNo: 'no',
   },
   placeholders: {
     emDash: '—',

@@ -19,6 +19,7 @@
   "companyProfileIntakeAiReadiness": "\n- **Intake AI readiness (heuristic, question-bank):** ",
   "companyProfileIntakeReportAnchors": "\n- **Intake report anchors (canon):** ",
   "companyProfileIntakeReportGaps": "\n- **Intake report gaps (domains with unanswered primary bank questions):** ",
+  "intakeProjectContextEnvelopeHeading": "## Intake Project Context Envelope (normalized)",
   "postAuditHeading": "## Post-audit Follow-up Questions",
   "postAuditQuestionPrefix": "- Q",
   "postAuditQuestionSuffix": ": ",

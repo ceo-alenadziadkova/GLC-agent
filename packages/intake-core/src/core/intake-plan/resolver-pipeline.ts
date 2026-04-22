@@ -8,10 +8,11 @@
  * `intake-readiness-envelope`.
  */
 import type { IntakeReadinessTraceEntry } from '../../audit-contract.js';
+import type { IntakeBriefCollectionMode } from '../../audit-contract.js';
 import { evaluateCriticalSignalsPilot } from '../evaluate-critical-signals.js';
 import { selectRemediationPilotQueue } from '../evaluate-remediation-pilot.js';
 import { applySequencingPilotToPlan } from './apply-sequencing-pilot.js';
-import type { IntakePlan } from '../types.js';
+import type { IntakePlan, IntakeSurface } from '../types.js';
 
 export interface SequencingEvaluatorInput {
   sequencingVersion: string;
@@ -23,6 +24,8 @@ export interface SequencingEvaluatorInput {
 export interface PlanDiagnosticsInput {
   plan: IntakePlan;
   responses: Record<string, unknown>;
+  collectionMode?: IntakeBriefCollectionMode;
+  surface?: IntakeSurface;
 }
 
 export interface PlanDiagnosticsResult {
@@ -43,7 +46,12 @@ export function runSequencingEvaluator(input: SequencingEvaluatorInput) {
 
 export function runPlanDiagnostics(input: PlanDiagnosticsInput): PlanDiagnosticsResult {
   const critical = evaluateCriticalSignalsPilot(input);
-  const remediation = selectRemediationPilotQueue(input);
+  const remediation = selectRemediationPilotQueue({
+    plan: input.plan,
+    responses: input.responses,
+    collectionMode: input.collectionMode,
+    surface: input.surface,
+  });
   return {
     criticalSignals: {
       satisfied: critical.satisfied,

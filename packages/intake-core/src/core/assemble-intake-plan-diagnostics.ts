@@ -1,6 +1,7 @@
 import type { IntakeCriticalSignalConfidence, IntakeReadinessTraceEntry } from '../audit-contract.js';
+import type { IntakeBriefCollectionMode } from '../audit-contract.js';
 import { runPlanDiagnostics } from './intake-plan/resolver-pipeline.js';
-import type { IntakePlan } from './types.js';
+import type { IntakePlan, IntakeSurface } from './types.js';
 
 export interface IntakePlanCriticalSignalsBlock {
   satisfied: boolean;
@@ -19,6 +20,8 @@ export interface IntakePlanRemediationBlock {
 export function assembleIntakePlanDiagnostics(args: {
   plan: IntakePlan;
   responses: Record<string, unknown>;
+  collectionMode?: IntakeBriefCollectionMode;
+  surface?: IntakeSurface;
 }): { criticalSignals: IntakePlanCriticalSignalsBlock; remediation: IntakePlanRemediationBlock } {
   const { criticalSignals, remediation } = runPlanDiagnostics(args);
   return {

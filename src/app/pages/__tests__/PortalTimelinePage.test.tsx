@@ -257,6 +257,93 @@ describe('PortalTimelinePage', () => {
     expect(screen.getByText(/\+1 initiatives/)).toBeInTheDocument();
   });
 
+  it('explains degraded timeline with data gaps and still opens plan map when pack exists', async () => {
+    const user = userEvent.setup();
+    useProfileMock.mockReturnValue({ isClient: false });
+    getAuditTimelineMock.mockResolvedValue({
+      timeline: {
+        status: 'degraded',
+        version: {
+          roadmap_version: 1,
+          manifest_snapshot_id: 'snap-d',
+          latest_manifest_snapshot_id: 'snap-d',
+          stale_manifest: false,
+          manifest_state: 'confirmed',
+        },
+        seasons: [
+          { id: 'near', node_ids: [] },
+          { id: 'mid', node_ids: [] },
+          { id: 'far', node_ids: [] },
+        ],
+        lanes: [
+          {
+            lane_id: 'seo',
+            items: [{ id: 'a', title: 'SEO item', domain: 'seo_digital', lane: 'seo' }],
+          },
+        ],
+        dependencies: [],
+        top_7d: [],
+        top_30d: [],
+        waiting_list_domains: [],
+        data_gaps: {
+          degraded_input: true,
+          fallback_reason_code: 'director_slice_missing',
+          dangling_dependencies: 0,
+          missing_confidence: 2,
+          missing_risk: 1,
+        },
+      },
+    });
+    useAuditMock.mockReturnValue({
+      loading: false,
+      error: null,
+      reload: vi.fn(),
+      audit: {
+        meta: {
+          id: 'audit-1',
+          execution_plan: { selected_domains: ['seo_digital'] },
+        },
+        strategy: {
+          quick_wins: [],
+          orchestration_pack_version: 1,
+          glc_orchestration_pack: {
+            version: ORCHESTRATION_PACK_SCHEMA_VERSION,
+            graph: {
+              nodes: [{ id: 'a', title: 'Alpha', domain: 'seo_digital', lane: 'seo' }],
+              edges: [],
+            },
+            lanes: {
+              product_change: [],
+              tech_delivery: [],
+              marketing_narrative: [],
+              seo: ['a'],
+              processes_automation: [],
+              risk_compliance: [],
+            },
+            critical_path: ['a'],
+            conflicts_resolved: [],
+            manifest_snapshot_id: 'snap-d',
+          },
+        },
+      },
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/timeline/audit-1']}>
+        <Routes>
+          <Route path="/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: ORCHESTRATION_UI_COPY.timelineStateDegradedTitle })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp('director layer', 'i'))).toBeInTheDocument();
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.timelineDegradedEmptySeasonBucketsHint)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.portalTimelineTabPlanMap }));
+    expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelinePlanMapDegradedNote)).toBeInTheDocument();
+  });
+
   it('shows pack dependency map panel when strategy includes a valid orchestration pack', async () => {
     const user = userEvent.setup();
     useProfileMock.mockReturnValue({ isClient: true });
@@ -524,5 +611,63 @@ describe('PortalTimelinePage', () => {
     );
     expect(await screen.findByText(ORCHESTRATION_UI_COPY.timelineCrossLaneNarrativeTitle)).toBeInTheDocument();
     expect(screen.getByText(ORCHESTRATION_UI_COPY.timelineCrossLaneNarrativeBody)).toBeInTheDocument();
+  });
+
+  it('renders explain decision cards and limited context fallback badge', async () => {
+    const user = userEvent.setup();
+    useProfileMock.mockReturnValue({ isClient: true });
+    getAuditTimelineMock.mockResolvedValue({
+      timeline: {
+        status: 'ready',
+        version: {
+          roadmap_version: 1,
+          manifest_snapshot_id: null,
+          latest_manifest_snapshot_id: null,
+          stale_manifest: false,
+          manifest_state: 'draft',
+        },
+        seasons: [{ id: 'near', node_ids: ['n1'] }, { id: 'mid', node_ids: [] }, { id: 'far', node_ids: [] }],
+        lanes: [
+          {
+            lane_id: 'seo',
+            items: [
+              {
+                id: 'n1',
+                title: 'Improve crawl budget',
+                lane: 'seo',
+                domain: 'seo_digital',
+                explain: {
+                  why: ['Reduces indexation lag'],
+                  how: { description: 'Roll out sitemap and internal linking updates' },
+                  time: { bucket: 'now', time_to_value: '2 weeks' },
+                  impact: { score: 4, label: 'high' },
+                  risks: ['Requires dev queue alignment'],
+                  limited_context: true,
+                },
+              },
+            ],
+          },
+        ],
+        dependencies: [],
+        top_7d: ['n1'],
+        top_30d: [],
+        waiting_list_domains: [],
+        data_gaps: null,
+      },
+    });
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/timeline/audit-1']}>
+        <Routes>
+          <Route path="/portal/timeline/:id" element={<PortalTimelinePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const summaries = await screen.findAllByText(ORCHESTRATION_UI_COPY.timelineDecisionCardSummary);
+    expect(summaries.length).toBeGreaterThan(0);
+    await user.click(summaries[0]!);
+    expect(screen.getAllByText(ORCHESTRATION_UI_COPY.timelineLimitedContextBadge).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(ORCHESTRATION_UI_COPY.timelineDecisionWhyLabel).length).toBeGreaterThan(0);
   });
 });

@@ -24,6 +24,7 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     const { trace } = evaluateCriticalSignalsPilot({ responses, plan });
     expect(trace.some(t => t.semanticCause.includes('unanswered'))).toBe(true);
     expect(trace.some(t => t.code === 'critical_signal_unanswered')).toBe(true);
+    expect(trace.some(t => t.code === 'critical_signal_metadata_applied')).toBe(true);
   });
 
   it('sla_only readiness skips pilot registry with explicit trace', () => {
@@ -51,6 +52,38 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     const b = evaluateIntakeReadinessEnvelope(input);
     expect(a.auditReadinessStatus).toBe(b.auditReadinessStatus);
     expect(a.flowReadinessStatus).toBe(b.flowReadinessStatus);
+  });
+
+  it('brief_recompute is advisory for self-serve audit readiness (surface policy)', () => {
+    const env = evaluateIntakeReadinessEnvelope({
+      responses: { a2: 'Healthcare' },
+      slaProductMode: 'full',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+      enforcementPoint: 'brief_recompute',
+    });
+    expect(env.auditReadinessStatus).toBe('ready_with_caveats');
+    expect(env.caveats).toContain('surface_limited_context');
+    expect(env.trace.some(t => t.code === 'audit_readiness_not_enforced_at_point')).toBe(true);
+  });
+
+  it('brief_recompute adds unknown_source_signal_evidence caveat when blocked signal is unknown-sourced', () => {
+    const env = evaluateIntakeReadinessEnvelope({
+      responses: {
+        a2: 'Healthcare',
+        a5: 'multi_page_website',
+        f1: { value: ['Operational delays'], source: 'unknown' },
+      },
+      slaProductMode: 'full',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+      enforcementPoint: 'brief_recompute',
+    });
+    expect(env.auditReadinessStatus).toBe('ready_with_caveats');
+    expect(env.caveats).toContain('surface_limited_context');
+    expect(env.caveats).toContain('unknown_source_signal_evidence');
   });
 
   it('sequencing pilot reorders nextRecommended for Healthcare when enabled', () => {
@@ -86,6 +119,21 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     const crit = evaluateCriticalSignalsPilot({ responses, plan });
     expect(crit.satisfied).toBe(false);
     expect(crit.confidenceByKey.primary_problem).toBe('low');
+  });
+
+  it('source not listed in sourcesByPriority is bounded to low confidence with trace', () => {
+    const responses = {
+      a2: 'Healthcare',
+      a5: { value: 'multi_page_website', source: 'legacy_import' },
+      f1: ['Operational delays'],
+      d2: 'Managing team tasks and handoffs',
+      f2: ['Website performance and technology (speed, stability, technical health)'],
+      d_closing_flow: ['I send a quote or price manually'],
+    };
+    const plan = planFromResponses(responses);
+    const crit = evaluateCriticalSignalsPilot({ responses, plan });
+    expect(crit.confidenceByKey.website_presence).toBe('low');
+    expect(crit.trace.some(t => t.code === 'critical_signal_source_priority_miss')).toBe(true);
   });
 
   it('sequencing pilot emits sequencing_dep_prerequisite_pending when dependency bank (a1) is unanswered', () => {

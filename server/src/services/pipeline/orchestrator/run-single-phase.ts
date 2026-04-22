@@ -59,6 +59,18 @@ async function markAuditDomainFailed(auditId: string, domainKey: DomainKey): Pro
     .eq('domain_key', domainKey);
 }
 
+async function isDomainPhaseAlreadyCompleted(auditId: string, domainKey: DomainKey): Promise<boolean> {
+  const { data: latest } = await supabase
+    .from('audit_domains')
+    .select('status')
+    .eq('audit_id', auditId)
+    .eq('domain_key', domainKey)
+    .order('version', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return latest?.status === 'completed';
+}
+
 export async function runSinglePhaseWithLifecycle(
   params: RunSinglePhaseLifecycleParams,
 ): Promise<RunSinglePhaseLifecycleOutcome> {
@@ -79,6 +91,18 @@ export async function runSinglePhaseWithLifecycle(
 
   try {
     await assertNotCancelled();
+    if (mode === 'isolated' && auditDomainRowShouldTrackFailure(domainKey)) {
+      const alreadyCompleted = await isDomainPhaseAlreadyCompleted(auditId, domainKey);
+      if (alreadyCompleted) {
+        await emitEvent(
+          phase,
+          PIPELINE_EVENT_TYPES.log,
+          `Skipping phase ${phase}: ${domainKey} already completed`,
+          { domain_key: domainKey, skipped: true, reason: 'already_completed' },
+        );
+        return undefined;
+      }
+    }
 
     let executionPlan: AuditExecutionPlan | undefined;
     if (mode === 'sequential') {

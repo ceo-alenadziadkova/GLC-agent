@@ -1,6 +1,9 @@
 import criticalSignals from '../../artifacts/intake-critical-signals-pilot-1.0.0.json' with { type: 'json' };
 import questionBankCanon from '../../question-bank.v1.json' with { type: 'json' };
-import { INTAKE_CRITICAL_SIGNAL_REGISTRY_POLICY } from '../../config/intake-readiness-policy.js';
+import {
+  INTAKE_CRITICAL_SIGNAL_REGISTRY_POLICY,
+  INTAKE_PHASE1_MAX_CRITICAL_SIGNALS,
+} from '../../config/intake-readiness-policy.js';
 
 import type { LintFinding } from './types.js';
 
@@ -27,6 +30,14 @@ export function lintCriticalSignalRegistry(): LintFinding[] {
     (questionBankCanon as { questions: Array<{ id: string }> }).questions.map(q => q.id),
   );
   const seenSignalKeys = new Set<string>();
+  if (signalEntries.length > INTAKE_PHASE1_MAX_CRITICAL_SIGNALS) {
+    findings.push({
+      code: 'CRITICAL_SIGNAL_PHASE1_CAP_EXCEEDED',
+      severity: 'error',
+      message:
+        `Critical signal registry has ${signalEntries.length} keys; Phase-1 cap is ${INTAKE_PHASE1_MAX_CRITICAL_SIGNALS}.`,
+    });
+  }
 
   for (const [signalKey, def] of signalEntries) {
     if (seenSignalKeys.has(signalKey)) {

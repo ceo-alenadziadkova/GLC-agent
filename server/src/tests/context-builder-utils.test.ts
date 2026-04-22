@@ -135,6 +135,21 @@ describe('ContextBuilder.formatPrompt', () => {
     expect(prompt).toContain('seo_digital');
   });
 
+  it('includes intake project context envelope section when envelope is present', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_project_context_envelope: {
+          readinessContext: { flowReadinessStatus: 'flow_ready', auditReadinessStatus: 'audit_ready' },
+          identityContext: { industry: 'Healthcare' },
+        },
+      }),
+    );
+    expect(prompt).toContain('## Intake Project Context Envelope (normalized)');
+    expect(prompt).toContain('"readinessContext"');
+    expect(prompt).toContain('"auditReadinessStatus": "audit_ready"');
+  });
+
   it('preserves contradictory upstream domain signals in strategy prompt context', () => {
     const builder = new ContextBuilder();
     const { prompt } = builder.formatPrompt(

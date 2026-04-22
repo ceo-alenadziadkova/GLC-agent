@@ -26,12 +26,23 @@ export function applyExecutionPathConstraints(
   brief: StrategyBriefConstraintSnapshot,
 ): StrategyInitiativeParsed['execution_paths'] {
   const rejectScalable = budgetBandRejectsScalable(brief.budget_band);
+  const rejectForWeakIdeaSignal =
+    brief.idea_validation_signal === 'weak'
+    || brief.idea_icp_clarity === 'broad'
+    || !brief.idea_gtm_test_ready;
   return initiative.execution_paths.map((path) => {
     if (path.type === 'scalable' && rejectScalable) {
       return {
         ...path,
         incompatible: true,
         incompatibility_reason: 'budget_band_low',
+      };
+    }
+    if (path.type === 'scalable' && rejectForWeakIdeaSignal) {
+      return {
+        ...path,
+        incompatible: true,
+        incompatibility_reason: 'idea_signal_not_ready',
       };
     }
     return { ...path };

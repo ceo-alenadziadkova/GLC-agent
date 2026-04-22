@@ -181,6 +181,7 @@ Code: `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`, mappers un
 - **Phase-level retry**: A failed phase can be re-run without re-running previous phases
 - Cached `collected_data` is reused on retry — only the Claude call is repeated
 - **Exponential retry with jitter**: up to 3 retries on Claude API errors (429, 500, timeout), based on `SYSTEM_DEFAULTS.claudeHttp` (`retryBaseMs=1500`, doubling per attempt, plus jitter).
+- **Per-call HTTP timeout** (`AbortController`): default `timeoutMs` applies to domain/recon calls; **strategy (phase 7)** uses `timeoutMsStrategy` (larger — see `SYSTEM_DEFAULTS_CLAUDE_HTTP`). If the ceiling is hit, the Anthropic SDK often reports `Request was aborted.`
 - If all retries fail, phase status → `failed`, audit status → `failed`, error logged in `pipeline_events`
 - Frontend shows "Retry Phase" button for failed phases
 

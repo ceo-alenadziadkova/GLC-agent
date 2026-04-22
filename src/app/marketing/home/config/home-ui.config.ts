@@ -11,8 +11,8 @@ export const HOME_DEFAULT_H2 = 'font-display text-2xl font-bold tracking-tight s
 export const HOME_SURFACE_CARD_STYLE = {
   borderRadius: 'var(--radius-xl)',
   border: 'var(--border-width-default) solid var(--border-subtle)',
-  backgroundColor: 'var(--bg-surface)',
-  boxShadow: 'none',
+  backgroundColor: 'transparent',
+  boxShadow: 'var(--shadow-sm)',
 } as const;
 
 export const HOME_CHIP_STYLE = {

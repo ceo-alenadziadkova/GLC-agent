@@ -132,6 +132,7 @@ export function buildBriefSchemaSnapshot(args: {
     collectionMode: args.collectionMode,
     surface: args.surface,
     intakeVersionTuple: args.intakeVersionTuple,
+    enforcementPoint: 'brief_recompute',
   });
 
   return {

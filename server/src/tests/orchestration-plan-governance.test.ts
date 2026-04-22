@@ -101,7 +101,26 @@ describe('evaluateOrchestrationPlanGovernance', () => {
     expect(result.decision).toBe('persist');
   });
 
-  it('emits degraded input quality reasons when input gate is degraded', () => {
+  it('does not flag expected strategy-only input (no director slices) in governance', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        input_quality: {
+          input_mode: 'strategy_fallback',
+          input_gate_status: 'finalized',
+          director_coverage_ratio: 0,
+          director_input_coverage_ratio: 0,
+          degraded: true,
+          fallback_reason_code: 'director_slice_missing',
+        },
+      }),
+      { rolloutMode: 'tightened_quality' },
+    );
+    expect(result.reason_codes).not.toContain('input_gate_degraded');
+    expect(result.reason_codes).not.toContain('director_input_coverage_below_floor');
+    expect(result.decision).toBe('persist');
+  });
+
+  it('still flags director coverage floor when fallback is partial director, not fully missing', () => {
     const result = evaluateOrchestrationPlanGovernance(
       pack({
         input_quality: {
@@ -110,7 +129,7 @@ describe('evaluateOrchestrationPlanGovernance', () => {
           director_coverage_ratio: 0.3,
           director_input_coverage_ratio: 0.2,
           degraded: true,
-          fallback_reason_code: 'director_slice_missing',
+          fallback_reason_code: 'director_slice_partial',
         },
       }),
     );

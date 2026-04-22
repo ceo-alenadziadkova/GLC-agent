@@ -28,7 +28,14 @@ export const SYSTEM_DEFAULTS_CLAUDE_HTTP = {
   maxRetries: 3,
   retryBaseMs: 1500,
   retryJitterMs: 300,
+  /** Single-call ceiling for domain/recon agents (collectors + typical prompt size). */
   timeoutMs: 90_000,
+  /**
+   * Phase 7 strategy: merges all domain outputs + reviews; larger prompt and `max_tokens` →
+   * needs a higher ceiling than domain agents. Abort surfaces as Anthropic SDK `Request was aborted.`
+   * The timer is cleared as soon as the API returns — this is a max wait, not a minimum.
+   */
+  timeoutMsStrategy: 600_000,
   cbThreshold: 3,
   cbTtlSec: 60,
   /** HTTP statuses on which `BaseAgent` retries the Claude API call. */

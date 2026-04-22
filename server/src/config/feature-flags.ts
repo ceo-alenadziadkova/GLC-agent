@@ -213,3 +213,26 @@ export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
 export function isDiagnosticIntakePilotEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_DIAGNOSTIC_INTAKE_PILOT, FF.diagnosticIntakePilotEnabled);
 }
+
+/**
+ * Execution-plan coverage scope for intake readiness (selected domains ∩ missingForReport).
+ * Post-KPI expansion; keep off until Product sets `expand` on the KPI gate.
+ * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true
+ */
+export function isExecutionPlanCoverageScopeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE,
+    FF.executionPlanCoverageScopeEnabled,
+  );
+}
+
+/**
+ * ContextBuilder intake project context envelope (`intake_project_context_envelope`) in agent context payload.
+ * Env: FEATURE_PROJECT_CONTEXT_ENVELOPE=true
+ */
+export function isProjectContextEnvelopeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE,
+    FF.projectContextEnvelopeEnabled,
+  );
+}

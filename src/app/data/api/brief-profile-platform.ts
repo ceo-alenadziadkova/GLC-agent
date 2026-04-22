@@ -33,12 +33,12 @@ export type BriefSchemaSnapshot = {
   missing_for_report: string[];
   next_recommended: string[];
   readiness?: {
-    flowReadinessStatus: string;
-    auditReadinessStatus: string;
+    flowReadinessStatus: 'flow_ready' | 'blocked';
+    auditReadinessStatus: 'audit_ready' | 'blocked' | 'ready_with_caveats';
     trace: Array<{ code: string; semanticCause: string; questionId?: string; signalKey?: string }>;
   };
   critical_signals?: {
-    by_key: Record<string, string>;
+    by_key: Record<string, 'high' | 'medium' | 'low' | 'unknown'>;
     summary: { satisfied: boolean };
   };
   remediation_queue?: string[];
@@ -97,9 +97,11 @@ export type BriefIntakeAnalyticsBatchPayload = {
       | 'question_skipped'
       | 'wizard_completed'
       | 'results_viewed'
+      | 'signal_confidence_changed'
       | 'readiness_blocked'
       | 'remediation_asked'
-      | 'sequencing_transition_taken';
+      | 'sequencing_transition_taken'
+      | 'guard_question_triggered';
     question_id?: string;
     step_index?: number;
     client_ts?: string;

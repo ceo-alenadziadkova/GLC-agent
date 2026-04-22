@@ -106,6 +106,7 @@ export async function saveBriefResponses(
     collectionMode,
     surface,
     intakeVersionTuple: effectiveTuple,
+    enforcementPoint: 'brief_recompute',
   });
   logger.debug('brief_write.intake_readiness_recomputed', {
     auditId,

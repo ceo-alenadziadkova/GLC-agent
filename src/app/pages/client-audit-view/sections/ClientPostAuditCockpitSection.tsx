@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { ClipboardText, FileText, MapTrifold, Path } from '@phosphor-icons/react';
 
 import { SectionLabel } from '../../../components/glc/SectionLabel';
@@ -43,6 +44,18 @@ function labelConstraintTeam(value: string): string {
   return m[value] ?? value;
 }
 
+function impactTone(impact: 'high' | 'medium' | 'low'): string {
+  if (impact === 'high') return 'bg-[var(--status-error-bg)] text-[var(--status-error-fg)]';
+  if (impact === 'medium') return 'bg-[var(--status-warning-bg)] text-[var(--status-warning-fg)]';
+  return 'bg-[var(--status-info-bg)] text-[var(--status-info-fg)]';
+}
+
+function effortTone(effort: 'high' | 'medium' | 'low'): string {
+  if (effort === 'high') return 'bg-[var(--status-warning-bg)] text-[var(--status-warning-fg)]';
+  if (effort === 'medium') return 'bg-[var(--surface-muted)] text-[var(--text-secondary)]';
+  return 'bg-[var(--status-success-bg)] text-[var(--status-success-fg)]';
+}
+
 export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: AuditState; auditId: string }) {
   const copy = CLIENT_AUDIT_VIEW_COPY.cockpit;
   const vm = getReportPageViewModel(audit, 'full');
@@ -55,6 +68,8 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
     staleTime: CLIENT_POST_AUDIT_COCKPIT_UI.timelineStatusQueryStaleTimeMs,
   });
   const timelineStatus = timelineStatusQuery.data?.timeline.status ?? null;
+  const timeline = timelineStatusQuery.data?.timeline ?? null;
+  const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
   const summaryRaw = strategy?.executive_summary?.trim() ?? '';
   const summary =
     summaryRaw.length > 0
@@ -75,6 +90,67 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const labHref = buildAppRoute.portalStrategy(auditId);
   const adjustScopeHref = `${labHref}?${ORCHESTRATION_LAB_FOCUS_QUERY_KEY}=${ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE}`;
   const manifestWizardHref = buildAppRoute.portalRoadmapManifest(auditId);
+  const decisionCards = useMemo(() => {
+    const all = [...(strategy?.quick_wins ?? []), ...(strategy?.medium_term ?? []), ...(strategy?.strategic ?? [])];
+    const seen = new Set<string>();
+    const out: Array<{
+      id: string;
+      title: string;
+      description: string;
+      impact: 'high' | 'medium' | 'low';
+      effort: 'low' | 'medium' | 'high';
+      why: string | null;
+      how: string | null;
+      eta: string | null;
+      timeframe: string | null;
+    }> = [];
+    for (const init of all) {
+      if (seen.has(init.id)) continue;
+      seen.add(init.id);
+      out.push({
+        id: init.id,
+        title: init.title,
+        description: init.description,
+        impact: init.impact,
+        effort: init.effort,
+        why: init.decision?.why_this?.[0] ?? null,
+        how: init.execution_paths?.[0]?.description ?? null,
+        eta: init.execution_paths?.[0]?.time_estimate ?? null,
+        timeframe: init.outcome?.timeframe ?? null,
+      });
+      if (out.length >= 6) break;
+    }
+    return out;
+  }, [strategy]);
+  const [selectionRunBusy, setSelectionRunBusy] = useState(false);
+  const [selectionRunError, setSelectionRunError] = useState<string | null>(null);
+  const [selectionRunSuccess, setSelectionRunSuccess] = useState<string | null>(null);
+  const selectedManifestSnapshotId =
+    timeline?.version.latest_manifest_snapshot_id ??
+    timeline?.version.manifest_snapshot_id ??
+    strategy?.glc_orchestration_pack?.manifest_snapshot_id ??
+    null;
+
+  async function handleRunSelectedActions(): Promise<void> {
+    if (!selectedManifestSnapshotId || selectedActionIds.length === 0) return;
+    setSelectionRunBusy(true);
+    setSelectionRunError(null);
+    setSelectionRunSuccess(null);
+    try {
+      const result = await api.postOrchestratorRun(auditId, {
+        manifest_snapshot_id: selectedManifestSnapshotId,
+        selected_action_ids: selectedActionIds,
+      });
+      setSelectionRunSuccess(
+        `${copy.selectionAppliedSuccessPrefix} v${result.roadmap_version}. ${copy.selectionAppliedSuccessSuffix}`,
+      );
+      await timelineStatusQuery.refetch();
+    } catch {
+      setSelectionRunError(copy.selectionAppliedError);
+    } finally {
+      setSelectionRunBusy(false);
+    }
+  }
 
   return (
     <div className="glc-soft-panel space-y-5 p-5">
@@ -202,6 +278,144 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
           </Button>
         ) : null}
       </div>
+
+      <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+        <h3 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+          {copy.implementationDecisionTitle}
+        </h3>
+        <p className="mt-2 text-[length:var(--text-xs)] leading-relaxed text-[var(--text-secondary)]">
+          {copy.implementationDecisionBody}
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled &&
+          APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled &&
+          strategy ? (
+            <Button asChild variant="default" size="sm" className="no-underline">
+              <Link to={manifestWizardHref} className="inline-flex items-center justify-center gap-2">
+                <ClipboardText className="h-4 w-4" />
+                {copy.implementationDecisionScopeCta}
+              </Link>
+            </Button>
+          ) : null}
+          {strategy ? (
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={labHref} className="inline-flex items-center justify-center gap-2">
+                <MapTrifold className="h-4 w-4" />
+                {copy.implementationDecisionPrioritiesCta}
+              </Link>
+            </Button>
+          ) : null}
+          <Button asChild variant="outline" size="sm" className="no-underline">
+            <Link to={reportHref} className="inline-flex items-center justify-center gap-2">
+              <FileText className="h-4 w-4" />
+              {copy.implementationDecisionReportCta}
+            </Link>
+          </Button>
+        </div>
+        {!APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled && (
+          <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+            {copy.implementationDecisionNoWizardHint}
+          </p>
+        )}
+      </div>
+      {decisionCards.length > 0 ? (
+        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+          <h3 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{copy.topActionsSelectionTitle}</h3>
+          <p className="mt-2 text-[length:var(--text-xs)] leading-relaxed text-[var(--text-secondary)]">{copy.topActionsSelectionBody}</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {decisionCards.map((row) => {
+              const selected = selectedActionIds.includes(row.id);
+              return (
+                <article
+                  key={row.id}
+                  className="rounded-md border border-[var(--border-default)] bg-[var(--surface-default)] p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{row.title}</h4>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={selected ? 'default' : 'outline'}
+                      onClick={() =>
+                        setSelectedActionIds((prev) =>
+                          selected ? prev.filter((id) => id !== row.id) : [...prev, row.id],
+                        )
+                      }
+                    >
+                      {selected ? copy.topActionsSelectedCta : copy.topActionsSelectCta}
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-secondary)]">{row.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${impactTone(row.impact)}`}>
+                      {copy.topActionsImpactLabel}: {row.impact}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${effortTone(row.effort)}`}>
+                      {copy.topActionsEffortLabel}: {row.effort}
+                    </span>
+                    {row.eta ? (
+                      <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+                        {copy.topActionsEtaLabel}: {row.eta}
+                      </span>
+                    ) : null}
+                  </div>
+                  {row.why ? (
+                    <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-primary)]">
+                      <span className="font-medium">{copy.topActionsWhyLabel}: </span>
+                      {row.why}
+                    </p>
+                  ) : null}
+                  {row.how ? (
+                    <p className="mt-1 text-[length:var(--text-2xs)] text-[var(--text-secondary)]">
+                      <span className="font-medium">{copy.topActionsHowLabel}: </span>
+                      {row.how}
+                    </p>
+                  ) : null}
+                  {row.timeframe ? (
+                    <p className="mt-1 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+                      <span className="font-medium">{copy.topActionsWhenLabel}: </span>
+                      {row.timeframe}
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={selectionRunBusy || selectedActionIds.length === 0 || !selectedManifestSnapshotId}
+              onClick={() => void handleRunSelectedActions()}
+            >
+              {selectionRunBusy ? copy.selectForNextRoadmapBusyCta : copy.selectForNextRoadmapCta}
+            </Button>
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={labHref}>{copy.openDetailsInLabCta}</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={adjustScopeHref}>{copy.adjustScopeTitle}</Link>
+            </Button>
+          </div>
+          {!selectedManifestSnapshotId && (
+            <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+              {copy.selectionRequiresManifestHint}
+            </p>
+          )}
+          {selectionRunError && (
+            <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--status-error-fg)]">{selectionRunError}</p>
+          )}
+          {selectionRunSuccess && (
+            <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--status-success-fg)]">{selectionRunSuccess}</p>
+          )}
+          {selectedActionIds.length > 0 ? (
+            <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
+              {copy.topActionsSelectionCountLabel}: {selectedActionIds.length}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <p className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">
         {ORCHESTRATION_IA_COPY.clientCockpitTimelineFootnote}
       </p>

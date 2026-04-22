@@ -41,6 +41,7 @@ import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS } from '../../config/orchest
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
+import { formatOrchestrationPackRunErrorMessage } from '../../lib/orchestration-pack-api-error';
 import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-projection';
 import { formatAppMediumDateTime } from '../../lib/date-format';
 import { useProfile } from '../../hooks/useProfile';
@@ -99,6 +100,12 @@ export function StrategyLabOrchestrationPanel({
     () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
   );
   const [stage2Working, setStage2Working] = useState(false);
+
+  /** Newest-first list from API; server only accepts this id for POST orchestrator run. */
+  const latestManifestSnapshotId = useMemo(
+    () => (manifestSnapshots.length > 0 ? manifestSnapshots[0]!.id : null),
+    [manifestSnapshots],
+  );
 
   useEffect(() => {
     setStage2Selection(strategy.strategy_lab_context?.director_stage2_domains ?? []);
@@ -336,19 +343,40 @@ export function StrategyLabOrchestrationPanel({
 
   const handleBuildPack = useCallback(async () => {
     if (!manifestSnapshotId) return;
+    let idToRun = latestManifestSnapshotId ?? manifestSnapshotId;
+    if (!latestManifestSnapshotId) {
+      try {
+        const { snapshot } = await api.getRoadmapManifestSnapshotLatest(auditId);
+        if (snapshot?.id) idToRun = snapshot.id;
+      } catch {
+        // keep idToRun; server will reject if stale
+      }
+    }
+    if (latestManifestSnapshotId && latestManifestSnapshotId !== manifestSnapshotId) {
+      toast.info(ORCHESTRATION_UI_COPY.buildUsesLatestSnapshot);
+    }
     setWorking(true);
     try {
-      const res = await api.postOrchestratorRun(auditId, { manifest_snapshot_id: manifestSnapshotId });
+      const res = await api.postOrchestratorRun(auditId, { manifest_snapshot_id: idToRun });
+      if (idToRun !== manifestSnapshotId) {
+        setManifestSnapshotId(idToRun);
+        hydratedManifestSnapshotId.current = null;
+      }
       setLastPostRevision({ roadmap_version: res.roadmap_version, diff: res.last_revision_diff });
       setPlanGovernance(res.plan_governance);
       toast.success(ORCHESTRATION_UI_COPY.packBuilt);
       onReload();
-    } catch {
-      toast.error(ORCHESTRATION_UI_COPY.packBuildFailed);
+    } catch (e) {
+      if (e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null) {
+        const pg = (e.details as { plan_governance?: OrchestrationPlanGovernanceDto }).plan_governance;
+        if (pg) setPlanGovernance(pg);
+      }
+      const { message, description } = formatOrchestrationPackRunErrorMessage(e, ORCHESTRATION_UI_COPY.packBuildFailed);
+      toast.error(message, description ? { description, duration: 14_000 } : { duration: 6_000 });
     } finally {
       setWorking(false);
     }
-  }, [auditId, manifestSnapshotId, onReload]);
+  }, [auditId, latestManifestSnapshotId, manifestSnapshotId, onReload]);
 
   const handleFetchCommercialOffer = useCallback(
     async (accept_domain?: keyof typeof DOMAIN_LABELS) => {

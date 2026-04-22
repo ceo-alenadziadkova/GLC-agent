@@ -16,7 +16,7 @@ export function HomeAtAGlanceSection({ trustMetrics, trustStrip, reduceMotion }:
   return (
     <div className="flex flex-col">
       <HomeMetricsSection data={trustMetrics} includeLandmark={false} maxItems={2} showTagline={false} />
-      <div className="mx-auto w-full max-w-5xl border-t border-[var(--border-subtle)] px-5 pb-7 pt-4 sm:px-6 sm:pb-8 sm:pt-6">
+      <div className="mx-auto w-full max-w-5xl border-t border-[var(--border-subtle)] px-5 pb-6 pt-4 sm:px-6 sm:pb-7 sm:pt-5">
         <HomeTrustSection data={trustStrip} reduceMotion={reduceMotion} density="compact" maxLines={2} />
       </div>
     </div>

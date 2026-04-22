@@ -209,6 +209,11 @@
    * --primary-foreground so label/spinner stay legible if fill reads as a dark surface.
    */
   --on-warm-gradient-fg: var(--glc-ink);
+  /**
+   * Icons/copy on --gradient-success (e.g. pipeline phase completed chip).
+   * Light UI: dark ink reads on saturated green; dark UI: light fg (see html.dark).
+   */
+  --on-gradient-success-fg: var(--glc-ink);
   --gradient-success: linear-gradient(135deg, #0ECF82 0%, #0AB36F 100%);
   --gradient-ink: linear-gradient(160deg, #0D1628 0%, #080F1E 100%);
   --gradient-ink-rich: linear-gradient(160deg, #111E38 0%, #080F1E 55%, #0A1930 100%);
@@ -667,6 +672,7 @@ html.dark {
 
   --gradient-brand-cta: var(--gradient-brand);
   --on-gradient-brand-fg: var(--primary-foreground);
+  --on-gradient-success-fg: var(--primary-foreground);
   /** Warm CTA / accent band: light copy reads on deep orange and if gradient fill fails against dark surfaces. */
   --on-warm-gradient-fg: var(--primary-foreground);
 

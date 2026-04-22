@@ -8,6 +8,7 @@ import {
   responsesUseQuestionBankV1,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
+import { isProjectContextEnvelopeEnabled } from '../../config/feature-flags.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { resolveIntakeSurfaceForPlan } from '../brief-validator.js';
 import type { ContextBuilderBriefRow } from './load-context-snapshot.js';
@@ -64,19 +65,22 @@ export function enrichIntakeMetadata(params: {
     collectionMode,
     surface: intakeSurface,
     intakeVersionTuple: intakeTuple,
+    enforcementPoint: 'brief_recompute',
   });
-  const envelope = buildProjectContextEnvelope({
-    responses: allResponses,
-    flowReadinessStatus: readiness.flowReadinessStatus,
-    auditReadinessStatus: readiness.auditReadinessStatus,
-    criticalMissingKeys: intakePlan.criticalSignals?.missingKeys ?? [],
-    executionPlan: mapProductModeToEnvelopeExecutionPlan(productMode),
-  });
+  const envelope = isProjectContextEnvelopeEnabled()
+    ? buildProjectContextEnvelope({
+      responses: allResponses,
+      flowReadinessStatus: readiness.flowReadinessStatus,
+      auditReadinessStatus: readiness.auditReadinessStatus,
+      criticalMissingKeys: intakePlan.criticalSignals?.missingKeys ?? [],
+      executionPlan: mapProductModeToEnvelopeExecutionPlan(productMode),
+    })
+    : undefined;
 
   return {
     intake_ai_readiness_score: bankAiReadiness,
     ...(intakeReportAnchors ? { intake_report_anchors: intakeReportAnchors } : {}),
     ...(intakeMissingReportDomains ? { intake_missing_report_domains: intakeMissingReportDomains } : {}),
-    intake_project_context_envelope: envelope,
+    ...(envelope ? { intake_project_context_envelope: envelope } : {}),
   };
 }

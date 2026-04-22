@@ -48,7 +48,10 @@ export const ORCHESTRATION_UI_COPY = {
   snapshotHistoryLabel: 'Snapshot',
   snapshotHistoryEmpty: 'No saved snapshots yet',
   snapshotAutoSelected: 'Loaded latest manifest snapshot',
-  snapshotVersionHint: 'Build roadmap from selected snapshot to preserve version traceability.',
+  snapshotVersionHint:
+    'Build only works with the newest saved manifest (server contract). Use history to inspect older settings; the Build button will use the latest row when it differs from your selection.',
+  /** Shown when user had a non-latest snapshot selected but the run used the newest one */
+  buildUsesLatestSnapshot: 'Using the latest saved manifest snapshot (required to build the pack).',
   revisionNodesAdded: 'Initiatives added',
   revisionNodesRemoved: 'Initiatives removed',
   revisionCriticalPathChanged: 'Critical path changed',
@@ -67,6 +70,8 @@ export const ORCHESTRATION_UI_COPY = {
   manifestSaveFailed: 'Could not save manifest',
   /** Strategy Lab — POST orchestration pack failed */
   packBuildFailed: 'Could not build orchestration pack',
+  /** 409 from plan governance: title line (body lists blocking reason codes in toast description) */
+  packBuildGovernanceBlockedTitle: 'Plan quality checks blocked saving the roadmap',
   /** Timeline page — GET /timeline failed (network, 4xx, 5xx); not the same as a missing pack */
   timelineLoadFailed: 'Could not load execution timeline',
   timelineTitle: 'Execution timeline',
@@ -79,7 +84,23 @@ export const ORCHESTRATION_UI_COPY = {
     'Your consultant confirms the roadmap manifest in Strategy Lab and builds the execution pack. You can keep this page open — it updates automatically once the pack is saved.',
   timelineEmptyCtaOpenReport: 'Open full report',
   timelineEmptyCtaAuditOverview: 'Audit overview',
+  /** Legacy one-liner; prefer `timelineStateDegradedTitle` + `timelineStateDegradedLead` in UI */
   timelineStateDegraded: 'Timeline is available with degraded input coverage.',
+  timelineStateDegradedTitle: 'Roadmap is visible, but input quality is reduced',
+  timelineStateDegradedLead:
+    'The saved plan can still be read here. “Degraded” means some cross-checks are missing (see below) — often because domain director enrichments are absent or only partial, or because confidence / risk is incomplete on some steps.',
+  timelineDegradedFallbackDirectorMissing:
+    'No domain director layer on this build: the graph uses strategy initiatives only. This is expected when director output is off or not yet re-run for all domains.',
+  timelineDegradedFallbackDirectorPartial:
+    'Director coverage is partial: some areas still fall back to strategy-only actions. Rebuild the pack in Strategy Lab after domain coverage improves.',
+  timelineDegradedFallbackDirectorInvalid:
+    'Some domain director data could not be read; sequencing may omit expected links. Rebuild after fixing domain outputs or saving a new manifest.',
+  timelineDegradedEmptySeasonBucketsHint:
+    'Seasonal buckets can look empty if steps are not yet split across the time windows. Check the Workstreams tab — initiatives are still listed by lane.',
+  timelineDegradedDataGapsSectionTitle: 'What is missing (from this plan run)',
+  /** Plan map tab when pack exists but status is degraded (graph is still available) */
+  timelinePlanMapDegradedNote:
+    'Input quality is reduced, but the dependency map still reflects the saved pack. Use it together with the data gaps list above.',
   timelineStateStaleManifest: 'Timeline is stale relative to latest manifest snapshot.',
   /** Extra client copy when pack exists but manifest moved forward (API status `stale_manifest`). */
   timelineStaleManifestClientHint:
@@ -104,8 +125,8 @@ export const ORCHESTRATION_UI_COPY = {
   portalTimelineTabPlanMap: 'Plan map',
   /** Overview tab — compact plan metadata when the hero is not shown (non-ready timelines). */
   portalTimelinePlanSnapshotTitle: 'Plan snapshot',
-  /** Plan map tab — no pack yet or timeline not ready. */
-  timelinePlanMapUnavailableHint: 'The interactive dependency map appears when a saved execution plan is available for this audit.',
+  /** Plan map tab — no pack on audit / strategy payload missing. */
+  timelinePlanMapUnavailableHint: 'The interactive map needs a saved orchestration pack on this audit. Build it in Strategy Lab if it is not saved yet.',
   /** Screen-reader-only legend for the interactive dependency map (keyboard and zoom). */
   timelinePackGraphSrKeyboardHint:
     'Interactive diagram: use mouse or trackpad to pan and zoom. Toolbar controls are reachable with Tab.',
@@ -150,6 +171,13 @@ export const ORCHESTRATION_UI_COPY = {
   timelinePackGraphCopyDot: 'Copy Graphviz DOT',
   timelinePackGraphCopyDotSuccess: 'DOT copied to clipboard',
   timelinePackGraphCopyDotFailed: 'Could not copy (browser blocked clipboard)',
+  timelineDecisionCardSummary: 'Decision context',
+  timelineDecisionWhyLabel: 'Why',
+  timelineDecisionHowLabel: 'How',
+  timelineDecisionTimeLabel: 'Time',
+  timelineDecisionImpactLabel: 'Impact',
+  timelineDecisionRisksLabel: 'Risks',
+  timelineLimitedContextBadge: 'Limited context',
   topActionsTitle: 'Top actions',
   topActions7dLabel: 'Next 7 days',
   topActions30dLabel: 'Next 30 days',

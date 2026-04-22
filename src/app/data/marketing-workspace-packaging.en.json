@@ -1,12 +1,12 @@
 {
   "marketing_home": {
     "hero": {
-      "eyebrow": "One point of entry for business clarity",
+      "eyebrow": "One entry point for clarity",
       "headline": "Bring your business situation into focus",
       "headline_gradient_suffix": "into focus",
-      "subheadline": "Share your situation once and receive a decision pack: priority map, trade-off notes, and the first executable sequence.",
-      "supporting_line": "Scope guardrail: coverage is confirmed before work starts, and non-covered dependencies are labeled in plain language.",
-      "snapshot_caption": "Mini specimen: Input: sales + product + delivery signals. Output: top 3 priorities, owners, sequence, and boundary notes.",
+      "subheadline": "Share your situation once. Get priorities, trade-offs, and a first executable sequence.",
+      "supporting_line": "",
+      "snapshot_caption": "",
       "ctas": {
         "primary": "Start with your situation",
         "secondary": "Route me in 30 seconds"
@@ -23,8 +23,8 @@
       "cta_sign_in": "Sign in to dashboard"
     },
     "outcomes_section": {
-      "title": "Built for decisions, not generic advice",
-    "description": "Each output is built for action: clear priorities, explicit trade-offs, and ownership-ready sequence.",
+      "title": "What you walk away with",
+    "description": "A clear priority order, visible trade-offs, and a first execution sequence your team can run.",
       "items": [
         {
           "title": "Decision pack with execution order",

@@ -63,6 +63,8 @@ export const RoadmapManifestPayloadSchema = z.object({
    * derived from `season_preset` weights — see `partitionCriticalPathIntoCalendarSeasonBuckets`.
    */
   plan_horizon: RoadmapPlanHorizonSchema.optional(),
+  /** Optional client intent used as a soft prioritization hint during run/regenerate. */
+  selected_action_ids: z.array(z.string().min(1)).max(50).optional(),
 });
 
 export type RoadmapManifestPayload = z.infer<typeof RoadmapManifestPayloadSchema>;

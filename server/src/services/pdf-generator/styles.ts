@@ -86,6 +86,7 @@ export const pdfStyles = StyleSheet.create({
   pFtrRight: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.green },
 
   sec: { marginBottom: 22 },
+  secCompactTop: { marginTop: 8 },
   secTitle: {
     fontSize: 12.5,
     fontFamily: 'Helvetica-Bold',
@@ -153,6 +154,11 @@ export const pdfStyles = StyleSheet.create({
   bulRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 3 },
   bulDot: { width: 4, height: 4, borderRadius: 2, marginTop: 4, marginRight: 6 },
   bulText: { flex: 1, fontSize: 9, color: C.text, lineHeight: 1.5 },
+  flexFill: { flex: 1 },
+  ownerRecTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold' },
+  ownerRecMeta: { fontSize: 8, color: C.sub },
+  domainRecTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold' },
+  domainRecDesc: { fontSize: 8.5, color: C.sub, lineHeight: 1.5 },
 
   issCard: { flexDirection: 'row', marginBottom: 5 },
   issBar: { width: 3, borderRadius: 2, marginRight: 9 },

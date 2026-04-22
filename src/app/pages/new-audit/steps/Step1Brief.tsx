@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, CheckCircle, Circle, Warning } from '@phosphor-icons/react';
 import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
@@ -98,6 +98,8 @@ export type Step1BriefProps = {
   > | null;
   briefExecutionDiagnosticLoading: boolean;
   briefExecutionDiagnosticError: boolean;
+  /** Optional visible order from GET …/brief `questions` (resolver-authored). */
+  serverVisibleQuestionIds?: string[];
 };
 
 export function Step1Brief({
@@ -134,7 +136,9 @@ export function Step1Brief({
   briefExecutionDiagnostic,
   briefExecutionDiagnosticLoading,
   briefExecutionDiagnosticError,
+  serverVisibleQuestionIds,
 }: Step1BriefProps) {
+  const [focusedWizardQuestionId, setFocusedWizardQuestionId] = useState<string | null>(null);
   const pipelineProductMode = briefProductMode === 'express' ? 'express' : 'full';
   const missingRequiredIds = useMemo(
     () =>
@@ -169,6 +173,11 @@ export function Step1Brief({
       overflow: missingRequiredIds.length > max ? missingRequiredIds.length - max : 0,
     };
   }, [missingRequiredIds]);
+  const briefIntakeSurface = noPublicWebsite
+    ? undefined
+    : isClientSelfServe
+      ? 'client_form'
+      : 'consultant_interview';
 
   return (
     <motion.div
@@ -332,11 +341,41 @@ export function Step1Brief({
             </Callout>
           ) : null}
 
+          {briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'ready_with_caveats' ? (
+            <Callout intent="info" className="mb-4" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}>
+              <p className="m-0 mb-2">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessCaveatsLead}</p>
+              <ul className="m-0 list-disc space-y-1 pl-4">
+                {briefExecutionDiagnostic.readiness.trace
+                  .filter(t => Boolean(t.semanticCause))
+                  .slice(0, 6)
+                  .map((t, i) => (
+                    <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                  ))}
+              </ul>
+            </Callout>
+          ) : null}
+
           {briefExecutionDiagnostic?.remediation_queue && briefExecutionDiagnostic.remediation_queue.length > 0 ? (
             <Callout intent="neutral" className="mb-4" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationTitle}>
+              <p className="mb-2 text-xs text-muted-foreground">
+                {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationCheckpointLead}
+              </p>
               <ul className="m-0 list-disc space-y-1 pl-4">
                 {briefExecutionDiagnostic.remediation_queue.map(id => (
-                  <li key={id}>{getQuestionLabel(id)}</li>
+                  <li key={id}>
+                    <button
+                      type="button"
+                      className="text-info underline-offset-2 hover:underline"
+                      onClick={() => {
+                        if (briefLayoutChoice !== 'wizard') {
+                          onSelectConsultantBriefLayout('wizard');
+                        }
+                        setFocusedWizardQuestionId(id);
+                      }}
+                    >
+                      {getQuestionLabel(id)}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </Callout>
@@ -355,9 +394,11 @@ export function Step1Brief({
                 emphasizeClientSource={intakePrefillActive}
                 answerSource={interviewMode ? 'consultant' : 'client'}
                 collectionMode={noPublicWebsite ? 'discovery' : undefined}
-                intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                intakeSurface={briefIntakeSurface}
                 intakeAnalytics={intakeAnalytics}
                 productMode={briefProductMode}
+                focusQuestionId={focusedWizardQuestionId}
+                serverVisibleQuestionIds={serverVisibleQuestionIds}
               />
             </div>
           ) : (
@@ -365,7 +406,7 @@ export function Step1Brief({
               <BankClassicBriefFields
                 responses={responses}
                 collectionMode={noPublicWebsite ? 'discovery' : undefined}
-                intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                intakeSurface={briefIntakeSurface}
                 productMode={briefProductMode}
                 onChange={onResponseChange}
                 onSetUnknown={onSetUnknown}

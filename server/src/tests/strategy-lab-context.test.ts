@@ -53,4 +53,17 @@ describe('mergeBriefSnapshotWithLabOverrides', () => {
     expect(merged.budget_band).toBe('low');
     expect(merged.team_scale).toBe(brief.team_scale);
   });
+
+  it('derives idea-stage readiness signals from new idea-only questions', () => {
+    const brief = buildStrategyBriefConstraintSnapshot({
+      f_idea_1: { value: 'I have paid pilots or early customers' },
+      f_idea_2: { value: 'Very clear (segment, context, budget, urgency)' },
+      f_idea_3: { value: ['Landing page test', 'Direct outreach test'] },
+      f_idea_4: { value: 'Budget' },
+    });
+    expect(brief.idea_validation_signal).toBe('strong');
+    expect(brief.idea_icp_clarity).toBe('clear');
+    expect(brief.idea_gtm_test_ready).toBe(true);
+    expect(brief.idea_launch_constraint).toBe('Budget');
+  });
 });

@@ -18,6 +18,10 @@ export const STRATEGY_BRIEF_SIGNAL_QUESTION_IDS = {
   budgetRange: 'f5',
   changeReadiness: 'f4',
   doNotRecommend: 'f6',
+  ideaProblemEvidence: 'f_idea_1',
+  ideaIcpClarity: 'f_idea_2',
+  ideaGtmTests: 'f_idea_3',
+  ideaLaunchConstraint: 'f_idea_4',
 } as const;
 
 /** Initiative domain: audit domains plus cross-cutting labels for roadmap items. */

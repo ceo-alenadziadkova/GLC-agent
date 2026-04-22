@@ -9,6 +9,7 @@ type HomeMidCtaSectionProps = {
 export function HomeMidCtaSection({ landmarkLabel, data }: HomeMidCtaSectionProps) {
   return (
     <MarketingMidCtaBand
+      className="ds-home-mid-cta-band"
       landmarkLabel={landmarkLabel}
       title={data.title}
       body={data.body}

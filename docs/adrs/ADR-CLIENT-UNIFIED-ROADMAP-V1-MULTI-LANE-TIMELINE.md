@@ -125,6 +125,20 @@ Additional agent families (competitors, vendor discovery, etc.) appear as **opti
 - Ship **manifest + preview + vN versioning** before pixel-perfect graph visualization.
 - Start with **textual critical path + lane columns** if graph rendering lags.
 
+### Current UX gaps to close
+
+The following items are required to reach the intended client decision UX for roadmap selection:
+
+- No **board-view by periods** (`Now / Next / Later`) with initiative cards as the primary interaction surface.
+- No **what-if comparison scenario** (for example: “if you select these 3 initiatives, how the plan changes”).
+- No explicit **selection package evaluation** at set level (total effort range, expected impact, key risks).
+- Insufficient **decision confidence at set level** (confidence is mostly shown per initiative, not for the selected bundle).
+
+These are tracked as mandatory follow-up UX scope for the timeline/lab contract and must be delivered without breaking:
+- manifest-first confirmation flow,
+- versioned roadmap regeneration (`vN -> vN+1`),
+- orchestrator graph as the ordering source of truth.
+
 ---
 
 ## Implementation mapping (engineering SSOT)

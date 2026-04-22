@@ -5,6 +5,22 @@ It is a planning artifact, not a source of runtime truth.
 
 **Engineering debt and audit follow-ups:** [TECH_DEBT.md](./TECH_DEBT.md) (separate from this product backlog).
 
+## Recent shipped improvements (PDF hardening)
+
+The following PDF report improvements are now implemented in runtime code and listed here for release visibility:
+
+- Added PDF security hardening guards:
+ - Render timeout guard (`SYSTEM_DEFAULTS.reportPdf.renderTimeoutMs`)
+ - Max PDF output size guard (`SYSTEM_DEFAULTS.reportPdf.maxOutputBytes`)
+ - Centralized PDF text sanitization with control/bidi stripping and max text caps (`SYSTEM_DEFAULTS.reportPdf.maxSanitizedTextChars`)
+- Added hardened PDF download response headers for `/api/audits/:id/report?format=pdf`:
+ - `Cache-Control: private, no-store, no-cache, must-revalidate`
+ - `Pragma: no-cache`
+ - `X-Content-Type-Options: nosniff`
+- Added configurable section pagination mode for PDF layout:
+ - `SYSTEM_DEFAULTS.reportPdf.sectionPerPage = true` -> each major section starts on a new page
+ - `SYSTEM_DEFAULTS.reportPdf.sectionPerPage = false` -> compact continuous flow with standard wrapping
+
 ## Frontend internationalization (i18n)
 
 **Status:** Planned — no runtime i18n library in the SPA yet; target locales and partial key registry already exist.

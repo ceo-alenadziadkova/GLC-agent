@@ -32,6 +32,7 @@ import { PORTAL_MANIFEST_WIZARD_COPY } from '../config/portal-manifest-wizard-co
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { buildAppRoute } from '../config/route-paths';
 import { CLIENT_AUDIT_VIEW_COPY } from '../config/client-audit-view-copy';
+import { formatOrchestrationPackRunErrorMessage } from '../lib/orchestration-pack-api-error';
 
 export function PortalRoadmapManifestWizardPage() {
   const { id: auditId } = useParams<{ id: string }>();
@@ -185,8 +186,9 @@ export function PortalRoadmapManifestWizardPage() {
       await api.postOrchestratorRun(auditId, { manifest_snapshot_id: manifestSnapshotId });
       toast.success(`${ORCHESTRATION_UI_COPY.packBuilt} ${PORTAL_MANIFEST_WIZARD_COPY.successPackBuilt}`);
       reload();
-    } catch {
-      toast.error(ORCHESTRATION_UI_COPY.packBuildFailed);
+    } catch (e) {
+      const { message, description } = formatOrchestrationPackRunErrorMessage(e, ORCHESTRATION_UI_COPY.packBuildFailed);
+      toast.error(message, description ? { description, duration: 14_000 } : { duration: 6_000 });
     } finally {
       setWorking(false);
     }

@@ -3,6 +3,8 @@
  * (`preBriefSnapshotMinAnsweredRatio`) when that value changes.
  */
 export const INTAKE_PRE_BRIEF_SNAPSHOT_MIN_ANSWERED_RATIO = 0.5;
+/** ADR Phase-1 pilot scope cap: keep critical-signal registry intentionally small. */
+export const INTAKE_PHASE1_MAX_CRITICAL_SIGNALS = 6;
 
 export const INTAKE_UNKNOWN_SOURCE_VALUE = 'unknown' as const;
 

@@ -13,6 +13,15 @@ export type HomeOutcomeItem = {
   body: string;
 };
 
+export type HomeOutcomeRoleLens = {
+  id: string;
+  label: string;
+  summary: string;
+  specimenBody: string;
+  primaryBody: string;
+  secondaryBodies: [string, string];
+};
+
 export type HomeFaqPreviewItem = {
   q: string;
   a: string;
@@ -111,6 +120,8 @@ export type MarketingHomeViewModel = {
     description: string;
     specimenEyebrow: string;
     specimenBody: string;
+    roleExplorerLabel: string;
+    roleLenses: HomeOutcomeRoleLens[];
     primary: HomeOutcomeItem;
     secondary: HomeOutcomeItem[];
   };

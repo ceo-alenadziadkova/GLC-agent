@@ -332,10 +332,12 @@ function zodToJson(schema: z.ZodTypeAny): Record<string, unknown> {
   // ── Primitives ───────────────────────────────────────────
   if (schema instanceof z.ZodBoolean) return { type: 'boolean' };
   if (schema instanceof z.ZodEnum) return { type: 'string', enum: schema.options };
+  if (schema instanceof z.ZodLiteral) return { const: schema._def.value };
 
   // ── Wrappers ─────────────────────────────────────────────
   if (schema instanceof z.ZodNullable) return { ...zodToJson(schema.unwrap()), nullable: true };
   if (schema instanceof z.ZodOptional) return zodToJson(schema.unwrap());
+  if (schema instanceof z.ZodDefault) return zodToJson(schema._def.innerType);
 
   // Fallback
   return { type: 'string' };

@@ -78,6 +78,12 @@ function createInput(): ReportInput {
       medium_term: [],
       strategic: [],
     },
+    brief_responses: {
+      f_idea_1: { value: 'Strong interview or survey validation', source: 'client' },
+      f_idea_2: { value: 'Partly clear (some assumptions still open)', source: 'client' },
+      f_idea_3: { value: ['Landing page test'], source: 'client' },
+      f_idea_4: { value: 'Time or team capacity', source: 'client' },
+    },
   };
 }
 
@@ -87,6 +93,8 @@ describe('report-profiler refactor compatibility', () => {
     expect(coverage.covered_domains).toEqual(['tech_infrastructure']);
     expect(coverage.not_covered_domains.length).toBeGreaterThan(0);
     expect(coverage.coverage_adjusted_score).toBeCloseTo(0.67, 2);
+    expect(coverage.confidence_level).toBe('medium');
+    expect(coverage.confidence_note).toContain('partial domain coverage');
   });
 
   it('buildCsvActionPlan keeps csv escaping and row generation', () => {
@@ -102,5 +110,7 @@ describe('report-profiler refactor compatibility', () => {
     expect(report.profile_label).toBeTruthy();
     expect(report.company).toBe('Example Inc');
     expect(report.markdown).toContain('Business Audit Summary');
+    expect(report.idea_stage_readiness?.enabled).toBe(true);
+    expect(report.markdown).toContain('Idea-stage readiness');
   });
 });

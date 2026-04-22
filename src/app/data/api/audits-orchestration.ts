@@ -44,6 +44,7 @@ export type RoadmapManifestRequestBody = {
   season_preset: OrchestrationSeasonPreset;
   risk_tolerance?: OrchestrationRiskTolerancePreset;
   plan_horizon?: OrchestrationPlanHorizon;
+  selected_action_ids?: string[];
 };
 export type RoadmapInputManifest = RoadmapManifestRequestBody;
 
@@ -119,6 +120,14 @@ export type AuditTimelineDto = {
       analysis_depth?: 'baseline' | 'deep';
       /** Provenance is optional for backward-compatible timeline payloads. */
       source?: 'strategy' | 'director';
+      explain?: {
+        why?: string[];
+        how?: { path_type?: string; description: string; time_estimate?: string };
+        impact?: { score?: number; label?: string };
+        time?: { bucket?: 'now' | 'next' | 'later'; target_window_days?: number; time_to_value?: string };
+        risks?: string[];
+        limited_context?: boolean;
+      };
     }>;
   }>;
   dependencies: Array<{
@@ -201,7 +210,7 @@ export const auditsOrchestrationApi = {
     }>(apiAuditsOrchestrationPack(auditId), { method: 'GET' });
   },
 
-  async postOrchestrationPack(auditId: string, body: { manifest_snapshot_id: string }) {
+  async postOrchestrationPack(auditId: string, body: { manifest_snapshot_id: string; selected_action_ids?: string[] }) {
     return apiFetch<{
       pack: GlcOrchestrationPackView;
       orchestration_pack_version: number;
@@ -215,7 +224,7 @@ export const auditsOrchestrationApi = {
     });
   },
 
-  async postOrchestrationPackRegenerate(auditId: string, body: { manifest_snapshot_id: string }) {
+  async postOrchestrationPackRegenerate(auditId: string, body: { manifest_snapshot_id: string; selected_action_ids?: string[] }) {
     return apiFetch<{
       pack: GlcOrchestrationPackView;
       orchestration_pack_version: number;
@@ -260,7 +269,7 @@ export const auditsOrchestrationApi = {
     });
   },
 
-  async postOrchestratorRun(auditId: string, body: { manifest_snapshot_id: string }) {
+  async postOrchestratorRun(auditId: string, body: { manifest_snapshot_id: string; selected_action_ids?: string[] }) {
     return apiFetch<{
       pack: GlcOrchestrationPackView;
       orchestration_pack_version: number;

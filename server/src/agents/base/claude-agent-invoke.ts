@@ -96,8 +96,16 @@ export async function callClaudeWithRetry(
         );
       }
 
+      const perCallTimeoutMs =
+        domainKey === 'strategy'
+          ? SYSTEM_DEFAULTS.claudeHttp.timeoutMsStrategy
+          : CLAUDE_TIMEOUT_MS;
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(CLAUDE_API_TIMEOUT_ABORT_REASON), CLAUDE_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => controller.abort(CLAUDE_API_TIMEOUT_ABORT_REASON),
+        perCallTimeoutMs,
+      );
       let response: Awaited<ReturnType<Anthropic['messages']['create']>>;
       try {
         response = await anthropic.messages.create(

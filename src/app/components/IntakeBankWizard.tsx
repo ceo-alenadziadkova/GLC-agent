@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useBriefDiagnosticIntakeAnalyticsEvents } from '../hooks/useBriefDiagnosticIntakeAnalyticsEvents';
 import { ArrowLeft, ArrowRight, Info, ListBullets, Signpost } from '@phosphor-icons/react';
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
@@ -18,9 +19,9 @@ import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics'
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
-import { buildIntakePlan } from '@glc/intake-core';
 import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
 import { cn } from './ui/utils';
+import { INTAKE_DIAGNOSTIC_PILOT_COPY_EN } from '../config/intake-diagnostic-pilot-copy.en';
 
 const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
@@ -61,6 +62,8 @@ export function IntakeBankWizard({
   answerSource,
   intakeAnalytics,
   productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  focusQuestionId,
+  serverVisibleQuestionIds,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
@@ -79,6 +82,10 @@ export function IntakeBankWizard({
   };
   /** Align resolver SLA / next-step hints with audit product mode. */
   productMode?: ProductMode;
+  /** Optional question id to focus from external remediation/suggestion UI. */
+  focusQuestionId?: string | null;
+  /** Optional server-authored visible sequence for this surface. */
+  serverVisibleQuestionIds?: string[];
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -99,6 +106,15 @@ export function IntakeBankWizard({
     productMode,
     surface: intakeSurface,
     intakeAnalytics,
+    serverVisibleQuestionIds,
+  });
+
+  const responsesFingerprint = useMemo(() => JSON.stringify(responses), [responses]);
+  useBriefDiagnosticIntakeAnalyticsEvents({
+    auditId: intakeAnalytics?.auditId,
+    enabled: Boolean(intakeAnalytics),
+    responsesFingerprint,
+    sink: wizard.analyticsSink,
   });
 
   const visibleQuestionStubs = useMemo(
@@ -139,21 +155,26 @@ export function IntakeBankWizard({
   );
 
   const [planExplainOpen, setPlanExplainOpen] = useState(false);
+  const lastFocusedQuestionRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPlanExplainOpen(false);
   }, [wizard.currentStub?.id]);
 
+  useEffect(() => {
+    if (!focusQuestionId) return;
+    if (lastFocusedQuestionRef.current === focusQuestionId) return;
+    const targetIndex = wizard.visibleQuestionStubs.findIndex(stub => stub.id === focusQuestionId);
+    if (targetIndex >= 0) {
+      wizard.goToStep(targetIndex);
+      lastFocusedQuestionRef.current = focusQuestionId;
+    }
+  }, [focusQuestionId, wizard]);
+
   const planReasonLines = useMemo(() => {
     if (!planExplainOpen || !currentVisibleStub) return [];
-    const plan = buildIntakePlan({
-      responses: localMap,
-      productMode,
-      collectionMode,
-      surface: intakeSurface,
-    });
-    return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[currentVisibleStub.id]);
-  }, [planExplainOpen, currentVisibleStub, localMap, productMode, collectionMode, intakeSurface]);
+    return formatIntakeQuestionReasonsBrief(wizard.reasonsById?.[currentVisibleStub.id]);
+  }, [planExplainOpen, currentVisibleStub, wizard.reasonsById]);
 
   const suggestedNextBlock = useMemo(() => {
     if (wizard.nextRecommended.length === 0) return null;
@@ -172,7 +193,7 @@ export function IntakeBankWizard({
           
         >
           <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
-          Suggested next
+          {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.suggestedNextSectionTitle}
         </div>
         <div className="flex flex-wrap gap-2">
           {chips.map(id => {
@@ -268,7 +289,9 @@ export function IntakeBankWizard({
                 aria-expanded={planExplainOpen}
               >
                 <Info className="w-3.5 h-3.5 shrink-0" aria-hidden weight="bold" />
-                {planExplainOpen ? 'Hide plan trace' : 'Why this question?'}
+                {planExplainOpen
+                  ? INTAKE_DIAGNOSTIC_PILOT_COPY_EN.whyAskedCollapseLabel
+                  : INTAKE_DIAGNOSTIC_PILOT_COPY_EN.whyAskedExpandLabel}
               </button>
               {planExplainOpen && (
                 <ul

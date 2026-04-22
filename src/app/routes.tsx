@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useParams } from 'react-router';
 import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
@@ -77,6 +77,12 @@ function RootOutlet() {
   );
 }
 
+function LegacyBriefSchemaRedirect() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/dashboard" replace />;
+  return <Navigate to={`/audit/${encodeURIComponent(id)}?brief=1`} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -103,6 +109,11 @@ export const router = createBrowserRouter([
 
       // Static / audit paths before :id (avoid "new" and "discover" captured as ids)
       { path: P.auditNew, element: <Consultant><NewAudit /></Consultant> },
+      /**
+       * Legacy/support deep-link alias: brief/schema is an API endpoint, not an SPA page.
+       * Redirect to the audit workspace brief tab to avoid RouteError 404.
+       */
+      { path: 'audit/:id/brief/schema', element: <LegacyBriefSchemaRedirect /> },
       { path: P.auditByDomain, element: <Consultant><AuditWorkspace /></Consultant> },
       { path: P.auditById, element: <Consultant><AuditWorkspace /></Consultant> },
       { path: 'audit', element: <Navigate to={`/${R.completePackage}`} replace /> },

@@ -5,6 +5,8 @@ export const SYSTEM_DEFAULTS_RATE_LIMITS = {
   pipelineWindowMinutes: 60,
   generalMaxPerMin: 100,
   generalWindowSeconds: 60,
+  reportPdfMaxPerMin: 12,
+  reportPdfWindowSeconds: 60,
   snapshotPublicMaxPerDay: 3,
   snapshotPublicWindowHours: 24,
   logIngestMaxPerMin: 180,

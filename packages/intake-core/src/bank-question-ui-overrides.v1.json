@@ -601,6 +601,51 @@
       ],
       "hint": "Deadlines help us prioritize quick wins vs deeper changes in the first roadmap wave."
     },
+    "f_idea_1": {
+      "type": "single_choice",
+      "options": [
+        "I have paid pilots or early customers",
+        "Strong interview or survey validation",
+        "Informal conversations only",
+        "Mostly my assumption for now"
+      ],
+      "hint": "This is not about being perfect. We use this to choose validation-first recommendations versus build-first recommendations."
+    },
+    "f_idea_2": {
+      "type": "single_choice",
+      "options": [
+        "Very clear (segment, context, budget, urgency)",
+        "Partly clear (some assumptions still open)",
+        "Broad audience for now",
+        "Not defined yet"
+      ],
+      "hint": "The clearer your first buyer profile, the faster we can recommend channels and experiments with real signal."
+    },
+    "f_idea_3": {
+      "type": "multi_choice",
+      "options": [
+        "Landing page test",
+        "Paid ads test",
+        "Direct outreach test",
+        "Marketplace or directory listing test",
+        "Partnership channel test",
+        "Not ready to run tests yet",
+        "Other"
+      ],
+      "hint": "Select realistic tests for the next month. This helps us design a practical launch sequence, not a theoretical plan."
+    },
+    "f_idea_4": {
+      "type": "single_choice",
+      "options": [
+        "Time or team capacity",
+        "Budget",
+        "Offer or positioning is not finalized",
+        "Delivery process is not ready",
+        "Legal or compliance uncertainty",
+        "No major blocker"
+      ],
+      "hint": "Naming the main blocker early lets us sequence recommendations around your true constraint."
+    },
     "f9": {
       "type": "single_choice",
       "options": [

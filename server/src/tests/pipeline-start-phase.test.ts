@@ -252,6 +252,15 @@ describe('PipelineOrchestrator.startPhase() — unknown phase', () => {
   });
 });
 
+describe('PipelineOrchestrator.retryDomainPhase()', () => {
+  it('rejects phases outside 1–6 (recon/strategy use startPhase)', async () => {
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await expect(orch.retryDomainPhase(0)).rejects.toThrow(/expects integer phase 1–6/i);
+    await expect(orch.retryDomainPhase(7)).rejects.toThrow(/expects integer phase 1–6/i);
+    await expect(orch.retryDomainPhase(1.5 as unknown as number)).rejects.toThrow(/expects integer phase 1–6/i);
+  });
+});
+
 describe('PipelineOrchestrator.startPhase() — execution plan availability', () => {
   it('throws when phase exceeds express mode maximum (phase 5 on express)', async () => {
     setProductMode('express');

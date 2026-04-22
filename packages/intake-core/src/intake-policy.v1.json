@@ -1,5 +1,5 @@
 {
-  "version": "1.2.2",
+  "version": "1.3.0",
   "modes": {
     "full": {
       "participation": "all_eligible",
@@ -38,6 +38,10 @@
         "c_nosite_4",
         "d2",
         "f1",
+        "f_idea_1",
+        "f_idea_2",
+        "f_idea_3",
+        "f_idea_4",
         "f9"
       ],
       "included": [
@@ -89,6 +93,10 @@
         "d5",
         "d6",
         "f1",
+        "f_idea_1",
+        "f_idea_2",
+        "f_idea_3",
+        "f_idea_4",
         "f2",
         "f4",
         "f9",

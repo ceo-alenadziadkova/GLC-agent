@@ -64,4 +64,16 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT
    */
   diagnosticIntakePilotEnabled: false,
+  /**
+   * When true, readiness uses execution-plan domain slice for in-scope coverage gaps (post-KPI Phase-B).
+   * Requires pilot flag for blocking paths; default off preserves Phase-1 behavior.
+   * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE
+   */
+  executionPlanCoverageScopeEnabled: false,
+  /**
+   * When true, ContextBuilder includes `intake_project_context_envelope` in agent context metadata.
+   * Keep disabled by default until post-KPI Phase-B/C context envelope rollout is approved.
+   * Env: FEATURE_PROJECT_CONTEXT_ENVELOPE
+   */
+  projectContextEnvelopeEnabled: false,
 } as const;

@@ -19,4 +19,14 @@ export const SYSTEM_DEFAULTS_REPORT_PDF = {
   coverLogoOffsetLeft: 48,
   headerInlineLogoSize: 16,
   documentMetaSafeNameMaxChars: 60,
+  /** When true, each major report section starts on a new page. */
+  sectionPerPage: true,
+  /** Hard timeout for @react-pdf render pipeline. */
+  renderTimeoutMs: 12_000,
+  /** Max concurrently running @react-pdf render jobs per process. */
+  renderConcurrency: 2,
+  /** Upper bound for generated PDF payload size (bytes). */
+  maxOutputBytes: 8 * 1024 * 1024,
+  /** Global max text length per field before PDF sanitizer truncates. */
+  maxSanitizedTextChars: 2_000,
 } as const;

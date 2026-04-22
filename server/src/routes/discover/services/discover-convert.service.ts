@@ -14,7 +14,12 @@ import {
   DISCOVER_SESSION_NOT_FOUND_MESSAGE,
   apiErrorJson,
 } from '../../../config/api-error-codes.js';
-import { currentIntakeVersionTuple, evaluateIntakeReadinessEnvelope } from '@glc/intake-core';
+import {
+  currentIntakeVersionTuple,
+  evaluateIntakeReadinessEnvelope,
+  isSupportedIntakeArtifactTuple,
+  normalizeIntakeVersionTupleFromStorage,
+} from '@glc/intake-core';
 import { isDiagnosticIntakePilotEnabled } from '../../../config/feature-flags.js';
 import { DISCOVER_CONVERT_SESSION_RPC } from '../../../config/discover-convert-rpc.js';
 import { coerceDiscoverySessionAnswers, discoveryToBriefPatch } from '../domain/discovery-to-brief-patch.js';
@@ -24,6 +29,19 @@ type DiscoveryConvertRpcRow = {
   error_code: string | null;
   answers: unknown;
 };
+
+function resolveConversionIntakeTuple(answers: Record<string, unknown>) {
+  const fromAnswers =
+    normalizeIntakeVersionTupleFromStorage(
+      (answers.intake_versions as Record<string, unknown> | null | undefined) ??
+        (answers.intakeVersions as Record<string, unknown> | null | undefined) ??
+        null,
+    ) ?? null;
+  if (fromAnswers && isSupportedIntakeArtifactTuple(fromAnswers)) {
+    return fromAnswers;
+  }
+  return currentIntakeVersionTuple();
+}
 
 function parseDiscoveryConvertRpcRow(data: unknown): DiscoveryConvertRpcRow | undefined {
   if (data == null) return undefined;
@@ -129,12 +147,14 @@ export async function convertDiscoverySessionToAudit(
     briefPatchPre = {};
   }
   if (isDiagnosticIntakePilotEnabled()) {
+    const intakeTuple = resolveConversionIntakeTuple(answersPre);
     const readinessPre = evaluateIntakeReadinessEnvelope({
       responses: briefPatchPre,
       slaProductMode: DEFAULT_AUDIT_PRODUCT_MODE,
-      collectionMode: 'interview',
-      surface: 'consultant_interview',
-      intakeVersionTuple: currentIntakeVersionTuple(),
+      collectionMode: 'discovery',
+      surface: 'public_discovery',
+      intakeVersionTuple: intakeTuple,
+      enforcementPoint: 'conversion',
       criticalSignalsMode: 'sla_only',
     });
     if (readinessPre.auditReadinessStatus === 'blocked') {

@@ -242,3 +242,26 @@ export function briefTrackSequencingTransitionTaken(
     next_recommended: p.next_recommended,
   });
 }
+
+export function briefTrackSignalConfidenceChanged(
+  sink: BriefIntakeAnalyticsSink,
+  p: { signalKey: string },
+): void {
+  if (!p.signalKey) return;
+  sink.enqueue({
+    event_type: 'signal_confidence_changed',
+    signal_key: p.signalKey,
+  });
+}
+
+export function briefTrackGuardQuestionTriggered(
+  sink: BriefIntakeAnalyticsSink,
+  p: { questionId: string; signalKey?: string },
+): void {
+  if (!p.questionId) return;
+  sink.enqueue({
+    event_type: 'guard_question_triggered',
+    question_id: p.questionId,
+    ...(p.signalKey ? { signal_key: p.signalKey } : {}),
+  });
+}

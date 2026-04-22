@@ -36,6 +36,11 @@ export interface AgentContext {
    * Omitted when gaps are closed or responses lack bank ids.
    */
   intake_missing_report_domains?: string[];
+  /**
+   * Post-KPI Phase-B/C: normalized intake context envelope for downstream agents.
+   * Feature-flagged on the server (`FEATURE_PROJECT_CONTEXT_ENVELOPE`).
+   */
+  intake_project_context_envelope?: Record<string, unknown>;
   post_audit_questions: Array<Record<string, unknown>>;
   recon_prefills: Record<string, unknown>;
   recon_conflicts: ReconConflict[];

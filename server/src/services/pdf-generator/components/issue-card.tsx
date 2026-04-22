@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from '@react-pdf/renderer';
 
-import { domainName, sevColor } from '../lib/formatters.js';
+import { domainName, sanitizePdfText, sevColor } from '../lib/formatters.js';
 import { pdfStyles as s } from '../styles.js';
 
 export interface IssueCardProps {
@@ -15,14 +15,14 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, domainKey }) => (
     <View style={s.issBody}>
       <View style={s.issTitleRow}>
         <View style={[s.issBadge, { backgroundColor: sevColor(issue.severity) }]}>
-          <Text style={s.issBadgeText}>{issue.severity.toUpperCase()}</Text>
+          <Text style={s.issBadgeText}>{sanitizePdfText(issue.severity.toUpperCase())}</Text>
         </View>
         <Text style={s.issTitle}>
-          {issue.title}
+          {sanitizePdfText(issue.title)}
           {domainKey ? ` — ${domainName(domainKey)}` : ''}
         </Text>
       </View>
-      <Text style={s.issDesc}>{issue.impact ?? issue.description}</Text>
+      <Text style={s.issDesc}>{sanitizePdfText(issue.impact ?? issue.description)}</Text>
     </View>
   </View>
 );

@@ -28,8 +28,13 @@ import {
   persistGlcOrchestrationPack,
   type OrchestrationPackBuildNotReadyReasonCode,
 } from './orchestration-read.service.js';
-import { RoadmapManifestMismatchError, fetchLatestRoadmapManifestSnapshotIdForAudit } from './roadmap-manifest.service.js';
+import {
+  RoadmapManifestMismatchError,
+  fetchLatestRoadmapManifestSnapshotIdForAudit,
+  fetchRoadmapManifestSnapshotForAudit,
+} from './roadmap-manifest.service.js';
 import { summarizeOrchestrationPackRevisionDiff } from './orchestration-pack-diff.js';
+import { applySelectedActionHint } from './apply-selected-action-hint.js';
 
 export type OrchestrationPackPersistLogComponent =
   | 'route.orchestration_pack'
@@ -200,7 +205,8 @@ export type RunOrchestrationPackPersistFlowFromManifestResult =
   | (TryPersistOrchestrationPackWithGovernanceOk & { build_reason?: undefined })
   | TryPersistOrchestrationPackWithGovernanceErr
   | { ok: false; kind: 'not_ready'; reason_code: OrchestrationPackBuildNotReadyReasonCode }
-  | { ok: false; kind: 'manifest_mismatch' };
+  | { ok: false; kind: 'manifest_mismatch' }
+  | { ok: false; kind: 'invalid_selected_action_ids'; invalid_ids: string[] };
 
 /**
  * Builds pack from manifest snapshot, then governance + persist (same rules as POST /orchestration/pack).
@@ -210,7 +216,20 @@ export async function runOrchestrationPackPersistFlowFromManifest(args: {
   userId: string;
   manifestSnapshotId: string;
   logComponent: OrchestrationPackPersistLogComponent;
+  selectedActionIds?: string[];
 }): Promise<RunOrchestrationPackPersistFlowFromManifestResult> {
+  const explicitSelectionProvided = args.selectedActionIds !== undefined;
+  const manifestRow =
+    explicitSelectionProvided
+      ? null
+      : await fetchRoadmapManifestSnapshotForAudit({
+          auditId: args.auditId,
+          snapshotId: args.manifestSnapshotId,
+        });
+  const effectiveSelectedActionIds = explicitSelectionProvided
+    ? args.selectedActionIds ?? []
+    : (manifestRow?.payload.selected_action_ids ?? []);
+
   let buildResult: Awaited<ReturnType<typeof buildOrchestrationPackForAuditWithStatus>>;
   try {
     buildResult = await buildOrchestrationPackForAuditWithStatus({
@@ -229,10 +248,20 @@ export async function runOrchestrationPackPersistFlowFromManifest(args: {
     return { ok: false, kind: 'not_ready', reason_code: buildResult.reason_code };
   }
 
+  let pack = buildResult.pack;
+  if (effectiveSelectedActionIds.length > 0) {
+    const existing = new Set(pack.graph.nodes.map((node) => node.id));
+    const invalid = effectiveSelectedActionIds.filter((id) => !existing.has(id));
+    if (invalid.length > 0) {
+      return { ok: false, kind: 'invalid_selected_action_ids', invalid_ids: invalid };
+    }
+    pack = applySelectedActionHint(pack, effectiveSelectedActionIds);
+  }
+
   return tryPersistOrchestrationPackWithGovernance({
     auditId: args.auditId,
     userId: args.userId,
-    pack: buildResult.pack,
+    pack,
     logComponent: args.logComponent,
   });
 }

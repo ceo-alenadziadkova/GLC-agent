@@ -1,13 +1,15 @@
 # ADR: GLC Orchestrator v1.1 — Meta-Director, Cross-Domain Graph, and Unified Execution Plan
 
-| Field | Value |
-|---|---|
-| **Status** | Accepted |
-| **Date** | 2026-04-19 |
-| **Scope** | Cross-domain orchestration above domain Directors (CMO/CDO/CTO/CSO/CAO) |
-| **Supersedes** | — |
-| **Superseded by** | — |
-| **Decision owners** | Product + Consulting + AI Platform |
+
+| Field               | Value                                                                   |
+| ------------------- | ----------------------------------------------------------------------- |
+| **Status**          | Accepted                                                                |
+| **Date**            | 2026-04-19                                                              |
+| **Scope**           | Cross-domain orchestration above domain Directors (CMO/CDO/CTO/CSO/CAO) |
+| **Supersedes**      | —                                                                       |
+| **Superseded by**   | —                                                                       |
+| **Decision owners** | Product + Consulting + AI Platform                                      |
+
 
 ### Related decisions
 
@@ -58,14 +60,12 @@ We introduce **GLC Orchestrator** (Meta-Director) as a first-class system compon
 
 ### Three-layer architecture (canonical)
 
-1. **Layer 1 — Intake & Evidence**  
-   Intake bank + recon + collectors + consultant notes, normalized into a shared evidence standard.
-
-2. **Layer 2 — Director Reasoning (selective)**  
-   Domain Directors run only when relevant (product routing + client selection + access constraints).
-
-3. **Layer 3 — Orchestration & Synthesis**  
-   GLC Orchestrator merges director outputs into a **single executable plan** with a global dependency graph and conflict resolution.
+1. **Layer 1 — Intake & Evidence**
+  Intake bank + recon + collectors + consultant notes, normalized into a shared evidence standard.
+2. **Layer 2 — Director Reasoning (selective)**
+  Domain Directors run only when relevant (product routing + client selection + access constraints).
+3. **Layer 3 — Orchestration & Synthesis**
+  GLC Orchestrator merges director outputs into a **single executable plan** with a global dependency graph and conflict resolution.
 
 ### Orchestrator responsibilities (non-negotiable)
 
@@ -82,11 +82,13 @@ The Orchestrator MUST:
 
 This ADR **does not replace or contradict** the per-phase quality gate documented in `ADR-CONTROL-OBJECT-V1` / `ADR-DECISION-LAYER-GATES` (and implemented in `FactChecker` → `CONTROL_OBJECT` → `DecisionLayer`). The two mechanisms answer **different questions**:
 
-| Mechanism | Question it answers |
-|---|---|
+
+| Mechanism                                          | Question it answers                                                                                                                                                                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Fact-Checker + CONTROL_OBJECT + Decision Layer** | For **one domain phase output** (phases 1–6): is the structured analysis **supported by collected evidence**, internally consistent enough, and within feasibility guardrails? Yields `accept` / `accept_with_warnings` / `refine`. |
-| **Auto-loop** | If Decision Layer returns `refine`, may **rerun the same domain agent** with deterministic instruction patches derived from `CONTROL_OBJECT` (feature-flagged; **not** applied to `recon` or `strategy` in the current pipeline). |
-| **GLC Orchestrator (this ADR)** | Given **accepted** (or otherwise finalized) structured outputs from domains/directors: how do recommendations **combine**, **conflict**, and **sequence** into **one** system-level execution plan? |
+| **Auto-loop**                                      | If Decision Layer returns `refine`, may **rerun the same domain agent** with deterministic instruction patches derived from `CONTROL_OBJECT` (feature-flagged; **not** applied to `recon` or `strategy` in the current pipeline).   |
+| **GLC Orchestrator (this ADR)**                    | Given **accepted** (or otherwise finalized) structured outputs from domains/directors: how do recommendations **combine**, **conflict**, and **sequence** into **one** system-level execution plan?                                 |
+
 
 **Layering rule (non-negotiable):**
 
@@ -314,3 +316,4 @@ manifest-first commitment, deterministic orchestration build, and versioned pers
 2. Enforce director output contracts in Stage 2 packs first (highest leverage).
 3. Add orchestrator unit tests: conflict matrix, cycle detection, compression.
 4. UI: render graph + critical path + unified roadmap.
+

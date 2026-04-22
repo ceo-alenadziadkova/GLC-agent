@@ -1,10 +1,12 @@
 /**
  * Phase-B policy defaults for package-aware readiness.
- * Start conservative: baseline-only for all packages until scope-aware rollouts are enabled explicitly.
+ * Phase-2 rollout: enable scope-aware gating for package execution.
+ * Baseline readiness still applies first; scope-aware mode only decides whether
+ * in-scope gaps should block after baseline passes.
  */
 export const INTAKE_EXECUTION_PLAN_READINESS_POLICY = {
-  starter: 'baseline_only',
-  pro: 'baseline_only',
-  complete: 'baseline_only',
+  starter: 'scope_aware',
+  pro: 'scope_aware',
+  complete: 'scope_aware',
 } as const;
 

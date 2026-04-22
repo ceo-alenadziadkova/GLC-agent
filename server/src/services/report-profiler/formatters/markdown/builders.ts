@@ -14,6 +14,7 @@ import { REPORT_PROFILER_CONFIG } from '../../config.js';
 import { getReportDomainCount } from '../../domain/coverage.js';
 import type {
   DomainRow,
+  IdeaStageReadinessView,
   MarkdownReportCoverage,
   ReportInput,
 } from '../../types.js';
@@ -22,6 +23,7 @@ import {
   addDomainSections,
   addExecutiveSummary,
   addHeader,
+  addIdeaStageReadiness,
   addRoadmap,
   addScorecard,
 } from './sections.js';
@@ -35,12 +37,14 @@ export function buildFullReport(
   domains: DomainRow[],
   company: string,
   coverage: MarkdownReportCoverage,
+  ideaStageReadiness?: IdeaStageReadinessView,
 ): string {
   const { audit, recon, strategy } = input;
   const lines: string[] = [];
 
   addHeader(lines, `IT Audit Report: ${company}`, audit, recon);
   addCoverage(lines, coverage);
+  addIdeaStageReadiness(lines, ideaStageReadiness);
   addExecutiveSummary(lines, strategy);
   addScorecard(lines, domains, audit.overall_score);
   addDomainSections(lines, domains, {
@@ -59,12 +63,14 @@ export function buildOwnerReport(
   input: ReportInput,
   company: string,
   coverage: MarkdownReportCoverage,
+  ideaStageReadiness?: IdeaStageReadinessView,
 ): string {
   const { audit, recon, domains, strategy } = input;
   const lines: string[] = [];
 
   addHeader(lines, `Business Audit Summary: ${company}`, audit, recon);
   addCoverage(lines, coverage);
+  addIdeaStageReadiness(lines, ideaStageReadiness);
   addExecutiveSummary(lines, strategy);
   addScorecard(lines, domains, audit.overall_score);
 
@@ -122,12 +128,14 @@ export function buildDomainFocusedReport(
   company: string,
   focusTitle: string,
   coverage: MarkdownReportCoverage,
+  ideaStageReadiness?: IdeaStageReadinessView,
 ): string {
   const { audit, recon } = input;
   const lines: string[] = [];
 
   addHeader(lines, `${focusTitle}: ${company}`, audit, recon);
   addCoverage(lines, coverage);
+  addIdeaStageReadiness(lines, ideaStageReadiness);
   addScorecard(lines, domains, null);
   addDomainSections(lines, domains, {
     showIssues: true,
@@ -145,6 +153,7 @@ export function buildOnePagerReport(
   domains: DomainRow[],
   company: string,
   coverage: MarkdownReportCoverage,
+  ideaStageReadiness?: IdeaStageReadinessView,
 ): string {
   const { audit, recon, strategy } = input;
   const lines: string[] = [];
@@ -162,6 +171,16 @@ export function buildOnePagerReport(
   lines.push('');
   lines.push(REPORT_PROFILER_CONFIG.markdown.sectionDivider);
   lines.push('');
+  if (ideaStageReadiness) {
+    lines.push('## Idea-stage readiness');
+    lines.push('');
+    lines.push(`- Validation signal: ${ideaStageReadiness.validation_signal}`);
+    lines.push(`- ICP clarity: ${ideaStageReadiness.icp_clarity}`);
+    lines.push(`- GTM tests ready: ${ideaStageReadiness.gtm_test_ready ? 'yes' : 'no'}`);
+    lines.push('');
+    lines.push(REPORT_PROFILER_CONFIG.markdown.sectionDivider);
+    lines.push('');
+  }
 
   if (strategy?.executive_summary) {
     lines.push(strategy.executive_summary);
@@ -218,6 +237,7 @@ export function buildFocusedByProfile(
   company: string,
   coverage: MarkdownReportCoverage,
   profile: 'tech' | 'marketing',
+  ideaStageReadiness?: IdeaStageReadinessView,
 ): string {
   return buildDomainFocusedReport(
     input,
@@ -225,5 +245,6 @@ export function buildFocusedByProfile(
     company,
     REPORT_PROFILE_MARKDOWN_FOCUS_TITLE[profile],
     coverage,
+    ideaStageReadiness,
   );
 }

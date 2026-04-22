@@ -66,6 +66,8 @@ export type NewAuditWizardContract = {
   > | null;
   briefExecutionDiagnosticLoading: boolean;
   briefExecutionDiagnosticError: boolean;
+  /** Resolver-visible question order from GET …/brief (wizard sequencing). */
+  briefWizardServerVisibleQuestionIds: string[] | undefined;
   bankMetrics: ReturnType<typeof useIntakeBankMetrics>;
   briefLayoutChoice: BriefLayoutChoice;
   setBriefLayoutChoice: Dispatch<SetStateAction<BriefLayoutChoice>>;

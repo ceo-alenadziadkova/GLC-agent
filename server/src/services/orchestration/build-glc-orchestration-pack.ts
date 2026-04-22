@@ -80,9 +80,13 @@ function resolveInputQualityWithGate(args: {
   degraded: boolean;
   fallback_reason_code?: 'director_slice_missing' | 'director_slice_partial' | 'director_slice_invalid';
 } {
+  /** No director slices by design (e.g. FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT off) — not a "degraded" gate. */
+  const expectedStrategyOnly =
+    args.inputQuality.input_mode === 'strategy_fallback' &&
+    args.inputQuality.fallback_reason_code === 'director_slice_missing';
   return {
     ...args.inputQuality,
-    input_gate_status: args.inputQuality.degraded ? 'degraded' : 'finalized',
+    input_gate_status: expectedStrategyOnly || !args.inputQuality.degraded ? 'finalized' : 'degraded',
   };
 }
 

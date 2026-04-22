@@ -15,6 +15,10 @@ export interface StrategyBriefConstraintSnapshot {
   company_stage: StrategyCompanyStage;
   budget_band: StrategyConstraintBudgetBand;
   team_scale: StrategyConstraintTeamScale;
+  idea_validation_signal: 'strong' | 'partial' | 'weak' | 'unknown';
+  idea_icp_clarity: 'clear' | 'partial' | 'broad' | 'unknown';
+  idea_gtm_test_ready: boolean;
+  idea_launch_constraint: string | null;
   /** Raw f5 label when present (for display / prompts). */
   budget_label: string | null;
   /** Raw a4 label when present. */
@@ -31,11 +35,39 @@ function readSingleSelect(responses: Record<string, unknown>, questionId: string
 }
 
 function inferCompanyStageFromBrief(responses: Record<string, unknown>): StrategyCompanyStage {
+  const ideaEvidence = readSingleSelect(responses, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.ideaProblemEvidence);
+  if (ideaEvidence === 'Mostly my assumption for now') return 'idea';
   const label = readSingleSelect(responses, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.businessStage);
   if (label && label in STRATEGY_BUSINESS_STAGE_TO_COMPANY_STAGE) {
     return STRATEGY_BUSINESS_STAGE_TO_COMPANY_STAGE[label as keyof typeof STRATEGY_BUSINESS_STAGE_TO_COMPANY_STAGE];
   }
   return 'growth';
+}
+
+function inferIdeaValidationSignal(label: string | null): StrategyBriefConstraintSnapshot['idea_validation_signal'] {
+  if (!label) return 'unknown';
+  if (label === 'I have paid pilots or early customers') return 'strong';
+  if (label === 'Strong interview or survey validation') return 'partial';
+  if (label === 'Informal conversations only' || label === 'Mostly my assumption for now') return 'weak';
+  return 'unknown';
+}
+
+function inferIdeaIcpClarity(label: string | null): StrategyBriefConstraintSnapshot['idea_icp_clarity'] {
+  if (!label) return 'unknown';
+  if (label.startsWith('Very clear')) return 'clear';
+  if (label.startsWith('Partly clear')) return 'partial';
+  if (label.startsWith('Broad audience') || label.startsWith('Not defined')) return 'broad';
+  return 'unknown';
+}
+
+function inferIdeaGtmReadiness(responses: Record<string, unknown>): boolean {
+  const raw = responses[STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.ideaGtmTests];
+  if (raw === undefined || raw === null) return false;
+  const parsed = unwrapBriefResponse(raw).value;
+  if (!Array.isArray(parsed)) return false;
+  const options = parsed.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+  if (options.length === 0) return false;
+  return !options.includes('Not ready to run tests yet');
 }
 
 function inferBudgetBand(label: string | null): StrategyConstraintBudgetBand {
@@ -70,10 +102,17 @@ export function buildStrategyBriefConstraintSnapshot(
   const r = responses && typeof responses === 'object' && !Array.isArray(responses) ? responses : {};
   const budgetLabel = readSingleSelect(r, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.budgetRange);
   const teamLabel = readSingleSelect(r, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.teamSize);
+  const ideaEvidenceLabel = readSingleSelect(r, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.ideaProblemEvidence);
+  const ideaIcpLabel = readSingleSelect(r, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.ideaIcpClarity);
+  const ideaConstraintLabel = readSingleSelect(r, STRATEGY_BRIEF_SIGNAL_QUESTION_IDS.ideaLaunchConstraint);
   return {
     company_stage: inferCompanyStageFromBrief(r),
     budget_band: inferBudgetBand(budgetLabel),
     team_scale: inferTeamScale(teamLabel),
+    idea_validation_signal: inferIdeaValidationSignal(ideaEvidenceLabel),
+    idea_icp_clarity: inferIdeaIcpClarity(ideaIcpLabel),
+    idea_gtm_test_ready: inferIdeaGtmReadiness(r),
+    idea_launch_constraint: ideaConstraintLabel,
     budget_label: budgetLabel,
     team_label: teamLabel,
   };

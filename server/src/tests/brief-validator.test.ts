@@ -128,6 +128,7 @@ import { RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-bri
 import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 import { makeWebsitePathFullBrief, wrapBriefCellsClient } from './bank-brief-fixtures.js';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
+import * as intakeCore from '@glc/intake-core';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -368,6 +369,7 @@ describe('saveBriefResponses()', () => {
     expect(iv.policyVersion).toBe(cur.policyVersion);
     expect(iv.layoutVersion).toBe(cur.layoutVersion);
     expect(iv.resolverVersion).toBe(cur.resolverVersion);
+    expect(iv.sequencingVersion).toBe(cur.sequencingVersion);
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
@@ -389,6 +391,26 @@ describe('saveBriefResponses()', () => {
         flowReadinessStatus: expect.any(String),
         auditReadinessStatus: expect.any(String),
         trace_codes: expect.any(Array),
+      }),
+    );
+  });
+
+  it('does not block PUT brief save when readiness is blocked (observability-only boundary)', async () => {
+    const readinessSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockReturnValueOnce({
+      flowReadinessStatus: 'blocked',
+      auditReadinessStatus: 'blocked',
+      trace: [{ code: 'test_blocked', semanticCause: 'Test blocked on write' }],
+    });
+
+    const { brief } = await saveBriefResponses('audit-001', makeFullRequired());
+    expect(brief).toHaveProperty('id');
+    expect(readinessSpy).toHaveBeenCalled();
+    expect(loggerState.debug).toHaveBeenCalledWith(
+      'brief_write.intake_readiness_recomputed',
+      expect.objectContaining({
+        auditId: 'audit-001',
+        flowReadinessStatus: 'blocked',
+        auditReadinessStatus: 'blocked',
       }),
     );
   });

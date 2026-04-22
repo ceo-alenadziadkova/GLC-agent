@@ -277,6 +277,66 @@ describe('postOrchestrationPackController', () => {
     );
   });
 
+  it('accepts selected_action_ids when ids exist in pack nodes', async () => {
+    const pack = {
+      version: 2,
+      graph: { nodes: [{ id: 'n1', lane: 'tech_delivery' }], edges: [] },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
+      critical_path: ['n1'],
+      confidence_map: { node_confidence: { n1: 'high' } },
+      risk_layer: { node_risk: { n1: 2 } },
+      conflicts_resolved: [{ id: 'c1', summary: 'ok' }],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      top_7d: ['n1'],
+      top_30d: ['n1'],
+      top_actions: { top_actions_7d: ['n1'], top_actions_30d: ['n1'] },
+    };
+    orchestrationMocks.buildPack.mockResolvedValue({ status: 'ok', pack });
+    const res = createRes();
+    const req = {
+      params: { id: 'audit-1' },
+      userId: 'user-1',
+      body: {
+        manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+        selected_action_ids: ['n1'],
+      },
+    } as unknown;
+    await postOrchestrationPackController(req as never, res);
+    expect(orchestrationMocks.persistPack).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalled();
+  });
+
+  it('returns 400 when selected_action_ids include unknown node ids', async () => {
+    const pack = {
+      version: 2,
+      graph: { nodes: [{ id: 'n1', lane: 'tech_delivery' }], edges: [] },
+      lanes: { product_change: [], tech_delivery: ['n1'], marketing_narrative: [], seo: [], processes_automation: [], risk_compliance: [] },
+      critical_path: ['n1'],
+      confidence_map: { node_confidence: { n1: 'high' } },
+      risk_layer: { node_risk: { n1: 2 } },
+      conflicts_resolved: [{ id: 'c1', summary: 'ok' }],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+    };
+    orchestrationMocks.buildPack.mockResolvedValue({ status: 'ok', pack });
+    const res = createRes();
+    const req = {
+      params: { id: 'audit-1' },
+      userId: 'user-1',
+      body: {
+        manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+        selected_action_ids: ['missing-node'],
+      },
+    } as unknown;
+    await postOrchestrationPackController(req as never, res);
+    expect(sendApiErrorMock).toHaveBeenCalledWith(
+      expect.anything(),
+      400,
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ invalid_selected_action_ids: ['missing-node'] }),
+    );
+  });
+
   it('does not block persistence for structural issue in shadow mode', async () => {
     flagMocks.governanceRolloutMode = 'shadow';
     orchestrationMocks.buildPack.mockResolvedValue({

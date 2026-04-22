@@ -6,6 +6,7 @@ export interface AuditRow {
   company_url: string;
   created_at: string;
   overall_score: number | null;
+  no_public_website?: boolean | null;
   industry?: string | null;
   execution_plan?: {
     selected_domains?: string[];
@@ -87,6 +88,7 @@ export interface ReportInput {
   recon: ReconRow | null;
   domains: DomainRow[];
   strategy: StrategyRow | null;
+  brief_responses?: Record<string, unknown> | null;
 }
 
 export interface MarkdownReportCoverage {
@@ -94,7 +96,18 @@ export interface MarkdownReportCoverage {
   not_covered_domains: string[];
   coverage_ratio: number;
   coverage_adjusted_score: number | null;
+  confidence_level: 'low' | 'medium' | 'high';
+  confidence_note: string;
   comparability_note: string;
+}
+
+export interface IdeaStageReadinessView {
+  enabled: boolean;
+  validation_signal: 'strong' | 'partial' | 'weak' | 'unknown';
+  icp_clarity: 'clear' | 'partial' | 'broad' | 'unknown';
+  gtm_test_ready: boolean;
+  launch_constraint: string | null;
+  note: string;
 }
 
 export interface MarkdownReport {
@@ -104,4 +117,5 @@ export interface MarkdownReport {
   generated_at: string;
   markdown: string;
   coverage: MarkdownReportCoverage;
+  idea_stage_readiness?: IdeaStageReadinessView;
 }

@@ -84,6 +84,8 @@ export function buildMarketingHomeViewModel(brandName: string): MarketingHomeVie
       description: pack.outcomes_section.description,
       specimenEyebrow: marketingHomeCopy.homeOutcomeSpecimenEyebrow,
       specimenBody: marketingHomeCopy.homeOutcomeSpecimenBody,
+      roleExplorerLabel: marketingHomeCopy.homeOutcomesRoleExplorerLabel,
+      roleLenses: marketingHomeCopy.homeOutcomesRoleLenses,
       primary,
       secondary,
     },

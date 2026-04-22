@@ -22,7 +22,7 @@ export function HomeFaqPreviewSection({ data }: HomeFaqPreviewSectionProps) {
   return (
     <>
       <SectionHeading variant="minimal" size="display" title={data.title} />
-      <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <MarketingRevealMask className="max-w-3xl overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2 will-change-transform sm:px-6 sm:py-3">
           <Accordion type="single" collapsible className="w-full">
             {previewItems.map((item, i) => (

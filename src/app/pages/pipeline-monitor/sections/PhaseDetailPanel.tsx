@@ -141,7 +141,7 @@ export function PhaseDetailPanel(props: {
   );
 
   return (
-    <div className="bg-background flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="bg-background flex h-full min-h-0 flex-1 flex-col overflow-y-auto">
       <div className="max-w-2xl mx-auto ds-pattern-page-shell-body">
         {isCreated && (
           <div className="glc-card mb-6 rounded-xl p-8 text-center">
@@ -283,7 +283,18 @@ export function PhaseDetailPanel(props: {
                       : 'bg-muted',
                 )}
               >
-                <Icon className={cn('h-6 w-6', selectedPhase.status === 'pending' ? 'text-muted-foreground' : 'text-primary-foreground')} />
+                <Icon
+                  className={cn(
+                    'h-6 w-6',
+                    selectedPhase.status === 'pending'
+                      ? 'text-muted-foreground'
+                      : selectedPhase.status === 'completed'
+                        ? 'text-[var(--on-gradient-success-fg)]'
+                        : selectedPhase.status === 'running'
+                          ? 'text-[var(--on-gradient-brand-fg)]'
+                          : 'text-primary-foreground',
+                  )}
+                />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-3">

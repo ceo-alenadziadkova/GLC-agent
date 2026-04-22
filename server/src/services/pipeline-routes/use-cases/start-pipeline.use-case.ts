@@ -1,6 +1,5 @@
 import {
   currentIntakeVersionTuple,
-  evaluateIntakeReadinessEnvelope,
   isSupportedIntakeArtifactTuple,
   normalizeIntakeVersionTupleFromStorage,
 } from '@glc/intake-core';
@@ -21,10 +20,14 @@ import {
   assertTokenBudgetAvailable,
 } from '../domain/pipeline-route.guards.js';
 import type { PipelineStartResult } from '../domain/pipeline-route.types.js';
-import { isDiagnosticIntakePilotEnabled } from '../../../config/feature-flags.js';
+import {
+  isDiagnosticIntakePilotEnabled,
+  isExecutionPlanCoverageScopeEnabled,
+} from '../../../config/feature-flags.js';
 import { logger } from '../../../services/logger.js';
 import { fetchIntakeBriefForAudit } from '../repository/pipeline-brief.repository.js';
 import { claimPipelineStart, fetchAuditForStart } from '../repository/pipeline-audit.repository.js';
+import { runIntakeReadinessPreflight } from './intake-readiness-preflight.js';
 
 export async function runPipelineStart(params: {
   auditId: string;
@@ -68,32 +71,33 @@ export async function runPipelineStart(params: {
   const gates = evaluateBriefGates(brief?.responses ?? {}, slaMode, collectionMode, surface, intakeTuple);
 
   if (isDiagnosticIntakePilotEnabled()) {
-    const readiness = evaluateIntakeReadinessEnvelope({
-      responses: brief?.responses ?? {},
+    const preflight = runIntakeReadinessPreflight({
+      responses: (brief?.responses ?? {}) as Record<string, unknown>,
       slaProductMode: slaMode,
       collectionMode,
       surface,
-      intakeVersionTuple: intakeTuple,
+      intakeVersionsRaw: intakeVersionsRaw ?? null,
+      enforcementPoint: 'pipeline_start',
       executionCoveragePackage:
         gatePlan.coverage_package === 'starter' || gatePlan.coverage_package === 'pro'
           ? gatePlan.coverage_package
           : 'complete',
+      applyExecutionPlanCoverageScope:
+        isDiagnosticIntakePilotEnabled() && isExecutionPlanCoverageScopeEnabled(),
+      executionSelectedDomains: gatePlan.selected_domains,
+      executionIncludeStrategy: gatePlan.include_strategy === true,
     });
-    if (readiness.auditReadinessStatus === 'blocked') {
+    if (preflight.blocked) {
       logger.info('pipeline.intake_readiness_blocked', {
         auditId,
         kind: 'intake_readiness_blocked',
-        flowReadinessStatus: readiness.flowReadinessStatus,
-        auditReadinessStatus: readiness.auditReadinessStatus,
-        trace_codes: readiness.trace.map(t => t.code),
+        flowReadinessStatus: preflight.readiness.flowReadinessStatus,
+        auditReadinessStatus: preflight.readiness.auditReadinessStatus,
+        trace_codes: preflight.readiness.trace.map(t => t.code),
       });
       return {
         ok: false,
-        error: pipelineRouteErr.intakeReadinessBlocked({
-          flowReadinessStatus: readiness.flowReadinessStatus,
-          auditReadinessStatus: readiness.auditReadinessStatus,
-          trace: readiness.trace,
-        }),
+        error: preflight.error,
       };
     }
   }

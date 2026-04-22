@@ -28,7 +28,7 @@ function MarketingHomePageContent() {
     <>
       <div
         data-testid="marketing-home"
-        className="flex flex-col gap-16 sm:gap-20 lg:gap-28"
+        className="flex flex-col gap-14 sm:gap-16 lg:gap-20"
       >
         <MarketingSection
           className="glc-light-home-hero relative -mx-4 align-top overflow-hidden px-4 pb-12 pt-6 sm:-mx-6 sm:px-6 sm:pb-20 sm:pt-10"
@@ -49,7 +49,7 @@ function MarketingHomePageContent() {
           <HomeHowItWorksSection data={viewModel.chooseEntry} />
         </MarketingSection>
 
-        <MarketingSection id="scope-truth" className="sm:mt-3" delay={0.09} aria-label={viewModel.landmarks.scopeTruth}>
+        <MarketingSection id="scope-truth" delay={0.09} aria-label={viewModel.landmarks.scopeTruth}>
           <HomeScopeTruthSection data={viewModel.scopeTruth} />
         </MarketingSection>
 
@@ -66,11 +66,11 @@ function MarketingHomePageContent() {
           </div>
         </MarketingSection>
 
-        <MarketingSection id="outcomes" className="mt-2 sm:mt-4" delay={0.13} aria-label={viewModel.landmarks.outcomes}>
+        <MarketingSection id="outcomes" delay={0.13} aria-label={viewModel.landmarks.outcomes}>
           <HomeOutcomesSection data={viewModel.outcomes} reduceMotion={reduceMotion} />
         </MarketingSection>
 
-        <MarketingSection className="sm:mt-4" delay={0.15} aria-label={viewModel.atAGlance.ariaLabel}>
+        <MarketingSection delay={0.15} aria-label={viewModel.atAGlance.ariaLabel}>
           <HomeAtAGlanceSection
             trustMetrics={viewModel.trustMetrics}
             trustStrip={viewModel.trustStrip}
@@ -78,11 +78,11 @@ function MarketingHomePageContent() {
           />
         </MarketingSection>
 
-        <MarketingSection className="mt-4 sm:mt-6" delay={0.17} aria-label={viewModel.landmarks.faq}>
+        <MarketingSection delay={0.17} aria-label={viewModel.landmarks.faq}>
           <HomeFaqPreviewSection data={viewModel.faq} />
         </MarketingSection>
 
-        <MarketingSection className="mt-6 sm:mt-10 lg:mt-12" delay={0.18}>
+        <MarketingSection delay={0.18}>
           <HomeMidCtaSection landmarkLabel={viewModel.landmarks.midCta} data={viewModel.midCta} />
         </MarketingSection>
       </div>

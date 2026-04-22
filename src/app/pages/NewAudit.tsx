@@ -236,6 +236,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
                 briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
                 briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
+                serverVisibleQuestionIds={wizard.briefWizardServerVisibleQuestionIds}
               />
             )}
 

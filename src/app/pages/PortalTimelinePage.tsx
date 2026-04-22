@@ -84,6 +84,14 @@ function ConsultantTimelineDiagnostics({
   );
 }
 
+function degradedDataGapsFallbackLine(
+  code: NonNullable<NonNullable<AuditTimelineDto['data_gaps']>['fallback_reason_code']>,
+): string {
+  if (code === 'director_slice_missing') return ORCHESTRATION_UI_COPY.timelineDegradedFallbackDirectorMissing;
+  if (code === 'director_slice_partial') return ORCHESTRATION_UI_COPY.timelineDegradedFallbackDirectorPartial;
+  return ORCHESTRATION_UI_COPY.timelineDegradedFallbackDirectorInvalid;
+}
+
 function buildPlanSnapshotLines(timeline: AuditTimelineDto, isClient: boolean): string[] {
   const v = timeline.version;
   const parts: string[] = [];
@@ -93,6 +101,80 @@ function buildPlanSnapshotLines(timeline: AuditTimelineDto, isClient: boolean): 
   }
   parts.push(isClient ? formatManifestStateForClient(v.manifest_state) : `${ORCHESTRATION_UI_COPY.timelineManifestStateLabel} ${v.manifest_state}`);
   return parts;
+}
+
+function TimelineDecisionCard({
+  explain,
+}: {
+  explain: NonNullable<NonNullable<AuditTimelineDto['lanes'][number]['items'][number]['explain']>>;
+}) {
+  const hasWhy = (explain.why?.length ?? 0) > 0;
+  const hasHow = Boolean(explain.how?.description);
+  const hasTime = Boolean(explain.time?.bucket || explain.time?.target_window_days || explain.time?.time_to_value);
+  const hasImpact = Boolean(explain.impact?.score != null || explain.impact?.label);
+  const hasRisks = (explain.risks?.length ?? 0) > 0;
+  if (!hasWhy && !hasHow && !hasTime && !hasImpact && !hasRisks) return null;
+  return (
+    <details className="mt-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-2">
+      <summary className="cursor-pointer text-xs font-medium text-[var(--text-primary)]">
+        {ORCHESTRATION_UI_COPY.timelineDecisionCardSummary}
+      </summary>
+      {explain.limited_context ? (
+        <div className="mt-2 inline-flex items-center rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+          {ORCHESTRATION_UI_COPY.timelineLimitedContextBadge}
+        </div>
+      ) : null}
+      <div className="mt-2 space-y-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+        {hasWhy ? (
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.timelineDecisionWhyLabel}</div>
+            <ul className="mt-1 list-disc pl-4">
+              {(explain.why ?? []).map((row, idx) => (
+                <li key={`why-${idx}`}>{row}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {hasHow ? (
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.timelineDecisionHowLabel}</div>
+            <p>{explain.how?.description}</p>
+            {explain.how?.path_type || explain.how?.time_estimate ? (
+              <p className="text-[var(--text-tertiary)]">
+                {[explain.how?.path_type, explain.how?.time_estimate].filter(Boolean).join(' · ')}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {hasTime ? (
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.timelineDecisionTimeLabel}</div>
+            <p>
+              {[explain.time?.bucket, explain.time?.target_window_days ? `${explain.time.target_window_days}d` : null, explain.time?.time_to_value]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        ) : null}
+        {hasImpact ? (
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.timelineDecisionImpactLabel}</div>
+            <p>{[explain.impact?.label, explain.impact?.score != null ? `score ${explain.impact.score}` : null].filter(Boolean).join(' · ')}</p>
+          </div>
+        ) : null}
+        {hasRisks ? (
+          <div>
+            <div className="font-semibold text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.timelineDecisionRisksLabel}</div>
+            <ul className="mt-1 list-disc pl-4">
+              {(explain.risks ?? []).map((row, idx) => (
+                <li key={`risk-${idx}`}>{row}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
 }
 
 export function PortalTimelinePage() {
@@ -188,6 +270,7 @@ export function PortalTimelinePage() {
   const nodeTitleById = new Map(
     (timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item.title] as const)),
   );
+  const nodeById = new Map((timeline?.lanes ?? []).flatMap((lane) => lane.items.map((item) => [item.id, item] as const)));
   const nodeProvenanceById = useMemo(() => {
     const m = new Map<string, { source?: 'strategy' | 'director'; analysis_depth?: 'baseline' | 'deep' }>();
     for (const lane of timeline?.lanes ?? []) {
@@ -341,6 +424,13 @@ export function PortalTimelinePage() {
     );
   }
 
+  const seasonsAllEmpty = Boolean(
+    timeline && timeline.seasons.length > 0 && timeline.seasons.every((s) => s.node_ids.length === 0),
+  );
+  const hasLaneWorkstreamItems = Boolean(timeline?.lanes.some((l) => l.items.length > 0));
+  const showDegradedEmptyBucketHint =
+    timeline?.status === 'degraded' && seasonsAllEmpty && hasLaneWorkstreamItems;
+
   const topActionsBlock = timeline ? (
     <div className="space-y-3">
       {clientTimelinePackOneClickCta ? (
@@ -352,31 +442,34 @@ export function PortalTimelinePage() {
           <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
             {timeline.top_7d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
             {timeline.top_7d.map((nid) => (
-              <li key={`top7-${nid}`} className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                  <span>{readNodeTitle(nid)}</span>
-                  <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
-                  <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
+              <li key={`top7-${nid}`} className="rounded-md border border-[var(--border-default)] px-2 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                    <span>{readNodeTitle(nid)}</span>
+                    <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
+                    <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
+                  </div>
+                  {clientTimelinePackOneClickCta ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="inline-flex shrink-0 items-center gap-1"
+                      disabled={executionPackPendingNodeId === nid}
+                      aria-busy={executionPackPendingNodeId === nid}
+                      onClick={() => void requestExecutionPackFromTimeline(nid)}
+                      aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions7dLabel})`}
+                    >
+                      {executionPackPendingNodeId === nid ? (
+                        <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                      ) : null}
+                      {executionPackPendingNodeId === nid
+                        ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
+                        : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
+                    </Button>
+                  ) : null}
                 </div>
-                {clientTimelinePackOneClickCta ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex shrink-0 items-center gap-1"
-                    disabled={executionPackPendingNodeId === nid}
-                    aria-busy={executionPackPendingNodeId === nid}
-                    onClick={() => void requestExecutionPackFromTimeline(nid)}
-                    aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions7dLabel})`}
-                  >
-                    {executionPackPendingNodeId === nid ? (
-                      <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                    ) : null}
-                    {executionPackPendingNodeId === nid
-                      ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
-                      : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
-                  </Button>
-                ) : null}
+                {nodeById.get(nid)?.explain ? <TimelineDecisionCard explain={nodeById.get(nid)!.explain!} /> : null}
               </li>
             ))}
           </ul>
@@ -386,31 +479,34 @@ export function PortalTimelinePage() {
           <ul className="list-none space-y-3 text-sm leading-relaxed ds-text-secondary">
             {timeline.top_30d.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
             {timeline.top_30d.map((nid) => (
-              <li key={`top30-${nid}`} className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                  <span>{readNodeTitle(nid)}</span>
-                  <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
-                  <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
+              <li key={`top30-${nid}`} className="rounded-md border border-[var(--border-default)] px-2 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                    <span>{readNodeTitle(nid)}</span>
+                    <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
+                    <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
+                  </div>
+                  {clientTimelinePackOneClickCta ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="inline-flex shrink-0 items-center gap-1"
+                      disabled={executionPackPendingNodeId === nid}
+                      aria-busy={executionPackPendingNodeId === nid}
+                      onClick={() => void requestExecutionPackFromTimeline(nid)}
+                      aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions30dLabel})`}
+                    >
+                      {executionPackPendingNodeId === nid ? (
+                        <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                      ) : null}
+                      {executionPackPendingNodeId === nid
+                        ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
+                        : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
+                    </Button>
+                  ) : null}
                 </div>
-                {clientTimelinePackOneClickCta ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="inline-flex shrink-0 items-center gap-1"
-                    disabled={executionPackPendingNodeId === nid}
-                    aria-busy={executionPackPendingNodeId === nid}
-                    onClick={() => void requestExecutionPackFromTimeline(nid)}
-                    aria-label={`${ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaAriaLabel} ${readNodeTitle(nid)} (${ORCHESTRATION_UI_COPY.topActions30dLabel})`}
-                  >
-                    {executionPackPendingNodeId === nid ? (
-                      <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                    ) : null}
-                    {executionPackPendingNodeId === nid
-                      ? ORCHESTRATION_UI_COPY.executionPackFromTimelineCtaBusy
-                      : ORCHESTRATION_UI_COPY.executionPackFromTimelineCta}
-                  </Button>
-                ) : null}
+                {nodeById.get(nid)?.explain ? <TimelineDecisionCard explain={nodeById.get(nid)!.explain!} /> : null}
               </li>
             ))}
           </ul>
@@ -508,7 +604,70 @@ export function PortalTimelinePage() {
                 ) : null}
               </div>
             ) : null}
-            {statusMessage && timeline.status !== 'missing_pack' && timeline.status !== 'stale_manifest' ? (
+            {timeline && timeline.status === 'degraded' ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="scroll-mt-6 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-5"
+              >
+                <h2 className="text-base font-semibold ds-text-primary">
+                  {ORCHESTRATION_UI_COPY.timelineStateDegradedTitle}
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed ds-text-secondary">
+                  {ORCHESTRATION_UI_COPY.timelineStateDegradedLead}
+                </p>
+                {timeline.data_gaps ? (
+                  <div className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                      {ORCHESTRATION_UI_COPY.timelineDegradedDataGapsSectionTitle}
+                    </div>
+                    <ul className="mt-2 list-outside list-disc space-y-2 pl-5 text-sm leading-relaxed ds-text-secondary">
+                      {timeline.data_gaps.fallback_reason_code ? (
+                        <li>{degradedDataGapsFallbackLine(timeline.data_gaps.fallback_reason_code)}</li>
+                      ) : null}
+                      <li>
+                        {ORCHESTRATION_UI_COPY.dataGapsMissingConfidenceLabel} {timeline.data_gaps.missing_confidence}
+                      </li>
+                      <li>
+                        {ORCHESTRATION_UI_COPY.dataGapsMissingRiskLabel} {timeline.data_gaps.missing_risk}
+                      </li>
+                      <li>
+                        {ORCHESTRATION_UI_COPY.dataGapsDanglingDependenciesLabel} {timeline.data_gaps.dangling_dependencies}
+                      </li>
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm leading-relaxed ds-text-tertiary">{ORCHESTRATION_UI_COPY.timelineStateDegraded}</p>
+                )}
+                {showDegradedEmptyBucketHint ? (
+                  <p className="mt-4 text-sm leading-relaxed ds-text-tertiary">
+                    {ORCHESTRATION_UI_COPY.timelineDegradedEmptySeasonBucketsHint}
+                  </p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {!isClient ? (
+                    <Button asChild variant="default" size="sm" className="no-underline">
+                      <Link to={labManifestFlowHref}>{ORCHESTRATION_UI_COPY.timelineManifestFlowCta}</Link>
+                    </Button>
+                  ) : APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled ? (
+                    <Button asChild variant="default" size="sm" className="no-underline">
+                      <Link to={manifestWizardHref}>{PORTAL_MANIFEST_WIZARD_COPY.shortCta}</Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild variant="outline" size="sm" className="no-underline">
+                    <Link to={reportHref}>{ORCHESTRATION_UI_COPY.timelineEmptyCtaOpenReport}</Link>
+                  </Button>
+                </div>
+                {!isClient ? (
+                  <ConsultantTimelineDiagnostics
+                    className="mt-4"
+                    timelineStatus={timeline.status}
+                    manifestState={timeline.version.manifest_state}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            {statusMessage && timeline && timeline.status === 'restricted_client_view' ? (
               <div
                 role="status"
                 aria-live="polite"
@@ -622,10 +781,15 @@ export function PortalTimelinePage() {
                       <ul className="space-y-2 text-sm leading-relaxed ds-text-secondary">
                         {season.node_ids.length === 0 && <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>}
                         {season.node_ids.map((nodeId) => (
-                          <li key={nodeId} className="flex flex-wrap items-center gap-1">
-                            <span>{readNodeTitle(nodeId)}</span>
-                            <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nodeId) ?? {})} />
-                            <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nodeId)} />
+                          <li key={nodeId} className="rounded-md border border-[var(--border-default)] px-2 py-2">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span>{readNodeTitle(nodeId)}</span>
+                              <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nodeId) ?? {})} />
+                              <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nodeId)} />
+                            </div>
+                            {nodeById.get(nodeId)?.explain ? (
+                              <TimelineDecisionCard explain={nodeById.get(nodeId)!.explain!} />
+                            ) : null}
                           </li>
                         ))}
                       </ul>
@@ -735,8 +899,13 @@ export function PortalTimelinePage() {
               </TabsContent>
 
               <TabsContent value="planmap" className="mt-4 space-y-6 outline-none">
-                {timeline.status === 'ready' && portalOrchestrationPack ? (
-                  <PortalTimelinePackGraphPanel pack={portalOrchestrationPack} />
+                {portalOrchestrationPack && (timeline.status === 'ready' || timeline.status === 'degraded') ? (
+                  <>
+                    {timeline.status === 'degraded' ? (
+                      <p className="text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelinePlanMapDegradedNote}</p>
+                    ) : null}
+                    <PortalTimelinePackGraphPanel pack={portalOrchestrationPack} />
+                  </>
                 ) : (
                   <p className="text-sm ds-text-secondary">{ORCHESTRATION_UI_COPY.timelinePlanMapUnavailableHint}</p>
                 )}

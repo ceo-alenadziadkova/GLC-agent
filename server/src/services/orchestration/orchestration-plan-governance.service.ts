@@ -169,10 +169,15 @@ export function evaluateOrchestrationPlanGovernance(
   if (criticalPathNodeRatio < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.minCriticalPathNodeRatio) {
     reason_codes.push('critical_path_coverage_below_floor');
   }
-  if (pack.input_quality?.input_gate_status === 'degraded') {
+  const expectedStrategyOnlyNoDirector =
+    pack.input_quality?.input_mode === 'strategy_fallback' &&
+    pack.input_quality?.fallback_reason_code === 'director_slice_missing';
+
+  if (pack.input_quality?.input_gate_status === 'degraded' && !expectedStrategyOnlyNoDirector) {
     reason_codes.push('input_gate_degraded');
   }
   if (
+    !expectedStrategyOnlyNoDirector &&
     typeof pack.input_quality?.director_input_coverage_ratio === 'number' &&
     pack.input_quality.director_input_coverage_ratio <
       ORCHESTRATION_PLAN_GOVERNANCE_POLICY.directorInputCoverageRatioFloor

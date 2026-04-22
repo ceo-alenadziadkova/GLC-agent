@@ -49,6 +49,7 @@ export function PublicBriefPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
@@ -60,6 +61,7 @@ export function PublicBriefPage() {
       phone: '',
     },
   });
+  const hasWebsite = watch('has_website');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -226,9 +228,23 @@ export function PublicBriefPage() {
                 <input type="checkbox" {...register('has_website')} />
                 {PB.hasWebsiteLabel}
               </label>
+              {!hasWebsite ? (
+                <p className="text-muted-foreground text-xs">{PB.noPublicSiteYet}</p>
+              ) : null}
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="text-foreground font-semibold">{PB.websiteLabel}</span>
-                <Input {...register('website_url')} placeholder={PB.websitePlaceholder} className="rounded-lg px-3 py-2.5" />
+                <Input
+                  {...register('website_url', {
+                    validate: (value) => {
+                      if (!hasWebsite) return value.trim() === '' || PB.websiteOrNoPublic;
+                      return value.trim().length > 0 || PB.websiteOrNoPublic;
+                    },
+                  })}
+                  placeholder={PB.websitePlaceholder}
+                  className="rounded-lg px-3 py-2.5"
+                  disabled={!hasWebsite}
+                />
+                {errors.website_url && <span className="text-destructive text-xs">{errors.website_url.message}</span>}
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="text-foreground font-semibold">{PB.emailLabel}</span>

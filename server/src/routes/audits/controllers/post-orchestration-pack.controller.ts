@@ -28,6 +28,7 @@ import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 const BodySchema = z.object({
   manifest_snapshot_id: z.string().uuid(),
+  selected_action_ids: z.array(z.string().min(1)).max(50).optional(),
 });
 
 export async function postOrchestrationPackController(req: AuthRequest, res: Response) {
@@ -70,6 +71,7 @@ export async function executePostOrchestrationPack(req: AuthRequest, res: Respon
       userId: req.userId!,
       manifestSnapshotId: parsedBody.data.manifest_snapshot_id,
       logComponent: 'route.orchestration_pack',
+      selectedActionIds: parsedBody.data.selected_action_ids,
     });
 
     if (!flow.ok) {
@@ -122,6 +124,16 @@ export async function executePostOrchestrationPack(req: AuthRequest, res: Respon
                 ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.idempotencyWindowSeconds,
             },
           },
+        );
+        return;
+      }
+      if (flow.kind === 'invalid_selected_action_ids') {
+        sendApiError(
+          res,
+          400,
+          API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID,
+          AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID_MESSAGE,
+          { invalid_selected_action_ids: flow.invalid_ids },
         );
         return;
       }

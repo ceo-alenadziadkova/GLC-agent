@@ -12,6 +12,8 @@ import {
   RATE_LIMIT_AUDIT_CREATE_WINDOW_MS,
   RATE_LIMIT_GENERAL_MAX_PER_WINDOW,
   RATE_LIMIT_GENERAL_WINDOW_MS,
+  RATE_LIMIT_REPORT_PDF_MAX_PER_WINDOW,
+  RATE_LIMIT_REPORT_PDF_WINDOW_MS,
   RATE_LIMIT_BENCHMARK_RECOMPUTE_MAX_PER_WINDOW,
   RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS,
   RATE_LIMIT_LOG_INGEST_MAX_PER_WINDOW,
@@ -34,6 +36,7 @@ import {
   RATE_LIMIT_DISCOVER_CREATE_MESSAGE,
   RATE_LIMIT_DISCOVER_READ_MESSAGE,
   RATE_LIMIT_GENERAL_MESSAGE,
+  RATE_LIMIT_REPORT_PDF_MESSAGE,
   RATE_LIMIT_INTAKE_LEGACY_MESSAGE,
   RATE_LIMIT_INTAKE_READ_MESSAGE,
   RATE_LIMIT_INTAKE_WRITE_MESSAGE,
@@ -168,6 +171,25 @@ export const generalLimiter = rateLimit({
     error: RATE_LIMIT_GENERAL_MESSAGE,
     code: API_ERROR_CODES.GENERAL_API_RATE_LIMITED,
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_GENERAL_WINDOW_MS / 1000)),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * PDF export limiter for CPU-heavy @react-pdf generation.
+ * Applied only when `format=pdf`.
+ */
+export const reportPdfLimiter = rateLimit({
+  windowMs: RATE_LIMIT_REPORT_PDF_WINDOW_MS,
+  max: RATE_LIMIT_REPORT_PDF_MAX_PER_WINDOW,
+  store: distributedStore('report_pdf'),
+  keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
+  skip: req => String(req.query.format ?? 'json') !== 'pdf',
+  message: {
+    error: RATE_LIMIT_REPORT_PDF_MESSAGE,
+    code: API_ERROR_CODES.REPORT_PDF_RATE_LIMITED,
+    retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_REPORT_PDF_WINDOW_MS / 1000)),
   },
   standardHeaders: true,
   legacyHeaders: false,

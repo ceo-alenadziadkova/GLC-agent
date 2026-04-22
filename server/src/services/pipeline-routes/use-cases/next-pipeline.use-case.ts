@@ -3,8 +3,19 @@ import {
   maxPhaseForExecutionPlan,
   type AuditExecutionPlan,
 } from '../../../types/audit.js';
+import { intakeBriefGateModeFromExecutionPlan } from '../../../lib/audit-coverage-bridge.js';
 import { normalizeExecutionPlanFromAuditFields } from '../../pipeline/orchestrator/execution-plan-loader.js';
+import {
+  resolveIntakeSurfaceForPlan,
+  validationPerspectiveForBriefAccess,
+} from '../../brief-validator.js';
 import { pipelineStatusForPhase } from '../../../config/pipeline-status.js';
+import { PIPELINE_ROUTE_DEFAULT_INTAKE_COLLECTION_MODE } from '../../../config/pipeline-route-defaults.js';
+import {
+  isDiagnosticIntakePilotEnabled,
+  isExecutionPlanCoverageScopeEnabled,
+} from '../../../config/feature-flags.js';
+import { logger } from '../../../services/logger.js';
 import { pipelineRouteErr } from '../domain/pipeline-route.errors.js';
 import {
   assertNotCancelled,
@@ -15,7 +26,9 @@ import {
 } from '../domain/pipeline-route.guards.js';
 import type { PipelineNextResult } from '../domain/pipeline-route.types.js';
 import { claimPipelineNext, fetchAuditForNext } from '../repository/pipeline-audit.repository.js';
+import { fetchIntakeBriefForAudit } from '../repository/pipeline-brief.repository.js';
 import { fetchPendingReviewAfterPhase } from '../repository/pipeline-review.repository.js';
+import { runIntakeReadinessPreflight } from './intake-readiness-preflight.js';
 import { tryFinalizePipelineAtPlanEnd } from './pipeline-next-finalize.js';
 
 export async function runPipelineNext(params: {
@@ -25,13 +38,14 @@ export async function runPipelineNext(params: {
   disableAutoRemediate: boolean;
 }): Promise<PipelineNextResult> {
   const { auditId, userId, role, disableAutoRemediate } = params;
+  const typedRole = role as 'consultant' | 'client';
   const roleErr = assertPipelineRole(role as 'consultant' | 'client');
   if (roleErr) return { ok: false, error: roleErr };
 
   const audit = await fetchAuditForNext(auditId, userId);
   if (!audit) return { ok: false, error: pipelineRouteErr.auditNotFound() };
 
-  const accessErr = assertPipelineAccess(audit, userId, role as 'consultant' | 'client');
+  const accessErr = assertPipelineAccess(audit, userId, typedRole);
   if (accessErr) return { ok: false, error: accessErr };
 
   const cancelledErr = assertNotCancelled(audit.status);
@@ -49,6 +63,44 @@ export async function runPipelineNext(params: {
   }
 
   if (isPipelinePhaseActive(audit.status)) return { ok: false, error: pipelineRouteErr.phaseInProgress(audit.status) };
+
+  if (isDiagnosticIntakePilotEnabled()) {
+    const brief = await fetchIntakeBriefForAudit(auditId);
+    const collectionMode = brief?.collection_mode ?? PIPELINE_ROUTE_DEFAULT_INTAKE_COLLECTION_MODE;
+    const perspective = validationPerspectiveForBriefAccess(audit.user_id, audit.client_id, userId);
+    const surface = resolveIntakeSurfaceForPlan(collectionMode, perspective);
+    const gatePlanForReadiness = normalizeExecutionPlanFromAuditFields(audit as {
+      execution_plan?: Partial<AuditExecutionPlan> | null;
+      product_mode?: string | null;
+    });
+    const slaMode = intakeBriefGateModeFromExecutionPlan(gatePlanForReadiness);
+    const preflight = runIntakeReadinessPreflight({
+      responses: (brief?.responses ?? {}) as Record<string, unknown>,
+      slaProductMode: slaMode,
+      collectionMode,
+      surface,
+      intakeVersionsRaw: (brief?.intake_versions as Record<string, unknown> | null | undefined) ?? null,
+      enforcementPoint: 'pipeline_next',
+      executionCoveragePackage:
+        gatePlanForReadiness.coverage_package === 'starter' || gatePlanForReadiness.coverage_package === 'pro'
+          ? gatePlanForReadiness.coverage_package
+          : 'complete',
+      applyExecutionPlanCoverageScope:
+        isDiagnosticIntakePilotEnabled() && isExecutionPlanCoverageScopeEnabled(),
+      executionSelectedDomains: gatePlanForReadiness.selected_domains,
+      executionIncludeStrategy: gatePlanForReadiness.include_strategy === true,
+    });
+    if (preflight.blocked) {
+      logger.info('pipeline.next.intake_readiness_blocked', {
+        auditId,
+        kind: 'intake_readiness_blocked',
+        flowReadinessStatus: preflight.readiness.flowReadinessStatus,
+        auditReadinessStatus: preflight.readiness.auditReadinessStatus,
+        trace_codes: preflight.readiness.trace.map(t => t.code),
+      });
+      return { ok: false, error: preflight.error };
+    }
+  }
 
   const plan = normalizeExecutionPlanFromAuditFields(audit as {
     execution_plan?: Partial<AuditExecutionPlan> | null;
@@ -88,7 +140,7 @@ export async function runPipelineNext(params: {
       return { ok: false, error: pipelineRouteErr.phaseInProgress(fresh.status) };
     }
 
-    const accessErr2 = assertPipelineAccess(fresh, userId, role as 'consultant' | 'client');
+    const accessErr2 = assertPipelineAccess(fresh, userId, typedRole);
     if (accessErr2) return { ok: false, error: accessErr2 };
 
     const cancelledErr2 = assertNotCancelled(fresh.status);

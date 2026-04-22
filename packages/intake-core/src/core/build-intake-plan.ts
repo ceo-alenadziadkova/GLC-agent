@@ -320,7 +320,12 @@ function buildIntakePlanInternal(
     versions: versionsObj,
   };
 
-  const diagnostics = assembleIntakePlanDiagnostics({ plan: planCore, responses: r });
+  const diagnostics = assembleIntakePlanDiagnostics({
+    plan: planCore,
+    responses: r,
+    collectionMode,
+    surface: input.surface,
+  });
   for (const te of diagnostics.remediation.trace) {
     debugTrace.push({
       layer: 'resolver',

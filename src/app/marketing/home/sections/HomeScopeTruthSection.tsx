@@ -18,7 +18,7 @@ export function HomeScopeTruthSection({ data }: HomeScopeTruthSectionProps) {
   const secondGroup = data.coverageItems.slice(3);
 
   return (
-    <div className="ds-marketing-surface-muted-band px-5 py-8 sm:px-8 sm:py-10">
+    <div className="ds-marketing-surface-muted-band ds-home-scope-band px-5 py-8 sm:px-8 sm:py-10">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
         {data.kicker}
       </p>

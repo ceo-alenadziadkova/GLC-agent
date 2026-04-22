@@ -25,6 +25,9 @@ export const RATE_LIMIT_PIPELINE_WINDOW_MS = RL.pipelineWindowMinutes * MINUTE_M
 export const RATE_LIMIT_GENERAL_MAX_PER_WINDOW = RL.generalMaxPerMin;
 export const RATE_LIMIT_GENERAL_WINDOW_MS = RL.generalWindowSeconds * 1000;
 
+export const RATE_LIMIT_REPORT_PDF_MAX_PER_WINDOW = RL.reportPdfMaxPerMin;
+export const RATE_LIMIT_REPORT_PDF_WINDOW_MS = RL.reportPdfWindowSeconds * 1000;
+
 export const SNAPSHOT_PUBLIC_MAX_PER_DAY = RL.snapshotPublicMaxPerDay;
 export const SNAPSHOT_PUBLIC_WINDOW_MS = RL.snapshotPublicWindowHours * HOUR_MS;
 

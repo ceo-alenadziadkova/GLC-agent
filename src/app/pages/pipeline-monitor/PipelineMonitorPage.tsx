@@ -213,7 +213,7 @@ export function PipelineMonitorPage() {
       ) : (
         <ResizablePanelGroup
           direction="horizontal"
-          className={PIPELINE_MONITOR_UI_POLICY.layout.contentClassName}
+          className={cn('min-h-0', PIPELINE_MONITOR_UI_POLICY.layout.contentClassName)}
           autoSaveId={PIPELINE_MONITOR_UI_POLICY.layout.sidebarLayoutAutoSaveId}
         >
           <ResizablePanel
@@ -222,7 +222,7 @@ export function PipelineMonitorPage() {
             defaultSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelDefaultSizePct}
             minSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelMinSizePct}
             maxSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelMaxSizePct}
-            className="min-w-0"
+            className="min-w-0 min-h-0"
           >
             <PhaseSidebar
               phases={phases}
@@ -247,7 +247,7 @@ export function PipelineMonitorPage() {
             order={2}
             defaultSize={100 - PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelDefaultSizePct}
             minSize={PIPELINE_MONITOR_UI_POLICY.layout.detailPanelMinSizePct}
-            className="min-w-0"
+            className="min-w-0 min-h-0"
           >
             <PhaseDetailPanel
               selectedPhase={selectedPhase}

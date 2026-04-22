@@ -59,6 +59,16 @@ ${P.companyProfileIntakeDataQuality}${ctx.intake_data_quality_score}`;
 
   sections.push(profileBlock);
 
+  if (
+    ctx.intake_project_context_envelope
+    && Object.keys(ctx.intake_project_context_envelope).length > 0
+  ) {
+    sections.push(
+      `${P.intakeProjectContextEnvelopeHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.intake_project_context_envelope, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
   const briefSection = formatClientBriefSection(ctx, specifyStr);
   if (briefSection) {
     sections.push(briefSection);

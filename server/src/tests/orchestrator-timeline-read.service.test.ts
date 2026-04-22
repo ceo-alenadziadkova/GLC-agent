@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   loadExecutionPlan: vi.fn(),
   listSnapshots: vi.fn(),
   fetchSnapshot: vi.fn(),
+  fetchAuditRelatedReadModel: vi.fn(),
 }));
 
 vi.mock('../services/orchestration/orchestration-read.service.js', () => ({
@@ -29,6 +30,10 @@ vi.mock('../services/orchestration/orchestration-read.service.js', () => ({
 vi.mock('../services/orchestration/roadmap-manifest.service.js', () => ({
   listRoadmapManifestSnapshotsForAudit: mocks.listSnapshots,
   fetchRoadmapManifestSnapshotForAudit: mocks.fetchSnapshot,
+}));
+
+vi.mock('../repositories/audits/audit-read-model.repository.js', () => ({
+  fetchAuditRelatedReadModel: mocks.fetchAuditRelatedReadModel,
 }));
 
 import { buildClientTimelineReadModel } from '../services/orchestration/orchestrator-timeline-read.service.js';
@@ -95,6 +100,23 @@ describe('buildClientTimelineReadModel', () => {
       if (args.snapshotId !== SNAPSHOT_ID) return null;
       return { id: SNAPSHOT_ID, payload: baseManifest('rolling_30d') };
     });
+    mocks.fetchAuditRelatedReadModel.mockResolvedValue([
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: [] } },
+      {
+        status: 'fulfilled',
+        value: {
+          data: {
+            schema_version: 2,
+            quick_wins: [],
+            medium_term: [],
+            strategic: [],
+          },
+        },
+      },
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: null } },
+    ]);
   });
 
   it('maps seasons to partitionCriticalPathIntoSeasonBuckets using manifest season_preset from pack snapshot', async () => {
@@ -330,5 +352,74 @@ describe('buildClientTimelineReadModel', () => {
     expect(out.status).toBe('ok');
     if (out.status !== 'ok') return;
     expect(out.timeline.version.plan_horizon).toEqual(ph);
+  });
+
+  it('adds explain block for matched initiative and fallback for highlighted node without mapping', async () => {
+    const nodes = [
+      { id: 'matched', title: 'Matched initiative', domain: 'marketing_utp' as const, lane: 'marketing_narrative' as const },
+      { id: 'fallback', title: 'Fallback initiative', domain: 'marketing_utp' as const, lane: 'marketing_narrative' as const },
+    ];
+    mocks.fetchAuditRelatedReadModel.mockResolvedValue([
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: [] } },
+      {
+        status: 'fulfilled',
+        value: {
+          data: {
+            schema_version: 2,
+            quick_wins: [
+              {
+                id: 'matched',
+                title: 'Matched initiative',
+                description: 'desc',
+                domain: 'marketing_utp',
+                stage: 'mvp',
+                priority: 'high',
+                impact: 'high',
+                effort: 'medium',
+                confidence: 0.8,
+                context: { signals: ['s1'] },
+                outcome: { description: 'outcome', timeframe: '14 days' },
+                scope: { includes: ['a'], excludes: ['b'] },
+                execution_paths: [{ type: 'fast', description: 'Do fast path', time_estimate: '7 days' }],
+                decision: { why_this: ['clear impact'] },
+                evidence: { sources: [{ domain_key: 'marketing_utp' }] },
+              },
+            ],
+            medium_term: [],
+            strategic: [],
+          },
+        },
+      },
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: null } },
+    ]);
+    const pack = minimalPack({
+      graph: {
+        nodes,
+        edges: [{ from: 'matched', to: 'fallback', relation: 'strong', weight: 0.8 }],
+      },
+      lanes: emptyLanes({ marketing_narrative: ['matched', 'fallback'] }),
+      critical_path: ['matched', 'fallback'],
+      top_7d: ['matched', 'fallback'],
+      top_30d: [],
+    });
+    mocks.fetchPersisted.mockResolvedValue({
+      status: 'ok',
+      pack,
+      orchestration_pack_version: 2,
+      last_revision_diff: null,
+      revision_history: [],
+    });
+    const out = await buildClientTimelineReadModel({ auditId: AUDIT_ID, userId: USER_ID });
+    expect(out.status).toBe('ok');
+    if (out.status !== 'ok') return;
+    const laneItems = out.timeline.lanes.find((row) => row.lane_id === 'marketing_narrative')?.items ?? [];
+    const matched = laneItems.find((row) => row.id === 'matched');
+    const fallback = laneItems.find((row) => row.id === 'fallback');
+    expect(matched?.explain?.why).toEqual(['clear impact']);
+    expect(matched?.explain?.limited_context).toBe(false);
+    expect(fallback?.explain?.limited_context).toBe(true);
+    expect(fallback?.explain?.how?.description).toMatch(/Dependency hints/i);
   });
 });

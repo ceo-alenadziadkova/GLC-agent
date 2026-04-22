@@ -14,6 +14,12 @@ import {
   listRoadmapManifestSnapshotsForAudit,
 } from './roadmap-manifest.service.js';
 import { ORCHESTRATION_LANE_IDS } from '../../config/orchestration-lanes.js';
+import { fetchAuditRelatedReadModel } from '../../repositories/audits/audit-read-model.repository.js';
+import {
+  flattenNormalizedStrategyInitiativeBuckets,
+  normalizeAuditStrategyRowForReadModel,
+} from '../strategy/strategy-audit-read-normalize.js';
+import { buildOrchestrationExplainProjection } from './build-orchestration-explain-projection.js';
 
 type TimelineReadResult =
   | { status: 'not_found' }
@@ -128,6 +134,36 @@ export async function buildClientTimelineReadModel(args: {
   }
 
   const nodeById = new Map(pack.graph.nodes.map((node) => [node.id, node] as const));
+  const top_7d = (pack.top_7d ?? pack.top_actions?.top_actions_7d ?? []).slice(
+    0,
+    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
+  );
+  const top_30d = (pack.top_30d ?? pack.top_actions?.top_actions_30d ?? []).slice(
+    0,
+    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
+  );
+  const highlightedNodeIds = new Set<string>([...pack.critical_path, ...top_7d, ...top_30d]);
+
+  const [, domainsRes, strategyRes, , briefRes] = await fetchAuditRelatedReadModel(args.auditId);
+  const strategyRaw = strategyRes.status === 'fulfilled' ? (strategyRes.value.data as Record<string, unknown> | null) : null;
+  const domainRows = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+  const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
+  const briefResponses =
+    brief && typeof brief === 'object' && 'responses' in brief ? (brief as { responses?: unknown }).responses : null;
+  const normalizedStrategy = normalizeAuditStrategyRowForReadModel({
+    strategy: strategyRaw,
+    domainRows,
+    briefResponses:
+      briefResponses && typeof briefResponses === 'object' && !Array.isArray(briefResponses)
+        ? (briefResponses as Record<string, unknown>)
+        : null,
+  });
+  const initiatives = normalizedStrategy ? flattenNormalizedStrategyInitiativeBuckets(normalizedStrategy) : [];
+  const explainProjection = buildOrchestrationExplainProjection({
+    pack,
+    initiatives,
+    highlightedNodeIds,
+  });
   const versionManifest = await resolveManifestForTimelinePartition({
     auditId: args.auditId,
     packManifestSnapshotId: manifestSnapshotId,
@@ -156,6 +192,7 @@ export async function buildClientTimelineReadModel(args: {
         time_bucket: node.time_bucket,
         analysis_depth: node.analysis_depth,
         source: node.source,
+        explain: explainProjection.get(node.id),
       })),
   }));
 
@@ -174,15 +211,6 @@ export async function buildClientTimelineReadModel(args: {
       };
     })
     .slice(0, ORCHESTRATION_TIMELINE_POLICY.maxDependencyRows);
-
-  const top_7d = (pack.top_7d ?? pack.top_actions?.top_actions_7d ?? []).slice(
-    0,
-    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
-  );
-  const top_30d = (pack.top_30d ?? pack.top_actions?.top_actions_30d ?? []).slice(
-    0,
-    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
-  );
 
   const status = args.restrictedClientView
     ? 'restricted_client_view'

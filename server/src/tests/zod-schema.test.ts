@@ -116,6 +116,18 @@ describe('zodToJsonSchema — nullable & optional wrappers', () => {
     expect(result.required).toContain('required_field');
     expect(result.required).not.toContain('optional_field');
   });
+
+  it('default unwraps to inner schema', () => {
+    const result = zodToJsonSchema(z.array(z.string()).default([]));
+    expect(result).toMatchObject({ type: 'array', items: { type: 'string' } });
+  });
+});
+
+describe('zodToJsonSchema — literal', () => {
+  it('converts literal number into const schema', () => {
+    const result = zodToJsonSchema(z.literal(1));
+    expect(result).toMatchObject({ const: 1 });
+  });
 });
 
 // ─── Full schema shapes ────────────────────────────────────────────────────

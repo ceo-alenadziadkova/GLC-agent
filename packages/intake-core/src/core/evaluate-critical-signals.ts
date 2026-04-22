@@ -26,6 +26,9 @@ export interface CriticalSignalsPilotArtifactV1 {
 }
 
 const ART = criticalSignals as CriticalSignalsPilotArtifactV1;
+const UNKNOWN_BLOCKS_AUDIT_READY_RULE = 'unknown_blocks_audit_ready';
+
+type SignalEvidenceSource = 'explicit' | 'recon_confirmed' | 'imported' | 'inferred';
 
 function responseSource(value: unknown): string | undefined {
   if (value && typeof value === 'object' && !Array.isArray(value) && 'source' in (value as Record<string, unknown>)) {
@@ -49,6 +52,20 @@ function minConfidence(
     high: 3,
   };
   return rank[a] < rank[b] ? a : b;
+}
+
+function clampUnknownConfidenceFloor(value: IntakeCriticalSignalConfidence): IntakeCriticalSignalConfidence {
+  // Unknown input is never positive evidence; keep confidence at low/unknown.
+  if (value === 'high' || value === 'medium') return 'low';
+  return value;
+}
+
+function normalizeSource(value: string | undefined): SignalEvidenceSource | null {
+  if (!value) return null;
+  if (value === 'explicit' || value === 'recon_confirmed' || value === 'imported' || value === 'inferred') {
+    return value;
+  }
+  return null;
 }
 
 /**
@@ -77,6 +94,19 @@ export function evaluateCriticalSignalsPilot(args: {
   for (const [signalKey, def] of Object.entries(ART.signals)) {
     let signalWorst: IntakeCriticalSignalConfidence = 'high';
     let evaluatedAnyEligibleBank = false;
+    trace.push({
+      code: 'critical_signal_metadata_applied',
+      semanticCause:
+        'Critical signal metadata (source priority, evidence type, conflict rule, unknown rule) applied for evaluation',
+      signalKey,
+      detail: {
+        normalizerRef: def.normalizerRef,
+        sourcesByPriority: def.sourcesByPriority ?? [],
+        evidenceType: def.evidenceType ?? null,
+        conflictResolutionRule: def.conflictResolutionRule ?? null,
+        unknownHandlingRule: def.unknownHandlingRule ?? null,
+      },
+    });
 
     for (const bankId of def.bankIds) {
       if (!eligible.has(bankId)) {
@@ -103,12 +133,15 @@ export function evaluateCriticalSignalsPilot(args: {
         continue;
       }
       if (
-        ART.unknownBlocksAuditReady &&
+        (def.unknownHandlingRule === UNKNOWN_BLOCKS_AUDIT_READY_RULE || ART.unknownBlocksAuditReady) &&
         !INTAKE_UNKNOWN_POLICY.unknownMaySatisfyAuditReadiness &&
         isUnknownSourced(cell)
       ) {
         satisfied = false;
-        signalWorst = minConfidence(signalWorst, INTAKE_UNKNOWN_POLICY.maxConfidenceFromUnknown);
+        signalWorst = minConfidence(
+          signalWorst,
+          clampUnknownConfidenceFloor(INTAKE_UNKNOWN_POLICY.maxConfidenceFromUnknown),
+        );
         trace.push({
           code: 'critical_signal_unknown_source',
           semanticCause: `Pilot critical signal "${signalKey}" is unknown-sourced; cannot authorize audit_ready without explicit evidence`,
@@ -116,11 +149,35 @@ export function evaluateCriticalSignalsPilot(args: {
           questionId: bankId,
         });
       } else {
+        const rawSource = responseSource(cell);
+        const source = normalizeSource(rawSource);
+        const sourcePriority = def.sourcesByPriority ?? [];
         const policyEntry = INTAKE_CRITICAL_SIGNAL_REGISTRY_POLICY[signalKey];
         const policyFloor = policyEntry?.minimumConfidenceForAuditReady ?? 'low';
         const answeredConfidence: IntakeCriticalSignalConfidence =
-          policyFloor === 'high' ? 'high' : policyFloor === 'medium' ? 'medium' : 'medium';
-        signalWorst = minConfidence(signalWorst, answeredConfidence);
+          policyFloor === 'high' ? 'high' : policyFloor === 'medium' ? 'medium' : 'low';
+        let sourceBoundedConfidence: IntakeCriticalSignalConfidence = answeredConfidence;
+        if (sourcePriority.length > 0 && rawSource) {
+          const idx = source ? sourcePriority.indexOf(source) : -1;
+          if (idx < 0) {
+            sourceBoundedConfidence = 'low';
+            trace.push({
+              code: 'critical_signal_source_priority_miss',
+              semanticCause:
+                'Answer source is not present in critical signal source priority list; confidence is bounded to low',
+              signalKey,
+              questionId: bankId,
+              detail: {
+                source: rawSource,
+                sourcesByPriority: sourcePriority,
+              },
+            });
+          } else if (idx >= 2) {
+            // Lower-priority sources cannot elevate confidence above low in the pilot.
+            sourceBoundedConfidence = 'low';
+          }
+        }
+        signalWorst = minConfidence(signalWorst, sourceBoundedConfidence);
       }
     }
 

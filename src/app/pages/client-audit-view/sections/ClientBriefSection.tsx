@@ -120,6 +120,18 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
     clientIntakeSurface,
     briefSlaMode,
   );
+  const serverVisibleQuestionIds = useMemo(() => {
+    const qs = briefQuery.data?.questions;
+    if (!Array.isArray(qs)) return undefined;
+    const ids = qs
+      .map((q): string | null =>
+        q && typeof q === 'object' && 'id' in (q as Record<string, unknown>)
+          ? String((q as { id?: unknown }).id ?? '')
+          : null,
+      )
+      .filter((id): id is string => Boolean(id && id.length > 0));
+    return ids.length > 0 ? ids : undefined;
+  }, [briefQuery.data?.questions]);
 
   async function handleSave() {
     setSaving(true);
@@ -238,18 +250,29 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
               reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
             {briefLayoutChoice === 'wizard' &&
-            briefQuery.data?.readiness?.auditReadinessStatus === 'blocked' ? (
-              <Callout intent="warning">
+            (briefQuery.data?.readiness?.auditReadinessStatus === 'blocked' ||
+              briefQuery.data?.readiness?.auditReadinessStatus === 'ready_with_caveats') ? (
+              <Callout
+                intent={
+                  briefQuery.data?.readiness?.auditReadinessStatus === 'blocked' ? 'warning' : 'info'
+                }
+              >
                 <div className="space-y-2 px-3 py-2 text-xs text-[var(--text-secondary)]">
                   <p className="font-semibold text-[var(--text-primary)]">
                     {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}
                   </p>
-                  <p>{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessBlockedLead}</p>
+                  <p>
+                    {briefQuery.data?.readiness?.auditReadinessStatus === 'blocked'
+                      ? INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessBlockedLead
+                      : INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessCaveatsLead}
+                  </p>
                   {(briefQuery.data.readiness.trace ?? []).length > 0 ? (
                     <ul className="list-disc pl-4 space-y-1">
-                      {(briefQuery.data.readiness.trace ?? []).map((t, i) => (
-                        <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
-                      ))}
+                      {(briefQuery.data.readiness.trace ?? [])
+                        .filter(t => Boolean(t.semanticCause))
+                        .map((t, i) => (
+                          <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                        ))}
                     </ul>
                   ) : null}
                   {briefQuery.data.remediation_queue != null && briefQuery.data.remediation_queue.length > 0 ? (
@@ -299,6 +322,7 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
                       : undefined
                   }
                   productMode={briefSlaMode}
+                  serverVisibleQuestionIds={serverVisibleQuestionIds}
                 />
               ) : (
                 <BankClassicBriefFields

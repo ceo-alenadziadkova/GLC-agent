@@ -195,9 +195,24 @@ export class PipelineOrchestrator {
   }
 
   /**
+   * Retry a domain phase (1–6) using the same isolated execution path as parallel wings.
+   * If the latest `audit_domains` row for that domain is already `completed`, collectors and
+   * LLM are skipped (idempotent retry). Does not mutate `audits.status` / `current_phase`
+   * at phase start (same as parallel isolated runs).
+   *
+   * Phase 0 and 7 must use {@link startPhase} (sequential lifecycle, gates).
+   */
+  async retryDomainPhase(phase: number): Promise<void> {
+    if (!Number.isInteger(phase) || phase < 1 || phase > 6) {
+      throw new Error(`retryDomainPhase expects integer phase 1–6, got ${phase}`);
+    }
+    await this.startPhaseIsolated(phase);
+  }
+
+  /**
    * Start a specific phase (sequential, single-phase path).
    * Handles audit-level status updates, review gates, and full error propagation.
-   * Used for Phase 0 (Recon), Phase 7 (Strategy), and direct retry calls.
+   * Used for Phase 0 (Recon), Phase 7 (Strategy), and pipeline/start-style entry.
    */
   async startPhase(phase: number): Promise<SequentialPhaseOutcome> {
     const agentClass = agentClassForPhaseOrThrow(phase);

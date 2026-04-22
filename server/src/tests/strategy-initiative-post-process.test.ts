@@ -38,6 +38,18 @@ describe('strategy-initiative-post-process', () => {
     expect(scalable?.incompatible).toBe(true);
   });
 
+  it('marks scalable path incompatible when idea-stage signals are not ready', () => {
+    const brief = buildStrategyBriefConstraintSnapshot({
+      f_idea_1: { value: 'Mostly my assumption for now', source: 'client' },
+      f_idea_2: { value: 'Broad audience for now', source: 'client' },
+      f_idea_3: { value: ['Not ready to run tests yet'], source: 'client' },
+    });
+    const [out] = postProcessStrategyInitiatives([baseInit], brief, new Map());
+    const scalable = out.execution_paths.find((p) => p.type === 'scalable');
+    expect(scalable?.incompatible).toBe(true);
+    expect(scalable?.incompatibility_reason).toBe('idea_signal_not_ready');
+  });
+
   it('verifies evidence when issue id exists for domain', () => {
     const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
     expect(verifyInitiativeEvidence(baseInit, idx)).toBe(true);

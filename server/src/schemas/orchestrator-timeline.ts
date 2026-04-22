@@ -57,6 +57,33 @@ const TimelineNodeCardSchema = z.object({
   time_bucket: z.enum(['now', 'next', 'later']).optional(),
   analysis_depth: z.enum(['baseline', 'deep']).optional(),
   source: z.enum(['strategy', 'director']).optional(),
+  explain: z
+    .object({
+      why: z.array(z.string().min(1)).optional(),
+      how: z
+        .object({
+          path_type: z.string().min(1).optional(),
+          description: z.string().min(1),
+          time_estimate: z.string().min(1).optional(),
+        })
+        .optional(),
+      impact: z
+        .object({
+          score: z.number().optional(),
+          label: z.string().min(1).optional(),
+        })
+        .optional(),
+      time: z
+        .object({
+          bucket: z.enum(['now', 'next', 'later']).optional(),
+          target_window_days: z.number().int().positive().optional(),
+          time_to_value: z.string().min(1).optional(),
+        })
+        .optional(),
+      risks: z.array(z.string().min(1)).optional(),
+      limited_context: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const TimelineLaneSchema = z.object({

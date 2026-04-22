@@ -5,6 +5,7 @@ import {
 } from '@glc/intake-core';
 
 import { PDF_PAGE_LAYOUT } from '../../../config/pdf-layout.js';
+import { REPORT_PDF_MAX_SANITIZED_TEXT_CHARS } from '../../../config/report-profiler-limits.js';
 import { PDF_THEME, pdfLocaleTag } from '../../../config/pdf-theme.js';
 
 const C = PDF_THEME;
@@ -38,9 +39,22 @@ export function fmtDate(iso: string): string {
 
 export function safeName(s: string): string {
   const max = PDF_PAGE_LAYOUT.documentMetaSafeNameMaxChars;
-  return s.replace(/[^a-zA-Z0-9\s]/g, '').trim().slice(0, max);
+  const cleaned = sanitizePdfText(s, max).replace(/[^a-zA-Z0-9\s]/g, '').trim();
+  return cleaned || 'report';
 }
 
 export function fmtOverallScoreFraction(score: number): string {
   return `${score.toFixed(1)} / 5`;
+}
+
+export function sanitizePdfText(value: string, maxChars = REPORT_PDF_MAX_SANITIZED_TEXT_CHARS): string {
+  // Strip control and bidi direction override chars to prevent visual spoofing in exported PDFs.
+  const withoutControl = value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+  const collapsedWhitespace = withoutControl.replace(/[ \t]{2,}/g, ' ').trim();
+  if (collapsedWhitespace.length <= maxChars) {
+    return collapsedWhitespace;
+  }
+  return collapsedWhitespace.slice(0, maxChars).trimEnd();
 }
