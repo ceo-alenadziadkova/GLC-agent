@@ -39,4 +39,28 @@ describe('lintIntelligenceContractV1', () => {
     });
     expect(findings.some(f => f.code === 'INTELLIGENCE_SEMANTIC_DOMAIN_INVALID')).toBe(true);
   });
+
+  it('warns when non-P0 todo review date format is invalid', () => {
+    const targetNonP0 = 'a1';
+    const findings = lintIntelligenceContractV1({
+      contractResolver: questionId => {
+        if (questionId === targetNonP0) {
+          return {
+            ...getIntakeIntelligenceContract(questionId),
+            todo: {
+              ownerDomain: 'product',
+              reviewByIsoDate: '2026/07/31',
+              todoReason: 'test-invalid-date',
+            },
+          };
+        }
+        return getIntakeIntelligenceContract(questionId);
+      },
+    });
+    expect(
+      findings.some(
+        f => f.code === 'INTELLIGENCE_TODO_REVIEW_DATE_INVALID' && f.severity === 'warn',
+      ),
+    ).toBe(true);
+  });
 });

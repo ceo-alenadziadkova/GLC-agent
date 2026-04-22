@@ -18,7 +18,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('tell us about your business') || text.includes('anything else')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_GENERIC',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" may be too generic; ensure decision impact is explicit.`,
       detail: label,
     });
@@ -26,7 +26,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('do you agree') || text.includes('is it important')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_LEADING',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" may be leading; wording should remain neutral.`,
       detail: label,
     });
@@ -34,7 +34,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes(' and ') && (text.includes('?') || text.includes(','))) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_DOUBLE_BARRELED',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" may include multiple prompts in one sentence.`,
       detail: label,
     });
@@ -48,7 +48,7 @@ function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceC
   if (!todo) {
     findings.push({
       code: 'INTELLIGENCE_TODO_METADATA_MISSING',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" is outside P0 but missing todo metadata (ownerDomain/reviewByIsoDate/todoReason).`,
       detail: questionId,
     });
@@ -57,7 +57,7 @@ function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceC
   if (!todo.ownerDomain || !todo.reviewByIsoDate || !todo.todoReason) {
     findings.push({
       code: 'INTELLIGENCE_TODO_METADATA_INCOMPLETE',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" has incomplete todo metadata.`,
       detail: questionId,
     });
@@ -65,7 +65,7 @@ function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceC
   if (!isValidIntakeIntelligenceTodo(todo)) {
     findings.push({
       code: 'INTELLIGENCE_TODO_REVIEW_DATE_INVALID',
-      severity: 'warning',
+      severity: 'warn',
       message: `question "${questionId}" todo.reviewByIsoDate must use YYYY-MM-DD format.`,
       detail: todo.reviewByIsoDate,
     });
