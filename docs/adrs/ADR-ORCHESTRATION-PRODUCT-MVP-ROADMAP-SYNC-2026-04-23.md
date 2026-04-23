@@ -4,7 +4,7 @@
 **Date:** 2026-04-23 (resync)  
 **Replaces / duplicates:** the chat-only “Orchestrator + Client Roadmap v8” plan; canonical rollout rows remain in [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](./ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md).
 
-This document reconciles the v8 plan with the **current repository** so backlog estimates, file paths, and **done vs remaining** work match reality. Many v8 line items were already implemented when v8 was written; do not schedule duplicate effort.
+This document reconciles the v8 plan with the **current repository** so backlog estimates, file paths, and **done vs remaining** work match reality. Many v8 line items were already implemented when v8 was written; do not schedule duplicate effort. For a **post–MVP (v9) delta** (what is shipped vs what is ops/verification), see [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md).
 
 **DoD-1 (ADR-CLIENT *Current UX gaps* vs V-rows):** some v8 checklists ask for an “empty” gap list. We **do not** delete the four strategic gap bullets in [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](./ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md#current-ux-gaps-to-close) — that would lose intent. Instead, that section is **reconciled** (2026-04-23) with the V1–V12 table below and with the *Product MVP — §5 UX gap closers* subsection in this document (explicit **out of scope** for the minimal MVP): engineering tracks **V5–V8 / V10 / V11** row status; the four **§5-style** closers are **out of scope** for the *minimal* Product MVP until product promotes epics. **Non-negotiables** in the same ADR section (manifest, vN+1, graph SSOT) stay mandatory.
 
@@ -137,14 +137,15 @@ Focus order for **net-new** work, given much of v8 is already shipped:
 
 1. **Ops:** wire DoD-4 SLO panels/alerts in Grafana (or chosen observer) per [DEPLOYMENT.md](../DEPLOYMENT.md).
 2. **V3:** any new ADR v1.1 field → Zod + parity test in one PR; optional `ARCHITECTURE.md` note when `pack.version=2` narrative changes.
-3. **E2E:** expand orchestration E2E matrix when creds are stable; optional full UI consultant path behind env.
-4. **§5 gap closers:** only when product promotes them from “out of scope” to explicit epics.
+3. **E2E:** expand orchestration E2E **non-skip** coverage when creds are stable; optional `E2E_ORCHESTRATION_STRICT=1` — see [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md).
+4. **§5 gap closers:** **code shipped** (flags); product promotion controls rollout, not a net-new build — see the §5 table earlier in this document and the v9 delta ADR.
 5. **V5 polish:** only if perf UX reports justify (profiler + `orchestration-ui-limits`).
 
 ---
 
 ## References
 
+- Post–MVP (v9) **delta** (ops, E2E KPI, naming): [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md)
 - Rollout and V1–V12 rows: [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](./ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md)
 - Client UX gaps list: [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](./ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md)
 - ADR v1.1: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md](./ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md)

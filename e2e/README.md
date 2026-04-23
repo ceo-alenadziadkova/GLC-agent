@@ -18,6 +18,8 @@ pnpm run test:e2e
 
 **Canonical telemetry names** for LLM cost/cache dashboards: `kpi_orchestration_llm_cache_hit_rate` and `kpi_orchestration_llm_cost_per_audit_usd` (see [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](../docs/adrs/ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md) and `server/src/config/orchestration-telemetry-policy.ts`).
 
+**KPI (CI):** when `E2E_ORCHESTRATION_JSON=1`, Playwright writes `test-results/orchestration-e2e.json` and the follow-up step runs `node scripts/e2e-orchestration-kpi.mjs`, which logs a line such as `e2e_orchestration_kpi total=… non_skip_percent=…`. Set repository variable **`E2E_ORCHESTRATION_STRICT=1`** to fail the job if `E2E_ORCHESTRATION_AUDIT_ID` and `E2E_ORCHESTRATION_AUTH_TOKEN` are set but **every** orchestration test was skipped (forces real API coverage when creds exist). Locals: `E2E_ORCHESTRATION_JSON=1 pnpm run test:e2e:orchestration && pnpm run e2e:orchestration:kpi`.
+
 ## Post–v9 DoD (optional backlog, not required for merge)
 
 Larger product follow-ups: unified governance state machine service, IndexedDB for revision history, “commit scenario from compare” in the manifest wizard, cockpit activity feed. Tracked as engineering backlog; out of v9 minimal DoD.

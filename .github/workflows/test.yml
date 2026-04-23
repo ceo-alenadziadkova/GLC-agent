@@ -159,9 +159,19 @@ jobs:
         run: pnpm run test:e2e:orchestration
         env:
           CI: 'true'
+          E2E_ORCHESTRATION_JSON: '1'
           E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
           E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
           E2E_ORCHESTRATION_UI: '1'
           E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
           E2E_CONSULTANT_E2E_EMAIL: ${{ secrets.E2E_CONSULTANT_E2E_EMAIL }}
           E2E_CONSULTANT_E2E_PASSWORD: ${{ secrets.E2E_CONSULTANT_E2E_PASSWORD }}
+      - name: Orchestration E2E KPI (non-skip %)
+        if: always()
+        run: node scripts/e2e-orchestration-kpi.mjs
+        env:
+          CI: 'true'
+          E2E_ORCHESTRATION_JSON: '1'
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_ORCHESTRATION_STRICT: ${{ vars.E2E_ORCHESTRATION_STRICT }}
