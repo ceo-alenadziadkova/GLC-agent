@@ -44,6 +44,22 @@ A post-MVP roadmap (“v9 full product”) must not be confused with a greenfiel
 - [ ] CI: orchestration E2E job prints KPI lines from `e2e-orchestration-kpi.mjs` (and optional `E2E_ORCHESTRATION_STRICT=1` when the org enforces non-skip).
 - [ ] V4 UI: only after [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](./ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) (or equivalent) is **Accepted**.
 
+## Stale v9 blackdraft pitfalls
+
+Pitfalls below apply to long **external** v9 “full product” write-ups (chat exports, one-off PM docs) that are **not** updated when the tree changes. They **sound** like a full gap list, but a large share of P-1–P-6, P-9, and P-11 is **already in tree** (see **Decision** above and the §5 table in the companion sync ADR). **Do not** paste those blackdrafts into sprint planning without reconciling them to this document — you will double-schedule work and chase wrong file names and metric strings.
+
+| Blackdraft pitfall | Canonical correction |
+| --- | --- |
+| `kpi_llm_cache_hit_rate` / `kpi_llm_cost_per_audit_usd` | Use **`kpi_orchestration_llm_*`** (see **Decision** §1). |
+| “No server memo for `manifest-preview`” | **Memo exists** — [`roadmap-manifest-preview-memo.ts`](../../server/src/services/orchestration/roadmap-manifest-preview-memo.ts). |
+| `orchestration-synthesis.service.ts`, `director/deep-dive-*.service.ts` | See **Decision** §3; deep-dive is not a single `deep-dive-*.service.ts` file name. |
+| Phase plan Ψ1 ‖ Ψ2 → Ψ3 → Ψ4 ‖ Ψ8 → Ψ5 → Ψ7 → Ψ9 → Ψ10 with Ψ2–Ψ5, Ψ7, Ψ8 as long parallel tranches | Ψ2–Ψ5, Ψ7, Ψ8 are **largely shipped**; the **remaining** critical path is **ops (Ψ1)**, **E2E non-skip + secrets (Ψ9)**, **bundle regression (Ψ10)**, and **V4 (Ψ6) as a product/flag gate** when the ADR is Accepted — not a multi-week “build the schema from scratch” if Zod + UI already exist. |
+| “New” component paths (e.g. `ScenarioComparisonDialog.tsx`) | Treat any specific filename in an old blackdraft as **suspect**; the implementation may live under CTA, wizard, or `src/app/lib/` — **grep / read `src/`** before scheduling UI work. |
+| E2E “matrix” table with a single **Env** column for every spec | Not all `e2e/orchestration-*.spec.ts` files use the same env; **authoritative** list: [`e2e/README.md`](../../e2e/README.md) and the specs themselves. “Green” CI without secrets is often **all skipped** — use KPI output + optional `E2E_ORCHESTRATION_STRICT` (see **Decision** §4). |
+| `pnpm test --filter orchestration` in verification boilerplate | The repo’s verification commands are `pnpm verify:orchestration-contract`, `audit:orchestration-telemetry`, and bundle audit — do **not** assume a pnpm `orchestration` filter exists unless the root `package.json` defines it. |
+
+**Valid backlog (not in DoD-7):** pack single-cache, `governance.service.ts` state machine, ESLint for lane literals, IndexedDB for revision history — see sync ADR and [`e2e/README.md`](../../e2e/README.md) “post–v9” notes; they are **engineering follow-ups**, not a duplicate of shipped v9 surfaces.
+
 ## References
 
 - [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md)
