@@ -21,6 +21,7 @@ import { postOrchestrationPackRegenerateController } from './controllers/post-or
 import { getOrchestrationPackController } from './controllers/get-orchestration-pack.controller.js';
 import { getOrchestrationPackDiffController } from './controllers/get-orchestration-pack-diff.controller.js';
 import { getOrchestrationPackDiffHistoryController } from './controllers/get-orchestration-pack-diff-history.controller.js';
+import { getOrchestrationSprintExportController } from './controllers/get-orchestration-sprint-export.controller.js';
 import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
 import { postOrchestratorPreviewController } from './controllers/post-orchestrator-preview.controller.js';
 import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
@@ -125,6 +126,12 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getOrchestrationPackDiffHistoryController,
+);
+auditsRouter.get(
+  '/:id/orchestration/sprint-export',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationSprintExportController,
 );
 auditsRouter.post(
   '/:id/orchestrator/preview',

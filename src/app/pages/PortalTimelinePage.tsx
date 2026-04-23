@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { ArrowsClockwise, FileText, Flask } from '@phosphor-icons/react';
+import { ArrowsClockwise, DownloadSimple, FileText, Flask } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -367,6 +367,7 @@ export function PortalTimelinePage() {
   );
 
   const [executionPackConfirmNodeId, setExecutionPackConfirmNodeId] = useState<string | null>(null);
+  const [sprintExportBusy, setSprintExportBusy] = useState(false);
 
   const packForCrossLaneNarrative = useMemo(() => {
     const raw = audit?.strategy?.glc_orchestration_pack;
@@ -517,6 +518,25 @@ export function PortalTimelinePage() {
     },
     [id, queryClient, timeline?.version.latest_manifest_snapshot_id],
   );
+
+  const downloadSprintPlanCsv = useCallback(async () => {
+    if (!id) return;
+    setSprintExportBusy(true);
+    try {
+      const csv = await api.downloadOrchestrationSprintExportCsv(id);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sprint-plan-${id.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(ORCHESTRATION_UI_COPY.sprintExportCsvError);
+    } finally {
+      setSprintExportBusy(false);
+    }
+  }, [id]);
 
   const milestoneTopActionPlan = useMemo(() => {
     if (!timeline) {
@@ -877,25 +897,30 @@ export function PortalTimelinePage() {
   return (
     <AppShell title={ORCHESTRATION_UI_COPY.timelineTitle} subtitle={timelinePageSubtitle}>
       <div className="mx-auto max-w-3xl space-y-6 ds-pattern-page-shell-body">
-        <div className="glc-soft-panel flex flex-wrap gap-2 p-4">
-          <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={auditHref}>{CLIENT_AUDIT_VIEW_COPY.cockpit.title}</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={reportHref}>
-              <FileText className="h-4 w-4" />
-              {CLIENT_AUDIT_VIEW_COPY.cockpit.openFullReport}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={labManifestFlowHref}>
-              <Flask className="h-4 w-4" />
-              {CLIENT_AUDIT_VIEW_COPY.cockpit.adjustScopeTitle}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={roadmapHref}>{'Roadmap schedule'}</Link>
-          </Button>
+        <div className="space-y-3">
+          <div className="glc-soft-panel flex flex-wrap gap-2 p-4">
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={auditHref}>{CLIENT_AUDIT_VIEW_COPY.cockpit.title}</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={reportHref}>
+                <FileText className="h-4 w-4" />
+                {CLIENT_AUDIT_VIEW_COPY.cockpit.openFullReport}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={labManifestFlowHref}>
+                <Flask className="h-4 w-4" />
+                {CLIENT_AUDIT_VIEW_COPY.cockpit.adjustScopeTitle}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="no-underline">
+              <Link to={roadmapHref}>{'Roadmap schedule'}</Link>
+            </Button>
+          </div>
+          {timeline && timeline.status !== 'missing_pack' && !timelineQuery.isPending && !timelineQuery.error ? (
+            <p className="text-sm leading-relaxed text-[var(--text-tertiary)] px-1">{ORCHESTRATION_UI_COPY.timelineExecutionRealismNote}</p>
+          ) : null}
         </div>
         {timelineQuery.isPending && (
           <div className="flex h-40 items-center justify-center">
@@ -1229,9 +1254,28 @@ export function PortalTimelinePage() {
                             ))}
                           </ul>
                         )}
-                        <Button asChild variant="outline" size="sm" className="no-underline">
-                          <Link to={labHref}>{ORCHESTRATION_UI_COPY.executionPacksCtaLab}</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild variant="outline" size="sm" className="no-underline">
+                            <Link to={labHref}>{ORCHESTRATION_UI_COPY.executionPacksCtaLab}</Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={sprintExportBusy}
+                            onClick={() => void downloadSprintPlanCsv()}
+                            className="inline-flex items-center gap-1.5"
+                          >
+                            {sprintExportBusy ? (
+                              <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                            ) : (
+                              <DownloadSimple className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            )}
+                            {sprintExportBusy
+                              ? ORCHESTRATION_UI_COPY.sprintExportCsvBusy
+                              : ORCHESTRATION_UI_COPY.sprintExportCsvCta}
+                          </Button>
+                        </div>
                       </>
                     ) : null}
                   </div>

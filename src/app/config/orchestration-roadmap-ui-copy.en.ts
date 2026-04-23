@@ -38,6 +38,9 @@ export const ORCHESTRATION_UI_COPY = {
   previewLanesIncluded: 'Lanes in scope',
   previewLanesCut: 'Lanes outside current coverage',
   previewWaitingList: 'Waiting list (not in this audit)',
+  /** Shown when cross-domain conflict synthesis may be evidence-limited. */
+  conflictSynthesisNote:
+    'When the roadmap lists “synthesis” trade-offs, some rows may be marked as pending: that means the system is holding a hypothesis until intake or domain evidence fills the gap. It is not a fact-checker claim for the whole plan.',
   previewCompression: 'Execution compression hint',
   previewDensity: 'Planning density',
   roadmapVersionLabel: 'Roadmap version',
@@ -76,6 +79,9 @@ export const ORCHESTRATION_UI_COPY = {
   timelineLoadFailed: 'Could not load execution timeline',
   timelineTitle: 'Execution timeline',
   timelineHint: 'Critical path grouped into planning buckets; lanes show parallel tracks.',
+  /** Execution realism — plan sequencing vs people/calendar capacity. */
+  timelineExecutionRealismNote:
+    'This view sequences work by dependencies and lanes — it does not replace team capacity planning, FTE load, or your real sprint calendar.',
   timelineStateMissingPack:
     'No execution pack is saved yet, so the seasonal timeline is empty. Your consultant confirms scope in Strategy Lab, saves a manifest snapshot, then builds the pack — after that, this view fills in automatically.',
   /** Prominent empty-state title when pack is missing or manifest is stale */
@@ -212,7 +218,7 @@ export const ORCHESTRATION_UI_COPY = {
   /** Portal timeline — saved Strategy Lab execution packs (optional server feature). */
   executionPacksSectionTitle: 'Execution detail packs',
   executionPacksSectionHint:
-    'Deeper initiative breakdowns from Strategy Lab (extra AI pass). Use Detail pack on “Top actions” for a one-click request, or open Lab for multi-select and path options.',
+    'Deeper initiative breakdowns from Strategy Lab (extra AI pass). Use Detail pack on “Top actions” for a one-click request, or open Lab for multi-select and path options. Success metrics and review cadence in a pack are planning templates — track real business outcomes in your own analytics or CRM; GLC does not connect to your live data.',
   /** Portal timeline — one initiative per request; same server route as Strategy Lab execution pack. */
   executionPackFromTopActionsHint:
     'Each Detail pack request runs one on-demand AI pass (billed like Strategy Lab). One initiative per request from this view. You can start another request while one is running; each is processed separately.',
@@ -242,6 +248,10 @@ export const ORCHESTRATION_UI_COPY = {
   executionPacksLoadError: 'Execution pack history is unavailable (feature off or network error).',
   executionPacksRowInitiativesLabel: 'initiatives',
   executionPacksCtaLab: 'Open Strategy Lab',
+  /** Portal timeline — CSV download of plan rows (orchestration + latest execution pack). */
+  sprintExportCsvCta: 'Download sprint plan (CSV)',
+  sprintExportCsvBusy: 'Preparing file…',
+  sprintExportCsvError: 'Could not download the sprint plan.',
   bucketNear: 'Near term',
   bucketMid: 'Mid term',
   bucketFar: 'Later',
@@ -609,7 +619,9 @@ export const ORCHESTRATION_LANE_LABELS = {
   product_change: 'Product / change',
   tech_delivery: 'Tech and delivery',
   marketing_narrative: 'Marketing and narrative',
+  gtm_sales: 'GTM and revenue',
   seo: 'SEO',
+  research: 'Research and validation',
   processes_automation: 'Processes and automation',
   risk_compliance: 'Risk and compliance',
 } as const;
@@ -618,7 +630,9 @@ export const ORCHESTRATION_LANE_PROMISES: Record<OrchestrationLaneId, string> = 
   product_change: 'Clarify what to ship and when value appears.',
   tech_delivery: 'Reduce delivery risk with implementation sequencing.',
   marketing_narrative: 'Align positioning and messaging with execution.',
+  gtm_sales: 'Sequence pipeline, offers, and enablement with delivery dates.',
   seo: 'Build compounding organic acquisition foundations.',
+  research: 'Run discovery and evidence-building before you scale build or spend.',
   processes_automation: 'Remove operational drag with repeatable systems.',
   risk_compliance: 'Protect growth with explicit controls and safeguards.',
 };

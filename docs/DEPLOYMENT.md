@@ -488,6 +488,8 @@ Related keys: `kpi_orchestration_timeline_view`, `kpi_orchestration_timeline_run
 
 **Grafana (or Datadog) — minimum Product MVP dashboard rows**
 
+Ops handoff (checklist, KPI field table, probes): [docs/operations/orchestration-observability-dod4.md](./operations/orchestration-observability-dod4.md).
+
 Wire log/metric queries to the labels your platform already indexes (route, `component:audits`, `metric` on structured lines, etc.):
 
 | Row | Query intent | Alert (suggested) |

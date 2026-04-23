@@ -66,6 +66,16 @@ export const ORCHESTRATION_LANE_PAIR_NARRATIVE_REGISTRY: Record<string, string> 
     'Compliance and infrastructure trade-offs are explicit: resolve security gates in parallel with release windows, not as an afterthought.',
   [`marketing_narrative|seo`]:
     'Search and narrative programs share discovery surfaces: align measurement and messaging before splitting budgets across channels.',
+  [`gtm_sales|marketing_narrative`]:
+    'GTM and campaigns must hand off cleanly: lock ICP, message, and pipeline stages before you scale spend across channels.',
+  [`gtm_sales|product_change`]:
+    'Revenue motion and what ships in-product are coupled—sequence packaging, proof, and release windows as one thread.',
+  [`gtm_sales|tech_delivery`]:
+    'Sales tooling and platform delivery are linked: don’t open demand without the surfaces and data paths that can convert it.',
+  [`product_change|research`]:
+    'Product bets and research threads must hand off: lock what is validated (and what is not) before you expand build scope.',
+  [`gtm_sales|research`]:
+    'GTM and validation work share proof: know what the market signal is before you scale pipeline or message spend.',
 };
 
 export function formatLanePairHeadline(

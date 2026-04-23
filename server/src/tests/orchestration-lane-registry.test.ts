@@ -4,16 +4,18 @@ import { getLaneRegistryEntry, sortLaneIdsByRegistry } from '../config/orchestra
 
 describe('orchestration-lane-registry', () => {
   it('sorts lanes by priority', () => {
-    expect(sortLaneIdsByRegistry(['seo', 'product_change', 'tech_delivery'])).toEqual([
+    expect(sortLaneIdsByRegistry(['seo', 'gtm_sales', 'product_change', 'tech_delivery'])).toEqual([
       'product_change',
       'tech_delivery',
+      'gtm_sales',
       'seo',
     ]);
   });
 
-  it('returns fallback meta for unknown lane', () => {
-    const m = getLaneRegistryEntry('research');
-    expect(m.priorityOrder).toBe(999);
-    expect(m.copyKey).toBe('research');
+  it('resolves research lane and fallback for unknown ids', () => {
+    expect(getLaneRegistryEntry('research').priorityOrder).toBe(45);
+    const unknown = getLaneRegistryEntry('future_lane');
+    expect(unknown.priorityOrder).toBe(999);
+    expect(unknown.copyKey).toBe('future_lane');
   });
 });

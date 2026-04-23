@@ -340,6 +340,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
 | `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
 | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **GET pack** is a thin read of `audit_strategy` after access check) |
+| `GET /api/audits/:id/orchestration/sprint-export` | yes | yes | Tabular **export** (JSON/CSV) of graph nodes; optional join with latest execution pack — same RLS/ownership as **GET pack**; portal **guest** rejected where pack routes reject guests |
 | `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
@@ -687,6 +688,44 @@ Lists recent persisted diff history for an audit.
 **Response `200`:** `{ "items": [ { "from_version", "to_version", "diff": { ... } } ], "latest_plan_governance": { ... } | null }`
 
 **Errors:** `400 AUDITS_ORCHESTRATION_PACK_DIFF_QUERY_INVALID`, `500 AUDITS_ORCHESTRATION_PACK_DIFF_FETCH_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/sprint-export`
+
+Flattens the **persisted** orchestration pack graph into tabular rows for PM export. Optionally enriches rows with the latest on-demand **strategy execution pack** tasks and outcome fields per initiative. Same access as `GET /api/audits/:id/orchestration/pack` (consultant/owner; **rejects** portal guest).
+
+**Query params (optional):**
+
+- `format` — `json` (default) or `csv` (`csv` returns `text/csv; charset=utf-8` with `Content-Disposition: attachment`)
+- `execution_pack` — set to `0` to **omit** joining the latest strategy execution pack; otherwise the server best-effort joins tasks/metrics by initiative
+
+**Response `200` (`format=json`):**
+
+```json
+{
+  "audit_id": "uuid",
+  "orchestration_pack_version": 0,
+  "rows": [
+    {
+      "epic_id": "string",
+      "epic_title": "string",
+      "lane": "string",
+      "sprint_bucket": "string",
+      "season_index": 0,
+      "task_order": 0,
+      "task_title": "string",
+      "success_metric": "string",
+      "baseline": "string",
+      "review_cadence": "string"
+    }
+  ]
+}
+```
+
+**Response `200` (`format=csv`):** CSV with a header row; empty string cells where no task or metric is present.
+
+**Errors:** `404` when the audit is missing, access denied, or no saved orchestration pack; `500` on load failure.
 
 ---
 

@@ -20,6 +20,7 @@ export {
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationSprintExport,
   apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiff,

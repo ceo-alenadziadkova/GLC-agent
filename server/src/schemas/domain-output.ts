@@ -239,6 +239,14 @@ export const StrategyExecutionPackItemSchema = z.object({
   artifacts: z.array(z.string().min(1).max(EP.artifactMaxLength)).max(EP.artifactsMax).optional(),
   templates: z.array(z.string().min(1).max(EP.templateMaxLength)).max(EP.templatesMax).optional(),
   prompts: z.array(z.string().min(1).max(EP.promptMaxLength)).max(EP.promptsMax).optional(),
+  /** How delivery will be validated — all fields optional for backward compatibility. */
+  outcome_measurement: z
+    .object({
+      success_metric: z.string().min(1).max(EP.outcomeMetricMaxLength).optional(),
+      baseline: z.string().min(1).max(EP.baselineMaxLength).optional(),
+      review_cadence: z.string().min(1).max(EP.reviewCadenceMaxLength).optional(),
+    })
+    .optional(),
 });
 
 export const StrategyExecutionPackOutputSchema = z.object({

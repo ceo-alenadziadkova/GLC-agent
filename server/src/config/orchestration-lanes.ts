@@ -16,7 +16,9 @@ export const ORCHESTRATION_LANE_IDS = [
   'product_change',
   'tech_delivery',
   'marketing_narrative',
+  'gtm_sales',
   'seo',
+  'research',
   'processes_automation',
   'risk_compliance',
 ] as const;
@@ -52,9 +54,12 @@ export function mapStrategyInitiativeDomainToLane(domain: StrategyInitiativeDoma
     case 'cross_domain':
     case 'operations':
     case 'finance':
+      return 'product_change';
     case 'sales':
     case 'customer_success':
-      return 'product_change';
+      return 'gtm_sales';
+    case 'research':
+      return 'research';
   }
 }
 

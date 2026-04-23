@@ -32,6 +32,8 @@ export const STRATEGY_INITIATIVE_DOMAIN_KEYS = [
   'finance',
   'sales',
   'customer_success',
+  /** Discovery, validation, experiments — maps to `research` orchestration lane. */
+  'research',
 ] as const;
 
 export type StrategyInitiativeDomainKey = (typeof STRATEGY_INITIATIVE_DOMAIN_KEYS)[number];
@@ -134,6 +136,9 @@ export const STRATEGY_EXECUTION_PACK_LIMITS = {
   templatesMax: 15,
   promptMaxLength: 8000,
   promptsMax: 12,
+  outcomeMetricMaxLength: 400,
+  baselineMaxLength: 400,
+  reviewCadenceMaxLength: 120,
 } as const;
 
 /** Map intake business stage (a7) answers to initiative `stage` enum. */

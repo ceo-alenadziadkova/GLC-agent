@@ -990,6 +990,7 @@ export function StrategyLab() {
                     </div>
                   ))}
                 </div>
+                <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{STRATEGY_LAB_COPY.panel.outcomeMeasurementFooter}</p>
               </div>
             ) : null}
 

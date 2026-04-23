@@ -2,6 +2,7 @@ import {
   apiAuditsOrchestrationCommercialOffer,
   apiAuditsOrchestrationPackDiff,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationSprintExport,
   apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
@@ -16,7 +17,8 @@ import {
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
 } from '../../config/api-paths';
-import { apiFetch, apiGetJsonOrNotModified } from '../api-http';
+import { API_URL, apiFetch, apiGetJsonOrNotModified, createTraceparent, getAuthHeaders } from '../api-http';
+import { ApiError } from '../api-error';
 import type {
   GlcOrchestrationPackRevisionDiffView,
   GlcOrchestrationPackView,
@@ -417,5 +419,31 @@ export const auditsOrchestrationApi = {
       used_count: number;
       remaining: number;
     }>(apiAuditsDirectorDeepDiveQuota(auditId, domainKey), { method: 'GET' });
+  },
+
+  /**
+   * CSV sprint export: orchestration graph + optional latest execution pack tasks
+   * (`GET /api/audits/:id/orchestration/sprint-export?format=csv`).
+   */
+  async downloadOrchestrationSprintExportCsv(auditId: string): Promise<string> {
+    const path = apiAuditsOrchestrationSprintExport(auditId, { format: 'csv' });
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(`${API_URL}${path}`, {
+      method: 'GET',
+      headers: {
+        traceparent: createTraceparent(),
+        'x-operation-id': crypto.randomUUID(),
+        ...authHeaders,
+      },
+    });
+    if (!response.ok) {
+      const errBody = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
+      throw new ApiError(
+        errBody.error ?? `API error: ${response.status}`,
+        response.status,
+        typeof errBody.code === 'string' ? errBody.code : undefined,
+      );
+    }
+    return response.text();
   },
 };

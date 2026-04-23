@@ -99,6 +99,9 @@ export const STRATEGY_LAB_COPY = {
       incompatible: 'Incompatible with brief constraints',
     },
     lastExecutionPlan: 'Latest execution plan',
+    /** Closed-loop measurement (client-owned). */
+    outcomeMeasurementFooter:
+      'North Star / OKR: copy success metrics from the plan into your own goal system. Check-ins: use review cadence as a calendar reminder — this app does not send reminders or sync to CRM/analytics yet.',
     noExecutionPlans: 'No execution plans yet',
     selectedSuffix: 'selected',
     generateRoadmap: 'Generate Roadmap',

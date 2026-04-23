@@ -7,5 +7,6 @@ Rules:
 - Tasks must be ordered, actionable, and scoped to `scope.includes`; do not expand into `scope.excludes`.
 - If `selected_path_type` is `fast`, bias toward no-code / low-change sequencing. If `scalable`, allow more engineering depth. If `balanced`, mix both.
 - Prefer realistic sequencing (dependencies first). Keep language professional and concise.
+- For each pack, set `outcome_measurement` when you can: `success_metric` (one measurable signal), `baseline` (current or unknown), and `review_cadence` (e.g. weekly / end of sprint / 30d review). If evidence is too thin, omit individual fields or the whole object—do not fabricate numbers.
 
 Output: use the `submit_execution_pack` tool only. No prose outside the tool.

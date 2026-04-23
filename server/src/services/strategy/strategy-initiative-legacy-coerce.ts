@@ -31,11 +31,13 @@ function pickDomainFromText(title: string, description: string): StrategyInitiat
   if (/(market|brand|content|ads|campaign|messaging)/i.test(t)) return 'marketing_utp';
   if (/(automation|workflow|crm|zapier|integration|api)/i.test(t)) return 'automation_processes';
   if (/(infra|hosting|cdn|performance|stack|tech|devops)/i.test(t)) return 'tech_infrastructure';
+  if (/(validation|experiment|prototype|research|interview|survey|pilot study)/i.test(t)) return 'research';
   return STRATEGY_LEGACY_COERCE_DEFAULTS.domain;
 }
 
 function evidenceDomainKey(initiativeDomain: StrategyInitiativeDomainKey): DomainKey {
   if (AUDIT_DOMAIN_KEYS.has(initiativeDomain)) return initiativeDomain as DomainKey;
+  if (initiativeDomain === 'research') return 'ux_conversion';
   return 'tech_infrastructure';
 }
 

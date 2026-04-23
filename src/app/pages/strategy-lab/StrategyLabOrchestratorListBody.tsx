@@ -172,13 +172,16 @@ export function StrategyLabOrchestratorListBody({
     );
   }
   return (
-    <ul className="space-y-3">
-      {risks.map(c => (
-        <li key={c.id} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">
-          <p className="text-foreground font-semibold">{c.summary}</p>
-          <p className="text-muted-foreground mt-1">{c.resolution}</p>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-xs leading-relaxed">{ORCHESTRATION_UI_COPY.conflictSynthesisNote}</p>
+      <ul className="space-y-3">
+        {risks.map(c => (
+          <li key={c.id} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            <p className="text-foreground font-semibold">{c.summary}</p>
+            <p className="text-muted-foreground mt-1">{c.resolution}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

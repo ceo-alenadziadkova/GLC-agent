@@ -159,6 +159,19 @@ export function apiAuditsOrchestrationSelectedInitiative(auditId: string): strin
   return `${apiAuditsPath(auditId)}/orchestration/selected-initiative`;
 }
 
+export function apiAuditsOrchestrationSprintExport(
+  auditId: string,
+  query?: { format?: 'json' | 'csv'; execution_pack?: '0' | '1' },
+): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/sprint-export`;
+  if (!query) return base;
+  const sp = new URLSearchParams();
+  if (query.format) sp.set('format', query.format);
+  if (query.execution_pack != null) sp.set('execution_pack', query.execution_pack);
+  const qs = sp.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
 export function apiAuditsOrchestrationPackRegenerate(auditId: string): string {
   return `${apiAuditsOrchestrationPack(auditId)}/regenerate`;
 }

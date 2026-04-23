@@ -23,7 +23,7 @@ Each initiative is a **mini-project** with strict boundaries and evidence:
 
 - **id**: Short stable identifier (letters, digits, hyphens), e.g. `MKT-LEAD-01`.
 - **title** / **description**: Clear, business-outcome oriented.
-- **domain**: One of the allowed domain labels in the tool schema (use `cross_domain` when multiple domains are equally central).
+- **domain**: One of the allowed domain labels in the tool schema (use `cross_domain` when multiple domains are equally central; use `research` when the initiative is primarily discovery, validation experiments, or evidence-building before a larger build or spend).
 - **stage**: `idea` | `mvp` | `growth` | `scale` | `stabilization` — align with the company's maturity signals from intake when visible; otherwise choose the closest fit.
 - **priority**: `low` | `medium` | `high` | `critical` (independent from impact; may reflect urgency or governance).
 - **impact** / **effort**: Keep the coarse enums as given in the schema.

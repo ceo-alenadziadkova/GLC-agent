@@ -18,18 +18,12 @@ const BASE: Record<OrchestrationLaneId, LaneRegistryEntry> = {
   product_change: { priorityOrder: 10, copyKey: 'product_change', iconKey: 'product' },
   tech_delivery: { priorityOrder: 20, copyKey: 'tech_delivery', iconKey: 'tech' },
   marketing_narrative: { priorityOrder: 30, copyKey: 'marketing_narrative', iconKey: 'marketing' },
+  gtm_sales: { priorityOrder: 35, copyKey: 'gtm_sales', iconKey: 'sales' },
   seo: { priorityOrder: 40, copyKey: 'seo', iconKey: 'seo' },
+  research: { priorityOrder: 45, copyKey: 'research', iconKey: 'research' },
   processes_automation: { priorityOrder: 50, copyKey: 'processes_automation', iconKey: 'process' },
   risk_compliance: { priorityOrder: 60, copyKey: 'risk_compliance', iconKey: 'risk' },
 };
-
-/**
- * Research lane — reserved for future ADR; included so registry consumers never assume a fixed 6-tuple.
- * Not in `ORCHESTRATION_LANE_IDS` until product promotes domain mapping.
- */
-export const ORCHESTRATION_LANE_REGISTRY_EXTRA = {
-  research: { priorityOrder: 45, copyKey: 'research', iconKey: 'research' },
-} as const;
 
 export const ORCHESTRATION_LANE_REGISTRY: Record<OrchestrationLaneId, LaneRegistryEntry> = BASE;
 

@@ -13,7 +13,9 @@ const ORCHESTRATION_LANE_DISPLAY_ORDER_FULL = [
   'product_change',
   'tech_delivery',
   'marketing_narrative',
+  'gtm_sales',
   'seo',
+  'research',
   'processes_automation',
   'risk_compliance',
 ] as const satisfies readonly OrchestrationLaneId[];

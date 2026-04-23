@@ -6,7 +6,7 @@ import {
 } from '../../config/strategy-initiative-policy.js';
 import { fetchAuditByIdForUser } from '../../repositories/audits/audit-read-model.repository.js';
 import type { StrategyExecutionPackOutput, StrategyInitiative } from '../../schemas/domain-output.js';
-import { StrategyInitiativeSchema } from '../../schemas/domain-output.js';
+import { StrategyExecutionPackOutputSchema, StrategyInitiativeSchema } from '../../schemas/domain-output.js';
 import { supabase } from '../supabase.js';
 import { TokenTracker } from '../token-tracker.js';
 import {
@@ -154,4 +154,29 @@ export async function listStrategyExecutionPacks(args: { auditId: string; userId
     throw new StrategyExecutionPackError(error.message, 'UPSTREAM');
   }
   return data ?? [];
+}
+
+/** Latest stored execution pack payload for sprint export / tooling (optional). */
+export async function fetchLatestExecutionPackPayload(args: { auditId: string; userId: string }): Promise<{
+  id: string;
+  payload: StrategyExecutionPackOutput;
+} | null> {
+  const { data: audit, error: auditErr } = await fetchAuditByIdForUser(args.auditId, args.userId);
+  if (auditErr || !audit) {
+    throw new StrategyExecutionPackError('audit_not_found', 'NOT_FOUND');
+  }
+  const { data, error } = await supabase
+    .from('audit_strategy_execution_packs')
+    .select('id, payload')
+    .eq('audit_id', args.auditId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new StrategyExecutionPackError(error.message, 'UPSTREAM');
+  }
+  if (!data?.payload || typeof data.payload !== 'object') return null;
+  const parsed = StrategyExecutionPackOutputSchema.safeParse(data.payload);
+  if (!parsed.success) return null;
+  return { id: data.id as string, payload: parsed.data };
 }

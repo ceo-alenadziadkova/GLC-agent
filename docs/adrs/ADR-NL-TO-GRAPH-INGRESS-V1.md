@@ -6,7 +6,7 @@ Accepted (stub endpoint + client affordance; orchestration deferred).
 
 ## Context
 
-Product wants a “describe your business in natural language” step ahead of structured intake, without letting inferred text override explicit bank answers.
+Product wants a “describe your business in natural language” step ahead of structured intake, without letting inferred text override explicit bank answers. **Positioning** relative to the default audit-first contract: [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md).
 
 ## Decision
 
