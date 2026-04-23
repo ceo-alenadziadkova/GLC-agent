@@ -9,6 +9,8 @@ pnpm run test:e2e
 
 `playwright.config.ts` starts the Vite dev server automatically unless `CI` is set and a server is already running.
 
+**Local preflight (no secrets in output):** `pnpm run e2e:orchestration:preflight` — lists which `E2E_ORCHESTRATION_*` and related variables are set (see [`e2e/.env.orchestration.example`](./.env.orchestration.example)). **P0 ops checklist (secrets, SLO, export triage):** [../docs/operations/readiness-p0-e2e-orchestration-slo.md](../docs/operations/readiness-p0-e2e-orchestration-slo.md).
+
 **Orchestration E2E in CI:** [`.github/workflows/test.yml`](../.github/workflows/test.yml) runs `pnpm run test:e2e:orchestration` (all `e2e/orchestration-*.spec.ts` files) after unit tests.
 
 **Non-empty DoD (v9):** if you set repository **secrets** `E2E_ORCHESTRATION_AUDIT_ID` and `E2E_ORCHESTRATION_AUTH_TOKEN`, you must also set **repository variable** `VITE_API_URL` to the same public API origin as your deployed backend (e.g. `https://api.example.com`, no trailing slash). The workflow maps it to `E2E_VITE_API_PROXY_TARGET` so the Vite dev server’s `/api` **proxy** targets that origin; otherwise the job fails the validation step (Playwright would hit `localhost:3001` with no server). Without those secrets, protected tests **skip** (green but no real coverage).

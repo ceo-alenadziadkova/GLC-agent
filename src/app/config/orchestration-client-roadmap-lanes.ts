@@ -20,11 +20,12 @@ const ORCHESTRATION_LANE_DISPLAY_ORDER_FULL = [
   'risk_compliance',
 ] as const satisfies readonly OrchestrationLaneId[];
 
-/** MVP: 2–3 parallel tracks for client portal timeline density. */
+/** MVP: parallel tracks for client portal (subset of full; GTM when pack has gtm nodes). */
 const CLIENT_ORCHESTRATION_TIMELINE_LANE_ORDER = [
   'product_change',
   'tech_delivery',
   'marketing_narrative',
+  'gtm_sales',
 ] as const satisfies readonly OrchestrationLaneId[];
 
 export function laneIdsForOrchestrationDisplayPreset(preset: OrchestrationLaneDisplayPreset): OrchestrationLaneId[] {

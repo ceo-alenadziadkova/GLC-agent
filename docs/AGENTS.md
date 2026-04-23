@@ -26,6 +26,17 @@ See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [
 
 **Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
 
+### Additive change gate (no silent overwrite)
+
+**Stakeholder-facing summary** (product narrative, same rules): [PRODUCT.md — Stakeholder readiness contract](./PRODUCT.md#stakeholder-readiness-contract).
+
+When adding **intake assist** (NL, dictation), **orchestration export**, or **new lanes**, changes must **extend** existing contracts rather than replace them:
+
+1. **Intake** — question-bank answers and ordering stay primary; assists merge with `prefer_explicit_over_inferred` / client rules ([ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md)).
+2. **API** — new fields optional; additive migrations; existing clients must behave unchanged when flags are off.
+3. **Orchestration** — a single `glc_orchestration_pack` graph remains SSOT; exports and timeline presets are **projections** ([ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md)).
+4. **Telemetry** — new metrics use new keys; do not rename `kpi_orchestration_*` ([ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA](./adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md)).
+
 ### Legacy removal guardrail (semantic parity)
 
 Before removing a legacy compatibility branch (key alias, old payload shape, fallback mapper), verify semantic parity with the current canonical flow:

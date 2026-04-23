@@ -1,3 +1,4 @@
+import { suggestedDriLabelForLane } from '../../config/sprint-export-lane-dri-hints.js';
 import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import type { StrategyExecutionPackOutput } from '../../schemas/domain-output.js';
 
@@ -9,10 +10,22 @@ export type SprintExportRow = {
   season_index: number | '';
   task_order: number;
   task_title: string;
+  /**
+   * Default owner hint for import (role label from lane when the graph has no per-node DRI).
+   * Replace in your tracker with named people; not an authenticated identity.
+   */
+  dri: string;
   success_metric: string;
   baseline: string;
   review_cadence: string;
 };
+
+export const SPRINT_EXPORT_FORMAT_VERSION = 1 as const;
+
+export const SPRINT_EXPORT_IMPORTER_NOTES = {
+  linear: 'Import CSV as issues; use epic_id and lane as labels; season_index and sprint_bucket map to project columns.',
+  jira: 'Map CSV to fields via import; use epic_id for links; dri column carries suggested role labels from lane (replace with named owners in your org).',
+} as const;
 
 function packTasksByInitiative(payload: StrategyExecutionPackOutput | null): Map<string, { tasks: string[]; metrics?: { success?: string; baseline?: string; review?: string } }> {
   const m = new Map<string, { tasks: string[]; metrics?: { success?: string; baseline?: string; review?: string } }>();
@@ -53,6 +66,7 @@ export function buildSprintExportRows(args: {
   for (const n of nodes) {
     const bucket = n.time_bucket ?? 'next';
     const season = n.season_index ?? '';
+    const driHint = suggestedDriLabelForLane(n.lane);
     const packed = taskMap.get(n.id);
     const tasks = packed?.tasks ?? [];
     const metrics = packed?.metrics;
@@ -66,6 +80,7 @@ export function buildSprintExportRows(args: {
         season_index: season,
         task_order: 0,
         task_title: '',
+        dri: driHint,
         success_metric: metrics?.success ?? '',
         baseline: metrics?.baseline ?? '',
         review_cadence: metrics?.review ?? '',
@@ -82,6 +97,7 @@ export function buildSprintExportRows(args: {
         season_index: season,
         task_order: idx + 1,
         task_title: t,
+        dri: driHint,
         success_metric: idx === 0 ? (metrics?.success ?? '') : '',
         baseline: idx === 0 ? (metrics?.baseline ?? '') : '',
         review_cadence: idx === 0 ? (metrics?.review ?? '') : '',
@@ -99,6 +115,7 @@ const CSV_HEADER: (keyof SprintExportRow)[] = [
   'season_index',
   'task_order',
   'task_title',
+  'dri',
   'success_metric',
   'baseline',
   'review_cadence',

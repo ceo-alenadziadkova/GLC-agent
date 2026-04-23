@@ -4,6 +4,8 @@ import { API_ERROR_CODES, AUDITS_NOT_FOUND_MESSAGE } from '../../../config/api-e
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import {
+  SPRINT_EXPORT_FORMAT_VERSION,
+  SPRINT_EXPORT_IMPORTER_NOTES,
   buildSprintExportRows,
   sprintExportToCsv,
 } from '../../../services/orchestration/sprint-export.service.js';
@@ -56,6 +58,8 @@ export async function getOrchestrationSprintExportController(req: AuthRequest, r
     res.status(200).json({
       audit_id: auditId,
       orchestration_pack_version: persisted.orchestration_pack_version,
+      export_format_version: SPRINT_EXPORT_FORMAT_VERSION,
+      importer_notes: SPRINT_EXPORT_IMPORTER_NOTES,
       rows,
     });
   } catch (err) {

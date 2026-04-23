@@ -18,7 +18,7 @@ The platform’s primary contract is a **consultant-led site audit** with struct
 ## Consequences
 
 - Marketing and in-product copy should default to **audit-first**; “idea mode” is described as an assist, not a parallel product.
-- Future “idea-only” product lines require a new ADR and a dedicated validation path.
+- Future “idea-only” product lines require a new ADR and a dedicated validation path. See the **proposed** placeholder track: [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](./ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md) (not accepted product scope).
 
 ## References
 
@@ -28,5 +28,6 @@ The platform’s primary contract is a **consultant-led site audit** with struct
 
 ## Changelog
 
+- **2026-04-23:** Linked proposed idea-only line ADR (placeholders only; no product commitment).
 - **2026-04-23:** Initial ADR (readiness / positioning audit follow-up).
 - **2026-04-23:** Pointers to NL controller, `authoritative` semantics, and app flag; **References**; clarified status line.

@@ -155,6 +155,17 @@ jobs:
           E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
           E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
           E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
+      - name: Orchestration E2E preflight (redacted)
+        run: node scripts/e2e-orchestration-preflight.mjs
+        env:
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
+          E2E_CONSULTANT_E2E_EMAIL: ${{ secrets.E2E_CONSULTANT_E2E_EMAIL }}
+          E2E_CONSULTANT_E2E_PASSWORD: ${{ secrets.E2E_CONSULTANT_E2E_PASSWORD }}
+          E2E_ORCHESTRATION_UI: '1'
+          E2E_ORCHESTRATION_JSON: '1'
+          E2E_ORCHESTRATION_STRICT: ${{ vars.E2E_ORCHESTRATION_STRICT }}
       - name: Orchestration E2E (smoke; skipped without E2E_ORCHESTRATION_* — see e2e/README.md)
         run: pnpm run test:e2e:orchestration
         env:

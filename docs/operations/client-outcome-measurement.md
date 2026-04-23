@@ -2,6 +2,8 @@
 
 GLC plans include **success metrics**, **baselines**, and **review cadence** fields in execution detail packs and sprint CSV export. The platform does **not** ingest your live product analytics, CRM, or ad accounts — closed-loop proof of business outcomes remains **client-owned**.
 
+**Telemetry note:** `kpi_orchestration_*` (see [orchestration-telemetry-policy.ts](../../server/src/config/orchestration-telemetry-policy.ts)) measures **orchestration runtime health** (timelines, pack builds, costs), not pitch quality, viral outcomes, or revenue. Do not use those keys as a proxy for business success. A hypothetical **idea-only** SKU, if product ever accepts it, would use **separate** metrics — draft table in [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](../adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md) (proposed, not in force until an Accepted ADR).
+
 ## Suggested practice
 
 1. **North Star / OKR** — Copy the success metric from each initiative or execution pack row into your goal system; align one primary metric per tranche to avoid dilution.

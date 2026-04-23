@@ -630,7 +630,8 @@ export const ORCHESTRATION_LANE_PROMISES: Record<OrchestrationLaneId, string> = 
   product_change: 'Clarify what to ship and when value appears.',
   tech_delivery: 'Reduce delivery risk with implementation sequencing.',
   marketing_narrative: 'Align positioning and messaging with execution.',
-  gtm_sales: 'Sequence pipeline, offers, and enablement with delivery dates.',
+  gtm_sales:
+    'RevOps and GTM: sequence pipeline, offers, and sales enablement with clear dates. Assign owners in your tracker; sprint CSV includes a DRI column when the pack provides owner hints.',
   seo: 'Build compounding organic acquisition foundations.',
   research: 'Run discovery and evidence-building before you scale build or spend.',
   processes_automation: 'Remove operational drag with repeatable systems.',

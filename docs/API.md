@@ -706,6 +706,11 @@ Flattens the **persisted** orchestration pack graph into tabular rows for PM exp
 {
   "audit_id": "uuid",
   "orchestration_pack_version": 0,
+  "export_format_version": 1,
+  "importer_notes": {
+    "linear": "Import CSV as issues; use epic_id / lane as labels; see operations doc.",
+    "jira": "Map CSV columns to custom fields or import via CSV; dri column carries suggested role labels from lane (replace with named owners in your org)."
+  },
   "rows": [
     {
       "epic_id": "string",
@@ -715,6 +720,7 @@ Flattens the **persisted** orchestration pack graph into tabular rows for PM exp
       "season_index": 0,
       "task_order": 0,
       "task_title": "string",
+      "dri": "Marketing",
       "success_metric": "string",
       "baseline": "string",
       "review_cadence": "string"
@@ -723,7 +729,13 @@ Flattens the **persisted** orchestration pack graph into tabular rows for PM exp
 }
 ```
 
-**Response `200` (`format=csv`):** CSV with a header row; empty string cells where no task or metric is present.
+- **`export_format_version`:** additive; clients may pin imports to this version.
+- **`dri`:** suggested **function/role** label from `lane` (e.g. `marketing_narrative` → a marketing lead label) for import; replace with named owners in the tracker. If the pack graph later stores per-node owners, the server can prefer those when present (additive).
+- **`importer_notes`:** static hints only; not environment-specific.
+
+**Response `200` (`format=csv`):** CSV with a header row; empty string cells where no task or metric is present. **Canonical import doc:** [operations/sprint-export-import-ops.md](./operations/sprint-export-import-ops.md).
+
+**Additive guarantee:** this route only **reads** the persisted pack and **projects** it to a table; it does not change orchestration state.
 
 **Errors:** `404` when the audit is missing, access denied, or no saved orchestration pack; `500` on load failure.
 
@@ -1304,6 +1316,8 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 **Response `410`:** link expired.
 
 ### `POST /api/intake/:token/nl-describe`
+
+**Product contract (non-overriding):** natural-language / dictation is an **assist** to the structured brief. **Explicit question-bank answers stay primary**; the API may return `prefer_explicit_over_inferred: true` and merge hints only when policy allows. This does not replace a URL + completed intake + analysis run for evidence-linked roadmaps. See [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md).
 
 Notes:
 - Supports staged LLM rollout behind `FEATURE_NL_INGRESS_LLM` (`shadow|internal|pilot|ga`).

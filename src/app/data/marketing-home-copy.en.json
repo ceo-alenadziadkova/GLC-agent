@@ -1,6 +1,10 @@
 {
   "faqPreview": [
     {
+      "q": "Can I get a full strategic roadmap from a pitch or voice note alone?",
+      "a": "The strongest output comes from a completed structured brief and, when you have a public site, a full analysis run. Free-text and dictation can speed up the brief as non-authoritative assists; they do not replace bank answers, and we do not promise open-ended viral or channel-scale growth from a pitch without evidence. See product scope for the audit-first contract."
+    },
+    {
       "q": "What exactly do I receive after the brief?",
       "a": "A decision pack: priority map, trade-off notes, and a first sequencing plan matched to agreed scope."
     },
@@ -159,12 +163,12 @@
   "homeGuidedSelectorRecoveryCtaLabel": "Start with Brief first.",
   "homeGuidedSelectorRecoveryCtaTo": "/brief",
   "homeCompressionBridgeKicker": "Before you continue",
-  "homeCompressionBridgeSummary": "You choose one route once. We keep scope explicit, then outcomes show what you will leave with: priorities, sequencing, and visible boundaries.",
+  "homeCompressionBridgeSummary": "You choose one route once. We keep scope explicit. Full roadmaps and execution sequences are strongest when the structured brief is complete and, where applicable, built on public-site evidence and a full run—not on a one-line idea alone.",
   "homeScopeTruthKicker": "What shapes the direction",
   "homeScopeTruthTitle": "Scope is explicit before delivery",
   "homeScopeTruthBody": "We confirm coverage first, then interpret findings only within selected areas so recommendations stay useful and comparable.",
   "homeScopeTruthExpandTriggerLabel": "How we prevent false confidence",
-  "homeScopeTruthExpandBody": "If a dependency sits outside agreed coverage, it is marked as non-covered in the output. This keeps recommendations honest and prevents over-commitment on weak signal.",
+  "homeScopeTruthExpandBody": "If a dependency sits outside agreed coverage, it is marked as non-covered in the output. This keeps recommendations honest and prevents over-commitment on weak signal. Natural-language or dictated notes in intake are merged as non-authoritative hints; explicit bank answers remain primary, consistent with the audit-first product contract.",
   "homeScopeTruthCoverageItems": [
     "Business model and positioning",
     "Product and UX execution",

@@ -20,7 +20,7 @@ function makePack(lanes: GlcOrchestrationPackView['lanes']): GlcOrchestrationPac
 describe('orchestration-client-roadmap-lanes', () => {
   it('returns ordered MVP lane ids for client preset', () => {
     const ids = laneIdsForOrchestrationDisplayPreset('client_mvp');
-    expect(ids).toEqual(['product_change', 'tech_delivery', 'marketing_narrative']);
+    expect(ids).toEqual(['product_change', 'tech_delivery', 'marketing_narrative', 'gtm_sales']);
   });
 
   it('filters to lanes that have node ids, preserving preset order', () => {
@@ -28,10 +28,15 @@ describe('orchestration-client-roadmap-lanes', () => {
       marketing_narrative: ['a'],
       product_change: ['b'],
       tech_delivery: [],
+      gtm_sales: ['g'],
       seo: ['c'],
     });
     const order = laneIdsForOrchestrationDisplayPreset('client_mvp');
-    expect(visibleOrchestrationLanesForPack(pack.lanes, order)).toEqual(['product_change', 'marketing_narrative']);
+    expect(visibleOrchestrationLanesForPack(pack.lanes, order)).toEqual([
+      'product_change',
+      'marketing_narrative',
+      'gtm_sales',
+    ]);
   });
 
   it('full preset lists all lanes with data in canonical order', () => {

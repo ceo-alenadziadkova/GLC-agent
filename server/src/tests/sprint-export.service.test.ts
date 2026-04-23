@@ -40,6 +40,7 @@ describe('sprint-export.service', () => {
     const rows = buildSprintExportRows({ pack, executionPack });
     expect(rows).toHaveLength(2);
     expect(rows[0]?.task_title).toBe('Task one');
+    expect(rows[0]?.dri).toBe('RevOps / Sales');
     expect(rows[0]?.success_metric).toBe('SQLs per week');
     expect(rows[1]?.task_title).toBe('Task two');
     expect(rows[1]?.success_metric).toBe('');
@@ -55,6 +56,7 @@ describe('sprint-export.service', () => {
         season_index: 1,
         task_order: 1,
         task_title: 'Do',
+        dri: '',
         success_metric: '',
         baseline: '',
         review_cadence: '',

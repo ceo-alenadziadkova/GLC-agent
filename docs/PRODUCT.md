@@ -37,7 +37,17 @@ What this is not:
 - Not a generic AI Q&A chat without persistent business context.
 - Not a replacement for every consultant workflow; it is a structured decision and prioritization layer that can work with consultant expertise.
 
-**Positioning (audit-first vs. free-form “idea” ingress):** The default contract is a **URL + structured intake + pipeline evidence**; roadmaps and execution packs are downstream of that chain. Optional natural-language describe steps (public intake) add **non-authoritative** hints; they do not replace bank answers. A dedicated decision record: [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md).
+**Positioning (audit-first vs. free-form “idea” ingress):** The default contract is a **URL + structured intake + pipeline evidence**; roadmaps and execution packs are downstream of that chain. Optional natural-language describe steps (public intake) add **non-authoritative** hints; they do not replace bank answers. A dedicated decision record: [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md). A **proposed** (not current scope) separate “idea-only” product line, if ever pursued, is outlined in [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md). **Delivery OS:** pack → CSV/JSON for PM tools is documented in [operations/sprint-export-import-ops.md](./operations/sprint-export-import-ops.md); remaining GTM/tracker automation gaps stay in [IMPROVEMENTS.md](./IMPROVEMENTS.md) “Delivery OS”.
+
+### Stakeholder readiness contract
+
+Use this as the **single cross-team** summary; engineering details stay in [AGENTS.md](./AGENTS.md) (additive change gate) and the ADRs above.
+
+1. **Audit-first is the default product path.** Value at the level of a cross-lane, evidence-linked roadmap and implementation pack is anchored on **URL + structured intake (question bank) + successful pipeline / collector evidence**, not on free text alone.
+2. **Idea, voice, and NL describe are additive.** They **assist** the brief; they do **not** override question-bank semantics or ordering (`prefer_explicit_over_inferred`). New behavior ships behind flags and optional APIs so existing clients keep working when features are off.
+3. **A distinct “idea-only” SKU (if ever) is a separate product decision.** It requires a new **Accepted** ADR and its **own** success metrics — see the proposed placeholder [ADR-IDEA-ONLY-…](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md). Until then, do not market parity with the full audit pipeline for pitch-only entry.
+4. **Telemetry split.** Runtime orchestration health uses `kpi_orchestration_*` (see [orchestration-telemetry-policy.ts](../server/src/config/orchestration-telemetry-policy.ts)). Hypothetical idea-SKU or GTM business outcomes are **not** represented by those keys alone; see ADR-IDEA-ONLY (draft metrics table) and [operations/client-outcome-measurement.md](./operations/client-outcome-measurement.md) where applicable.
+5. **Sprint delivery.** Export to CSV/JSON and tracker import is documented in [sprint-export-import-ops.md](./operations/sprint-export-import-ops.md). Parallel marketing / GTM / product lanes are **projections** of the same pack, not a second planning source.
 
 **Naming (product vs engineering):**
 

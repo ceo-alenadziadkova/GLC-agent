@@ -100,6 +100,17 @@ Normative contract: [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAG
 
 **NL ingress — privacy / DPA (operations checklist):** free-text to LLM (when `FEATURE_NL_INGRESS_LLM` is on) should follow the product/legal process in [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](./adrs/ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md) (client consent in UI, PII redaction on the request path, processor agreements). This does not replace counsel review for jurisdiction-specific DPA language.
 
+#### Intake, orchestration, and E2E: operator index
+
+Use this as a **single crosswalk** so intake pilots, orchestration flags, and CI coverage stay aligned (avoids “green CI” with skipped orchestration E2E when secrets are missing — see [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md)).
+
+| Area | Where to read | Env / inputs (representative) |
+| --- | --- | --- |
+| Diagnostic intake + NL + F1 | § [Diagnostic Adaptive Intake pilot (ops)](#diagnostic-adaptive-intake-pilot-ops) above | `FEATURE_DIAGNOSTIC_INTAKE_PILOT`, `FEATURE_NL_INGRESS_LLM*`, `FEATURE_INTAKE_NEXT_QUESTION` |
+| Orchestration pack, timeline, directors, narrative | [ADR feature-flag runtime matrix](#adr-feature-flag-runtime-matrix) (includes Orchestration runbook short + staged promotion) | `FEATURE_ORCHESTRATION_*`, `FEATURE_DIRECTOR_*`, `ORCHESTRATION_DASHBOARD_URL` (ops link only) |
+| Orchestration SLO + telemetry | [Orchestration SLO (Product MVP)](#orchestration-slo-product-mvp) | Canonical KPI names `kpi_orchestration_*` in `orchestration-telemetry-policy.ts`; not bare `kpi_llm_*` |
+| E2E non-skip + KPI | [`e2e/README.md`](../e2e/README.md), P0 operator checklist [readiness-p0-e2e-orchestration-slo.md](./operations/readiness-p0-e2e-orchestration-slo.md) | `E2E_ORCHESTRATION_AUDIT_ID`, `E2E_ORCHESTRATION_AUTH_TOKEN`, repo var `VITE_API_URL` (CI proxy to API); optional `E2E_ORCHESTRATION_JSON=1`, `E2E_ORCHESTRATION_STRICT=1`, `E2E_ORCHESTRATION_UI=1` |
+
 **Rollback:** set both env vars to `false` / unset; no migration rollback required.
 
 **Log keys (dashboards):** `brief_write.intake_readiness_recomputed` (debug), `discover.convert.intake_readiness_blocked`, `pipeline.intake_readiness_blocked`, `pipeline.next.intake_readiness_blocked` — see implementation contract for field shapes.

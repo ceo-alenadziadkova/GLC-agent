@@ -11,6 +11,8 @@ import {
  * Future: swap implementation to FEATURE_FLAGS_JSON / DB / provider without changing call sites.
  *
  * Do not read these env keys from services directly; import from this module only.
+ *
+ * @see [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](../../docs/adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md) — if an idea-only SKU is ever Accepted, new flags belong here (additive; do not replace audit-first flags).
  */
 
 const FF = SYSTEM_DEFAULTS.featureFlags;

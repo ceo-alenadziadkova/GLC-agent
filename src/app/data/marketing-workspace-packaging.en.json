@@ -4,8 +4,8 @@
       "eyebrow": "One entry point for clarity",
       "headline": "Bring your business situation into focus",
       "headline_gradient_suffix": "into focus",
-      "subheadline": "Share your situation once. Get priorities, trade-offs, and a first executable sequence.",
-      "supporting_line": "",
+      "subheadline": "Share your situation once. We turn agreed scope into priorities, trade-offs, and a first executable sequence—strongest with a public site, a completed structured brief, and a full analysis run. Optional free-text or dictation can prefill the brief; they do not replace your answers, and a pitch alone is not a substitute for that evidence chain.",
+      "supporting_line": "Audit-first: roadmaps and execution plans are downstream of structured intake and, when applicable, public-site evidence—not generic growth promises from a one-line idea.",
       "snapshot_caption": "",
       "ctas": {
         "primary": "Start with your situation",
@@ -14,7 +14,7 @@
       "trust_bullets": [
         "Secure by design",
         "Structured for action",
-        "Built to scale with decisions"
+        "Scales with deliberate decisions, not generic growth claims"
       ]
     },
     "client_dashboard": {
@@ -54,7 +54,7 @@
     },
     "mid_page_cta": {
       "title": "Start once, decide with clarity",
-      "body": "Share your situation once and receive a structured decision path with explicit boundaries, priorities, and next moves.",
+      "body": "Share your situation once; strongest results pair a completed brief with a public site and full run when you have one. You still get explicit boundaries, priorities, and next moves for agreed scope.",
       "cta_label": "Start with your situation",
       "cta_to": "/brief"
     },
