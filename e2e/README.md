@@ -20,6 +20,10 @@ pnpm run test:e2e
 
 **KPI (CI):** when `E2E_ORCHESTRATION_JSON=1`, Playwright writes `test-results/orchestration-e2e.json` and the follow-up step runs `node scripts/e2e-orchestration-kpi.mjs`, which logs a line such as `e2e_orchestration_kpi total=… non_skip_percent=…`. Set repository variable **`E2E_ORCHESTRATION_STRICT=1`** to fail the job if `E2E_ORCHESTRATION_AUDIT_ID` and `E2E_ORCHESTRATION_AUTH_TOKEN` are set but **every** orchestration test was skipped (forces real API coverage when creds exist). Locals: `E2E_ORCHESTRATION_JSON=1 pnpm run test:e2e:orchestration && pnpm run e2e:orchestration:kpi`.
 
+**Post-MVP (v9) plan vs code:** if you have an external “v9 full product” checklist, reconcile it to [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](../docs/adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md) first — most P-1–P-6, P-9, P-11 are **shipped**; remaining work is mostly **P-7 ops**, **P-8 creds + KPI**, **P-10 bundle**, and **P-5 product gate** for V4.
+
+**Pre-PR (orchestration):** `pnpm run verify:orchestration-all` (contract + `test:orchestration` + telemetry + build + main bundle budget).
+
 ## Post–v9 DoD (optional backlog, not required for merge)
 
 Larger product follow-ups: unified governance state machine service, IndexedDB for revision history, “commit scenario from compare” in the manifest wizard, cockpit activity feed. Tracked as engineering backlog; out of v9 minimal DoD.
@@ -35,6 +39,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | `discovery-ui-fragment.spec.ts` | `GET /api/discover/ui-fragment` contract + both discovery URLs |
 | `staging-auth-claim.spec.ts` | Real Supabase staging: sign-in, sign-out, snapshot skeleton (skipped without env) |
 | `orchestration-timeline-manifest.spec.ts` | Protected orchestration manifest preview flow (coverage -> preview) |
+| `orchestration-consultant-cockpit.spec.ts` | Pack GET ETag, 304, stale `govern_action` 409 (API; `E2E_ORCHESTRATION_*` token + audit id) |
 | `orchestration-snapshot-regenerate.spec.ts` | Protected orchestration snapshot -> pack regenerate -> diff history flow |
 | `orchestration-governance-conflicts.spec.ts` | Protected orchestration governance payload contract (`200/409`) |
 | `orchestration-depth-lanes-sync.spec.ts` | Protected orchestration pack contract for director depth/lane sync |
