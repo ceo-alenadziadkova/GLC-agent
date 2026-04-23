@@ -43,6 +43,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | `orchestration-execution-pack-repeat.spec.ts` | Execution-pack repeat CTA (UI; `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-revision-history.spec.ts` | Revision panel (UI; `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-cockpit-stale-banner.spec.ts` | Consultant cockpit: stale pack banner after govern `POST` 409 (needs `E2E_CONSULTANT_E2E_*` + `E2E_ORCHESTRATION_UI=1`) |
+| `orchestration-consultant-cockpit-ui.spec.ts` | Login → open cockpit: heading + settled state (no pack, error, or critical path) — `E2E_ORCHESTRATION_UI=1` + consultant + audit id |
 | `orchestration-deep-dive.spec.ts` | `GET` quota for `marketing_utp` and `ux_conversion` deep-dive API; optional `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` runs the marketing quota check under a mobile viewport project |
 
 ## Scope

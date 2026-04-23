@@ -3,19 +3,13 @@
  * Needs consultant browser session: set E2E_CONSULTANT_E2E_EMAIL, E2E_CONSULTANT_E2E_PASSWORD,
  * E2E_ORCHESTRATION_AUDIT_ID, and E2E_ORCHESTRATION_UI=1. POST is mocked to 409; GET pack uses the real API.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+
+import { loginConsultantBrowser } from './fixtures/consultant-login';
 
 const auditId = process.env.E2E_ORCHESTRATION_AUDIT_ID?.trim() ?? '';
 const email = process.env.E2E_CONSULTANT_E2E_EMAIL?.trim() ?? '';
 const password = process.env.E2E_CONSULTANT_E2E_PASSWORD?.trim() ?? '';
-
-async function loginConsultantLocal(page: Page) {
-  await page.goto('/login', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('textbox', { name: /email/i }).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole('button', { name: /sign in|log in|continue/i }).first().click();
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 30_000 });
-}
 
 test.describe('consultant orchestration cockpit stale banner', () => {
   test('shows stale banner when govern POST returns 409', async ({ page }) => {
@@ -39,7 +33,7 @@ test.describe('consultant orchestration cockpit stale banner', () => {
       return route.continue();
     });
 
-    await loginConsultantLocal(page);
+    await loginConsultantBrowser(page);
     await page.goto(`/audit/${auditId}/orchestration`, { waitUntil: 'domcontentloaded' });
     const accept = page.getByRole('button', { name: /accept plan/i });
     await expect(accept).toBeEnabled({ timeout: 45_000 });
