@@ -50,7 +50,7 @@ describe('postIntakeNlDescribeController', () => {
     pilotMocks.diagnosticIntakePilot = false;
     const { status, json, res } = createMockRes();
     await postIntakeNlDescribeController(
-      { params: { token: VALID_TOKEN }, body: { text: 'hello' } } as import('express').Request,
+      { params: { token: VALID_TOKEN }, body: { text: 'hello' } } as unknown as import('express').Request,
       res,
     );
     expect(status).toHaveBeenCalledWith(404);
@@ -60,7 +60,7 @@ describe('postIntakeNlDescribeController', () => {
   it('returns 400 for invalid token format', async () => {
     const { status, res } = createMockRes();
     await postIntakeNlDescribeController(
-      { params: { token: 'short' }, body: { text: 'hello' } } as import('express').Request,
+      { params: { token: 'short' }, body: { text: 'hello' } } as unknown as import('express').Request,
       res,
     );
     expect(status).toHaveBeenCalledWith(400);
@@ -70,7 +70,7 @@ describe('postIntakeNlDescribeController', () => {
     fetchTokenMocks.fetchIntakeTokenRowForRespond.mockResolvedValue(null);
     const { status, res } = createMockRes();
     await postIntakeNlDescribeController(
-      { params: { token: VALID_TOKEN }, body: { text: 'hello' } } as import('express').Request,
+      { params: { token: VALID_TOKEN }, body: { text: 'hello' } } as unknown as import('express').Request,
       res,
     );
     expect(status).toHaveBeenCalledWith(404);
@@ -79,7 +79,7 @@ describe('postIntakeNlDescribeController', () => {
   it('returns 400 when text is missing or blank', async () => {
     const { status, res } = createMockRes();
     await postIntakeNlDescribeController(
-      { params: { token: VALID_TOKEN }, body: { text: '   ' } } as import('express').Request,
+      { params: { token: VALID_TOKEN }, body: { text: '   ' } } as unknown as import('express').Request,
       res,
     );
     expect(status).toHaveBeenCalledWith(400);
@@ -88,7 +88,10 @@ describe('postIntakeNlDescribeController', () => {
   it('returns 200 with authoritative merge and plan trace when text is valid', async () => {
     const { status, json, res } = createMockRes();
     await postIntakeNlDescribeController(
-      { params: { token: VALID_TOKEN }, body: { text: 'We run a small hotel in Mallorca.' } } as import('express').Request,
+      {
+        params: { token: VALID_TOKEN },
+        body: { text: 'We run a small hotel in Mallorca.' },
+      } as unknown as import('express').Request,
       res,
     );
     expect(status).toHaveBeenCalledWith(200);
