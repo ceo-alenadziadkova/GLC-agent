@@ -1,4 +1,5 @@
 import {
+  buildHypothesisCrossCheckFromReconPrefills,
   buildIntakePlan,
   currentIntakeVersionTuple,
   evaluateIntakeReadinessEnvelope,
@@ -100,6 +101,7 @@ export async function saveBriefResponses(
    * Recompute ADR readiness for observability. UX may save drafts while execution readiness is blocked;
    * blocking remains on `POST .../pipeline/start` when `FEATURE_DIAGNOSTIC_INTAKE_PILOT` is enabled.
    */
+  const hypothesisCrossCheckByQuestionId = buildHypothesisCrossCheckFromReconPrefills(prefills);
   const intakeReadinessOnWrite = evaluateIntakeReadinessEnvelope({
     responses: responses as Record<string, unknown>,
     slaProductMode: mode,
@@ -107,6 +109,7 @@ export async function saveBriefResponses(
     surface,
     intakeVersionTuple: effectiveTuple,
     enforcementPoint: 'brief_recompute',
+    hypothesisCrossCheckByQuestionId,
   });
   logger.debug('brief_write.intake_readiness_recomputed', {
     auditId,

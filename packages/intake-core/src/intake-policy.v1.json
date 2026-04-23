@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "intelligence": {
     "casePatternsEnabled": true,
     "caseStopPrunesOptionalOverlay": true,
@@ -10,6 +10,13 @@
         "deeperWhenSignalConfidenceIn": ["unknown", "low"],
         "treatEmptyOrUnknownResponseAsStop": true
       }
+    },
+    "minimumSufficientContext": {
+      "enabled": true,
+      "requirePilotCriticalSatisfied": false,
+      "requireMatchedCaseStops": false,
+      "requireConfidenceFloor": false,
+      "confidenceTarget": "medium"
     }
   },
   "modes": {

@@ -210,6 +210,17 @@ export const GlcOrchestrationPackSchemaV2 = z.object({
       lagging: z.array(z.string().min(1)).optional(),
     })
     .optional(),
+  /**
+   * Plan-level control object (ADR V4) — optional; gated in UI by `FEATURE_PLAN_CONTROL_OBJECT`.
+   */
+  control_object: z
+    .object({
+      objective: z.string().min(1).max(2000),
+      constraints: z.array(z.string().min(1)).max(50).optional(),
+      exit_criteria: z.array(z.string().min(1)).max(50).optional(),
+      escalation_rules: z.array(z.string().min(1)).max(50).optional(),
+    })
+    .optional(),
 });
 
 const GlcOrchestrationPackSchemaV1 = z.object({

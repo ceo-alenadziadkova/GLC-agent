@@ -12,6 +12,9 @@ export const PORTAL_MANIFEST_WIZARD_COPY = {
   stepCoverageBody: 'Domains are fixed by your audit scope. They must match what your consultant confirmed for this engagement.',
   stepPreferencesTitle: '2. Execution preferences',
   stepPreviewTitle: '3. Preview',
+  stepPreviewExtrasTitle: 'Plan signals (optional)',
+  stepPreviewExtrasBody:
+    'When a pack exists, compare a conservative vs accelerated manifest preview, and see effort and confidence for the critical path set.',
   stepPublishTitle: '4. Save manifest and build',
   stepPublishBody:
     'Saving creates a manifest snapshot. Building applies it to the next roadmap version (vN+1) when the server accepts the plan quality gate.',

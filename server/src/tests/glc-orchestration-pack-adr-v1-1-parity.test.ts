@@ -8,6 +8,7 @@ import { STRATEGY_INITIATIVE_DOMAIN_KEYS } from '../config/strategy-initiative-p
  * ADR-GLC-ORCHESTRATOR-V1.1 "Unified output" + persistence contract maps to
  * `GlcOrchestrationPackSchemaV2` top-level fields (see docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md § Unified output / README DoD).
  * When the ADR adds new persisted sections, extend this list and the Zod schema in the same PR.
+ * Includes **optional** plan-level `control_object` (ADR plan-level V4) when present in Zod.
  */
 const ADR_V11_PERSISTED_PACK_TOP_LEVEL_KEYS = [
   'version',
@@ -29,6 +30,7 @@ const ADR_V11_PERSISTED_PACK_TOP_LEVEL_KEYS = [
   'data_gaps',
   'compressed_plan',
   'metrics_framework',
+  'control_object',
   'system_diagnosis',
 ] as const;
 
@@ -120,6 +122,59 @@ describe('GlcOrchestrationPackSchemaV2 ADR v1.1 field coverage', () => {
       expect(parsed.data.confidence_map.unlock_conditions?.[0]).toMatch(/crawl/);
       expect(parsed.data.risk_layer.cross_domain?.[0].domains[0]).toBe('marketing_utp');
       expect(parsed.data.routing_profile.domain_weights.marketing_utp).toBe(1.5);
+    }
+  });
+
+  it('accepts optional plan-level control_object (ADR V4) nested in v2 pack', () => {
+    const nodeId = 'n1';
+    const lanes = Object.fromEntries(ORCHESTRATION_LANE_IDS.map((l) => [l, l === 'marketing_narrative' ? [nodeId] : []])) as Record<
+      (typeof ORCHESTRATION_LANE_IDS)[number],
+      string[]
+    >;
+    const base = {
+      version: GLC_ORCHESTRATION_PACK_SCHEMA_VERSION,
+      graph: {
+        nodes: [
+          {
+            id: nodeId,
+            title: 'Initiative A',
+            domain: 'marketing_utp' as const,
+            lane: 'marketing_narrative' as const,
+            evidence_taxonomy: { observed: 1, derived: 0, assumed: 0, missing: 0 },
+            evidence_refs: ['intake:q1'],
+          },
+        ],
+        edges: [],
+      },
+      lanes,
+      critical_path: [nodeId],
+      conflicts_resolved: [],
+      manifest_snapshot_id: '00000000-0000-4000-8000-000000000001',
+      phase_diagnostic: {
+        dominant_constraint: 'capacity' as const,
+        constraint_chain: ['capacity' as const],
+      },
+      routing_profile: {
+        strategy: 'toc_dynamic_routing_v1' as const,
+        domain_weights: { ...FULL_DOMAIN_WEIGHTS, marketing_utp: 1.2 },
+      },
+      execution_mode: 'deterministic' as const,
+      confidence_map: { node_confidence: { [nodeId]: 'high' as const } },
+      risk_layer: { node_risk: { [nodeId]: 1 } },
+      domain_influence: { domain_weights: FULL_DOMAIN_WEIGHTS },
+      input_quality: ORCHESTRATION_DEFAULT_INPUT_QUALITY,
+      control_object: {
+        objective: 'Ship the revised GTM plan with measurable north-star',
+        constraints: ['Budget capped at prior quarter'],
+        exit_criteria: ['KPI review signed off'],
+        escalation_rules: ['Block launch if crawl health regresses'],
+      },
+    };
+    const parsed = GlcOrchestrationPackSchemaV2.safeParse(base);
+    expect(parsed.success, parsed.success ? '' : JSON.stringify(parsed.error.format())).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.control_object?.objective).toMatch(/GTM/);
+      expect(parsed.data.control_object?.constraints?.[0]).toMatch(/Budget/);
     }
   });
 });

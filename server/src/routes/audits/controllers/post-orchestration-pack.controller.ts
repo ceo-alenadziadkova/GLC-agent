@@ -11,10 +11,14 @@ import {
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
 import { idempotencyPostAuditsOrchestrationPackKey } from '../../../config/api-http-paths.js';
-import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import { isConsultantGovernanceCtasEnabled, isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
 import { ORCHESTRATION_TELEMETRY_METRICS } from '../../../config/orchestration-telemetry-policy.js';
 import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY, ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS } from '../../../config/orchestration-plan-governance-policy.js';
-import { AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE } from '../../../config/api-user-messages.en.js';
+import {
+  AUDITS_ORCHESTRATION_PACK_STALE_VERSION_MESSAGE,
+  AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE,
+  ORCHESTRATION_GOVERNANCE_CTAS_DISABLED_MESSAGE,
+} from '../../../config/api-user-messages.en.js';
 import {
   getStoredIdempotentResponse,
   isIdempotencyPayloadConflictError,
@@ -23,13 +27,35 @@ import {
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { runOrchestrationPackPersistFlowFromManifest } from '../../../services/orchestration/orchestration-pack-persist-run.service.js';
+import { runGovernancePackAction } from '../../../services/orchestration/orchestration-governance-ack.service.js';
+import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
 import { RoadmapManifestMismatchError } from '../../../services/orchestration/roadmap-manifest.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
-const BodySchema = z.object({
-  manifest_snapshot_id: z.string().uuid(),
-  selected_action_ids: z.array(z.string().min(1)).max(50).optional(),
-});
+const BodySchema = z
+  .object({
+    manifest_snapshot_id: z.string().uuid().optional(),
+    selected_action_ids: z.array(z.string().min(1)).max(50).optional(),
+    govern_action: z.enum(['accept_plan', 'accept_with_warnings', 'refine_plan']).optional(),
+    expected_orchestration_pack_version: z.number().int().positive().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.govern_action) {
+      if (val.expected_orchestration_pack_version == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['expected_orchestration_pack_version'],
+          message: 'Required when govern_action is set',
+        });
+      }
+    } else if (!val.manifest_snapshot_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['manifest_snapshot_id'],
+        message: 'Required when govern_action is not set',
+      });
+    }
+  });
 
 export async function postOrchestrationPackController(req: AuthRequest, res: Response) {
   await executePostOrchestrationPack(req, res, idempotencyPostAuditsOrchestrationPackKey(req.params.id as string));
@@ -66,10 +92,76 @@ export async function executePostOrchestrationPack(req: AuthRequest, res: Respon
       return;
     }
 
+    if (parsedBody.data.govern_action) {
+      if (!isConsultantGovernanceCtasEnabled()) {
+        sendApiError(
+          res,
+          403,
+          API_ERROR_CODES.ORCHESTRATION_GOVERNANCE_CTAS_DISABLED,
+          ORCHESTRATION_GOVERNANCE_CTAS_DISABLED_MESSAGE,
+        );
+        return;
+      }
+      const gov = await runGovernancePackAction({
+        auditId,
+        userId: req.userId!,
+        action: parsedBody.data.govern_action,
+        expectedOrchestrationPackVersion: parsedBody.data.expected_orchestration_pack_version!,
+      });
+      if (!gov.ok) {
+        if (gov.kind === 'stale') {
+          sendApiError(
+            res,
+            409,
+            API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_STALE_VERSION,
+            AUDITS_ORCHESTRATION_PACK_STALE_VERSION_MESSAGE,
+            { current_orchestration_pack_version: parsedBody.data.expected_orchestration_pack_version },
+          );
+          return;
+        }
+        if (gov.kind === 'no_pack') {
+          sendApiError(
+            res,
+            409,
+            API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_NOT_READY,
+            AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
+          );
+          return;
+        }
+        sendApiError(
+          res,
+          500,
+          API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED,
+          AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE,
+        );
+        return;
+      }
+      const refreshed = await fetchPersistedGlcOrchestrationPackForUser({
+        auditId,
+        userId: req.userId!,
+      });
+      const payload = {
+        pack: refreshed.status === 'ok' ? refreshed.pack : null,
+        orchestration_pack_version: gov.orchestration_pack_version,
+        refine_hint: gov.refine_hint,
+        govern_action: parsedBody.data.govern_action,
+      };
+      await storeIdempotentResponse(
+        req,
+        idempotencyRoute,
+        idempotent.key,
+        idempotent.hash,
+        { statusCode: 200, payload },
+        auditId,
+      );
+      res.json(payload);
+      return;
+    }
+
     const flow = await runOrchestrationPackPersistFlowFromManifest({
       auditId,
       userId: req.userId!,
-      manifestSnapshotId: parsedBody.data.manifest_snapshot_id,
+      manifestSnapshotId: parsedBody.data.manifest_snapshot_id!,
       logComponent: 'route.orchestration_pack',
       selectedActionIds: parsedBody.data.selected_action_ids,
     });

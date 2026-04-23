@@ -448,3 +448,33 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     trace,
   };
 }
+
+/** Pilot bank ids that map to progressive-certainty cross-checks (align with `PILOT_BANK_TO_SIGNAL`). */
+const PILOT_CROSS_CHECK_BANK_IDS = [
+  'a2',
+  'a5',
+  'f1',
+  'f2',
+  'd2',
+  'd_closing_flow',
+] as const;
+
+/**
+ * Build `hypothesisCrossCheckByQuestionId` for `evaluateIntakeReadinessEnvelope` from `recon_prefills`.
+ * G9: recon values participate in the same prefer-explicit / conflict lane as in-app answers.
+ */
+export function buildHypothesisCrossCheckFromReconPrefills(
+  reconPrefills: Record<string, unknown> | null | undefined,
+): Record<string, { value: unknown; source: 'recon_confirmed' }> {
+  const out: Record<string, { value: unknown; source: 'recon_confirmed' }> = {};
+  if (!reconPrefills || typeof reconPrefills !== 'object' || Array.isArray(reconPrefills)) {
+    return out;
+  }
+  for (const id of PILOT_CROSS_CHECK_BANK_IDS) {
+    if (!(id in reconPrefills)) continue;
+    const v = reconPrefills[id];
+    if (v === undefined) continue;
+    out[id] = { value: v, source: 'recon_confirmed' };
+  }
+  return out;
+}

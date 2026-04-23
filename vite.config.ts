@@ -7,6 +7,15 @@ import react from '@vitejs/plugin-react'
 import { GLC_DEV_API_ORIGIN } from './packages/glc-dev-brand-defaults/src/index.ts'
 import { API_HTTP_ROOT_PREFIX } from './packages/glc-api-paths/src/index.ts'
 
+/** In CI, point the dev-server `/api` proxy at a real backend (e.g. staging) so Playwright can exercise orchestration E2E without a local `glc-audit-server`. */
+function resolveApiProxyTarget(): string {
+  const fromE2E = process.env.E2E_VITE_API_PROXY_TARGET?.trim()
+  if (fromE2E) {
+    return fromE2E.replace(/\/+$/, '')
+  }
+  return GLC_DEV_API_ORIGIN
+}
+
 export default defineConfig(({ mode }) => ({
   esbuild: {
     drop: mode === 'production' ? (['console', 'debugger'] as const) : [],
@@ -59,7 +68,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       [API_HTTP_ROOT_PREFIX]: {
-        target: GLC_DEV_API_ORIGIN,
+        target: resolveApiProxyTarget(),
         changeOrigin: true,
       },
     },

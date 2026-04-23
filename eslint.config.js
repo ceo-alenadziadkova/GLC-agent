@@ -1,3 +1,8 @@
+/**
+ * Orchestration lane discipline (v9): sort/priority and icon copy live in
+ * `src/app/config/orchestration-lane-registry.ts` (+ server mirror). Cross-lane *narrative* lines
+ * for edges live in `orchestration-lane-pair-narratives.ts` — a separate copy layer, not a second registry.
+ */
 import eslint from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';

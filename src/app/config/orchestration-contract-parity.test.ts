@@ -133,6 +133,27 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps diagnostic intake pilot + F1 next-question client flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.diagnosticIntakePilotEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.intakeNextQuestionEndpointEnabled,
+    );
+  });
+
+  it('keeps v9 orchestration manifest/governance/ADR flags aligned (server env defaults vs APP_FEATURE_FLAGS)', () => {
+    expect(APP_FEATURE_FLAGS.manifestScenarioCompareEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.manifestScenarioCompareEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.consultantGovernanceCtasEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.consultantGovernanceCtasEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.planControlObjectUiEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planControlObjectEnabled,
+    );
+  });
+
   it('keeps deep-dive api error subset aligned with server codes', () => {
     for (const code of Object.values(DIRECTOR_DEEP_DIVE_API_ERROR_CODES)) {
       expect(Object.values(API_ERROR_CODES)).toContain(code);

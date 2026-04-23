@@ -1,3 +1,8 @@
+/**
+ * Follow-up policy evaluation (pure). Runtime semantics vs queue control are documented in
+ * docs/adrs/ADR-INTAKE-FOLLOWUP-POLICY-RUNTIME-V1.md (trace/prune; not a full per-turn “ask_deeper” UX gate).
+ * F1 next-question (ADR-INTAKE-NEXT-QUESTION-V1) consumes the resulting `nextRecommended` from `buildIntakePlan`.
+ */
 import type { IntakeCriticalSignalConfidence } from '../audit-contract.js';
 import { getIntakeIntelligenceContract } from '../config/intake-intelligence-contract.js';
 import type { IntakeIntelligenceContract } from '../config/intake-intelligence-types.js';

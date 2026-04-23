@@ -22,7 +22,7 @@ See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [
 
 **Package:** Shared intake (question bank JSON, resolver, SLA gates, `choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`, `@glc/intake-core`) — import by package name only; decision record [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
 
-**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md).
+**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md). **Diagnostic adaptive intake — roadmap vs implementation (G1–G13, F1/F2, KPI wire-up):** [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md).
 
 **Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
 

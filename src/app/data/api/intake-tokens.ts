@@ -1,6 +1,7 @@
 import {
   API_PATHS,
   apiIntakeIntelligenceKpi,
+  apiIntakeNextQuestion,
   apiIntakeNlDescribe,
   apiIntakePrefill,
   apiIntakeRespond,
@@ -8,6 +9,12 @@ import {
 } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { BriefQuestion, BriefResponses } from '../briefQuestions';
+import {
+  currentIntakeVersionTuple,
+  type IntakeBriefCollectionMode,
+  type IntakeSurface,
+  type ProductMode,
+} from '@glc/intake-core';
 
 export const intakeTokensApi = {
   async createIntakeToken(data: { audit_id?: string; metadata?: Record<string, string> }) {
@@ -111,5 +118,37 @@ export const intakeTokensApi = {
         body: JSON.stringify({ text }),
       },
     );
+  },
+
+  /**
+   * F1 deterministic next-question (404 when server pilot/next-question flags off). Fire-and-forget from the hook; errors ignored.
+   */
+  async postIntakeNextQuestion(
+    token: string,
+    body: {
+      responses: Record<string, unknown>;
+      productMode?: ProductMode;
+      collectionMode?: IntakeBriefCollectionMode;
+      surface?: IntakeSurface;
+      intakeVersionTuple?: ReturnType<typeof currentIntakeVersionTuple>;
+    },
+  ) {
+    return publicApiFetch<{
+      ok: true;
+      action: 'ask' | 'stop';
+      questionId: string | null;
+      reason: string;
+      source: string;
+      caseKeys: string[];
+    }>(apiIntakeNextQuestion(token), {
+      method: 'POST',
+      body: JSON.stringify({
+        responses: body.responses,
+        productMode: body.productMode ?? 'full',
+        collectionMode: body.collectionMode ?? 'pre_brief',
+        surface: body.surface ?? 'client_form',
+        intakeVersionTuple: body.intakeVersionTuple ?? currentIntakeVersionTuple(),
+      }),
+    });
   },
 };

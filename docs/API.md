@@ -9,7 +9,7 @@ Most `/api/*` endpoints require a valid Supabase JWT in the `Authorization: Bear
 
 Authentication exceptions (no JWT):
 
-- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/respond`, public discovery routes.
+- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/next-question` (diagnostic pilot; **F1** — feature-flagged, deterministic; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)), `POST /api/intake/:token/respond`, public discovery routes.
 - Token-protected operator routes: `/api/snapshot/operator/*` (requires `SNAPSHOT_OPERATOR_TOKEN`, not JWT).
 - Secret-header route: `POST /api/benchmarks/recompute` (cron/system secret header, not JWT).
 
@@ -1290,6 +1290,16 @@ Notes:
 - `message`
 
 ### `POST /api/intake/:token/intelligence-kpi`
+
+### `POST /api/intake/:token/next-question`
+
+**Auth:** none. **Availability:** `404` unless `FEATURE_INTAKE_NEXT_QUESTION` and `FEATURE_DIAGNOSTIC_INTAKE_PILOT` are enabled.
+
+**Body:** same shape as plan-driving intake context — at minimum **`responses`** (required, `BriefResponsesSchema`). Optional: **`productMode`**, **`collectionMode`**, **`surface`**, **`intakeVersionTuple`**.
+
+**Behavior (F1):** runs `buildIntakePlan` and returns a **deterministic** next step from `nextRecommended[0]`, or **`stop`** when the queue is empty and `intelligence.minimumSufficientContext` in `intake-policy.v1.json` is satisfied. Emits `pipeline_events.event_type` **`intake_intelligence_next_question`** with `data.action`, `data.reason`, `data.question_id`, `data.case_keys` (no LLM; **F2** orchestration is future work — [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)).
+
+**Response `200`:** `{ ok, action: 'ask' | 'stop', questionId, reason, source, caseKeys }` — `source` is always `deterministic` for this endpoint.
 
 ### `GET /api/intake/intelligence-kpi/dashboard`
 

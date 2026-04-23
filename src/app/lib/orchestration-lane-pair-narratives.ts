@@ -1,3 +1,9 @@
+/**
+ * Cross-lane **narrative** copy for high-weight graph edges. Keys are `laneA|laneB` pairs; they are
+ * not the same as `orchestration-lane-registry` (sort/priority only).
+ * When product adds a lane, extend `ORCHESTRATION_LANE_PAIR_NARRATIVE_REGISTRY` for relevant pairs
+ * and update lane labels in `orchestration-roadmap-ui-copy.en.ts`.
+ */
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 import type { OrchestrationLaneId } from '../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_LANE_LABELS } from '../config/orchestration-roadmap-ui-copy.en';

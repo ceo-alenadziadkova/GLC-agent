@@ -4,6 +4,7 @@ import { MarkerType } from '@xyflow/react';
 
 import { ORCHESTRATION_PACK_GRAPH_FLOW_LAYOUT } from '../config/orchestration-pack-graph-flow.config';
 import type { OrchestrationLaneId } from '../config/orchestration-roadmap-ui-copy.en';
+import { getClientLaneRegistryEntry } from '../config/orchestration-lane-registry';
 import { ORCHESTRATION_LANE_LABELS } from '../config/orchestration-roadmap-ui-copy.en';
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 import { orchestrationNodeTitleMap, prioritizeCrossLaneEdges } from './orchestration-timeline-projection';
@@ -147,7 +148,14 @@ export function buildOrchestrationPackFlowGraph(
     nodeIds.add(e.to);
   }
 
-  const nodesBase: Node<PortalPackGraphNodeData>[] = [...nodeIds].map(id => {
+  const nodeIdList = [...nodeIds].sort((a, b) => {
+    const la = getClientLaneRegistryEntry(laneById.get(a) ?? 'product_change').priorityOrder;
+    const lb = getClientLaneRegistryEntry(laneById.get(b) ?? 'product_change').priorityOrder;
+    if (la !== lb) return la - lb;
+    return a.localeCompare(b);
+  });
+
+  const nodesBase: Node<PortalPackGraphNodeData>[] = nodeIdList.map(id => {
     const lane = laneById.get(id) ?? 'product_change';
     return {
       id,

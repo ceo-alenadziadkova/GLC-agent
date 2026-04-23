@@ -3,13 +3,17 @@ import { Link, useParams } from 'react-router';
 import { ArrowLeft, Path } from '@phosphor-icons/react';
 
 import { AppShell } from '../components/AppShell';
+import { ManifestScenarioCompareCta } from '../components/glc/ManifestScenarioCompareCta';
+import { SetAggregatorPanel } from '../components/glc/SetAggregatorPanel';
 import { Button } from '../components/ui/button';
 import { Input } from '../../design-system/ui';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { ApiError } from '../data/api-error';
 import { DOMAIN_LABELS } from '../data/auditTypes';
-import type { RoadmapManifestPreviewDto } from '../data/api/audits-orchestration';
+import type { RoadmapManifestPreviewDto, RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
+import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
+import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { toast } from 'sonner';
 import {
   encodeManifestChangeSignature,
@@ -42,6 +46,11 @@ export function PortalRoadmapManifestWizardPage() {
   const wizardEnabled =
     APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled && APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
 
+  const { packQuery } = useOrchestrationReadModel(auditId, {
+    includeTimeline: false,
+    enabled: Boolean(auditId) && wizardEnabled,
+  });
+
   const [scenario, setScenario] = useState<OrchestrationChangeScenario>('hybrid');
   const [season, setSeason] = useState<OrchestrationSeasonPreset>('rolling_90d');
   const [planHorizonStart, setPlanHorizonStart] = useState('');
@@ -55,6 +64,23 @@ export function PortalRoadmapManifestWizardPage() {
 
   const executionPlan = audit?.meta.execution_plan ?? null;
   const selectedDomains = executionPlan?.selected_domains ?? [];
+
+  const manifestCompareBody = useMemo((): RoadmapManifestRequestBody | null => {
+    if (selectedDomains.length === 0) return null;
+    const ph = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
+    return {
+      schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
+      selected_domains: selectedDomains,
+      change_scenario: scenario,
+      season_preset: season,
+      ...(ph ? { plan_horizon: ph } : {}),
+    };
+  }, [selectedDomains, scenario, season, planHorizonStart, planHorizonEnd]);
+
+  const packView = useMemo(() => {
+    const p = packQuery.data?.pack;
+    return p && isGlcOrchestrationPackView(p) ? p : null;
+  }, [packQuery.data?.pack]);
 
   const domainLabels = useMemo(
     () => [...selectedDomains].sort().map(d => DOMAIN_LABELS[d] ?? d).join(', '),
@@ -456,6 +482,24 @@ export function PortalRoadmapManifestWizardPage() {
             </div>
           ) : null}
         </section>
+
+        {(APP_FEATURE_FLAGS.orchestrationSetAggregatorEnabled && packView) ||
+        (APP_FEATURE_FLAGS.manifestScenarioCompareEnabled && manifestCompareBody) ? (
+          <section className="glc-soft-panel space-y-3 p-4" aria-labelledby="portal-manifest-wizard-extras">
+            <h2 id="portal-manifest-wizard-extras" className="text-sm font-semibold text-[var(--text-primary)]">
+              {PORTAL_MANIFEST_WIZARD_COPY.stepPreviewExtrasTitle}
+            </h2>
+            <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
+              {PORTAL_MANIFEST_WIZARD_COPY.stepPreviewExtrasBody}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {APP_FEATURE_FLAGS.manifestScenarioCompareEnabled && manifestCompareBody ? (
+                <ManifestScenarioCompareCta auditId={auditId} basePayload={manifestCompareBody} />
+              ) : null}
+            </div>
+            {APP_FEATURE_FLAGS.orchestrationSetAggregatorEnabled && packView ? <SetAggregatorPanel pack={packView} /> : null}
+          </section>
+        ) : null}
 
         <section className="glc-soft-panel space-y-3 p-4" aria-labelledby="portal-manifest-wizard-publish">
           <h2 id="portal-manifest-wizard-publish" className="text-sm font-semibold text-[var(--text-primary)]">

@@ -11,7 +11,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { ArrowsClockwise, FileText, Flask } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { laneIdsForOrchestrationDisplayPreset } from '../config/orchestration-client-roadmap-lanes';
@@ -74,6 +74,12 @@ import {
   selectTopCrossLaneBlockingEdges,
 } from '../lib/orchestration-lane-pair-narratives';
 import type { OrchestrationTimelineStatus } from '../config/orchestration-contract';
+import { logger } from '../lib/logger';
+
+const NowNextLaterBoard = lazy(async () => {
+  const m = await import('../features/portal-timeline/NowNextLaterBoard');
+  return { default: m.NowNextLaterBoard };
+});
 
 function formatTimelineLoadError(err: unknown): string | null {
   if (err == null) return null;
@@ -1080,7 +1086,15 @@ export function PortalTimelinePage() {
               </section>
             ) : null}
 
-            <Tabs defaultValue="overview" className="gap-4">
+            <Tabs
+              defaultValue="overview"
+              className="gap-4"
+              onValueChange={value => {
+                if (value === 'nowNextLater' && APP_FEATURE_FLAGS.nowNextLaterBoardEnabled) {
+                  logger.info('orchestration.now_next_later.tab_selected', { tab: value });
+                }
+              }}
+            >
               <p id="timeline-tabs-description" className="sr-only">
                 Use Arrow keys to move between timeline sections.
               </p>
@@ -1097,6 +1111,11 @@ export function PortalTimelinePage() {
                 <TabsTrigger aria-describedby="timeline-tabs-description" value="planmap">
                   {ORCHESTRATION_UI_COPY.portalTimelineTabPlanMap}
                 </TabsTrigger>
+                {APP_FEATURE_FLAGS.nowNextLaterBoardEnabled && portalOrchestrationPack ? (
+                  <TabsTrigger aria-describedby="timeline-tabs-description" value="nowNextLater" data-testid="nnl-tab">
+                    {ORCHESTRATION_UI_COPY.portalTimelineTabNowNextLater}
+                  </TabsTrigger>
+                ) : null}
               </TabsList>
 
               <TabsContent value="overview" className="mt-4 space-y-6 outline-none" forceMount>
@@ -1416,6 +1435,22 @@ export function PortalTimelinePage() {
                   </ul>
                 </div>
               </TabsContent>
+
+              {APP_FEATURE_FLAGS.nowNextLaterBoardEnabled && portalOrchestrationPack ? (
+                <TabsContent value="nowNextLater" className="mt-4 space-y-6 outline-none">
+                  <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+                    <div className="text-sm font-semibold ds-text-primary">
+                      {ORCHESTRATION_UI_COPY.portalTimelineTabNowNextLater}
+                    </div>
+                    <p className="mt-2 text-sm ds-text-tertiary">
+                      {ORCHESTRATION_UI_COPY.timelineHint}
+                    </p>
+                    <Suspense fallback={<p className="mt-4 text-sm ds-text-tertiary">Loading…</p>}>
+                      <NowNextLaterBoard pack={portalOrchestrationPack} />
+                    </Suspense>
+                  </div>
+                </TabsContent>
+              ) : null}
             </Tabs>
             {effectiveDeepDiveOnDemand ? (
               <DirectorDeepDiveDialog

@@ -96,4 +96,39 @@ export const APP_FEATURE_FLAGS = {
   consultantOrchestrationCockpitEnabled: true,
   /** Strategy Lab revision history panel (client-only UI). */
   revisionHistoryPanelEnabled: true,
+  /**
+   * Mirrors server `SYSTEM_DEFAULTS_FEATURE_FLAGS.diagnosticIntakePilotEnabled` (FEATURE_DIAGNOSTIC_INTAKE_PILOT).
+   * Intake KPI + NL route gating; keep aligned — `orchestration-contract-parity.test.ts`.
+   */
+  diagnosticIntakePilotEnabled: true,
+  /**
+   * When true with `diagnosticIntakePilotEnabled`, public intake may call F1 `POST /api/intake/:token/next-question` for plan-head sync + telemetry.
+   * Mirrors `intakeNextQuestionEndpointEnabled` (FEATURE_INTAKE_NEXT_QUESTION). Default off until the route is enabled server-side.
+   */
+  intakeNextQuestionClientEnabled: true,
+  /**
+   * Public `/intake/:token` — show optional NL “Describe your business” + Send to `/nl-describe`.
+   * Client-only; turn on when the NL→brief product flow is ready. Default off.
+   */
+  intakePublicNlDescribeEnabled: false,
+  /**
+   * Portal timeline: Now / Next / Later board (grouped by `time_bucket`). Client-only; see `orchestration-contract-parity` for other pairs.
+   */
+  nowNextLaterBoardEnabled: true,
+  /**
+   * Set-level effort/impact/risk summary for selected actions in wizard + cockpit.
+   */
+  orchestrationSetAggregatorEnabled: true,
+  /**
+   * Dual `POST /roadmap/manifest-preview` what-if compare dialog. Server: `FEATURE_MANIFEST_SCENARIO_COMPARE`.
+   */
+  manifestScenarioCompareEnabled: true,
+  /**
+   * Consultant governance CTAs on POST pack (`govern_action`). Server: `FEATURE_CONSULTANT_GOVERNANCE_CTAS`.
+   */
+  consultantGovernanceCtasEnabled: true,
+  /**
+   * Plan control object panel (ADR V4). Server: `FEATURE_PLAN_CONTROL_OBJECT`.
+   */
+  planControlObjectUiEnabled: false,
 } as const;

@@ -1,9 +1,10 @@
 import { calcAiReadinessScore } from '@glc/intake-core';
 import {
-  buildProjectContextEnvelope,
-  evaluateIntakeReadinessEnvelope,
+  buildHypothesisCrossCheckFromReconPrefills,
   buildIntakePlan,
+  buildProjectContextEnvelope,
   currentIntakeVersionTuple,
+  evaluateIntakeReadinessEnvelope,
   isSupportedIntakeArtifactTuple,
   responsesUseQuestionBankV1,
 } from '@glc/intake-core';
@@ -62,6 +63,11 @@ export function enrichIntakeMetadata(params: {
   const intakeMissingReportDomains =
     intakePlan.missingForReport.length > 0 ? [...intakePlan.missingForReport] : undefined;
 
+  const reconPrefills =
+    brief?.recon_prefills && typeof brief.recon_prefills === 'object' && !Array.isArray(brief.recon_prefills)
+      ? (brief.recon_prefills as Record<string, unknown>)
+      : null;
+  const hypothesisCrossCheckByQuestionId = buildHypothesisCrossCheckFromReconPrefills(reconPrefills);
   const readiness = evaluateIntakeReadinessEnvelope({
     responses: allResponses,
     slaProductMode: productMode,
@@ -69,6 +75,7 @@ export function enrichIntakeMetadata(params: {
     surface: intakeSurface,
     intakeVersionTuple: intakeTuple,
     enforcementPoint: 'brief_recompute',
+    hypothesisCrossCheckByQuestionId,
   });
   const criticalMissingKeys = Object.entries(intakePlan.criticalSignals?.confidenceByKey ?? {})
     .filter(([, confidence]) => confidence === 'unknown')

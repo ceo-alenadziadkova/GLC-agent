@@ -38,6 +38,7 @@ export {
   apiAuditsReview,
   apiIntakePrefill,
   apiIntakeIntelligenceKpi,
+  apiIntakeNextQuestion,
   apiIntakeNlDescribe,
   apiIntakeRespond,
   apiIntakeToken,

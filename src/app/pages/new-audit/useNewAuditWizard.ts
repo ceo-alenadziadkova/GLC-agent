@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BriefSchemaSnapshot } from '../../data/api/brief-profile-platform';
 import type { FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -6,6 +6,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { api, ApiError } from '../../data/apiService';
 import { GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT, LEGAL_CONSENT_KEYS } from '../../config/legal-consent-client-policy';
 import { useIntakeBankMetrics } from '../../hooks/useIntakeWizard';
+import { currentIntakeVersionTuple, type IntakeSurface } from '@glc/intake-core';
+import { briefResponsesToIntakeMap } from '../../data/intakeBriefMap';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import {
   readClientPortalNewAuditDraft,
@@ -132,6 +135,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const [briefWizardServerVisibleQuestionIds, setBriefWizardServerVisibleQuestionIds] = useState<
     string[] | undefined
   >(undefined);
+
+  const newAuditF1DebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const newAuditF1RequestSeqRef = useRef(0);
 
   useEffect(() => {
     if (isClientSelfServe) {
@@ -272,12 +278,84 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     [responses, noPublicWebsite, url, name, industry, industrySpecify, responseSource],
   );
 
+  /** Client portal (self-serve) must use `client_form` — was wrongly using consultant surface for metrics. */
+  const newAuditBankIntakeSurface: IntakeSurface | undefined = useMemo(() => {
+    if (noPublicWebsite) return undefined;
+    return isClientSelfServe ? 'client_form' : 'consultant_interview';
+  }, [isClientSelfServe, noPublicWebsite]);
+  /** Portal: `self_serve` matches `IntakeBankWizard` + surface-matrix baselines; consultant keeps `undefined` (unchanged from legacy). */
+  const newAuditCollectionModeForPlan = useMemo(
+    () => (noPublicWebsite ? 'discovery' : (isClientSelfServe ? 'self_serve' : undefined)),
+    [isClientSelfServe, noPublicWebsite],
+  );
   const bankMetrics = useIntakeBankMetrics(
     responses,
-    noPublicWebsite ? 'discovery' : undefined,
-    noPublicWebsite ? undefined : 'consultant_interview',
+    newAuditCollectionModeForPlan,
+    newAuditBankIntakeSurface,
     briefProductMode,
   );
+
+  /** Public link token: `?intake=` or pre-brief generator — required for F1 (same host route as public intake). */
+  const f1IntakeToken = useMemo(
+    () => (intakeTokenFromUrl || preBriefState.preBriefToken || '').trim(),
+    [intakeTokenFromUrl, preBriefState.preBriefToken],
+  );
+
+  useEffect(() => {
+    if (step !== 1 || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) return;
+    if (!f1IntakeToken) return;
+    if (!APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled || !APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled) return;
+
+    const seq = ++newAuditF1RequestSeqRef.current;
+    if (newAuditF1DebounceRef.current) clearTimeout(newAuditF1DebounceRef.current);
+    newAuditF1DebounceRef.current = setTimeout(() => {
+      void (async () => {
+        const merged = effectiveBriefForNewAuditPipelineGates({
+          responses,
+          noPublicWebsite,
+          step0Basics: {
+            url,
+            name,
+            industry,
+            industrySpecify,
+            answerSource: responseSource,
+          },
+        });
+        const asMap = briefResponsesToIntakeMap(merged) as Record<string, unknown>;
+        const collectionF1 = isClientSelfServe ? 'self_serve' : 'interview';
+        const surfaceF1: IntakeSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
+        try {
+          await api.postIntakeNextQuestion(f1IntakeToken, {
+            responses: asMap,
+            productMode: briefProductMode,
+            collectionMode: collectionF1,
+            surface: surfaceF1,
+            intakeVersionTuple: draftIntakeVersions ?? currentIntakeVersionTuple(),
+          });
+        } catch {
+          // Route disabled or token unlinked / 404
+        }
+        if (seq !== newAuditF1RequestSeqRef.current) return;
+      })();
+    }, 450);
+    return () => {
+      if (newAuditF1DebounceRef.current) clearTimeout(newAuditF1DebounceRef.current);
+    };
+  }, [
+    step,
+    noPublicWebsite,
+    briefLayoutChoice,
+    f1IntakeToken,
+    responses,
+    url,
+    name,
+    industry,
+    industrySpecify,
+    responseSource,
+    isClientSelfServe,
+    briefProductMode,
+    draftIntakeVersions,
+  ]);
 
   const briefWizardIntakeAnalytics = useMemo(():
     | {

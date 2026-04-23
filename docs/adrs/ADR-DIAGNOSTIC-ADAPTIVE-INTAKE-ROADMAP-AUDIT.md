@@ -3,7 +3,17 @@
 **Status:** canonical sync for gap matrix G1–G13 and sprint labels  
 **Audience:** product + engineering (replaces stale “31 without contract” / “Sprint B not started” narratives)
 
+**Source of truth:** Treat this file as the **only** normative “roadmap vs repo” matrix. Long-form product narratives, Notion plans, or chat exports that still claim **“case patterns not shipped”**, **“G14 no runtime”**, **“G15 no admin graph”**, **“G5 no KPI read path”**, or **“NL ingress is regex-only”** are **stale** unless they explicitly defer here. For bank mechanics and id lists, [QUESTION_BANK.md](../QUESTION_BANK.md) remains authoritative.
+
 This document aligns the **Diagnostic Adaptive Intake** roadmap with the **current tree**. Source-of-truth implementations are linked inline.
+
+### Retired external gap labels (reconciliation)
+
+| Old label | Use instead |
+| --- | --- |
+| **G14** “no case-aware runtime” | **Shipped:** case catalog + `buildIntakePlan` overlay — see [Sprint B](#sprint-b--case-patterns--graph-runtime). Remaining product work is **depth** (overlay content, UX wiring), not missing modules. |
+| **G15** “no dependency graph in admin” | **Shipped:** [StudioDependencyGraphSection.tsx](../../src/app/components/question-bank-studio/sections/StudioDependencyGraphSection.tsx) — static edge **lists** (not force-directed). |
+| **G16** “dictation-first without stop criterion” | Partially shipped: `DictationProvider` + NL ingress + **F1** [`next-question`](./ADR-INTAKE-NEXT-QUESTION-V1.md) (deterministic stop). **Client:** `useIntakeBriefController` debounces **`POST /api/intake/:token/next-question`** when `APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled && intakeNextQuestionClientEnabled` (defaults **on**, parity with `FEATURE_INTAKE_NEXT_QUESTION` / `SYSTEM_DEFAULTS`). Public `/intake/:token` UI does **not** surface technical readiness / trace (consultant surfaces only). **Not shipped:** F2 LLM orchestrator; auto-snapping the progressive step to F1’s head is still optional product follow-up. |
 
 **Related ADRs (post-audit):**
 
@@ -49,7 +59,7 @@ This document aligns the **Diagnostic Adaptive Intake** roadmap with the **curre
 | ID | Update |
 | --- | --- |
 | **G1** “31 outside gate” | **Not missing contracts.** 31 = [`INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE`](../../packages/intake-core/src/config/intake-intelligence-sprint2.ts) (grouping for prioritization). All 78 questions still require `isIntakeIntelligenceSprint2Complete` in [`intake-intelligence-contract.test.ts`](../../packages/intake-core/src/tests/intake-intelligence-contract.test.ts). |
-| **G2** Editorial owners | `contract.todo` is disallowed for bank rows in tests; `ownerDomain` + stewardship are enforced. Named humans per domain remain **governance** work, not a code toggle. |
+| **G2** Editorial owners | `contract.todo` is disallowed for bank rows in tests; `ownerDomain` + stewardship are enforced. **G2′:** named humans + overdue review — optional registry [`intake-editorial-owners.v1.json`](../../packages/intake-core/src/artifacts/intake-editorial-owners.v1.json); CI for past `reviewByIsoDate` is **governance** backlog unless implemented. |
 | **G3** NL = regex only | **Stale.** LLM path exists behind flags (see Sprint D and NL ops ADR). |
 | **G4** Privacy / consent for NL | **Partial.** `useIntakeBriefController` stores NL consent; DPA + legal sign-off are **outstanding** (see [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](./ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md)). |
 | **G5** KPI dashboard | Server: [`intake-intelligence-kpi-dashboard.service.ts`](../../server/src/services/intake/intake-intelligence-kpi-dashboard.service.ts). Admin: [`QuestionBankStudioContainer.tsx`](../../src/app/components/question-bank-studio/containers/QuestionBankStudioContainer.tsx) → `GET /api/intake/intelligence-kpi/dashboard`. |
@@ -94,7 +104,34 @@ Implementation is **beyond regex-only** — see Sprint D table and [ADR-NL-INGRE
 
 ---
 
+## F1 vs F2 (next-question / orchestration)
+
+| Id | What | Status |
+| --- | --- | --- |
+| **F1** | Deterministic `POST /api/intake/:token/next-question`: `buildIntakePlan` head / `minimumSufficientContext` stop; `pipeline_events` **`intake_intelligence_next_question`**. | **Shipped** — [ADR-INTAKE-NEXT-QUESTION-V1.md](./ADR-INTAKE-NEXT-QUESTION-V1.md) |
+| **F2** | LLM suggests next `questionId` (validated ⊆ overlay-resolved set); shadow/canary; invalid-suggestion KPI. | **Not shipped** — future ADR when prioritized |
+
+**Naming:** Code comments and flags may still say “Sprint F floor”; that means **F1**. Do not assume **F2** exists because the route exists.
+
+---
+
+## Measurable product KPIs (wire-up anchors)
+
+Use these to score “adaptive depth” and dictation-first **without** inventing new event types.
+
+| Target | How to measure (existing plumbing) |
+| --- | --- |
+| **Median questions to readiness / stop** | Per `client_session_id` on public intake: count **`question_shown`** events (`POST /api/intake/:token/intelligence-kpi`) until `drop_off` or end-of-flow; join with `audit_readiness` from brief/pipeline if needed. Optional: count **`intake_intelligence_next_question`** with `action: 'ask'` (requires `FEATURE_INTAKE_NEXT_QUESTION` + pilot). |
+| **Case-key coverage** | **`case_key_coverage_rate`** (and `case_key_distribution`) on `GET /api/intake/intelligence-kpi/dashboard` — derived from KPI payloads with `case_keys`. Same keys on `next-question` pipeline rows when F1 is used. |
+| **Confidence movement** | **`confidence_moved_rate`** on the dashboard; client sets `confidence_moved` on `question_shown` beacons when weakest pilot-signal tier increases ([API.md](../API.md) `intelligence-kpi` section). |
+| **F1 stop vs queue** | Inspect `intake_intelligence_next_question` rows: `action` `ask` vs `stop`, `reason`, `case_keys` — for funnel analysis when the route is enabled. |
+
+**Preconditions:** `FEATURE_DIAGNOSTIC_INTAKE_PILOT` and relevant write paths enabled; F1 also requires `FEATURE_INTAKE_NEXT_QUESTION`. KPI inserts need a linked `audit_id` for `persisted: true` on intelligence-kpi ([API.md](../API.md)).
+
+---
+
 ## References
 
+- Next-question **F1** (deterministic): [ADR-INTAKE-NEXT-QUESTION-V1.md](./ADR-INTAKE-NEXT-QUESTION-V1.md)
 - Orchestration product sync (sibling doc): [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md)
 - Intake question bank: [QUESTION_BANK.md](../QUESTION_BANK.md)

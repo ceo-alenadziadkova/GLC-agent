@@ -3,6 +3,14 @@
 > Полная спецификация вопросов, ветвления и маппинга на доменных агентов.
 > Заменяет плоский список из 25 вопросов.
 
+### Canonical state vs roadmap (post 2026-04-23)
+
+- **Code vs roadmap:** treat [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md) as the **only synced snapshot** of what is implemented (case-aware overlay, KPI read path, follow-up runtime semantics, NL checklist, **F1** `next-question`, retired **G14–G16** labels — see “Retired external gap labels” in that ADR). It overrides stale narratives such as “case patterns not started”, “G14 no runtime”, or “KPI has no read layer” when they conflict with the tree.
+- **KPI and median-questions targets:** use the “Measurable product KPIs” table in the same ADR (`question_shown` / `drop_off` / dashboard rates / optional F1 pipeline events).
+- **Sprint-2 / bank coverage:** CI enforces **78/78** questions with full `IntakeIntelligenceSprint2` contract shape via `enrichWave2Metadata` + `intake-intelligence-contract.test.ts` (`fullyCoveredQuestions === 78`). The **47** figure is the **Sprint-2 gate subset** size (`INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS`), not “uncontracted” rows.
+- **Case pattern catalog:** `packages/intake-core/src/artifacts/intake-case-patterns.v1.json` (adaptive overlay + stop conditions; lint: `lint-case-patterns.ts`). `antiPatternExemptions` (when present) are defined in the intelligence contract layer — see `lint-intelligence-contract.ts` and §16 in this file.
+- **Sprint C expansion rule:** add net-new rows to `question-bank.v1.json` + full intelligence contract only when an overlay cannot reuse existing bank ids and KPI/semantic analysis shows a gap; prefer new `overlayQuestionIds` entries pointing at existing ids first. See [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md) § “Sprint C — Bank expansion”.
+
 ---
 
 ## 1. Диагноз текущих вопросов
@@ -90,6 +98,7 @@ English contract for decision-oriented metadata (see [ADR-DECISION-IMPACT-METADA
 - **Anti-patterns** (label + `whyAsked` heuristics): generic, leading, tautological, vanity, outside-spine, low info-gain, double-barreled; duplicate-intent fingerprint across completed contracts. **As implemented:** all anti-pattern heuristics except duplicate-intent are enforced as **errors** in `lintIntelligenceContractV1`; `INTELLIGENCE_DUPLICATE_INTENT` remains **warn** (see §16.1).
 - **Coverage + governance baseline (post 2026-04-23):** current contract target is full coverage (78/78) with stewardship metadata and no runtime `todo` fallback for bank ids; ownership defaults to role-based domains from `IntakeIntelligenceOwnerDomain`.
 - **Adding a bank question:** extend `question-bank.v1.json`, add full intelligence metadata (including stewardship + signal contribution info-gain floor), and keep review cadence non-overdue; CI contract tests enforce this. Follow [`intake-question-bank-change-protocol.mdc`](../.cursor/rules/intake-question-bank-change-protocol.mdc).
+- **Human editorial registry (G2′):** optional named primary contacts per `IntakeIntelligenceOwnerDomain` — [`intake-editorial-owners.v1.json`](../packages/intake-core/src/artifacts/intake-editorial-owners.v1.json) (update when assigning real owners; does not override `stewardship.ownerAlias` in contracts). Case pattern and sequencing bridge `reviewByIsoDate` values are also guarded by `intelligence-review-cadence` tests and `lint-case-patterns` / `lint-sequencing-pilot-guardrails`.
 
 ### 2.2. Секции (клиент видит)
 

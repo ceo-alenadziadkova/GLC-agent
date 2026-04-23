@@ -39,4 +39,30 @@ test.describe('consultant orchestration cockpit API', () => {
     });
     expect(second.status()).toBe(304);
   });
+
+  test('POST govern_action with stale expected_orchestration_pack_version returns 409', async ({ request }) => {
+    test.skip(!auditId || !token, 'Set E2E_ORCHESTRATION_AUDIT_ID and E2E_ORCHESTRATION_AUTH_TOKEN.');
+
+    const first = await request.get(`/api/audits/${auditId}/orchestration/pack`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(first.ok()).toBeTruthy();
+    const body = (await first.json()) as { orchestration_pack_version?: number };
+    const v = body.orchestration_pack_version;
+    if (v == null || v < 2) {
+      test.skip();
+    }
+
+    const res = await request.post(`/api/audits/${auditId}/orchestration/pack`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      data: {
+        govern_action: 'accept_plan',
+        expected_orchestration_pack_version: v - 1,
+      },
+    });
+    expect(res.status()).toBe(409);
+  });
 });

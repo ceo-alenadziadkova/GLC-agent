@@ -31,4 +31,5 @@
 ## References
 
 - [`build-intake-plan.ts`](../../packages/intake-core/src/core/build-intake-plan.ts) (followup prune, `followup_policy_evaluated` trace)  
-- [`intake-policy.v1.json`](../../packages/intake-core/src/intake-policy.v1.json) (`intelligence.followupRuleDefinitions`, `followupStopPrunesSameSignalOptional`)
+- [`intake-policy.v1.json`](../../packages/intake-core/src/intake-policy.v1.json) (`intelligence.followupRuleDefinitions`, `followupStopPrunesSameSignalOptional`)  
+- [ADR-INTAKE-NEXT-QUESTION-V1.md](./ADR-INTAKE-NEXT-QUESTION-V1.md) — **F1** public `next-question` uses the **post-prune** `nextRecommended` head; it does not replace this ADR’s trace vs queue distinction.

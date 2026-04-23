@@ -79,6 +79,17 @@ export interface IntakePolicyIntelligenceV1 {
    * unless they are in the policy required set.
    */
   followupStopPrunesSameSignalOptional?: boolean;
+  /**
+   * F1: deterministic “minimum sufficient context” for `decideIntakeNextQuestion` (ADR-INTAKE-NEXT-QUESTION-V1).
+   * When enabled with no sub-flags, an empty `nextRecommended` is treated as sufficient to stop.
+   */
+  minimumSufficientContext?: {
+    enabled?: boolean;
+    requirePilotCriticalSatisfied?: boolean;
+    requireMatchedCaseStops?: boolean;
+    requireConfidenceFloor?: boolean;
+    confidenceTarget?: 'low' | 'medium' | 'high';
+  };
 }
 
 export interface IntakePolicyV1 {

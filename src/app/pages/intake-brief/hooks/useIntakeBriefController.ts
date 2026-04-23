@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildBriefSchemaSnapshot, computePilotCriticalBottleneckRank, currentIntakeVersionTuple } from '@glc/intake-core';
+import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import { apiIntakeIntelligenceKpi } from '../../../config/api-paths';
 import { API_URL } from '../../../data/api-http';
 import { api, ApiError } from '../../../data/apiService';
@@ -117,6 +118,18 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const fastPassStartedRef = useRef(false);
   const fastPassCompletedRef = useRef(false);
   const precisionPassStartedRef = useRef(false);
+  const intakeF1DebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intakeF1RequestSeqRef = useRef(0);
+
+  const [intakeF1, setIntakeF1] = useState<{
+    status: 'idle' | 'loading' | 'ok' | 'unavailable';
+    decision: {
+      action: 'ask' | 'stop';
+      questionId: string | null;
+      reason: string;
+      caseKeys: string[];
+    } | null;
+  }>({ status: 'idle', decision: null });
 
   const intakeSchemaSnapshot = useMemo(() => {
     try {
@@ -164,8 +177,10 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     for (const entry of intakeSchemaSnapshot?.readiness?.trace ?? []) {
       const signalKey = entry.signalKey;
       if (!signalKey) continue;
-      if (entry.code === 'uncertainty_closed' || entry.code === 'hypothesis_confirmed') {
+      if (entry.code === 'uncertainty_closed') {
         certaintyBySignal.set(signalKey, 'confirmed');
+      } else if (entry.code === 'hypothesis_confirmed' && certaintyBySignal.get(signalKey) !== 'confirmed') {
+        certaintyBySignal.set(signalKey, 'confirming');
       } else if (entry.code === 'hypothesis_formed' && !certaintyBySignal.has(signalKey)) {
         certaintyBySignal.set(signalKey, 'confirming');
       }
@@ -348,6 +363,46 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     setResponses(prev => coerceA11ForNoWebsitePresence(prev));
   }, [websitePresenceKey]);
 
+  useEffect(() => {
+    if (!token || loading || phase !== 'form') return;
+    if (!APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled || !APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled) {
+      return;
+    }
+    const seq = ++intakeF1RequestSeqRef.current;
+    if (intakeF1DebounceRef.current) clearTimeout(intakeF1DebounceRef.current);
+    intakeF1DebounceRef.current = setTimeout(() => {
+      void (async () => {
+        setIntakeF1(prev => ({ status: 'loading', decision: prev.decision }));
+        const asMap = briefResponsesToIntakeMap(responses) as Record<string, unknown>;
+        try {
+          const result = await api.postIntakeNextQuestion(token, {
+            responses: asMap,
+            productMode: 'full',
+            collectionMode: 'pre_brief',
+            surface: 'client_form',
+            intakeVersionTuple: currentIntakeVersionTuple(),
+          });
+          if (seq !== intakeF1RequestSeqRef.current) return;
+          setIntakeF1({
+            status: 'ok',
+            decision: {
+              action: result.action,
+              questionId: result.questionId,
+              reason: result.reason,
+              caseKeys: result.caseKeys,
+            },
+          });
+        } catch {
+          if (seq !== intakeF1RequestSeqRef.current) return;
+          setIntakeF1({ status: 'unavailable', decision: null });
+        }
+      })();
+    }, 450);
+    return () => {
+      if (intakeF1DebounceRef.current) clearTimeout(intakeF1DebounceRef.current);
+    };
+  }, [token, loading, phase, responses]);
+
   const total = getPreBriefSubmitSlotIds(responses).length;
   const formComplete = answered === total;
   const isCurrentStepSatisfied = useMemo(() => {
@@ -393,6 +448,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   );
   const onSubmitOptionalDetails = useCallback(
     (id: string) => {
+      setOptionalDetailsOpenById(prev => ({ ...prev, [id]: false }));
       if (!token) return;
       void api.reportIntelligenceKpi(token, {
         event: 'optional_details_submitted',
@@ -664,8 +720,10 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     onDismissResumeBanner: () => setResumeBannerVisible(false),
     scrollToQuestion,
     confirmSubmit,
+    /** F1 plan-head from server (requires both diagnostic + next-question client flags; else stays idle). */
+    intakeF1,
     nlIngress:
-      nlIngressStatus === 'hidden'
+      !APP_FEATURE_FLAGS.intakePublicNlDescribeEnabled || nlIngressStatus === 'hidden'
         ? undefined
         : {
             text: nlIngressText,

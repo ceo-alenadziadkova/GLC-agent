@@ -179,6 +179,12 @@ export function Step1Brief({
     : isClientSelfServe
       ? 'client_form'
       : 'consultant_interview';
+  /** Aligned with `useNewAuditWizard` plan inputs (self_serve for portal, else legacy `undefined` for consultant). */
+  const briefCollectionMode = noPublicWebsite
+    ? 'discovery'
+    : isClientSelfServe
+      ? 'self_serve'
+      : undefined;
   const isBlockedReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'blocked';
   const isCaveatReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'ready_with_caveats';
   const remainingRequiredCount = Math.max(pipelineRequiredTotal - answeredRequired, 0);
@@ -273,6 +279,20 @@ export function Step1Brief({
                   {WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutFallbackAction}
                 </button>
               ) : null}
+            </Callout>
+          ) : null}
+          {isClientSelfServe && discoveryPrefilled ? (
+            <Callout intent="info" className="mb-4">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle
+                  size={15}
+                  weight="fill"
+                  className="text-info mt-0.5 flex-shrink-0"
+                />
+                <p className="text-muted-foreground text-xs leading-[1.55]">
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
+                </p>
+              </div>
             </Callout>
           ) : null}
           {!isClientSelfServe ? (
@@ -394,7 +414,7 @@ export function Step1Brief({
                 interviewMode={interviewMode}
                 emphasizeClientSource={intakePrefillActive}
                 answerSource={interviewMode ? 'consultant' : 'client'}
-                collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                collectionMode={briefCollectionMode}
                 intakeSurface={briefIntakeSurface}
                 intakeAnalytics={intakeAnalytics}
                 productMode={briefProductMode}
@@ -422,7 +442,7 @@ export function Step1Brief({
             <div className="ds-step1-brief-scroll">
               <BankClassicBriefFields
                 responses={responses}
-                collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                collectionMode={briefCollectionMode}
                 intakeSurface={briefIntakeSurface}
                 productMode={briefProductMode}
                 onChange={onResponseChange}

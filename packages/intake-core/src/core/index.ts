@@ -1,10 +1,15 @@
 export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
 export {
+  buildHypothesisCrossCheckFromReconPrefills,
   evaluateIntakeReadinessEnvelope,
   type EvaluateIntakeReadinessInput,
   type IntakeReadinessCriticalSignalsMode,
 } from './intake-readiness-envelope.js';
+export {
+  decideIntakeNextQuestion,
+  evaluateMinimumSufficientContext,
+} from './intake-next-question.js';
 export {
   computePilotCriticalBottleneckRank,
   evaluateCriticalSignalsPilot,

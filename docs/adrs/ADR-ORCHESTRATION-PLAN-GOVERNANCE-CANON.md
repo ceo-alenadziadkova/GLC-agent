@@ -50,8 +50,9 @@ We define **plan-level governance** as a first-class canonical layer for orchest
 2. Keep synthesis as optional layer behind feature flags.
 3. Monitor warning rates (`accept_with_warnings`) after rollout and tune policy in config, not in services.
 
-## Product MVP (2026-04) — UI / actions vs server canon
+## Post-MVP (v9) — optional governance CTAs (supersedes MVP-only “no `govern_action`” copy)
 
-- **Server canon** — `decision_hint` and persistence gates remain as in this ADR; evaluation is in `orchestration-plan-governance.service.ts` and build routes.
-- **No `govern_action` query/body** — there is no separate “governance-only” mutation; acceptance is expressed through **existing** flows (refine manifest / Strategy Lab / `POST /api/audits/:id/orchestration/pack` with manifest), not a dedicated `accept_plan` endpoint. See [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md#dod-4-slo-and-dod-6-governance) (DoD-6) for the product decision: **read surfaces** show `decision_hint`; optional one-click CTA is follow-up if product requests it.
-- **Consultant cockpit** — [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx) displays governance + links/rebuild; same contract as client-facing surfaces.
+- **Server canon** — unchanged: `decision_hint` and persistence gates remain as in this ADR; evaluation is in `orchestration-plan-governance.service.ts` and manifest build routes.
+- **Explicit consultant CTAs (2026-04+)** — `POST /api/audits/:id/orchestration/pack` accepts an optional **body** with `govern_action: 'accept_plan' | 'accept_with_warnings' | 'refine_plan'` and `expected_orchestration_pack_version` (optimistic concurrency). This records governance intent in `glc_orchestration_revision_history` and bumps pack version for accept paths; it does **not** replace manifest-first pack builds. Rollback: `FEATURE_CONSULTANT_GOVERNANCE_CTAS=false` (see `server/src/config/feature-flags.ts`). Telemetry: `kpi_orchestration_governance_action` in `orchestration-telemetry-policy.ts`.
+- **Product MVP note** — the April 2026 MVP line item “read-only + `decision_hint` only” was the **launch default**; v9 full-product work adds the optional CTA path above. Historical DoD-6 in the sync ADR should be read in that light.
+- **Consultant cockpit** — [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx) shows governance, rebuild, optional CTAs, and stale-version handling; same read contract as other surfaces.

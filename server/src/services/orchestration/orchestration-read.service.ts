@@ -290,12 +290,17 @@ export type OrchestrationPackRevisionHistoryItem = {
   from_version: number;
   to_version: number;
   diff: GlcOrchestrationPackRevisionDiff;
+  /** Optional: governance CTA (v9) when pack bytes unchanged but version bumps for audit. */
+  govern_action?: 'accept_plan' | 'accept_with_warnings' | 'refine_plan';
+  revision_reason?: string;
 };
 
 const OrchestrationPackRevisionHistoryItemSchema = z.object({
   from_version: z.number().int().nonnegative(),
   to_version: z.number().int().positive(),
   diff: GlcOrchestrationPackRevisionDiffSchema,
+  govern_action: z.enum(['accept_plan', 'accept_with_warnings', 'refine_plan']).optional(),
+  revision_reason: z.string().min(1).max(500).optional(),
 });
 
 const OrchestrationPackRevisionHistorySchema = z.array(OrchestrationPackRevisionHistoryItemSchema);
@@ -382,12 +387,14 @@ export async function fetchOrchestrationPackRevisionHistoryForUser(args: {
 function appendRevisionHistory(
   priorHistory: OrchestrationPackRevisionHistoryItem[],
   nextDiff: GlcOrchestrationPackRevisionDiff | null,
+  supplement?: Pick<OrchestrationPackRevisionHistoryItem, 'govern_action' | 'revision_reason'>,
 ): OrchestrationPackRevisionHistoryItem[] {
   if (!nextDiff) return priorHistory.slice(0, ORCHESTRATION_PACK_REVISION_HISTORY_MAX_ITEMS);
   const nextItem: OrchestrationPackRevisionHistoryItem = {
     from_version: nextDiff.from_version,
     to_version: nextDiff.to_version,
     diff: nextDiff,
+    ...supplement,
   };
   const merged = [nextItem, ...priorHistory.filter(row => row.to_version !== nextItem.to_version)];
   return merged.slice(0, ORCHESTRATION_PACK_REVISION_HISTORY_MAX_ITEMS);
@@ -397,6 +404,7 @@ export async function persistGlcOrchestrationPack(args: {
   auditId: string;
   userId: string;
   pack: GlcOrchestrationPack;
+  historySupplement?: Pick<OrchestrationPackRevisionHistoryItem, 'govern_action' | 'revision_reason'>;
 }): Promise<{
   orchestration_pack_version: number;
   last_revision_diff: GlcOrchestrationPackRevisionDiff | null;
@@ -449,7 +457,7 @@ export async function persistGlcOrchestrationPack(args: {
         });
       }
     }
-    const revisionHistory = appendRevisionHistory(priorHistory, last_revision_diff);
+    const revisionHistory = appendRevisionHistory(priorHistory, last_revision_diff, args.historySupplement);
 
     const { data: updatedRows, error: writeErr } = await supabase
       .from('audit_strategy')

@@ -108,6 +108,13 @@ export interface GlcOrchestrationPackView {
     leading?: string[];
     lagging?: string[];
   };
+  /** ADR V4 plan-level control object (optional). */
+  control_object?: {
+    objective: string;
+    constraints?: string[];
+    exit_criteria?: string[];
+    escalation_rules?: string[];
+  };
 }
 
 /** Client view of `glc_orchestration_last_revision_diff` (server Zod: orchestration-pack-revision-diff). */

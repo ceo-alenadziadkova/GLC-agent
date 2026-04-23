@@ -22,5 +22,11 @@ export const ORCHESTRATION_TELEMETRY_METRICS = {
   synthesisDeterministicFallback: 'kpi_orchestration_synthesis_deterministic_fallback',
   /** Consultant read-only orchestration cockpit pack fetch (adoption / funnel). */
   consultantCockpitView: 'kpi_orchestration_consultant_cockpit_view',
+  /** POST pack governance CTA: `accept_plan` / `accept_with_warnings` / `refine_plan` (dimension `action`). */
+  governanceAction: 'kpi_orchestration_governance_action',
+  /** LLM prompt cache: cache read vs write ratio (0–1) for orchestration + director deep-dive. */
+  llmCacheHitRate: 'kpi_orchestration_llm_cache_hit_rate',
+  /** Estimated LLM cost (USD) attributed to a single audit (rolling / daily). */
+  llmCostPerAuditUsd: 'kpi_orchestration_llm_cost_per_audit_usd',
 } as const;
 

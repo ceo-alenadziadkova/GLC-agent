@@ -111,6 +111,11 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   diagnosticIntakePilotEnabled: true,
   /**
+   * F1: public `POST /api/intake/:token/next-question` (deterministic plan head / minimum-sufficient stop).
+   * Env: FEATURE_INTAKE_NEXT_QUESTION
+   */
+  intakeNextQuestionEndpointEnabled: true,
+  /**
    * When true, readiness uses execution-plan domain slice for in-scope coverage gaps (post-KPI Phase-B).
    * Requires pilot flag for blocking paths; default off preserves Phase-1 behavior.
    * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE
@@ -153,4 +158,20 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
   executionPackRepeatFlowEnabled: true,
   /** Consultant orchestration cockpit route + telemetry (client + server log gate). Env: FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT */
   consultantOrchestrationCockpitEnabled: true,
+  /**
+   * Consultant cockpit governance CTAs (POST pack `govern_action`). Env: FEATURE_CONSULTANT_GOVERNANCE_CTAS
+   */
+  consultantGovernanceCtasEnabled: true,
+  /**
+   * Roadmap manifest scenario compare (dual manifest-preview). Env: FEATURE_MANIFEST_SCENARIO_COMPARE
+   */
+  manifestScenarioCompareEnabled: true,
+  /**
+   * Plan-level control_object (ADR V4) in pack JSON + UI. Env: FEATURE_PLAN_CONTROL_OBJECT
+   */
+  planControlObjectEnabled: false,
+  /**
+   * Anthropic prompt cache on stable system/tool prefixes. Env: FEATURE_LLM_PROMPT_CACHE
+   */
+  llmPromptCacheEnabled: true,
 } as const;

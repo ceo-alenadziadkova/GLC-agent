@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { getIntakeIntelligenceContract } from '../config/intake-intelligence-contract.js';
+import casePatternCatalog from '../artifacts/intake-case-patterns.v1.json' with { type: 'json' };
+import sequencingPilot from '../artifacts/intake-sequencing-pilot-1.0.0.json' with { type: 'json' };
 import { QUESTION_BANK_V1_IDS } from '../question-bank.js';
 
 function isoToday(): string {
@@ -42,5 +44,24 @@ describe('intelligence review cadence governance', () => {
       }
     }
     expect(productOwned).toEqual([]);
+  });
+
+  it('keeps case pattern catalog reviewByIsoDate non-overdue', () => {
+    const today = isoToday();
+    const overdue: string[] = [];
+    for (const c of casePatternCatalog.cases) {
+      if (c.reviewByIsoDate < today) overdue.push(`${c.caseKey}:${c.reviewByIsoDate}`);
+    }
+    expect(overdue).toEqual([]);
+  });
+
+  it('keeps sequencing pilot dependency rule lifecycle.reviewByIsoDate non-overdue', () => {
+    const today = isoToday();
+    const overdue: string[] = [];
+    for (const rule of sequencingPilot.dependencyRules ?? []) {
+      const d = rule.lifecycle?.reviewByIsoDate;
+      if (d && d < today) overdue.push(`${rule.id}:${d}`);
+    }
+    expect(overdue).toEqual([]);
   });
 });

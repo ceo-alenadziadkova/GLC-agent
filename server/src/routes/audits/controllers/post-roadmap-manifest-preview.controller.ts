@@ -17,6 +17,7 @@ import {
   RoadmapManifestMismatchError,
 } from '../../../services/orchestration/roadmap-manifest.service.js';
 import { buildRoadmapManifestPreview } from '../../../services/orchestration/roadmap-manifest-preview.js';
+import { getOrSetRoadmapManifestPreviewMemo } from '../../../services/orchestration/roadmap-manifest-preview-memo.js';
 import { loadAuditExecutionPlanRow } from '../../../services/orchestration/orchestration-read.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
@@ -76,9 +77,15 @@ export async function postRoadmapManifestPreviewController(req: AuthRequest, res
       throw e;
     }
 
-    const preview = buildRoadmapManifestPreview({
-      manifest: parsedBody.data,
-      executionPlan: auditCtx.plan,
+    const bodyJson = JSON.stringify(parsedBody.data);
+    const preview = getOrSetRoadmapManifestPreviewMemo({
+      auditId,
+      bodyJson,
+      compute: () =>
+        buildRoadmapManifestPreview({
+          manifest: parsedBody.data,
+          executionPlan: auditCtx.plan,
+        }),
     });
     logger.info('route.roadmap_manifest_preview_success', {
       component: 'audits',

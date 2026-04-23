@@ -21,12 +21,12 @@ Chat-only v8 called out Φ1 (CI baselines, DoD-7/8), ETag, `useOrchestrationRead
 | V1 | `plan_horizon` / calendar | **Done** | [orchestration-roadmap-presets.ts](../../server/src/config/orchestration-roadmap-presets.ts) |
 | V2 | Manifest-first wizard | **Done** | portal manifest routes, `roadmap-manifest` services |
 | V3 | Meta-Director ADR v1.1 → Zod pack | **Partial → tightening** | SSOT: [`server/src/schemas/glc-orchestration-pack.ts`](../../server/src/schemas/glc-orchestration-pack.ts). Top-level + **nested** regression: [`server/src/tests/glc-orchestration-pack-adr-v1-1-parity.test.ts`](../../server/src/tests/glc-orchestration-pack-adr-v1-1-parity.test.ts). New ADR fields still require a schema + test update in the same PR. |
-| V4 | Plan-level `CONTROL_OBJECT` | **Proposed / out of Product MVP** | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](./ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
+| V4 | Plan-level `control_object` in pack (ADR V4) | **Schema + UI in tree; GA gated** | Zod + optional `control_object` in pack schema; [`PlanControlObjectPanel`](../../src/app/components/glc/PlanControlObjectPanel.tsx). Enable with `FEATURE_PLAN_CONTROL_OBJECT` / `planControlObjectUiEnabled` when ADR is **Accepted**. Parity: nested `control_object` case in `glc-orchestration-pack-adr-v1-1-parity.test.ts`. Canonical ADR: [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](./ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | V5 | Client dependency graph UX | **Partial** | [`PortalTimelinePackGraphPanel`](../../src/app/components/glc/PortalTimelinePackGraphPanel.tsx) (lazy `xyflow`), [`PackGraphConsultantCanvas`](../../src/app/features/strategy-lab/PackGraphConsultantCanvas.tsx) (`consultant_full`), limits in [`orchestration-ui-limits.ts`](../../src/app/config/orchestration-ui-limits.ts). Optional: canvas perf polish. |
 | V6 | Evidence taxonomy UX | **Partial** | [`EvidenceDrilldownPanel`](../../src/app/components/glc/EvidenceDrilldownPanel.tsx); post-audit: [`ClientPostAuditCockpitSection`](../../src/app/pages/client-audit-view/sections/ClientPostAuditCockpitSection.tsx) |
 | V7 | Cross-lane narratives | **Partial** | [`orchestration-lane-pair-narratives.ts`](../../src/app/lib/orchestration-lane-pair-narratives.ts), [`PortalTimelinePage`](../../src/app/pages/PortalTimelinePage.tsx) |
 | V8 | Execution packs in journey | **Partial** (core flows shipped) | [`execution-pack-errors.ts`](../../src/app/lib/execution-pack-errors.ts); repeat / conflict dialog when a pack already exists — [`PortalTimelinePage`](../../src/app/pages/PortalTimelinePage.tsx) + `executionPackRepeatFlowEnabled` + copy in [`orchestration-roadmap-ui-copy.en.ts`](../../src/app/config/orchestration-roadmap-ui-copy.en.ts) |
-| V9 | New lanes / directors | **Backlog** (post-MVP) | — |
+| V9 | Lane / director **expandability** (registry) | **Done (v9 post-MVP mechanism)** | Server + app [`orchestration-lane-registry.ts`](../../server/src/config/orchestration-lane-registry.ts) / [`src/app/config/orchestration-lane-registry.ts`](../../src/app/config/orchestration-lane-registry.ts); tests in `orchestration-lane-registry.test.ts`. New lanes ship via registry + prompts, not hardcoded literals. |
 | V10 | Consultant parity cockpit | **Partial (MVP minimum shipped)** | [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx), `useOrchestrationReadModel`, route under `P.auditOrchestrationById`. E2E: API + ETag (see E2E section). |
 | V11 | vN→vN+1 revision story | **Partial** | [`RevisionHistoryPanel`](../../src/app/features/strategy-lab/RevisionHistoryPanel.tsx) in Strategy Lab; client summary uses `buildOrchestrationRevisionStorySummary` |
 | V12 | Prompt / synthesis quality | **Ongoing** | [`orchestration-synthesis-fallback.test.ts`](../../server/src/tests/orchestration-synthesis-fallback.test.ts), telemetry in [`orchestration-telemetry-policy.ts`](../../server/src/config/orchestration-telemetry-policy.ts) |
@@ -55,29 +55,28 @@ Relevant pairs include: `packGraphConsultantCanvasEnabled`, `evidenceDrilldownEn
 
 ---
 
-## Product MVP — §5 UX gap closers: explicit **out of scope** for the minimal MVP
+## §5 UX gap closers — **shipped in v9 post-MVP** (after Product MVP f769c0a+)
 
-**Product decision (2026-04-23 resync):** the four gap closers in v8 §5 (Now/Next/Later board, what-if manifest comparison, set-level effort/impact/risk aggregator, set-level confidence) are **not** required to call **Product MVP** “done” in this codebase. They remain **separate epics** when product reprioritizes. Implementation hints and suggested flags stay in the table below; no work is committed until a ticket promotes them.
+**Resync (2026-04+):** the v8 “§5” items below were **out of scope for the minimal Product MVP**; they are now **implemented** behind SPA flags (see [`app-feature-flags.ts`](../../src/app/config/app-feature-flags.ts)). Telemetry and LLM cost keys use the **`kpi_orchestration_*`** prefix (including `kpi_orchestration_llm_cache_hit_rate` and `kpi_orchestration_llm_cost_per_audit_usd` — not bare `kpi_llm_*`).
 
-| Gap | Suggested flags (when implemented) | Notes |
+| Gap | Flags | Notes |
 | -- | -- | -- |
-| Now/Next/Later board | `nowNextLaterBoardEnabled` (SPA) + env if new API | Group by `node.time_bucket` |
-| What-if manifest comparison | `manifestScenarioCompareEnabled` | Two `POST /manifest-preview` + diff |
-| Set-level effort/impact/risk | `orchestrationSetAggregatorEnabled` | Proposed: `src/app/lib/orchestration-set-aggregator.ts` (not in tree until implemented) |
-| Set-level confidence | (often same surface as set aggregator) | Min-confidence + distribution badge |
-
-Rough sizing when pulled in: **S–M each** (UI + tests).
+| Now/Next/Later board | `nowNextLaterBoardEnabled` | [`NowNextLaterBoard`](../../src/app/features/portal-timeline/NowNextLaterBoard.tsx) + tab on [`PortalTimelinePage`](../../src/app/pages/PortalTimelinePage.tsx); group from `time_bucket` / `top_actions` |
+| What-if manifest comparison | `manifestScenarioCompareEnabled` + `FEATURE_MANIFEST_SCENARIO_COMPARE` | [`ManifestScenarioCompareCta`](../../src/app/components/glc/ManifestScenarioCompareCta.tsx), [`scenario-compare.ts`](../../src/app/lib/scenario-compare.ts), dual `POST /roadmap/manifest-preview` + server memo |
+| Set-level effort / impact / risk / confidence | `orchestrationSetAggregatorEnabled` | [`orchestration-set-aggregator.ts`](../../src/app/lib/orchestration-set-aggregator.ts), [`SetAggregatorPanel`](../../src/app/components/glc/SetAggregatorPanel.tsx) |
+| Consultant governance CTAs | `consultantGovernanceCtasEnabled` + `FEATURE_CONSULTANT_GOVERNANCE_CTAS` | `POST /orchestration/pack` with `govern_action`; `kpi_orchestration_governance_action` |
+| LLM prompt cache observability | `FEATURE_LLM_PROMPT_CACHE` | `kpi_orchestration_llm_cache_hit_rate`, `kpi_orchestration_llm_cost_per_audit_usd` in [`orchestration-telemetry-policy.ts`](../../server/src/config/orchestration-telemetry-policy.ts) |
 
 ---
 
 ## DoD-4 (SLO) and DoD-6 (governance)
 
-**DoD-4 (Performance / observability):** p95 SLOs and minimum Grafana (or Datadog) dashboard rows for orchestration are documented in [DEPLOYMENT.md — Orchestration SLO (Product MVP)](../DEPLOYMENT.md#orchestration-slo-product-mvp) (“Baseline targets”, **DoD-4**). Satisfying DoD-4 is an **ops** milestone (panels + alerts), not only merging TypeScript.
+**DoD-4 (Performance / observability):** p95 SLOs and minimum Grafana (or Datadog) dashboard rows for orchestration are documented in [DEPLOYMENT.md — Orchestration SLO (Product MVP)](../DEPLOYMENT.md#orchestration-slo-product-mvp) (“Baseline targets”, **DoD-4**). Satisfying DoD-4 is an **ops** milestone (panels + alerts, `ORCHESTRATION_DASHBOARD_URL` in the ops index, **Post-MVP (v9)** extension bullets in the same “Monitoring” section, optional [`.github/workflows/orchestration-synthetic-probe.yml`](../../.github/workflows/orchestration-synthetic-probe.yml) when repository variable `VITE_API_URL` or `ORCH_PUBLIC_API_BASE` is set), not only merging TypeScript.
 
 **DoD-6 (Governance `decision_hint` visible client + consultant):**
 
 - **Client / report:** `decision_hint` and revision summary appear where packs are shown (e.g. [`ClientPostAuditCockpitSection`](../../src/app/pages/client-audit-view/sections/ClientPostAuditCockpitSection.tsx), timeline).
-- **Consultant cockpit:** [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx) **renders** `governance.decision_hint` and guidance for `refine_plan`; it provides **rebuild pack** and deep links to manifest / Strategy Lab. There are **no** separate one-click `accept_plan` / `accept_with_warnings` buttons—acceptance is expressed through existing workflows (refine + rebuild), not a new govern-only endpoint. If product needs explicit CTA, track as a follow-up UX item.
+- **Consultant cockpit:** [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx) **renders** `governance.decision_hint`, rebuild, and deep links. **Post-MVP (v9):** optional explicit **`govern_action`** on `POST /orchestration/pack` (`accept_plan` / `accept_with_warnings` / `refine_plan`) with optimistic concurrency — see [ADR-ORCHESTRATION-PLAN-GOVERNANCE-CANON.md](./ADR-ORCHESTRATION-PLAN-GOVERNANCE-CANON.md). Rollback: `FEATURE_CONSULTANT_GOVERNANCE_CTAS=false`.
 
 ---
 
@@ -86,6 +85,7 @@ Rough sizing when pulled in: **S–M each** (UI + tests).
 - **DoD-7 (no ad-hoc `kpi_orchestration_*` strings):** `scripts/orchestration-telemetry-keys-check.mjs` — `pnpm run audit:orchestration-telemetry`; [`.github/workflows/test.yml`](../../.github/workflows/test.yml).
 - **DoD-8 (main chunk gzip budget):** `scripts/bundle-main-gzip-budget.mjs` + `scripts/bundle-main-gzip-budget.json` — after `pnpm build`.
 - **Contract verification (DX):** `pnpm verify:orchestration-contract` — Zod pack tests + `orchestration-contract-parity.test.ts`.
+- **Orchestration E2E smoke (CI):** `pnpm run test:e2e:orchestration` in the `e2e-orchestration` job (same `test.yml`); tests skip without staging-style creds (see [e2e/README.md](../../e2e/README.md)).
 
 ---
 
@@ -97,7 +97,7 @@ Rough sizing when pulled in: **S–M each** (UI + tests).
 | OQ2 | ETag on `GET /orchestration/pack`? | **Yes:** [`get-orchestration-pack.controller.ts`](../../server/src/routes/audits/controllers/get-orchestration-pack.controller.ts). SPA: `useOrchestrationReadModel` + API client. |
 | OQ3 | Index on `audit_roadmap_manifest_snapshots`? | Rely on migrations `069`–`071` and rollout ADR; add indexes only in new migrations when needed. |
 | OQ4 | Director LLM stability in production? | Ops: dashboards using `ORCHESTRATION_TELEMETRY_METRICS` (see [DEPLOYMENT.md](../DEPLOYMENT.md)). |
-| OQ5 | E2E for consultant cockpit? | [`e2e/orchestration-consultant-cockpit.spec.ts`](../../e2e/orchestration-consultant-cockpit.spec.ts) — ETag, body shape, and **304** when `If-None-Match` matches. Optional UI walkthrough when stable auth + `E2E_ORCHESTRATION_UI` (or project convention) is available. |
+| OQ5 | E2E for consultant cockpit? | [`e2e/orchestration-consultant-cockpit.spec.ts`](../../e2e/orchestration-consultant-cockpit.spec.ts) — ETag, body shape, and **304** when `If-None-Match` matches. **CI:** [`.github/workflows/test.yml`](../../.github/workflows/test.yml) job `e2e-orchestration` runs `pnpm run test:e2e:orchestration` (orchestration specs skip without `E2E_ORCHESTRATION_*` creds). Optional UI walkthroughs when `E2E_ORCHESTRATION_UI=1` + auth. |
 
 ---
 

@@ -47,13 +47,12 @@ export function IntakeBrief() {
               />
             ) : (
               <IntakeBriefFormPhase
-                questionSections={c.questionSections}
+                intakeToken={c.token}
                 displayedQuestionSections={c.displayedQuestionSections}
                 responses={c.responses}
                 nlIngress={c.nlIngress}
                 readinessPanel={c.readinessPanel}
                 intelligenceByQuestionId={c.intelligenceByQuestionId}
-                signalConfidenceByQuestionId={c.signalConfidenceByQuestionId}
                 companyName={c.companyName}
                 message={c.message}
                 submittedAt={c.submittedAt}
@@ -67,7 +66,6 @@ export function IntakeBrief() {
                 questionMode={c.questionMode}
                 progressiveStepIndex={c.progressiveStepIndex}
                 progressiveStepTotal={c.progressiveStepTotal}
-                precisionPassQuestionCount={c.precisionPassQuestionCount}
                 skippedByConfidenceIds={c.skippedByConfidenceIds}
                 showFastPassDoneBanner={c.showFastPassDoneBanner}
                 optionalDetailsOpenById={c.optionalDetailsOpenById}

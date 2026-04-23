@@ -54,7 +54,7 @@ exports[`no-regression snapshots across intake surfaces > consultant_interview b
   ],
   "versions": {
     "layoutVersion": "1.1.0",
-    "policyVersion": "1.3.0",
+    "policyVersion": "1.4.0",
     "questionBankVersion": "1.3.0",
     "resolverVersion": "1.1.0",
     "sequencingVersion": "1.0.0",
@@ -101,7 +101,7 @@ exports[`no-regression snapshots across intake surfaces > pre_brief + client_for
   ],
   "versions": {
     "layoutVersion": "1.1.0",
-    "policyVersion": "1.3.0",
+    "policyVersion": "1.4.0",
     "questionBankVersion": "1.3.0",
     "resolverVersion": "1.1.0",
     "sequencingVersion": "1.0.0",
@@ -152,7 +152,7 @@ exports[`no-regression snapshots across intake surfaces > public_discovery basel
   ],
   "versions": {
     "layoutVersion": "1.1.0",
-    "policyVersion": "1.3.0",
+    "policyVersion": "1.4.0",
     "questionBankVersion": "1.3.0",
     "resolverVersion": "1.1.0",
     "sequencingVersion": "1.0.0",
@@ -214,7 +214,7 @@ exports[`no-regression snapshots across intake surfaces > self_serve + client_fo
   ],
   "versions": {
     "layoutVersion": "1.1.0",
-    "policyVersion": "1.3.0",
+    "policyVersion": "1.4.0",
     "questionBankVersion": "1.3.0",
     "resolverVersion": "1.1.0",
     "sequencingVersion": "1.0.0",

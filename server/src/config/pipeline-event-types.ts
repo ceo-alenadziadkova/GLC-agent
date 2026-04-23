@@ -26,6 +26,8 @@ export const PIPELINE_EVENT_TYPES = {
   intakeIntelligenceQuestionShown: 'intake_intelligence_question_shown',
   intakeIntelligenceAnswerChangedSignal: 'intake_intelligence_answer_changed_signal',
   intakeIntelligenceDropOff: 'intake_intelligence_drop_off',
+  /** F1: deterministic `POST /api/intake/:token/next-question` decision (no LLM). */
+  intakeIntelligenceNextQuestion: 'intake_intelligence_next_question',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

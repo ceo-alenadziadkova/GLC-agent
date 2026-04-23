@@ -9,7 +9,7 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
   searchParamsState: { value: '' },
   mockDraft: {
     v: 1 as const,
-    step: 1 as 0 | 1 | 2,
+    step: 1 as 0 | 1 | 2 | 3,
     url: '',
     noPublicWebsite: true,
     name: 'Seed Co',
@@ -31,6 +31,14 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     getBrief: vi.fn(),
     postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
     getDiscoverySession: vi.fn(),
+    postIntakeNextQuestion: vi.fn().mockResolvedValue({
+      ok: true,
+      action: 'ask' as const,
+      questionId: 'a2',
+      reason: 'test',
+      source: 'deterministic',
+      caseKeys: [] as string[],
+    }),
   },
 }));
 
@@ -195,7 +203,7 @@ describe('NewAudit wizard state wiring', () => {
   });
 
   it('keeps basics values in save payload when launching from restored client draft', async () => {
-    mockDraft.step = 2;
+    mockDraft.step = 3;
     mockDraft.url = 'example.com';
     mockDraft.noPublicWebsite = false;
     mockDraft.name = 'Acme Corp';
@@ -218,7 +226,7 @@ describe('NewAudit wizard state wiring', () => {
   });
 
   it('surfaces launch error when pipeline start fails', async () => {
-    mockDraft.step = 2;
+    mockDraft.step = 3;
     mockDraft.url = 'example.com';
     mockDraft.noPublicWebsite = false;
     mockDraft.name = 'Acme Corp';

@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "source": "Assign primary contacts when domain stewardship is human-owned; this file is the CODEOWNERS-like registry for intelligence editorial questions (not runtime routing).",
+  "primaryContactByDomain": {
+    "product": {
+      "label": "TBD",
+      "notes": "Prefer routing strategy/recon; avoid product as contract owner (see owner normalization in intake-intelligence-contract)."
+    },
+    "recon": { "label": "TBD" },
+    "tech_infrastructure": { "label": "TBD" },
+    "security_compliance": { "label": "TBD" },
+    "seo_digital": { "label": "TBD" },
+    "ux_conversion": { "label": "TBD" },
+    "marketing_utp": { "label": "TBD" },
+    "automation_processes": { "label": "TBD" },
+    "strategy": { "label": "TBD" }
+  }
+}

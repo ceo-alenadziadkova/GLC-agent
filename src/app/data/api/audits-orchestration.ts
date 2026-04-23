@@ -72,6 +72,8 @@ export type OrchestrationPackRevisionHistoryItemDto = {
   from_version: number;
   to_version: number;
   diff: GlcOrchestrationPackRevisionDiffView;
+  govern_action?: 'accept_plan' | 'accept_with_warnings' | 'refine_plan';
+  revision_reason?: string;
 };
 
 export type OrchestrationPlanGovernanceDto = {
@@ -266,14 +268,24 @@ export const auditsOrchestrationApi = {
     return { kind: 'ok' as const, data: r.data };
   },
 
-  async postOrchestrationPack(auditId: string, body: { manifest_snapshot_id: string; selected_action_ids?: string[] }) {
+  async postOrchestrationPack(
+    auditId: string,
+    body:
+      | { manifest_snapshot_id: string; selected_action_ids?: string[] }
+      | {
+          govern_action: 'accept_plan' | 'accept_with_warnings' | 'refine_plan';
+          expected_orchestration_pack_version: number;
+        },
+  ) {
     return apiFetch<{
-      pack: GlcOrchestrationPackView;
+      pack: GlcOrchestrationPackView | null;
       orchestration_pack_version: number;
-      roadmap_version: number;
-      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      roadmap_version?: number;
+      last_revision_diff?: GlcOrchestrationPackRevisionDiffView | null;
       last_revision_diff_summary?: string | null;
-      plan_governance: OrchestrationPlanGovernanceDto;
+      plan_governance?: OrchestrationPlanGovernanceDto;
+      refine_hint?: boolean;
+      govern_action?: 'accept_plan' | 'accept_with_warnings' | 'refine_plan';
     }>(apiAuditsOrchestrationPack(auditId), {
       method: 'POST',
       body: JSON.stringify(body),

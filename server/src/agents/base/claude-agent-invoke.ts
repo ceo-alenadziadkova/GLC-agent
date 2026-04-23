@@ -35,6 +35,8 @@ import {
   recordClaudeFailure,
   resetClaudeFailures,
 } from './claude-circuit-breaker.js';
+import { isLlmPromptCacheEnabled } from '../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
 
 const CLAUDE_RETRYABLE_HTTP_STATUSES = new Set<number>(SYSTEM_DEFAULTS.claudeHttp.retryableAnthropicStatuses);
 const CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES = new Set<number>(
@@ -108,19 +110,28 @@ export async function callClaudeWithRetry(
       );
       let response: Awaited<ReturnType<Anthropic['messages']['create']>>;
       try {
+        const systemParam: Parameters<Anthropic['messages']['create']>[0]['system'] = isLlmPromptCacheEnabled()
+          ? [
+              {
+                type: 'text',
+                text: system,
+                cache_control: { type: 'ephemeral' },
+              },
+            ]
+          : system;
+        const toolBlockDef = {
+          name: toolName,
+          description: ev.claudeToolDescription,
+          input_schema: jsonSchema as Anthropic.Tool['input_schema'],
+          ...(isLlmPromptCacheEnabled() ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        };
         response = await anthropic.messages.create(
           {
             model: CLAUDE_MODEL,
             max_tokens: maxTokens,
-            system,
+            system: systemParam,
             messages: [{ role: 'user', content: prompt }],
-            tools: [
-              {
-                name: toolName,
-                description: ev.claudeToolDescription,
-                input_schema: jsonSchema as Anthropic.Tool['input_schema'],
-              },
-            ],
+            tools: [toolBlockDef as Anthropic.Tool],
             tool_choice: { type: 'tool', name: toolName },
           },
           {
@@ -131,6 +142,24 @@ export async function callClaudeWithRetry(
         clearTimeout(timer);
       }
       await resetClaudeFailures();
+
+      const u = response.usage as {
+        input_tokens: number;
+        output_tokens: number;
+        cache_creation_input_tokens?: number;
+        cache_read_input_tokens?: number;
+      };
+      const cacheRead = u.cache_read_input_tokens ?? 0;
+      const cacheCreate = u.cache_creation_input_tokens ?? 0;
+      const cacheDen = cacheRead + cacheCreate;
+      const cacheHitRate = isLlmPromptCacheEnabled() && cacheDen > 0 ? cacheRead / cacheDen : 0;
+      if (isLlmPromptCacheEnabled()) {
+        logger.info('domain_agent.cache_metrics', {
+          audit_id: auditId,
+          domain_key: domainKey,
+          [ORCHESTRATION_TELEMETRY_METRICS.llmCacheHitRate]: cacheHitRate,
+        });
+      }
 
       const toolBlock = response.content.find((b) => b.type === 'tool_use');
       if (!toolBlock || toolBlock.type !== 'tool_use') {

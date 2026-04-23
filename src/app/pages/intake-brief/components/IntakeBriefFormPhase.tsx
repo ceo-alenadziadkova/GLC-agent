@@ -1,53 +1,35 @@
+import { useCallback, useState } from 'react';
 import { motion } from 'motion/react';
-import {
-  ArrowRight,
-  CheckCircle,
-  Info,
-  Question,
-  WarningCircle,
-  XCircle,
-} from '@phosphor-icons/react';
+import { ArrowRight } from '@phosphor-icons/react';
+import { Link } from 'react-router';
 import { BriefField } from '../../../components/BriefField';
-import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
 import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
 import { briefResponseTrimmedString } from '../../../data/briefQuestions';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
-import { INTAKE_DIAGNOSTIC_PILOT_COPY_EN } from '../../../config/intake-diagnostic-pilot-copy.en';
 import { formatIntakeBriefSavedAt } from '../../../lib/format-intake-dates';
 import { replaceIntakePublicCopyPlaceholders } from '../lib/intake-public-copy-helpers';
 
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 
-function SignalConfidenceGlyph(props: {
-  confidence: 'high' | 'medium' | 'low' | 'unknown';
-  certaintyStage?: 'assumed' | 'confirming' | 'confirmed';
-}) {
-  const { confidence, certaintyStage = 'assumed' } = props;
-  const tone = (() => {
-    if (confidence === 'high') return 'text-[var(--ds-semantic-success)]';
-    if (confidence === 'medium') return 'text-[var(--ds-semantic-warning)]';
-    if (confidence === 'low') return 'text-[var(--ds-semantic-danger)]';
-    return 'text-[var(--ds-text-muted)]';
-  })();
-  const Icon =
-    confidence === 'high'
-      ? CheckCircle
-      : confidence === 'medium'
-        ? WarningCircle
-        : confidence === 'low'
-          ? XCircle
-          : Question;
-  return (
-    <span className={`inline-flex items-center gap-1 ${tone}`} title={`${copy.signalConfidencePrefix} ${confidence}`}>
-      <Icon className="h-4 w-4 shrink-0" weight="duotone" aria-hidden />
-      <span className="rounded border px-1 py-0.5 text-[10px] leading-none text-[var(--ds-text-muted)]">
-        {certaintyStage}
-      </span>
-      <span className="sr-only">
-        {copy.signalConfidencePrefix} {confidence}
-      </span>
-    </span>
-  );
+const LS_PREFILL_DISMISS = (token: string) => `glc:intake:inline-notice:prefill:${token}`;
+const LS_SHORT_HINT_DISMISS = (token: string) => `glc:intake:inline-notice:short-hint:${token}`;
+
+function readNoticeDismissed(key: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function persistNoticeDismissed(key: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, '1');
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 function resolveDeepenPrompt(args: {
@@ -58,7 +40,7 @@ function resolveDeepenPrompt(args: {
 }): string | null {
   if (args.questionType !== 'free_text') return null;
   const text = args.value.trim();
-  if (!text) return null;
+  if (!text) return args.copy.addDetailsEmptyHint;
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const normalized = text.toLowerCase();
   const isVeryShort = text.length < 28 || wordCount < 4;
@@ -80,7 +62,8 @@ function resolveDeepenPrompt(args: {
 type SectionBlock = { section: string; questions: BriefQuestion[] };
 
 export function IntakeBriefFormPhase(props: {
-  questionSections: SectionBlock[];
+  /** Public intake token — used to remember dismissed inline notices for this link. */
+  intakeToken: string | null;
   displayedQuestionSections: SectionBlock[];
   responses: BriefResponses;
   nlIngress?: {
@@ -92,28 +75,14 @@ export function IntakeBriefFormPhase(props: {
     busy: boolean;
     status: 'idle' | 'ok' | 'error';
   };
-  readinessPanel: {
-    state: 'pristine' | 'partial' | 'blocked';
-    flowReadinessStatus: 'flow_ready' | 'blocked';
-    auditReadinessStatus: 'audit_ready' | 'blocked' | 'ready_with_caveats';
-    criticalSignals: Record<string, 'high' | 'medium' | 'low' | 'unknown'>;
-    remediation: Array<{ id: string; label: string }>;
-    trace: Array<{ code: string; questionId?: string; signalKey?: string }>;
-  };
+  /** Only `state` is used for friendly nudges; technical readiness is not shown on this screen. */
+  readinessPanel: { state: 'pristine' | 'partial' | 'blocked' };
   intelligenceByQuestionId: Record<
     string,
     {
       whyAsked: string;
       semanticDomain: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
       decisionImpact: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
-    }
-  >;
-  signalConfidenceByQuestionId: Record<
-    string,
-    {
-      signalKey: string;
-      confidence: 'high' | 'medium' | 'low' | 'unknown';
-      certaintyStage: 'assumed' | 'confirming' | 'confirmed';
     }
   >;
   companyName: string;
@@ -129,7 +98,6 @@ export function IntakeBriefFormPhase(props: {
   questionMode: 'progressive' | 'all_questions';
   progressiveStepIndex: number;
   progressiveStepTotal: number;
-  precisionPassQuestionCount: number;
   skippedByConfidenceIds: string[];
   showFastPassDoneBanner: boolean;
   optionalDetailsOpenById: Record<string, boolean>;
@@ -149,13 +117,12 @@ export function IntakeBriefFormPhase(props: {
   onGoReview: () => void;
 }) {
   const {
-    questionSections,
+    intakeToken,
     displayedQuestionSections,
     responses,
     nlIngress,
     readinessPanel,
     intelligenceByQuestionId,
-    signalConfidenceByQuestionId,
     companyName,
     message,
     submittedAt,
@@ -169,7 +136,6 @@ export function IntakeBriefFormPhase(props: {
     questionMode,
     progressiveStepIndex,
     progressiveStepTotal,
-    precisionPassQuestionCount,
     skippedByConfidenceIds,
     showFastPassDoneBanner,
     optionalDetailsOpenById,
@@ -189,27 +155,46 @@ export function IntakeBriefFormPhase(props: {
     onGoReview,
   } = props;
 
+  const [prefillNoticeDismissed, setPrefillNoticeDismissed] = useState(() =>
+    intakeToken ? readNoticeDismissed(LS_PREFILL_DISMISS(intakeToken)) : false,
+  );
+  const [shortAnswersHintDismissed, setShortAnswersHintDismissed] = useState(() =>
+    intakeToken ? readNoticeDismissed(LS_SHORT_HINT_DISMISS(intakeToken)) : false,
+  );
+
+  const dismissPrefillNotice = useCallback(() => {
+    setPrefillNoticeDismissed(true);
+    if (intakeToken) persistNoticeDismissed(LS_PREFILL_DISMISS(intakeToken));
+  }, [intakeToken]);
+  const dismissShortAnswersHint = useCallback(() => {
+    setShortAnswersHintDismissed(true);
+    if (intakeToken) persistNoticeDismissed(LS_SHORT_HINT_DISMISS(intakeToken));
+  }, [intakeToken]);
+
   const title = companyName || copy.formTitleFallback;
   const expiresDisplay = expiresAtIso ? formatIntakeBriefSavedAt(expiresAtIso) : '';
-  const readinessStateLabel =
-    readinessPanel.state === 'pristine'
-      ? copy.readinessStatePristine
-      : readinessPanel.state === 'blocked'
-        ? copy.readinessStateBlocked
-        : copy.readinessStatePartial;
-  const confidenceToneClass = (confidence: 'high' | 'medium' | 'low' | 'unknown') => {
-    if (confidence === 'high') return 'text-[var(--ds-semantic-success)]';
-    if (confidence === 'medium') return 'text-[var(--ds-semantic-warning)]';
-    if (confidence === 'low') return 'text-[var(--ds-semantic-danger)]';
-    return 'text-[var(--ds-text-muted)]';
-  };
+  const clientReadinessNudge =
+    readinessPanel.state === 'blocked'
+      ? copy.readinessNudgeNeedBasics
+      : readinessPanel.state === 'partial' && answered > 0
+        ? copy.readinessNudgeMoreContext
+        : null;
+  const stepCurrent = Math.min(progressiveStepIndex + 1, Math.max(progressiveStepTotal, 1));
+  const stepMax = Math.max(progressiveStepTotal, 1);
+  const stepLine = replaceIntakePublicCopyPlaceholders(copy.stepProgressFormat, {
+    current: String(stepCurrent),
+    total: String(stepMax),
+  });
   const progressRatio = total > 0 ? answered / total : 0;
+  const stepRatio = stepMax > 0 ? stepCurrent / stepMax : 0;
   const progressValueLine =
     progressRatio < 0.4
       ? copy.progressValueEarly
       : progressRatio < 0.85
         ? copy.progressValueMid
         : copy.progressValueLate;
+  const modeSubtitle =
+    journeyStage === 'fast_pass' ? copy.modeSubtitleFast : copy.modeSubtitlePrecision;
 
   return (
     <motion.div
@@ -253,18 +238,39 @@ export function IntakeBriefFormPhase(props: {
         </p>
       )}
 
-      {consultantPrefilledIdentity && (
-        <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice ds-intake-brief-inline-notice--info">
-          {copy.consultantPrefillNotice}
-        </p>
+      {consultantPrefilledIdentity && !prefillNoticeDismissed && (
+        <div className="text-xs text-center rounded-lg ds-intake-brief-inline-notice ds-intake-brief-inline-notice--info w-full max-w-2xl mx-auto px-3 py-2">
+          <div className="flex items-start justify-between gap-3 text-left">
+            <span className="min-w-0 flex-1 leading-relaxed">{copy.consultantPrefillNotice}</span>
+            <button
+              type="button"
+              className="shrink-0 underline ds-text-secondary"
+              onClick={dismissPrefillNotice}
+            >
+              {copy.inlineNoticeDismiss}
+            </button>
+          </div>
+        </div>
       )}
-      <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice">{copy.shortAnswersHint}</p>
+      {!shortAnswersHintDismissed && (
+        <div className="text-xs text-center rounded-lg ds-intake-brief-inline-notice w-full max-w-2xl mx-auto px-3 py-2">
+          <div className="flex items-start justify-between gap-3 text-left">
+            <span className="min-w-0 flex-1 leading-relaxed">{copy.shortAnswersHint}</span>
+            <button
+              type="button"
+              className="shrink-0 underline ds-text-secondary"
+              onClick={dismissShortAnswersHint}
+            >
+              {copy.inlineNoticeDismiss}
+            </button>
+          </div>
+        </div>
+      )}
 
       {nlIngress ? (
         <div className="rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-raised)] p-4 space-y-2 max-w-2xl mx-auto w-full">
           <p className="text-sm font-semibold m-0 ds-text-primary">{copy.nlIngressTitle}</p>
           <p className="text-xs m-0 ds-text-secondary">{copy.nlIngressHelper}</p>
-          <p className="text-xs m-0 ds-text-quaternary">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.nlIngressPreferExplicitNote}</p>
           <textarea
             className="w-full min-h-[88px] rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-surface-default)] px-3 py-2 text-sm ds-text-primary"
             value={nlIngress.text}
@@ -273,14 +279,24 @@ export function IntakeBriefFormPhase(props: {
             aria-label={copy.nlIngressTitle}
           />
           <p className="text-xs m-0 ds-text-quaternary">{copy.nlIngressPrivacy}</p>
-          <label className="flex items-start gap-2 text-xs ds-text-secondary">
+          <label className="flex flex-wrap items-start gap-2 text-xs ds-text-secondary">
             <input
               type="checkbox"
               checked={nlIngress.consentAccepted}
               onChange={e => nlIngress.onConsentChange(e.target.checked)}
               className="mt-0.5"
             />
-            <span>{copy.nlConsentLabel}</span>
+            <span>
+              {copy.nlConsentLabel}{' '}
+              <Link
+                to="/legal/privacy"
+                className="underline font-medium"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {copy.nlPrivacyLinkLabel}
+              </Link>
+            </span>
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -307,13 +323,23 @@ export function IntakeBriefFormPhase(props: {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ds-border-subtle)] p-2">
-        <div className="text-xs ds-text-secondary">
-          {journeyStage === 'fast_pass'
-            ? `${copy.stageFastPassLabel} ${Math.min(progressiveStepIndex + 1, Math.max(progressiveStepTotal, 1))}/${Math.max(progressiveStepTotal, 1)}`
-            : `${copy.stagePrecisionPassLabel} ${Math.min(progressiveStepIndex + 1, Math.max(progressiveStepTotal, 1))}/${Math.max(progressiveStepTotal, 1)}`}
-          {journeyStage === 'precision_pass' ? ` · ${precisionPassQuestionCount} ${copy.stageTargetedChecksSuffix}` : ''}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ds-border-subtle)] p-3">
+        {questionMode === 'progressive' ? (
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold m-0 ds-text-primary">{stepLine}</p>
+            <p className="text-xs m-0 ds-text-quaternary">{modeSubtitle}</p>
+            <div className="mt-2 rounded-full overflow-hidden ds-intake-brief-progress-track h-1.5">
+              <div
+                className="h-full rounded-full transition-all ds-intake-progress-fill"
+                style={{ width: `${stepRatio * 100}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs ds-text-secondary">
+            {copy.progressLabel}: {answered} / {total}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -328,61 +354,14 @@ export function IntakeBriefFormPhase(props: {
         </div>
       </div>
 
-      <div className="w-full lg:grid lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:gap-8 lg:items-start">
-        <aside className="mb-6 space-y-3 lg:mb-0 lg:sticky lg:top-20 self-start">
-          <div className="glc-card p-4 space-y-3 ds-radius-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide ds-text-tertiary m-0">{copy.readinessPanelTitle}</p>
-                <p className="text-sm font-semibold m-0">{readinessStateLabel}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs ds-text-tertiary m-0">{copy.readinessFlowLabel}</p>
-                <p className="text-xs font-medium m-0">{readinessPanel.flowReadinessStatus}</p>
-              </div>
-            </div>
+      {clientReadinessNudge ? (
+        <p className="text-sm text-center max-w-2xl mx-auto rounded-lg border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-raised)] px-3 py-2 ds-text-secondary">
+          {clientReadinessNudge}
+        </p>
+      ) : null}
 
-            <div className="space-y-1">
-              <p className="text-xs font-medium m-0">{copy.readinessSignalsLabel}</p>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(readinessPanel.criticalSignals).map(([signalKey, confidence]) => (
-                  <span
-                    key={signalKey}
-                    className={`text-xs rounded-md px-2 py-1 border ${confidenceToneClass(confidence)}`}
-                  >
-                    {signalKey}: {confidence}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {readinessPanel.remediation.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs font-medium m-0">{copy.readinessRemediationLabel}</p>
-                <ul className="text-xs m-0 pl-4 space-y-1">
-                  {readinessPanel.remediation.map(item => (
-                    <li key={item.id}>{item.label}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {readinessPanel.trace.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs font-medium m-0">{copy.readinessTraceLabel}</p>
-                <div className="flex flex-wrap gap-2">
-                  {readinessPanel.trace.slice(0, 6).map((item, idx) => (
-                    <span key={`${item.code}-${idx}`} className="text-xs rounded-md px-2 py-1 border ds-text-tertiary">
-                      {item.code}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <div className="min-w-0 space-y-6">
+      <div className="w-full min-w-0 space-y-6 max-w-3xl mx-auto">
+        {questionMode === 'all_questions' ? (
           <div>
             <div className="flex justify-between text-xs mb-1 ds-text-tertiary">
               <span>{copy.progressLabel}</span>
@@ -398,8 +377,9 @@ export function IntakeBriefFormPhase(props: {
             </div>
             <p className="text-xs mt-2 mb-0 ds-text-secondary">{progressValueLine}</p>
           </div>
+        ) : null}
 
-          <div className="glc-card overflow-hidden p-5 space-y-8 ds-radius-xl">
+        <div className="glc-card overflow-hidden p-5 space-y-8 ds-radius-xl">
             {displayedQuestionSections.map((block, blockIdx) => (
               <section
                 key={`intake-form-section-${blockIdx}`}
@@ -434,47 +414,15 @@ export function IntakeBriefFormPhase(props: {
                     });
                     return (
                       <div key={q.id} id={`intake-q-${q.id}`}>
-                        {signalConfidenceByQuestionId[q.id] && (
-                          <div className="mb-2 flex items-center gap-2">
-                            <SignalConfidenceGlyph
-                              confidence={signalConfidenceByQuestionId[q.id]!.confidence}
-                              certaintyStage={signalConfidenceByQuestionId[q.id]!.certaintyStage}
-                            />
-                          </div>
-                        )}
                         {intelligenceByQuestionId[q.id] && (
-                          <div className="mb-2 rounded-lg border p-2 space-y-2">
-                            <p className="text-xs m-0 ds-text-tertiary">
-                              <span className="font-medium text-[var(--ds-text-primary)]">
-                                {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.whyAskedExpandLabel}:{' '}
-                              </span>
+                          <details className="mb-2 rounded-lg border border-[var(--ds-border-subtle)] p-2">
+                            <summary className="cursor-pointer text-xs ds-text-secondary list-none [&::-webkit-details-marker]:hidden">
+                              {copy.whyWeAskSummary}
+                            </summary>
+                            <p className="text-xs m-0 mt-2 leading-relaxed ds-text-tertiary">
                               {intelligenceByQuestionId[q.id]!.whyAsked}
                             </p>
-                            {intelligenceByQuestionId[q.id]!.decisionImpact.length > 0 && (
-                              <div className="flex items-start gap-2">
-                                <p className="text-xs m-0 flex-1 ds-text-tertiary">
-                                  <span className="font-medium text-[var(--ds-text-primary)]">
-                                    {copy.decisionImpactLabel}
-                                  </span>
-                                </p>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ds-text-tertiary hover:ds-text-primary"
-                                      aria-label={`${copy.decisionImpactDetailsTrigger}: ${INTAKE_DIAGNOSTIC_PILOT_COPY_EN.whyAskedExpandLabel}`}
-                                    >
-                                      <Info className="h-3.5 w-3.5" weight="duotone" aria-hidden />
-                                      <span>{copy.decisionImpactDetailsTrigger}</span>
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent align="start" className="text-xs leading-snug">
-                                    {intelligenceByQuestionId[q.id]!.decisionImpact[0]!.effectDescription}
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            )}
-                          </div>
+                          </details>
                         )}
                         <BriefField
                           q={q}
@@ -496,27 +444,31 @@ export function IntakeBriefFormPhase(props: {
                                 : undefined
                           }
                         />
-                        {!optionalDetailsOpenById[q.id] ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs underline ds-text-secondary"
-                            onClick={() => onOpenOptionalDetails(q.id)}
-                          >
-                            {copy.addDetails}
-                          </button>
-                        ) : deepenPrompt ? (
-                          <p className="mt-2 text-xs ds-text-secondary">{deepenPrompt}</p>
-                        ) : (
-                          <p className="mt-2 text-xs ds-text-secondary">{copy.detailsEnough}</p>
-                        )}
-                        {optionalDetailsOpenById[q.id] ? (
-                          <button
-                            type="button"
-                            className="mt-1 text-xs underline ds-text-secondary"
-                            onClick={() => onSubmitOptionalDetails(q.id)}
-                          >
-                            {copy.doneAddingDetails}
-                          </button>
+                        {q.type === 'free_text' ? (
+                          <>
+                            {!optionalDetailsOpenById[q.id] ? (
+                              <button
+                                type="button"
+                                className="mt-2 text-xs underline ds-text-secondary"
+                                onClick={() => onOpenOptionalDetails(q.id)}
+                              >
+                                {copy.addDetails}
+                              </button>
+                            ) : deepenPrompt ? (
+                              <p className="mt-2 text-xs ds-text-secondary">{deepenPrompt}</p>
+                            ) : (
+                              <p className="mt-2 text-xs ds-text-secondary">{copy.detailsEnough}</p>
+                            )}
+                            {optionalDetailsOpenById[q.id] ? (
+                              <button
+                                type="button"
+                                className="mt-1 text-xs underline ds-text-secondary"
+                                onClick={() => onSubmitOptionalDetails(q.id)}
+                              >
+                                {copy.doneAddingDetails}
+                              </button>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
                     );
@@ -525,7 +477,6 @@ export function IntakeBriefFormPhase(props: {
               </section>
             ))}
           </div>
-        </div>
       </div>
 
       {skippedByConfidenceIds.length > 0 && (
@@ -540,7 +491,7 @@ export function IntakeBriefFormPhase(props: {
         </p>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex max-w-3xl mx-auto w-full items-center gap-2">
         <button
           type="button"
           className="ds-btn ds-btn--secondary flex-1 py-3 text-sm"

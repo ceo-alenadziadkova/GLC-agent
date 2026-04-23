@@ -279,6 +279,10 @@ export function apiIntakeIntelligenceKpi(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/intelligence-kpi`;
 }
 
+export function apiIntakeNextQuestion(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/next-question`;
+}
+
 export function apiBriefPublicSession(token: string): string {
   return `${API_PATHS.briefPublicSession}/${encodeURIComponent(token)}`;
 }

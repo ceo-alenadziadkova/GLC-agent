@@ -312,6 +312,14 @@ export function isDiagnosticIntakePilotEnabled(): boolean {
 }
 
 /**
+ * F1: deterministic next-question / stop API for public intake (no LLM; ADR-INTAKE-NEXT-QUESTION-V1).
+ * Env: FEATURE_INTAKE_NEXT_QUESTION
+ */
+export function isIntakeNextQuestionEndpointEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_INTAKE_NEXT_QUESTION, FF.intakeNextQuestionEndpointEnabled);
+}
+
+/**
  * Execution-plan coverage scope for intake readiness (selected domains ∩ missingForReport).
  * Post-KPI expansion; keep off until Product sets `expand` on the KPI gate.
  * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true
@@ -396,4 +404,30 @@ export function isConsultantOrchestrationCockpitEnabled(): boolean {
     process.env.FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT,
     FF.consultantOrchestrationCockpitEnabled,
   );
+}
+
+/** POST pack `govern_action` (accept / accept with warnings / refine). Env: FEATURE_CONSULTANT_GOVERNANCE_CTAS */
+export function isConsultantGovernanceCtasEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_CONSULTANT_GOVERNANCE_CTAS,
+    FF.consultantGovernanceCtasEnabled,
+  );
+}
+
+/** Dual manifest-preview scenario compare. Env: FEATURE_MANIFEST_SCENARIO_COMPARE */
+export function isManifestScenarioCompareEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_MANIFEST_SCENARIO_COMPARE,
+    FF.manifestScenarioCompareEnabled,
+  );
+}
+
+/** Plan-level control object (V4) in pack. Env: FEATURE_PLAN_CONTROL_OBJECT */
+export function isPlanControlObjectEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PLAN_CONTROL_OBJECT, FF.planControlObjectEnabled);
+}
+
+/** Anthropic prompt cache (ephemeral) on stable prefixes. Env: FEATURE_LLM_PROMPT_CACHE */
+export function isLlmPromptCacheEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_LLM_PROMPT_CACHE, FF.llmPromptCacheEnabled);
 }

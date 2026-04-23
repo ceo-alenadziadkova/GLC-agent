@@ -9,7 +9,18 @@ pnpm run test:e2e
 
 `playwright.config.ts` starts the Vite dev server automatically unless `CI` is set and a server is already running.
 
-These tests are **not** executed in GitHub Actions; run them locally (or in staging via `e2e/staging-auth-claim.spec.ts` env vars).
+**Orchestration E2E in CI:** [`.github/workflows/test.yml`](../.github/workflows/test.yml) runs `pnpm run test:e2e:orchestration` (all `e2e/orchestration-*.spec.ts` files) after unit tests.
+
+**Non-empty DoD (v9):** if you set repository **secrets** `E2E_ORCHESTRATION_AUDIT_ID` and `E2E_ORCHESTRATION_AUTH_TOKEN`, you must also set **repository variable** `VITE_API_URL` to the same public API origin as your deployed backend (e.g. `https://api.example.com`, no trailing slash). The workflow maps it to `E2E_VITE_API_PROXY_TARGET` so the Vite dev server’s `/api` **proxy** targets that origin; otherwise the job fails the validation step (Playwright would hit `localhost:3001` with no server). Without those secrets, protected tests **skip** (green but no real coverage).
+
+- Full UI / cockpit flows: set `E2E_ORCHESTRATION_UI=1` in the workflow (already on for the CI job) and, for the stale-banner consultant test, add secrets `E2E_CONSULTANT_E2E_EMAIL` and `E2E_CONSULTANT_E2E_PASSWORD` (consultant user that exists in the same API as `VITE_API_URL`).
+- Local: export the same env vars, or run a local `glc-audit-server` on port **3001** and omit `E2E_VITE_API_PROXY_TARGET` so the default Vite proxy works.
+
+**Canonical telemetry names** for LLM cost/cache dashboards: `kpi_orchestration_llm_cache_hit_rate` and `kpi_orchestration_llm_cost_per_audit_usd` (see [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](../docs/adrs/ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md) and `server/src/config/orchestration-telemetry-policy.ts`).
+
+## Post–v9 DoD (optional backlog, not required for merge)
+
+Larger product follow-ups: unified governance state machine service, IndexedDB for revision history, “commit scenario from compare” in the manifest wizard, cockpit activity feed. Tracked as engineering backlog; out of v9 minimal DoD.
 
 ## Spec files
 
@@ -25,6 +36,11 @@ These tests are **not** executed in GitHub Actions; run them locally (or in stag
 | `orchestration-snapshot-regenerate.spec.ts` | Protected orchestration snapshot -> pack regenerate -> diff history flow |
 | `orchestration-governance-conflicts.spec.ts` | Protected orchestration governance payload contract (`200/409`) |
 | `orchestration-depth-lanes-sync.spec.ts` | Protected orchestration pack contract for director depth/lane sync |
+| `orchestration-scenario-compare.spec.ts` | Dual `POST /roadmap/manifest-preview` (what-if compare API path) |
+| `orchestration-now-next-later.spec.ts` | Pack `time_bucket` + optional Now·Next·Later tab (UI with `E2E_ORCHESTRATION_UI=1`) |
+| `orchestration-execution-pack-repeat.spec.ts` | Execution-pack repeat CTA (UI; `E2E_ORCHESTRATION_UI=1`) |
+| `orchestration-revision-history.spec.ts` | Revision panel (UI; `E2E_ORCHESTRATION_UI=1`) |
+| `orchestration-cockpit-stale-banner.spec.ts` | Consultant cockpit: stale pack banner after govern `POST` 409 (needs `E2E_CONSULTANT_E2E_*` + `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-deep-dive.spec.ts` | `GET` quota for `marketing_utp` and `ux_conversion` deep-dive API; optional `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` runs the marketing quota check under a mobile viewport project |
 
 ## Scope
@@ -64,4 +80,11 @@ Orchestration specs are intentionally token-based and run only when env is provi
 - `E2E_ORCHESTRATION_AUDIT_ID`
 - `E2E_ORCHESTRATION_AUTH_TOKEN`
 
-Without these env vars the specs are skipped (safe default for local smoke runs).
+Optional (consultant browser UI, including stale-banner spec):
+
+- `E2E_CONSULTANT_E2E_EMAIL`
+- `E2E_CONSULTANT_E2E_PASSWORD`
+
+`E2E_VITE_API_PROXY_TARGET` (CI: from `VITE_API_URL` var) — API origin for the Vite `/api` proxy when not using a local server on 3001.
+
+Without `E2E_ORCHESTRATION_AUDIT_ID` / `E2E_ORCHESTRATION_AUTH_TOKEN` the token-based API specs are skipped (safe default for local smoke runs).

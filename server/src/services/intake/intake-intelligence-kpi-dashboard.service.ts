@@ -6,6 +6,7 @@ type KpiRowData = {
   question_id?: string | null;
   client_session_id?: string | null;
   case_keys?: string[] | null;
+  confidence_moved?: boolean;
 };
 
 type SessionStats = {

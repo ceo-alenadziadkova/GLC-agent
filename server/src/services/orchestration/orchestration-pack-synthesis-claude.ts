@@ -35,6 +35,8 @@ import {
   recordClaudeFailure,
   resetClaudeFailures,
 } from '../../agents/base/claude-circuit-breaker.js';
+import { isLlmPromptCacheEnabled } from '../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
 
 const CLAUDE_RETRYABLE_HTTP_STATUSES = new Set<number>(SYSTEM_DEFAULTS.claudeHttp.retryableAnthropicStatuses);
 const CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES = new Set<number>(
@@ -89,20 +91,29 @@ export async function invokeOrchestrationPackSynthesisClaude(args: {
       const timer = setTimeout(() => controller.abort(CLAUDE_API_TIMEOUT_ABORT_REASON), CLAUDE_TIMEOUT_MS);
       let response: Awaited<ReturnType<Anthropic['messages']['create']>>;
       try {
+        const toolsBlock = {
+          name: toolName,
+          description:
+            'Submit cross-domain orchestration synthesis: constraint read, narrative conflict resolutions.',
+          input_schema: jsonSchema as Anthropic.Tool['input_schema'],
+          ...(isLlmPromptCacheEnabled() ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        } as Anthropic.Tool;
+        const systemParam: Parameters<Anthropic['messages']['create']>[0]['system'] = isLlmPromptCacheEnabled()
+          ? [
+              {
+                type: 'text',
+                text: args.system,
+                cache_control: { type: 'ephemeral' },
+              },
+            ]
+          : args.system;
         response = await anthropic.messages.create(
           {
             model: CLAUDE_MODEL,
             max_tokens: maxTokens,
-            system: args.system,
+            system: systemParam,
             messages: [{ role: 'user', content: args.user }],
-            tools: [
-              {
-                name: toolName,
-                description:
-                  'Submit cross-domain orchestration synthesis: constraint read, narrative conflict resolutions.',
-                input_schema: jsonSchema as Anthropic.Tool['input_schema'],
-              },
-            ],
+            tools: [toolsBlock],
             tool_choice: { type: 'tool', name: toolName },
           },
           { signal: controller.signal },
@@ -111,6 +122,23 @@ export async function invokeOrchestrationPackSynthesisClaude(args: {
         clearTimeout(timer);
       }
       await resetClaudeFailures();
+
+      const u = response.usage as {
+        input_tokens: number;
+        output_tokens: number;
+        cache_creation_input_tokens?: number;
+        cache_read_input_tokens?: number;
+      };
+      const cacheRead = u.cache_read_input_tokens ?? 0;
+      const cacheCreate = u.cache_creation_input_tokens ?? 0;
+      const cacheDen = cacheRead + cacheCreate;
+      const cacheHitRate = isLlmPromptCacheEnabled() && cacheDen > 0 ? cacheRead / cacheDen : 0;
+      if (isLlmPromptCacheEnabled()) {
+        logger.info('orchestration_synthesis.cache_metrics', {
+          audit_id: args.auditId,
+          [ORCHESTRATION_TELEMETRY_METRICS.llmCacheHitRate]: cacheHitRate,
+        });
+      }
 
       const toolBlock = response.content.find((b) => b.type === 'tool_use');
       if (!toolBlock || toolBlock.type !== 'tool_use') {

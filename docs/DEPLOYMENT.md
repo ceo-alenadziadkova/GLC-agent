@@ -95,7 +95,10 @@ Normative contract: [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAG
 | `FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE` | `shadow` \| `internal` \| `pilot` \| `ga` staged rollout for NL ingress LLM. |
 | `FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT` | Percentage bucket for `pilot` mode (hash on intake token). |
 | `FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS` | Comma-separated internal canary token list/prefixes for `internal` mode. |
+| `FEATURE_INTAKE_NEXT_QUESTION` | When `true` **and** `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, exposes `POST /api/intake/:token/next-question` — **F1** deterministic `buildIntakePlan` next head / stop (no LLM; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)). Default **on** in `SYSTEM_DEFAULTS` / `APP_FEATURE_FLAGS` (disable with `FEATURE_INTAKE_NEXT_QUESTION=false` if needed). Public `/intake/:token` uses F1 when `intakeNextQuestionClientEnabled` matches this (parity: `orchestration-contract-parity.test.ts`). |
 
+
+**NL ingress — privacy / DPA (operations checklist):** free-text to LLM (when `FEATURE_NL_INGRESS_LLM` is on) should follow the product/legal process in [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](./adrs/ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md) (client consent in UI, PII redaction on the request path, processor agreements). This does not replace counsel review for jurisdiction-specific DPA language.
 
 **Rollback:** set both env vars to `false` / unset; no migration rollback required.
 
@@ -321,7 +324,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `PLATFORM_ADMIN_USER_IDS`        | **Deprecated, ignored.** Use `**platform_settings.legacy_platform_admin_user_ids`** or `**profiles.is_platform_admin`**                                                                                                      |
 | `PIPELINE_CLAUDE_MODEL_ID`       | Optional infra override for the Anthropic model id used by the pipeline; falls back to `**SYSTEM_DEFAULTS**` (`model`). Alias: `**ANTHROPIC_MODEL**`                                                                         |
 | `SNAPSHOT_OPERATOR_TOKEN`        | Optional operator-only snapshot actions (see `snapshot`)                                                                                                                                                                     |
-
+| `ORCHESTRATION_DASHBOARD_URL`   | **Ops-only (v9 DoD-4).** Link to the primary dashboard that hosts orchestration SLO rows (timeline/pack/synthesis/cockpit/LLM). Not consumed by application code — document in on-call runbooks and, if you use a secrets store for ops links, keep this in sync. |
 
 ### ADR feature-flag runtime matrix
 
@@ -356,6 +359,10 @@ Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
 | CTO LLM deep-dive (`tech_infrastructure`) | `FEATURE_CTO_DEEP_DIVE_LLM` | `true` | `true` after CTO/SEO SSOT validation and orchestration smoke | Keep enabled by default; rollback = `false` | Backend + Product |
 | SEO LLM deep-dive (`seo_digital`) | `FEATURE_SEO_DEEP_DIVE_LLM` | `true` | `true` after CTO wave path is stable | Keep enabled by default; rollback = `false` | Backend + Product |
 | Orchestration plan governance persistence mode             | `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE` (`shadow \| hard_structure_soft_quality \| tightened_quality`) | `shadow` | `shadow` | `shadow` or `hard_structure_soft_quality` per `orchestration-plan-governance-rollout-policy.ts` | Backend + Product |
+| Consultant governance CTAs (POST `govern_action`) | `FEATURE_CONSULTANT_GOVERNANCE_CTAS` | `true` | `true` in staging | `true`; rollback to `false` (read-only + rebuild) | Backend + Product |
+| Manifest scenario compare (preview memo) | `FEATURE_MANIFEST_SCENARIO_COMPARE` | `true` | `true` | `true`; `false` bypasses 60s memo | Backend + Product |
+| Plan-level `control_object` in pack (ADR V4) | `FEATURE_PLAN_CONTROL_OBJECT` | `false` | `false` | `true` only after ADR Accepted | Backend + Product |
+| Anthropic prompt cache (synthesis) | `FEATURE_LLM_PROMPT_CACHE` | `true` | `true` | `true`; `false` disables cache blocks | Backend + Ops |
 
 
 **SPA orchestration / timeline toggles (not env):** client nav and portal surfaces read `**APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts`: `orchestrationRoadmapUiEnabled`, `clientPostAuditCockpitEnabled`, `strategyLabOrchestratorDetailTabsEnabled`, `strategyLabDirectorStage2IntentEnabled`, `clientOrchestrationLabReadOnlyEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, **non-CMO LLM mirrors** `cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`, `ctoDeepDiveLlmEnabled`, `seoDeepDiveLlmEnabled`, and staged rollout mirrors (`orchestrationRoadmapNarrativeRolloutMode`, `directorDeepDiveRolloutMode`, `directorSubAgentsRolloutMode`). There is **no** `VITE_*` for these — change the static map and redeploy. Keep `**orchestrationTimelinePrimaryUxEnabled`** aligned with `**FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX**`, and keep LLM mirrors aligned with `SYSTEM_DEFAULTS` (see `src/app/config/orchestration-contract-parity.test.ts`).
@@ -492,6 +499,24 @@ Wire log/metric queries to the labels your platform already indexes (route, `com
 | Cockpit usage | `kpi_orchestration_consultant_cockpit_view` (adoption, not SLO) | none unless zero in pilot week |
 
 **DoD-4** is satisfied when the above panels exist and p95/alert rules are active in the chosen observer — not when keys exist only in `orchestration-telemetry-policy.ts`.
+
+**Post-MVP (v9) — full-product observability (DoD-4 extension)**
+
+- **Grafana (or primary observer) dashboard links** — set these in your org’s dashboard settings (not committed):  
+  - **`ORCHESTRATION_DASHBOARD_URL`** — store the same URL in: (1) your ops / incident runbook index (1Password, Notion, or on-call wiki), (2) optional Railway/Vercel **internal** env (non-`VITE_`) so engineers can paste it in incident threads without hunting Grafana. The variable is a **reference only**; the app does not read it at runtime.  
+- **Extra panels (after v9 rollout):** p95 for dual `POST /api/audits/:id/roadmap/manifest-preview` (if scenario compare is enabled); `kpi_orchestration_governance_action` by `action` (consultant CTA); BullMQ / Redis queue **deep-dive** job depth; `kpi_orchestration_llm_cache_hit_rate` and `kpi_orchestration_llm_cost_per_audit_usd` (prompt cache). **Do not** use bare `kpi_llm_*` names in dashboards — canonical keys are defined in `server/src/config/orchestration-telemetry-policy.ts` and validated by `pnpm run audit:orchestration-telemetry` (DoD-7).  
+- **Alert thresholds (suggested):** pack failure rate \> 1% of requests @ 5m; synthesis fallback \> 10% of pack runs; timeline p95 \> 800 ms @ 5m; director queue depth \> 100; LLM cost per audit +20% WoW vs 7d baseline.  
+- **On-call / routing:** route critical orchestration pages to the same on-call as API (Slack + PagerDuty) — [Runbook: orchestration alert triage](#runbook-orchestration-alert-triage).  
+- **DoD-4 ops sign-off checklist (v9):** (1) Primary dashboard URL stored under `ORCHESTRATION_DASHBOARD_URL` in the ops index. (2) At least one **synthetic** or **ping** check runs on a schedule (see below). (3) Alert routes are tested once per quarter (page on-call dry-run or synthetic failure inject).
+- **Synthetic probe (staging):** schedule `GET /api/health` + optional authenticated `GET /api/audits/:syntheticId/timeline` (or a dedicated canary audit) every 1–5 min; alert on 5xx or SLO breach. Example shell probe (set `API_BASE` + optional bearer) lives at [`scripts/orchestration-synthetic-probe.example.sh`](../scripts/orchestration-synthetic-probe.example.sh). **Schedule options:** Kubernetes `CronJob`, Railway/cron on a small worker, or GitHub **Actions** [`.github/workflows/orchestration-synthetic-probe.yml`](../.github/workflows/orchestration-synthetic-probe.yml) — set repository variable **`VITE_API_URL`** to the same API origin as Vercel (trailing slash stripped; optional fallback `ORCH_PUBLIC_API_BASE`) for unauthenticated `GET /api/health`. The same workflow can run a **second** job (`timeline-canary`) when you add repository **secrets** `ORCHESTRATION_PROBE_TOKEN` (Bearer) and `ORCHESTRATION_CANARY_AUDIT_ID` (a stable audit with timeline data) — it runs after a successful health check.
+
+##### Runbook: orchestration alert triage
+
+1. Open Grafana/Datadog dashboard rows above; narrow the time range to the alert window.  
+2. Cross-check Sentry for `component:audits` and `orchestration_pack` / `route.audit_timeline` logs.  
+3. For **stale version / 409** on pack POST, verify consultant flows — see governance CTA and `If-None-Match` on pack GET.  
+4. If LLM / synthesis spikes: set `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS=false` or `FEATURE_LLM_PROMPT_CACHE=false` per [Environment layers](#environment-layers-infrastructure-vs-ops-overrides), redeploy, confirm deterministic pack still returns.  
+5. File incident with trace IDs; link to `glc_orchestration_*` state for affected `audit_id`.
 
 CI enforces **DoD-7** (`pnpm run audit:orchestration-telemetry`) and **DoD-8** (`pnpm build && pnpm run audit:bundle-main-budget`).
 

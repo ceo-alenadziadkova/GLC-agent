@@ -4,6 +4,7 @@ import {
   QUESTION_BANK_V1_IDS,
 } from '@glc/intake-core';
 import caseCatalog from '@glc/intake-core/intake-case-patterns.v1.json';
+import { StudioDependencyGraphFlowPreview } from './StudioDependencyGraphFlowPreview';
 
 type CaseRow = (typeof caseCatalog)['cases'][number];
 
@@ -40,6 +41,10 @@ export function StudioDependencyGraphSection() {
         Edges are derived from <span className="font-mono">IntakeIntelligenceContract</span> in the question bank. Case
         subgraphs use <span className="font-mono">intake-case-patterns.v1.json</span>.
       </p>
+      <section>
+        <h3 className="m-0 mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary">Preview (xyflow)</h3>
+        <StudioDependencyGraphFlowPreview />
+      </section>
       <section>
         <h3 className="m-0 mb-1 text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary">Question → signal</h3>
         <ul className="m-0 pl-4 list-disc font-mono leading-relaxed space-y-0.5 break-all">
