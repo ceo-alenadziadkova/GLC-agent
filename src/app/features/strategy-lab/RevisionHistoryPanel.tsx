@@ -18,7 +18,7 @@ export function RevisionHistoryPanel({
             key={`${row.from_version}-${row.to_version}`}
             className="border-border flex flex-col gap-1 rounded-md border px-2 py-1"
           >
-            <span className="text-foreground font-mono text-[11px]">
+            <span className="text-foreground font-mono text-[length:var(--text-xs)]">
               v{row.from_version} → v{row.to_version}
             </span>
             <span>

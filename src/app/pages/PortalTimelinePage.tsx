@@ -191,7 +191,7 @@ function TopActionItemRow({
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           <span>{readNodeTitle(nid)}</span>
           {isMarkedNextStep ? (
-            <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--status-success-fg)]">
+            <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[length:var(--text-2xs)] font-medium text-[var(--status-success-fg)]">
               {markBadgeLabel}
             </span>
           ) : null}
@@ -260,7 +260,7 @@ function TimelineDecisionCard({
         {ORCHESTRATION_UI_COPY.timelineDecisionCardSummary}
       </summary>
       {explain.limited_context ? (
-        <div className="mt-2 inline-flex items-center rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+        <div className="mt-2 inline-flex items-center rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">
           {ORCHESTRATION_UI_COPY.timelineLimitedContextBadge}
         </div>
       ) : null}

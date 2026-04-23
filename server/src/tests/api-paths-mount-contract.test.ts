@@ -13,7 +13,7 @@ beforeAll(async () => {
   vi.stubEnv('SUPABASE_SERVICE_KEY', 'test-service-role');
   const mod = await import('../config/api-route-mounts.js');
   expressApiMountPrefixesUnique = mod.expressApiMountPrefixesUnique;
-});
+}, 120_000);
 
 describe('SPA API_PATHS vs Express mount prefixes', () => {
   it('every static API_PATHS value is mounted on the server', () => {

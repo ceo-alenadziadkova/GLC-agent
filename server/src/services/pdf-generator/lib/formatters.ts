@@ -47,11 +47,25 @@ export function fmtOverallScoreFraction(score: number): string {
   return `${score.toFixed(1)} / 5`;
 }
 
+function stripC0AndDelControlChars(s: string): string {
+  let out = '';
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    if (c <= 0x8) continue;
+    if (c === 0xb || c === 0xc) continue;
+    if (c >= 0xe && c <= 0x1f) continue;
+    if (c === 0x7f) continue;
+    out += ch;
+  }
+  return out;
+}
+
 export function sanitizePdfText(value: string, maxChars: number = REPORT_PDF_MAX_SANITIZED_TEXT_CHARS): string {
   // Strip control and bidi direction override chars to prevent visual spoofing in exported PDFs.
-  const withoutControl = value
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '');
+  const withoutControl = stripC0AndDelControlChars(value).replace(
+    /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g,
+    '',
+  );
   const collapsedWhitespace = withoutControl.replace(/[ \t]{2,}/g, ' ').trim();
   if (collapsedWhitespace.length <= maxChars) {
     return collapsedWhitespace;

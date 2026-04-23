@@ -75,6 +75,7 @@ vi.mock('../services/supabase.js', () => {
       order: vi.fn(() => chain),
       limit: vi.fn(() => chain),
       single: vi.fn(() => Promise.resolve({ data: getAuditData(), error: null })),
+      maybeSingle: vi.fn(() => Promise.resolve({ data: getAuditData(), error: null })),
       insert: vi.fn(() => Promise.resolve({ error: null })),
       upsert: vi.fn(() => Promise.resolve({ error: null })),
       update: vi.fn((payload: Record<string, unknown>) => {
@@ -122,6 +123,14 @@ vi.mock('../services/observability-context.js', () => ({
   getContext: vi.fn(() => ({ traceId: 'test-trace', operationId: 'test-op' })),
   updateContext: vi.fn(),
 }));
+
+vi.mock('../config/director-orchestration-policy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/director-orchestration-policy.js')>();
+  return {
+    ...actual,
+    directorOrchestrationPersistenceModeForPhase: () => 'best_effort' as const,
+  };
+});
 
 // Mock all 8 agent classes
 const mockAgentRun = vi.fn().mockResolvedValue({

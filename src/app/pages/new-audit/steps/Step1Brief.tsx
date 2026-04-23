@@ -469,7 +469,7 @@ export function Step1Brief({
         </button>
         <div className="flex-1 space-y-1">
           {!step2Complete && remainingRequiredCount > 0 ? (
-            <p className="m-0 text-right text-[11px] text-muted-foreground">
+            <p className="m-0 text-right text-[length:var(--text-xs)] text-muted-foreground">
               {WORKSPACE_PAGE_COPY.newAudit.step1.navigationRequiredLeftInline.replace(
                 '{{count}}',
                 String(remainingRequiredCount),

@@ -50,6 +50,7 @@ export function buildMarketingHomeViewModel(brandName: string): MarketingHomeVie
     },
     trustMetrics: {
       ariaLabel: marketingHomeCopy.trustMetricsLandmark,
+      sectionLabel: marketingHomeCopy.homeMetricsSectionLabel,
       gridLabel: marketingHomeCopy.homeMetricsGridLabel,
       tagline: marketingHomeCopy.trustMetricsTagline,
       items: marketingHomeCopy.whoWeAreMetrics,

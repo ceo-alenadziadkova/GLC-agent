@@ -43,7 +43,7 @@ describe('PortalAuditCard', () => {
 
     expect(screen.getByText('Brief & setup')).toBeInTheDocument();
     expect(
-      screen.getByText(/Complete the intake brief on the next screen/i),
+      screen.getByText(/Complete the business brief on the next screen/i),
     ).toBeInTheDocument();
   });
 

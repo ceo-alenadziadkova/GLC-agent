@@ -1,4 +1,5 @@
 <!-- anti-drift: update together with docs/instructions/CTO-INSTRUCTIONS.md when that SSOT exists. -->
+<!-- version: 1.0 date: 2026-04-24 -->
 Source of truth: policy stub — deterministic CTO deep-dive wave (`cto_stub`).
 Invariant: keep aligned with `director-domain-materialized-bundles.service.ts` CTO actions.
 

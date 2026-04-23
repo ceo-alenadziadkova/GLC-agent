@@ -1,5 +1,22 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
+
+// Before injecting design tokens: native `getComputedStyle(document.documentElement)` in jsdom
+// can allocate huge style maps and stall or OOM workers (e.g. SyncPathLoader reads CSS vars).
+const originalGetComputedStyle = window.getComputedStyle.bind(window);
+Object.defineProperty(window, 'getComputedStyle', {
+  configurable: true,
+  writable: true,
+  value: (element: Element, pseudoElt?: string | null) => {
+    if (element === document.documentElement) {
+      return {
+        getPropertyValue: () => '',
+      } as unknown as CSSStyleDeclaration;
+    }
+    return originalGetComputedStyle(element, pseudoElt ?? undefined);
+  },
+});
+
 import '../styles/tokens.css';
 
 vi.stubEnv('VITE_SUPABASE_URL', 'http://127.0.0.1:54321');

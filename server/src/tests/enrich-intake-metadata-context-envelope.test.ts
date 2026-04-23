@@ -10,7 +10,7 @@ describe('enrichIntakeMetadata project context envelope flag', () => {
   });
 
   it('omits intake_project_context_envelope when FEATURE_PROJECT_CONTEXT_ENVELOPE is not enabled', () => {
-    delete process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE;
+    process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE = 'false';
     const out = enrichIntakeMetadata({
       allResponses: {
         a2: 'Healthcare',

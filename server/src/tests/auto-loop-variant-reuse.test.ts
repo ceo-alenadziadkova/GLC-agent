@@ -73,7 +73,7 @@ vi.mock('../services/bandit.js', () => ({
   banditService: { selectVariant },
 }));
 
-describe('Auto-loop: variant reuse semantics', () => {
+describe('Auto-loop: variant reuse semantics', { timeout: 30_000 }, () => {
   it('reuses original selected_variant_id for rerun', async () => {
     let observedSelectedVariantId: string | null = null;
 

@@ -221,7 +221,7 @@ export function ConsultantOrchestrationCockpitPage() {
           <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
             <h2 className="text-sm font-semibold ds-text-primary">Initiatives</h2>
             <div className="mt-2 overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
+              <table className="w-full min-w-[length:var(--consultant-orchestration-initiatives-table-min-width)] text-left text-sm">
                 <thead className="text-xs uppercase ds-text-tertiary">
                   <tr>
                     <th className="py-1 pr-3">Title</th>

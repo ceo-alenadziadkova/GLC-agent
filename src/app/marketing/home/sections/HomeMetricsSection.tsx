@@ -24,7 +24,7 @@ export function HomeMetricsSection({
       className="mx-auto w-full max-w-5xl px-5 pb-7 pt-5 sm:px-6 sm:pb-8 sm:pt-6"
       {...(includeLandmark ? { 'aria-label': data.ariaLabel } : {})}
     >
-      <p className="ds-home-metrics-proof-label">Proof points</p>
+      <p className="ds-home-metrics-proof-label">{data.sectionLabel}</p>
       <div className="ds-home-proof-grid mb-8" aria-label={data.gridLabel}>
         {metricItems.map(item => (
           <article key={item.value} className="ds-home-proof-card">

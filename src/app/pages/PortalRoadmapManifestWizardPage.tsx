@@ -10,7 +10,7 @@ import { Input } from '../../design-system/ui';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { ApiError } from '../data/api-error';
-import { DOMAIN_LABELS } from '../data/auditTypes';
+import { DOMAIN_LABELS, type DomainKey } from '../data/auditTypes';
 import type { RoadmapManifestPreviewDto, RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
@@ -25,6 +25,8 @@ import {
   type OrchestrationSeasonPreset,
 } from '../config/orchestration-roadmap-manifest';
 import { ORCHESTRATION_UI_LIMITS } from '../config/orchestration-ui-limits';
+
+const NO_SELECTED_DOMAINS: DomainKey[] = [];
 import {
   ORCHESTRATION_LANE_LABELS,
   ORCHESTRATION_PREVIEW_COMPRESSION_LABELS,
@@ -63,7 +65,10 @@ export function PortalRoadmapManifestWizardPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const executionPlan = audit?.meta.execution_plan ?? null;
-  const selectedDomains = executionPlan?.selected_domains ?? [];
+  const selectedDomains = useMemo(
+    () => executionPlan?.selected_domains ?? NO_SELECTED_DOMAINS,
+    [executionPlan],
+  );
 
   const manifestCompareBody = useMemo((): RoadmapManifestRequestBody | null => {
     if (selectedDomains.length === 0) return null;

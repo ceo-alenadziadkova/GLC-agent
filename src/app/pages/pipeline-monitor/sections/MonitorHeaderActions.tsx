@@ -43,7 +43,7 @@ export function MonitorHeaderActions(props: {
     const cp = PIPELINE_MONITOR_UI_POLICY.clientPortal;
     return (
       <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex w-full max-w-[15rem] items-center justify-end gap-2.5 sm:w-auto sm:max-w-none">
+        <div className="flex w-full max-w-[length:var(--pipeline-monitor-header-actions-max-width)] items-center justify-end gap-2.5 sm:w-auto sm:max-w-none">
           <div className={cp.headerProgressTrackClassName}>
             <motion.div
               className={cn('h-full rounded-full', cp.headerProgressFillClassName)}

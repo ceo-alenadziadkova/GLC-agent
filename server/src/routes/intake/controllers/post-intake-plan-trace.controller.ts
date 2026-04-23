@@ -3,7 +3,6 @@ import type { Response } from 'express';
 import {
   buildIntakePlan,
   formatPlanTrace,
-  INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
   INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,
   INTAKE_SURFACE_VALUES,
   isSupportedIntakeArtifactTuple,

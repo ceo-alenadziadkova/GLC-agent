@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBriefSchemaSnapshot } from '@glc/intake-core';
-import { currentIntakeVersionTuple } from '@glc/intake-core';
+import {
+  buildBriefSchemaSnapshot,
+  currentIntakeVersionTuple,
+  getIntakeIntelligenceContract,
+  projectIntakeIntelligenceRequiredNow,
+} from '@glc/intake-core';
 
 describe('buildBriefSchemaSnapshot', () => {
   it('returns visible bank ids with labels and version tuple', () => {
@@ -46,7 +50,7 @@ describe('buildBriefSchemaSnapshot', () => {
     expect(schema.collection_mode).toBe('discovery');
   });
 
-  it('omits incomplete intelligence metadata from question rows', () => {
+  it('exposes question intelligence only when required_now contract is complete', () => {
     const schema = buildBriefSchemaSnapshot({
       responses: {},
       productMode: 'full',
@@ -55,8 +59,13 @@ describe('buildBriefSchemaSnapshot', () => {
       intakeVersionTuple: currentIntakeVersionTuple(),
     });
 
-    const a1 = schema.questions.find(q => q.id === 'a1');
-    expect(a1).toBeDefined();
-    expect(a1?.intelligence).toBeUndefined();
+    for (const q of schema.questions) {
+      const projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(q.id));
+      if (projected === undefined) {
+        expect(q.intelligence, `question ${q.id}`).toBeUndefined();
+      } else {
+        expect(q.intelligence).toEqual(projected);
+      }
+    }
   });
 });

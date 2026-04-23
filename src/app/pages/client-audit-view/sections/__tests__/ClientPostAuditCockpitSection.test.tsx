@@ -46,7 +46,21 @@ function renderSection() {
         <ClientPostAuditCockpitSection
           audit={
             {
-              strategy: { executive_summary: 'Summary', orchestration_pack_version: 1 },
+              strategy: {
+                executive_summary: 'Summary',
+                orchestration_pack_version: 1,
+                quick_wins: [
+                  {
+                    id: 'qw-1',
+                    title: 'Improve crawl budget',
+                    description: 'Tune crawling and index signals.',
+                    impact: 'high',
+                    effort: 'low',
+                  },
+                ],
+                medium_term: [],
+                strategic: [],
+              },
             } as never
           }
           auditId="audit-1"
@@ -62,12 +76,24 @@ describe('ClientPostAuditCockpitSection', () => {
     getAuditTimelineMock.mockResolvedValue({
       timeline: {
         status: 'ready',
+        version: {
+          roadmap_version: 1,
+          manifest_snapshot_id: 'ms-1',
+          latest_manifest_snapshot_id: 'ms-1',
+          stale_manifest: false,
+          manifest_state: 'published',
+          season_preset: null,
+        },
         top_7d: ['n1'],
         top_30d: ['n2'],
         lanes: [
           { lane_id: 'seo', items: [{ id: 'n1', title: 'Improve crawl budget', lane: 'seo' }] },
           { lane_id: 'tech_delivery', items: [{ id: 'n2', title: 'Fix perf budget', lane: 'tech_delivery' }] },
         ],
+        seasons: [],
+        dependencies: [],
+        waiting_list_domains: [],
+        data_gaps: null,
       },
     });
   });
@@ -75,16 +101,17 @@ describe('ClientPostAuditCockpitSection', () => {
   it('renders top actions selection block with expected CTAs', async () => {
     renderSection();
     expect(await screen.findByText(CLIENT_AUDIT_VIEW_COPY.cockpit.topActionsSelectionTitle)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: CLIENT_AUDIT_VIEW_COPY.cockpit.selectForNextRoadmapCta })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: CLIENT_AUDIT_VIEW_COPY.cockpit.selectForNextRoadmapCta }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: CLIENT_AUDIT_VIEW_COPY.cockpit.openDetailsInLabCta })).toBeInTheDocument();
   });
 
-  it('updates selected actions counter when user toggles checkboxes', async () => {
+  it('updates selected actions counter when user toggles initiative Select control', async () => {
     const user = userEvent.setup();
     renderSection();
-    const checkboxes = await screen.findAllByRole('checkbox');
-    const checkbox = checkboxes[0]!;
-    await user.click(checkbox);
+    await screen.findByText(CLIENT_AUDIT_VIEW_COPY.cockpit.topActionsSelectionTitle);
+    await user.click(screen.getByRole('button', { name: CLIENT_AUDIT_VIEW_COPY.cockpit.topActionsSelectCta }));
     expect(
       screen.getByText(new RegExp(`${CLIENT_AUDIT_VIEW_COPY.cockpit.topActionsSelectionCountLabel}: 1`)),
     ).toBeInTheDocument();

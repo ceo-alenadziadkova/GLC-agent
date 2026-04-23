@@ -137,7 +137,7 @@ export function TokenUsageSection({ enabled }: TokenUsageSectionProps) {
               ) : (
                 data.audits.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="max-w-[200px] truncate font-medium text-[var(--text-secondary)]">
+                    <TableCell className="max-w-[length:var(--settings-token-usage-audit-name-max-width)] truncate font-medium text-[var(--text-secondary)]">
                       {row.company_name?.trim() || row.company_url}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">

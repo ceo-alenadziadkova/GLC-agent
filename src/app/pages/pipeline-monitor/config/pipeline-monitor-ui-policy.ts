@@ -40,15 +40,16 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     cancelled: PIPELINE_MONITOR_AUDIT_STATUS.cancelled,
   },
   reviewModal: {
-    contentMaxWidthDefault: 'max-w-[560px]',
+    contentMaxWidthDefault: 'max-w-[length:var(--pipeline-monitor-review-content-max-width)]',
     /** Wider when recon summary is shown (readable crawl table). */
-    contentMaxWidthWithRecon: 'max-w-[min(96vw,40rem)]',
-    bodyMaxHeightDefault: 'max-h-[440px]',
-    bodyMaxHeightWithRecon: 'max-h-[min(72vh,36rem)]',
+    contentMaxWidthWithRecon: 'max-w-[length:var(--pipeline-monitor-review-with-recon-max-width)]',
+    bodyMaxHeightDefault: 'max-h-[length:var(--pipeline-monitor-review-body-max-height)]',
+    bodyMaxHeightWithRecon: 'max-h-[length:var(--pipeline-monitor-review-body-with-recon-max-height)]',
   },
   /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `components.css`). */
   clientPortal: {
-    headerProgressTrackClassName: 'h-[var(--space-1)] min-w-[7rem] flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)] sm:w-40 sm:flex-none',
+    headerProgressTrackClassName:
+      'h-[length:var(--space-1)] min-w-[length:var(--pipeline-monitor-client-header-progress-min-width)] flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)] sm:w-40 sm:flex-none',
     headerProgressFillClassName: 'ds-pipeline-client-header-progress-fill',
     headerPercentClassName: 'text-xs font-mono font-medium tabular-nums text-[var(--text-secondary)]',
     phaseCardCurrentClassName: 'ds-pipeline-phase-card-current',
@@ -57,6 +58,6 @@ export const PIPELINE_MONITOR_UI_POLICY = {
      * Caps steps height so the primary column keeps room in the fixed viewport shell.
      */
     mobileStackedStepsAsideClassName:
-      'w-full max-h-[min(45vh,24rem)] min-h-0 shrink-0 overflow-y-auto border-t-[length:var(--border-width-default)] border-t-[var(--border-subtle)]',
+      'w-full max-h-[length:var(--pipeline-monitor-mobile-stacked-aside-max-height)] min-h-0 shrink-0 overflow-y-auto border-t-[length:var(--border-width-default)] border-t-[var(--border-subtle)]',
   },
 } as const;

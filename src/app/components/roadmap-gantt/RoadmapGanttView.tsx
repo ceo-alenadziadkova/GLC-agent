@@ -866,13 +866,7 @@ export function RoadmapGanttView({ projection, strategyHref }: RoadmapGanttViewP
             <TooltipProvider delayDuration={180}>
               {DEPENDENCY_KIND_ORDER.map((kind) => (
                 <span key={kind} className="inline-flex items-center gap-1 rounded-full border border-transparent bg-[var(--surface-base)] px-2 py-1">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{
-                      backgroundColor:
-                        kind === 'FS' ? 'var(--score-5)' : kind === 'SS' ? 'var(--glc-blue)' : kind === 'FF' ? 'var(--score-3)' : 'var(--text-tertiary)',
-                    }}
-                  />
+                  <span className="roadmap-dep-kind-dot h-2 w-2 rounded-full" data-kind={kind} />
                   {DEPENDENCY_KIND_LABEL[kind]}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1298,7 +1292,6 @@ export function RoadmapGanttView({ projection, strategyHref }: RoadmapGanttViewP
                         strokeWidth={isHovered ? 2 : 1.2}
                         strokeDasharray={dep.strength === 'weak' ? '2 2' : undefined}
                         markerEnd="url(#arrowHead)"
-                        style={{ color: strokeForKind(dep.kind) }}
                         className={`cursor-pointer roadmap-dependency-arrow ${isHovered ? 'roadmap-dependency-arrow-hovered' : ''}`}
                         onClick={() => {
                           setSelectedTaskId(dep.to);

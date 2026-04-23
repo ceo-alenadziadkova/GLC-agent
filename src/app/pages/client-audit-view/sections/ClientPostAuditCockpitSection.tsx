@@ -404,7 +404,7 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
                     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                       <h4 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{row.title}</h4>
                       {lastMarkedNextStepId === row.id ? (
-                        <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--status-success-fg)]">
+                        <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[length:var(--text-2xs)] font-medium text-[var(--status-success-fg)]">
                           {copy.nextInPlanBadge}
                         </span>
                       ) : null}
@@ -444,14 +444,14 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
                   </div>
                   <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-secondary)]">{row.description}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${impactTone(row.impact)}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-medium ${impactTone(row.impact)}`}>
                       {copy.topActionsImpactLabel}: {row.impact}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${effortTone(row.effort)}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-medium ${effortTone(row.effort)}`}>
                       {copy.topActionsEffortLabel}: {row.effort}
                     </span>
                     {row.eta ? (
-                      <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+                      <span className="rounded-full bg-[var(--surface-muted)] px-2 py-0.5 text-[length:var(--text-2xs)] font-medium text-[var(--text-secondary)]">
                         {copy.topActionsEtaLabel}: {row.eta}
                       </span>
                     ) : null}

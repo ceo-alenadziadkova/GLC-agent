@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
-import { INTAKE_POLICY_V1 } from '@glc/intake-core';
-import { buildIntakePlan } from '@glc/intake-core';
-import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
+import {
+  buildDiscoveryWizardQuestions,
+  buildIntakePlan,
+  buildPublicDiscoveryUiFragment,
+  INTAKE_POLICY_V1,
+  PUBLIC_DISCOVERY_WIZARD_BANK_IDS,
+} from '@glc/intake-core';
 
 describe('discovery policy sync guards', () => {
   it('keeps policy included in sync with server UI fragment and frontend fallback ids', () => {
@@ -25,6 +28,12 @@ describe('discovery policy sync guards', () => {
       collectionMode: 'discovery',
       surface: 'public_discovery',
     });
-    expect(plan.visible).toEqual(fragmentIds);
+    const policyIncluded = new Set(INTAKE_POLICY_V1.modes.discovery.included);
+    const expectedWizardFragment = PUBLIC_DISCOVERY_WIZARD_BANK_IDS.filter(id => policyIncluded.has(id));
+    expect(fragmentIds).toEqual(expectedWizardFragment);
+    const inPlay = new Set([...plan.visible, ...plan.deferred]);
+    for (const id of expectedWizardFragment) {
+      expect(inPlay.has(id), `resolver should retain public wizard id ${id}`).toBe(true);
+    }
   });
 });

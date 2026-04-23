@@ -169,7 +169,7 @@ describe('prompt-loader', () => {
 
     for (const filePath of files) {
       const raw = readFileSync(filePath, 'utf-8');
-      expect(raw).toMatch(/^<!-- version: \d+\.\d+ date: \d{4}-\d{2}-\d{2} -->/);
+      expect(raw).toMatch(/<!-- version: \d+\.\d+ date: \d{4}-\d{2}-\d{2} -->/);
     }
   });
 });

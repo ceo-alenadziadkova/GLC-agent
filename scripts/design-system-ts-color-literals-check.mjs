@@ -57,14 +57,6 @@ function walk(dir, exts, out = []) {
   return out;
 }
 
-function collectMatches(content, pattern, into) {
-  const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
-  let m;
-  while ((m = re.exec(content)) !== null) {
-    into.add(m[0]);
-  }
-}
-
 function rel(p) {
   return path.relative(ROOT, p).replace(/\\/g, '/');
 }
@@ -85,11 +77,10 @@ function main() {
 
     lines.forEach((line, idx) => {
       const lineNo = idx + 1;
-      for (const { name, re } of PATTERNS) {
+      for (const { re } of PATTERNS) {
         const matches = line.match(re);
         if (!matches) continue;
         for (const value of matches) {
-          const sig = `${r}:${lineNo} [ts-color-literal] ${value}`;
           if (allowedLines.has(`${r}:${lineNo} [ts-color-literal] ${value}`)) continue;
           violations.push({ file: r, line: lineNo, type: 'ts-color-literal', value });
         }

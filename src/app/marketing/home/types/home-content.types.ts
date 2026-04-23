@@ -64,6 +64,8 @@ export type MarketingHomeViewModel = {
   };
   trustMetrics: {
     ariaLabel: string;
+    /** Short label above the proof cards (e.g. eyebrow). */
+    sectionLabel: string;
     /** Accessible name for proof-point card grid. */
     gridLabel: string;
     tagline: string;

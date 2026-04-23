@@ -288,7 +288,7 @@ export function IntakeBriefFormPhase(props: {
               aria-pressed={intakePathChoice.mode === 'form'}
               className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-focus-ring,currentColor)] ${
                 intakePathChoice.mode === 'form'
-                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color,rgba(99,102,241,0.4))]'
+                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color)]'
                   : 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-default)]'
               }`}
             >
@@ -304,7 +304,7 @@ export function IntakeBriefFormPhase(props: {
               aria-pressed={intakePathChoice.mode === 'dictation'}
               className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-focus-ring,currentColor)] ${
                 intakePathChoice.mode === 'dictation'
-                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color,rgba(99,102,241,0.4))]'
+                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color)]'
                   : 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-default)]'
               }`}
             >
@@ -323,7 +323,7 @@ export function IntakeBriefFormPhase(props: {
           <p className="text-sm font-semibold m-0 ds-text-primary">{copy.nlIngressTitle}</p>
           <p className="text-xs m-0 ds-text-secondary">{copy.nlIngressHelper}</p>
           <Textarea
-            className="w-full min-h-[88px] rounded-lg border-[var(--ds-border-default)] bg-[var(--ds-surface-default)] text-sm ds-text-primary"
+            className="w-full min-h-[length:var(--intake-nl-ingress-textarea-min-height)] rounded-lg border-[var(--ds-border-default)] bg-[var(--ds-surface-default)] text-sm ds-text-primary"
             value={nlIngress.text}
             onChange={e => nlIngress.onTextChange(e.target.value)}
             placeholder={copy.nlIngressPlaceholder}

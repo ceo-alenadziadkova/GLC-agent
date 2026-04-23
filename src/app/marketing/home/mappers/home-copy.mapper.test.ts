@@ -55,5 +55,6 @@ describe('home-copy.mapper', () => {
   it('maps metrics grid label for proof cards landmark', () => {
     const vm = buildMarketingHomeViewModel('Acme Brand');
     expect(vm.trustMetrics.gridLabel).toBe(marketingHomeCopy.homeMetricsGridLabel);
+    expect(vm.trustMetrics.sectionLabel).toBe(marketingHomeCopy.homeMetricsSectionLabel);
   });
 });

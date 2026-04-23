@@ -32,7 +32,8 @@ vi.mock('bullmq', () => ({
 }));
 
 vi.mock('../services/redis.js', () => ({
-  getRedisUrl: vi.fn(() => 'redis://localhost:6379'),
+  /** Skip real BullMQ/ioredis in unit tests (queue path is covered by Queue.add mock when URL is set in integration). */
+  getRedisUrl: vi.fn(() => ''),
 }));
 
 vi.mock('../services/orchestration/orchestration-read.service.js', () => ({
@@ -83,11 +84,18 @@ vi.mock('../services/supabase.js', () => ({
             })),
           };
         }
-        return {
-          eq: vi.fn().mockReturnThis(),
-          in: selectQueueRowsMock,
+        const chain: Record<string, unknown> = {
+          eq: vi.fn(function () {
+            return this;
+          }),
+          in: vi.fn(() =>
+            Promise.resolve(
+              typeof selectQueueRowsMock === 'function' ? selectQueueRowsMock() : { data: [], count: 0 },
+            ),
+          ),
           maybeSingle: selectMetadataMock,
         };
+        return chain;
       }),
       upsert: upsertMock,
       update: updateMock,
@@ -95,15 +103,14 @@ vi.mock('../services/supabase.js', () => ({
   },
 }));
 
-describe('director deep-dive queue', () => {
+describe('director deep-dive queue', { timeout: 30_000 }, () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     selectQueueRowsMock.mockResolvedValue({ data: [], count: 0 });
     selectMetadataMock.mockResolvedValue({ data: { metadata: {} } });
   });
 
-  it('enqueues BullMQ job and persists queued status', async () => {
+  it('persists queued status and schedules inline processing when Redis is unset', async () => {
     const { enqueueDirectorDeepDive } = await import('../services/orchestration/run-director-deep-dive.service.js');
     const result = await enqueueDirectorDeepDive({
       auditId: 'audit-1',
@@ -114,8 +121,8 @@ describe('director deep-dive queue', () => {
       constraints: ['Budget cap'],
     });
     expect(result.status).toBe('queued');
-    expect(addMock).toHaveBeenCalledOnce();
     expect(upsertMock).toHaveBeenCalled();
+    expect(addMock).not.toHaveBeenCalled();
   });
 
   it('returns existing job id for repeated idempotency key', async () => {

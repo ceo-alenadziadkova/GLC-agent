@@ -177,7 +177,7 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
     const geoEligible = isGeoGroupAllowed(geoGroupRaw);
     const llmPrimary = geoEligible && shouldUseLlmAsPrimary(token);
     const pii = scrubNlTextPii(raw);
-    let regexDraft = mapNlDescribeTextToGraphDraft(raw);
+    const regexDraft = mapNlDescribeTextToGraphDraft(raw);
     let graphDraft = regexDraft;
     let llmDraft: Awaited<ReturnType<typeof mapNlDescribeTextToGraphDraftLlm>> | null = null;
     let llmFailure: string | null = null;

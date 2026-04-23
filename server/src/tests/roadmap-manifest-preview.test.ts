@@ -34,7 +34,7 @@ describe('buildRoadmapManifestPreview', () => {
     });
     expect(preview.lanes_included.sort()).toEqual(['marketing_narrative', 'tech_delivery'].sort());
     expect(preview.lanes_cut.sort()).toEqual(
-      ['product_change', 'seo', 'processes_automation', 'risk_compliance'].sort(),
+      ['gtm_sales', 'processes_automation', 'product_change', 'research', 'risk_compliance', 'seo'].sort(),
     );
   });
 

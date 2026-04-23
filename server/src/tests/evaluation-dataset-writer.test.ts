@@ -86,6 +86,7 @@ describe('recordEvaluationDatasetIfEnabled', () => {
     state.insertPayloads = [];
     state.insertAttempt = 0;
     delete process.env.EVALUATION_DATASETS_INSERT;
+    process.env.EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT = 'false';
   });
 
   it('stores selected variant id in evaluation_datasets', async () => {

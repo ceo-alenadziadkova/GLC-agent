@@ -14,6 +14,10 @@ const EXPECTED_IDS = [
   'c_nosite_4',
   'd2',
   'f1',
+  'f_idea_1',
+  'f_idea_2',
+  'f_idea_3',
+  'f_idea_4',
   'f9',
 ] as const;
 

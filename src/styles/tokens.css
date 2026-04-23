@@ -367,6 +367,31 @@
 
   --text-2xs: 0.625rem;
   --text-xs: 0.6875rem;
+  /** Focus ring tint for DS surfaces (replaces inline rgba in intake path toggles). */
+  --primitive-focus-ring-color: color-mix(in oklab, rgb(99 102 241) 40%, transparent);
+
+  /* Strategy Lab — min widths / preview cap (TSX uses length:var only) */
+  --strategy-lab-form-field-min-width: 10rem;
+  --strategy-lab-roadmap-preview-max-height: min(50vh, 26rem);
+  --strategy-lab-orchestrator-tab-min-width: 5.5rem;
+
+  /* Consultant orchestration table */
+  --consultant-orchestration-initiatives-table-min-width: 32rem;
+
+  /* Pipeline monitor — review modal and client header (policy string tokens) */
+  --pipeline-monitor-review-content-max-width: 560px;
+  --pipeline-monitor-review-with-recon-max-width: min(96vw, 40rem);
+  --pipeline-monitor-review-body-max-height: 440px;
+  --pipeline-monitor-review-body-with-recon-max-height: min(72vh, 36rem);
+  --pipeline-monitor-client-header-progress-min-width: 7rem;
+  --pipeline-monitor-mobile-stacked-aside-max-height: min(45vh, 24rem);
+  --pipeline-monitor-header-actions-max-width: 15rem;
+
+  /* Settings token usage table */
+  --settings-token-usage-audit-name-max-width: 200px;
+
+  /* Intake NL ingress textarea */
+  --intake-nl-ingress-textarea-min-height: 5.5rem;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
   --text-lg: 1.0625rem;

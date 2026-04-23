@@ -9,10 +9,7 @@ import {
   isOrchestrationPackAutoAfterStrategyEnabled,
 } from '../../config/feature-flags.js';
 import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
-import {
-  ORCHESTRATION_PLAN_GOVERNANCE_POLICY,
-  ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS,
-} from '../../config/orchestration-plan-governance-policy.js';
+import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY } from '../../config/orchestration-plan-governance-policy.js';
 import {
   isTightenedQualityRolloutReady,
   resolveOrchestrationPlanGovernanceRolloutTransition,

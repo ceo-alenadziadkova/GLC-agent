@@ -28,7 +28,7 @@ export function runIntakeReadinessPreflight(args: {
     normalizedIv && isSupportedIntakeArtifactTuple(normalizedIv) ? normalizedIv : currentIntakeVersionTuple();
   // Phase-1 contract: baseline readiness enforcement is evaluated at pipeline_start semantics
   // for both /pipeline/start and /pipeline/next boundaries.
-  const baselineEnforcementPoint: 'pipeline_start' = 'pipeline_start';
+  const baselineEnforcementPoint = 'pipeline_start' as const;
   const readiness = evaluateIntakeReadinessEnvelope({
     responses: args.responses,
     slaProductMode: args.slaProductMode,

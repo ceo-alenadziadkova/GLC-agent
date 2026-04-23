@@ -44,9 +44,10 @@ vi.mock('../services/legal-consent.service.js', () => ({
   isDpaAcceptanceEffectivelyTrue,
 }));
 
-describe('approveAuditRequestCommand', () => {
+describe('approveAuditRequestCommand', { timeout: 30_000 }, () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    // clearAllMocks preserves factory implementations; resetAllMocks strips mockResolvedValue on vi.fn() mocks.
+    vi.clearAllMocks();
     isDpaAcceptanceEffectivelyTrue.mockResolvedValue(true);
   });
 

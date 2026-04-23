@@ -91,6 +91,18 @@ const {
       }
       return Promise.resolve({ data: null, error: null });
     });
+    chain.maybeSingle = vi.fn(() => {
+      if (table === 'audits') {
+        return Promise.resolve({
+          data: { product_mode: productMode, industry: 'saas' },
+          error: null,
+        });
+      }
+      if (table === 'review_points') {
+        return Promise.resolve({ data: null, error: { code: 'PGRST116' } });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     chain.update = vi.fn((payload: Record<string, unknown>) => {
       updatePayload = payload;
       const capturedFilters = { ...filters };
@@ -175,6 +187,14 @@ vi.mock('../services/observability-context.js', () => ({
   getContext: vi.fn(() => ({ traceId: 'trace-gov', operationId: 'op-gov' })),
   updateContext: vi.fn(),
 }));
+
+vi.mock('../config/director-orchestration-policy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/director-orchestration-policy.js')>();
+  return {
+    ...actual,
+    directorOrchestrationPersistenceModeForPhase: () => 'best_effort' as const,
+  };
+});
 
 vi.mock('../agents/recon.js', () => ({ ReconAgent: govAgentClass(0) }));
 vi.mock('../agents/tech.js', () => ({ TechAgent: govAgentClass(1) }));

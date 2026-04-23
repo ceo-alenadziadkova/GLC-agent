@@ -229,7 +229,6 @@ export function InspectorPanel(props: InspectorPanelProps) {
 
             <div className="mt-2 max-h-56 overflow-auto space-y-1">
               {allQuestionsForReview.map(q => {
-                const pill = statusPill(q.status);
                 return (
                   <div
                     key={`all-q-${q.id}`}

@@ -177,6 +177,20 @@
   outline-offset: 1px;
 }
 
+/* Dependency kind legend — colors from tokens only (no inline styles in TSX). */
+.roadmap-dep-kind-dot[data-kind='FS'] {
+  background-color: var(--score-5);
+}
+.roadmap-dep-kind-dot[data-kind='SS'] {
+  background-color: var(--glc-blue);
+}
+.roadmap-dep-kind-dot[data-kind='FF'] {
+  background-color: var(--score-3);
+}
+.roadmap-dep-kind-dot[data-kind='SF'] {
+  background-color: var(--text-tertiary);
+}
+
 .roadmap-gantt-shell {
   --roadmap-font-body: 13px;
   --roadmap-font-header: 12px;

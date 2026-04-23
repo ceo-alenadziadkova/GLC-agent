@@ -25,18 +25,19 @@
     "Prioritize what matters.",
     "Move with a roadmap."
   ],
+  "homeMetricsSectionLabel": "At a glance",
   "whoWeAreMetrics": [
     {
-      "value": "One place to begin",
-      "label": "Share context once instead of re-explaining it across disconnected tools."
+      "value": "One shared story",
+      "label": "Capture context once—teams reuse it instead of re-briefing in every tool."
     },
     {
-      "value": "Visible dependencies",
-      "label": "Cross-team dependencies are surfaced in one picture before teams commit."
+      "value": "Dependencies in view",
+      "label": "See cross-team handoffs before dates and budgets harden."
     },
     {
-      "value": "Action-ready output",
-      "label": "You get a practical direction with sequence, owners, and explicit boundaries."
+      "value": "Ready to run",
+      "label": "Owners, a first sequence, and plain-language boundaries—nothing left vague."
     }
   ],
   "homeAtAGlanceLandmark": "Everything starts here: shared context, connected picture, coherent direction",

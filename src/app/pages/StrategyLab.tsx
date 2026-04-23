@@ -263,8 +263,6 @@ export function StrategyLab() {
     });
   }
 
-  const activeTabCfg = TABS.find(t => t.key === activeTab)!;
-
   if (loading && !audit) {
     return (
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.loadingSubtitle}>
@@ -374,7 +372,7 @@ export function StrategyLab() {
             </div>
             <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
                 <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
                 <select
                   className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
@@ -388,7 +386,7 @@ export function StrategyLab() {
                   ))}
                 </select>
               </label>
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
                 <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
                 <select
                   className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
@@ -402,7 +400,7 @@ export function StrategyLab() {
                   ))}
                 </select>
               </label>
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
                 <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
                 <select
                   className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
@@ -439,7 +437,7 @@ export function StrategyLab() {
             </>
           )}
           <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
-            <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+            <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
               <select
                 className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
@@ -454,7 +452,7 @@ export function StrategyLab() {
                 ))}
               </select>
             </label>
-            <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+            <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.sortModeLabel}</span>
               <select
                 className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
@@ -676,7 +674,7 @@ export function StrategyLab() {
               <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.panel.roadmapPreviewHint}</p>
               {roadmapMarkdownPreview ? (
                 <div
-                  className="bg-background max-h-[min(50vh,26rem)] overflow-auto rounded-lg border"
+                  className="bg-background max-h-[length:var(--strategy-lab-roadmap-preview-max-height)] overflow-auto rounded-lg border"
                   role="region"
                   aria-label={STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}
                 >

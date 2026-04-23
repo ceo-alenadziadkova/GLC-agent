@@ -297,17 +297,15 @@ describe('ClientAuditView', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('link', { name: /View your report/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /Open Strategy Lab/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('link', { name: /Strategy details/i }).length).toBeGreaterThan(0);
     });
 
     expect(screen.getByRole('link', { name: /View your report/i })).toHaveAttribute(
       'href',
       '/portal/reports/audit-nav-1',
     );
-    expect(screen.getByRole('link', { name: /Open Strategy Lab/i })).toHaveAttribute(
-      'href',
-      '/portal/strategy/audit-nav-1',
-    );
+    const strategyNavLinks = screen.getAllByRole('link', { name: /Strategy details/i });
+    expect(strategyNavLinks.some((el) => el.getAttribute('href') === '/portal/strategy/audit-nav-1')).toBe(true);
   });
 
   it('renders post-audit cockpit CTAs for completed paid audits', async () => {
@@ -317,7 +315,7 @@ describe('ClientAuditView', () => {
       expect(screen.getByText('What you have now')).toBeInTheDocument();
     });
 
-    const timelineLinks = screen.getAllByRole('link', { name: /Open execution timeline/i });
+    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
     expect(timelineLinks.length).toBeGreaterThan(0);
     for (const link of timelineLinks) {
       expect(link).toHaveAttribute('href', '/portal/timeline/audit-cockpit-1');
@@ -326,7 +324,7 @@ describe('ClientAuditView', () => {
       'href',
       '/portal/reports/audit-cockpit-1',
     );
-    const strategyLinks = screen.getAllByRole('link', { name: /Strategy Lab details/i });
+    const strategyLinks = screen.getAllByRole('link', { name: /Strategy details/i });
     expect(strategyLinks.length).toBeGreaterThan(0);
     for (const link of strategyLinks) {
       expect(link).toHaveAttribute('href', '/portal/strategy/audit-cockpit-1');
@@ -372,7 +370,7 @@ describe('ClientAuditView', () => {
     renderClientAuditRoute('audit-stale-cockpit');
 
     await waitFor(() => {
-      expect(screen.getByText(/Roadmap manifest moved ahead of this timeline/i)).toBeInTheDocument();
+      expect(screen.getByText(/Plan updated ahead of this timeline/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/stale_manifest/i)).toBeInTheDocument();
   });
