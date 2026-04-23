@@ -6,13 +6,12 @@ import {
   getIntakeIntelligenceSprint2CoverageSummary,
   hasIntakeIntelligenceRequiredNow,
   INTAKE_INTELLIGENCE_P0_IDS,
-  isIntakeIntelligenceSprint2GateSatisfied,
-  isValidIntakeIntelligenceTodo,
   projectIntakeIntelligenceRequiredNow,
 } from '../config/intake-intelligence-contract.js';
 import {
   INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE,
   INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
+  isIntakeIntelligenceSprint2Complete,
 } from '../config/intake-intelligence-sprint2.js';
 import { QUESTION_BANK_V1_IDS } from '../question-bank.js';
 
@@ -27,15 +26,12 @@ describe('intake intelligence contract', () => {
     }
   });
 
-  it('requires valid todo metadata for non-P0 questions outside Sprint 2 gate completion', () => {
-    const p0Set = new Set(INTAKE_INTELLIGENCE_P0_IDS);
+  it('requires full sprint2-complete contract shape for all questions', () => {
     for (const questionId of QUESTION_BANK_V1_IDS) {
-      if (p0Set.has(questionId)) continue;
-      if (isIntakeIntelligenceSprint2GateSatisfied(questionId)) continue;
       const contract = getIntakeIntelligenceContract(questionId);
       expect(
-        isValidIntakeIntelligenceTodo(contract.todo),
-        `non-P0 question "${questionId}" must keep todo metadata with ownerDomain/reviewByIsoDate/todoReason`,
+        isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow),
+        `question "${questionId}" must include full intelligence contract without todo fallback`,
       ).toBe(true);
     }
   });
@@ -76,5 +72,16 @@ describe('intake intelligence contract', () => {
     const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('e4'));
     expect(nonP0Projected).toBeDefined();
     expect(nonP0Projected?.semanticDomain).toBe('risks');
+  });
+
+  it('keeps all bank questions on full contract metadata without todo deferrals', () => {
+    for (const questionId of QUESTION_BANK_V1_IDS) {
+      const contract = getIntakeIntelligenceContract(questionId);
+      expect(contract.todo, `question "${questionId}" should not rely on todo fallback`).toBeUndefined();
+      expect(
+        hasIntakeIntelligenceRequiredNow(contract),
+        `question "${questionId}" must keep required_now fields`,
+      ).toBe(true);
+    }
   });
 });

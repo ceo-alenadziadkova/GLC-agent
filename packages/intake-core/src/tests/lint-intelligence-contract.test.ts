@@ -5,8 +5,13 @@ import {
   INTAKE_INTELLIGENCE_P0_IDS,
 } from '../config/intake-intelligence-contract.js';
 import { lintIntelligenceContractV1 } from '../core/lint-bank-policy/lint-intelligence-contract.js';
+import bankEmbeddingsArtifact from '../artifacts/bank-embeddings.v1.json' with { type: 'json' };
 
 describe('lintIntelligenceContractV1', () => {
+  it('keeps embedding duplicate threshold configured in artifact', () => {
+    expect(bankEmbeddingsArtifact.cosineDuplicateThreshold).toBeGreaterThanOrEqual(0.9);
+  });
+
   it('reports no intelligence contract errors for the current bank', () => {
     const findings = lintIntelligenceContractV1();
     const errors = findings.filter(f => f.severity === 'error');
@@ -40,41 +45,17 @@ describe('lintIntelligenceContractV1', () => {
     expect(findings.some(f => f.code === 'INTELLIGENCE_SEMANTIC_DOMAIN_INVALID')).toBe(true);
   });
 
-  it('warns when non-P0 todo review date format is invalid', () => {
-    const targetNonP0 = 'a1';
+  it('fails when any question falls out of full intelligence-contract shape', () => {
+    const target = 'a1';
     const findings = lintIntelligenceContractV1({
       contractResolver: questionId => {
-        if (questionId === targetNonP0) {
-          return {
-            ...getIntakeIntelligenceContract(questionId),
-            todo: {
-              ownerDomain: 'product',
-              reviewByIsoDate: '2026/07/31',
-              todoReason: 'test-invalid-date',
-            },
-          };
-        }
-        return getIntakeIntelligenceContract(questionId);
-      },
-    });
-    expect(
-      findings.some(
-        f => f.code === 'INTELLIGENCE_TODO_REVIEW_DATE_INVALID' && f.severity === 'warn',
-      ),
-    ).toBe(true);
-  });
-
-  it('warns when non-P0 todo metadata is missing', () => {
-    const targetNonP0 = 'a1';
-    const findings = lintIntelligenceContractV1({
-      contractResolver: questionId => {
-        if (questionId === targetNonP0) {
+        if (questionId === target) {
           return {};
         }
         return getIntakeIntelligenceContract(questionId);
       },
     });
-    expect(findings.some(f => f.code === 'INTELLIGENCE_TODO_METADATA_MISSING')).toBe(true);
+    expect(findings.some(f => f.code === 'INTELLIGENCE_CONTRACT_INCOMPLETE' && f.severity === 'error')).toBe(true);
   });
 
   it('treats generic anti-pattern checks as errors', () => {

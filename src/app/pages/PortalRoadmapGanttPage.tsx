@@ -48,6 +48,7 @@ export function PortalRoadmapGanttPage() {
 
   const projection = buildRoadmapGanttProjection(timelineQuery.data.timeline);
   const backHref = isClient ? buildAppRoute.portalTimeline(id) : buildAppRoute.timeline(id);
+  const strategyHref = isClient ? buildAppRoute.portalStrategy(id) : buildAppRoute.strategy(id);
 
   return (
     <AppShell title="Roadmap schedule" subtitle="Multi-lane timeline with dependencies and task details">
@@ -57,7 +58,7 @@ export function PortalRoadmapGanttPage() {
             <Link to={backHref}>Back to timeline</Link>
           </Button>
         </div>
-        <RoadmapGanttView projection={projection} />
+        <RoadmapGanttView projection={projection} strategyHref={strategyHref} />
       </div>
     </AppShell>
   );

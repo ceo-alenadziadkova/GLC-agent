@@ -1,14 +1,11 @@
 import {
   getIntakeIntelligenceContract,
   hasIntakeIntelligenceRequiredNow,
-  isValidIntakeIntelligenceTodo,
   INTAKE_INTELLIGENCE_P0_IDS,
   type IntakeIntelligenceContract,
 } from '../../config/intake-intelligence-contract.js';
-import {
-  INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
-  isIntakeIntelligenceSprint2Complete,
-} from '../../config/intake-intelligence-sprint2.js';
+import bankEmbeddingsArtifact from '../../artifacts/bank-embeddings.v1.json' with { type: 'json' };
+import { isIntakeIntelligenceSprint2Complete } from '../../config/intake-intelligence-sprint2.js';
 import { QUESTION_BANK_V1_IDS, getQuestionBankSchemaMeta } from '../../question-bank.js';
 import { DIAGNOSTIC_SPINE_CATEGORIES } from '../../audit-contract.js';
 
@@ -22,7 +19,12 @@ const LOW_GAIN_WHY_ASKED_FRAGMENTS = [
   'general background',
 ];
 const OUTSIDE_SCOPE_WHY_ASKED_FRAGMENTS = ['anything else', 'general overview', 'catch-all context'];
-const EMBEDDING_DUPLICATE_THRESHOLD = 0.92;
+type BankEmbeddingsArtifact = {
+  cosineDuplicateThreshold?: number;
+};
+
+const EMBEDDING_DUPLICATE_THRESHOLD =
+  (bankEmbeddingsArtifact as BankEmbeddingsArtifact).cosineDuplicateThreshold ?? 0.92;
 
 const OWNER_DOMAIN_SET = new Set([
   'recon',
@@ -150,37 +152,6 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   return findings;
 }
 
-function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceContract): LintFinding[] {
-  const findings: LintFinding[] = [];
-  const todo = contract.todo;
-  if (!todo) {
-    findings.push({
-      code: 'INTELLIGENCE_TODO_METADATA_MISSING',
-      severity: 'warn',
-      message: `question "${questionId}" is outside P0 but missing todo metadata (ownerDomain/reviewByIsoDate/todoReason).`,
-      detail: questionId,
-    });
-    return findings;
-  }
-  if (!todo.ownerDomain || !todo.reviewByIsoDate || !todo.todoReason) {
-    findings.push({
-      code: 'INTELLIGENCE_TODO_METADATA_INCOMPLETE',
-      severity: 'warn',
-      message: `question "${questionId}" has incomplete todo metadata.`,
-      detail: questionId,
-    });
-  }
-  if (!isValidIntakeIntelligenceTodo(todo)) {
-    findings.push({
-      code: 'INTELLIGENCE_TODO_REVIEW_DATE_INVALID',
-      severity: 'warn',
-      message: `question "${questionId}" todo.reviewByIsoDate must use YYYY-MM-DD format.`,
-      detail: todo.reviewByIsoDate,
-    });
-  }
-  return findings;
-}
-
 function lintOwnerDomainConsistency(questionId: string, contract: IntakeIntelligenceContract): LintFinding[] {
   const findings: LintFinding[] = [];
   const target = contract.decisionImpact?.[0]?.target;
@@ -207,9 +178,8 @@ function hasAntiPatternExemption(contract: IntakeIntelligenceContract, code: str
 
 /**
  * Intake Intelligence Contract lint:
- * - P0 questions must include required_now fields (whyAsked + semanticDomain + decisionImpact[0])
+ * - all questions must include full intelligence contract (Sprint-2-complete shape)
  * - semanticDomain must map to Core Diagnostic Spine
- * - Sprint 2 gate ids must satisfy full contract (stewardship, signalContribution, follow-up, no todo)
  * - anti-pattern heuristics are enforced as errors except duplicate-intent.
  */
 export function lintIntelligenceContractV1(args?: {
@@ -219,7 +189,6 @@ export function lintIntelligenceContractV1(args?: {
 }): LintFinding[] {
   const findings: LintFinding[] = [];
   const p0Set = new Set(INTAKE_INTELLIGENCE_P0_IDS);
-  const sprint2Gate = new Set(INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS);
   const knownIds = new Set(QUESTION_BANK_V1_IDS);
   const resolver = args?.contractResolver ?? getIntakeIntelligenceContract;
   const labelOverrides = args?.labelOverrides;
@@ -260,18 +229,11 @@ export function lintIntelligenceContractV1(args?: {
     }
     findings.push(...lintOwnerDomainConsistency(questionId, contract));
 
-    if (!isP0) {
-      const sprint2Done = isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow);
-      if (!(sprint2Gate.has(questionId) && sprint2Done)) {
-        findings.push(...lintNonP0TodoMetadata(questionId, contract));
-      }
-    }
-
-    if (sprint2Gate.has(questionId) && !isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow)) {
+    if (!isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow)) {
       findings.push({
-        code: 'INTELLIGENCE_SPRINT2_INCOMPLETE',
+        code: 'INTELLIGENCE_CONTRACT_INCOMPLETE',
         severity: 'error',
-        message: `question "${questionId}" is in the Sprint 2 gate set but is missing the full intelligence contract (stewardship, signalContribution with info-gain floor, follow-up policy, stop rule, and no todo deferral).`,
+        message: `question "${questionId}" is missing the full intelligence contract (required_now, stewardship, signalContribution with info-gain floor, follow-up policy, stop rule, and no todo deferral).`,
         detail: questionId,
       });
     }

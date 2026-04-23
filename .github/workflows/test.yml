@@ -110,6 +110,8 @@ jobs:
         run: pnpm run lint:intake-readiness-vocab
       - name: Intake diagnostic contract tests
         run: pnpm run test:intake-diagnostic-contracts
+      - name: Intelligence contract governance
+        run: pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts packages/intake-core/src/tests/lint-intelligence-contract.test.ts packages/intake-core/src/tests/intelligence-review-cadence.test.ts
       - name: Design-system drift budget (§4.1)
         run: pnpm run audit:ds:drift-budget
       - name: Design-system enforcement

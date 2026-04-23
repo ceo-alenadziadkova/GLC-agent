@@ -44,6 +44,7 @@ export type RoadmapGanttProjection = {
 };
 
 const DAY_MS = 86_400_000;
+const CANONICAL_LANE_ORDER = Object.keys(ORCHESTRATION_LANE_LABELS) as OrchestrationLaneId[];
 
 function dependencyKindFromRelation(
   relation: AuditTimelineDto['dependencies'][number]['relation'],
@@ -97,18 +98,12 @@ function estimateTaskWindow(
   return { start: buckets[1]!.start, end: buckets[1]!.end, isEstimated: true };
 }
 
-function uniqueLaneOrder(timeline: AuditTimelineDto): OrchestrationLaneId[] {
-  const ids = timeline.lanes.map((lane) => lane.lane_id);
-  return Array.from(new Set(ids));
+function isOrchestrationLaneId(value: string): value is OrchestrationLaneId {
+  return value in ORCHESTRATION_LANE_LABELS;
 }
 
 export function buildRoadmapGanttProjection(timeline: AuditTimelineDto): RoadmapGanttProjection {
   const buckets = getBucketBoundaries(timeline);
-  const lanes: RoadmapGanttLane[] = uniqueLaneOrder(timeline).map((laneId) => ({
-    id: laneId,
-    title: ORCHESTRATION_LANE_LABELS[laneId],
-  }));
-
   const dependencyByTaskId = new Map<string, string[]>();
   for (const dep of timeline.dependencies) {
     const list = dependencyByTaskId.get(dep.to) ?? [];
@@ -140,6 +135,16 @@ export function buildRoadmapGanttProjection(timeline: AuditTimelineDto): Roadmap
       };
     }),
   );
+  const laneIdsWithTasks = new Set<OrchestrationLaneId>();
+  for (const task of tasks) {
+    if (isOrchestrationLaneId(task.group)) {
+      laneIdsWithTasks.add(task.group);
+    }
+  }
+  const lanes: RoadmapGanttLane[] = CANONICAL_LANE_ORDER.filter((laneId) => laneIdsWithTasks.has(laneId)).map((laneId) => ({
+    id: laneId,
+    title: ORCHESTRATION_LANE_LABELS[laneId],
+  }));
 
   const dependencies: RoadmapGanttDependency[] = timeline.dependencies.map((dep) => ({
     id: `${dep.from}->${dep.to}`,

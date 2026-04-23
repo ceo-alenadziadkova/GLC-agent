@@ -31,4 +31,16 @@ describe('intelligence review cadence governance', () => {
     }
     expect(missingAlias).toEqual([]);
   });
+
+  it('does not allow product as default intelligence owner domain', () => {
+    const productOwned: string[] = [];
+    for (const questionId of QUESTION_BANK_V1_IDS) {
+      const contract = getIntakeIntelligenceContract(questionId);
+      const owner = contract.stewardship?.ownerDomain ?? contract.todo?.ownerDomain;
+      if (owner === 'product') {
+        productOwned.push(questionId);
+      }
+    }
+    expect(productOwned).toEqual([]);
+  });
 });

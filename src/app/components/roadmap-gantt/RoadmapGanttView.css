@@ -1,52 +1,404 @@
+.roadmap-grid-area {
+  position: relative;
+}
+
+.roadmap-overview-strip {
+  position: relative;
+  height: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 80%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  margin: 0 0 10px;
+  overflow: hidden;
+  cursor: ew-resize;
+}
+
+.roadmap-overview-strip-empty {
+  cursor: default;
+  justify-content: center;
+}
+
+.roadmap-overview-task {
+  position: absolute;
+  top: 4px;
+  height: 8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--glc-blue) 62%, var(--surface-raised));
+  opacity: 0.65;
+}
+
+.roadmap-overview-task-muted {
+  opacity: 0.35;
+  background: color-mix(in srgb, var(--text-tertiary) 40%, var(--surface-raised));
+}
+
+.roadmap-overview-window {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--glc-blue) 52%, var(--border-default));
+  background: color-mix(in srgb, var(--glc-blue) 20%, transparent);
+  pointer-events: none;
+}
+
+.roadmap-overview-strip[data-empty='true'] .roadmap-overview-window {
+  background: color-mix(in srgb, var(--surface-raised) 52%, transparent);
+  border-color: color-mix(in srgb, var(--border-default) 75%, transparent);
+}
+
+.roadmap-overview-empty-label {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.roadmap-grid-scroll-controls[data-empty='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.roadmap-controls-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 9;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 80%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-base) 92%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.roadmap-controls-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.roadmap-restore-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px dashed color-mix(in srgb, var(--border-default) 75%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  padding: 6px 8px;
+}
+
+.roadmap-controls-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-right: 2px;
+}
+
+.roadmap-controls-section-actions {
+  border-top: 1px dashed color-mix(in srgb, var(--border-default) 70%, transparent);
+  padding-top: 8px;
+}
+
+.roadmap-controls-metrics {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.roadmap-grid-scroll-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 8;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.roadmap-scroll-button {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-base) 94%, transparent);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.roadmap-scroll-button:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--glc-blue) 36%, var(--border-default));
+}
+
+.roadmap-scroll-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.roadmap-kind-help {
+  appearance: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.roadmap-kind-help:hover {
+  border-color: color-mix(in srgb, var(--glc-blue) 44%, var(--border-default));
+  color: var(--text-primary);
+}
+
+.roadmap-kind-help:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.roadmap-gantt-shell {
+  --roadmap-font-body: 13px;
+  --roadmap-font-header: 12px;
+  --roadmap-font-lane: 13px;
+  --roadmap-font-item: 13px;
+}
+
+.roadmap-gantt-shell.roadmap-gantt-shell-compact {
+  --roadmap-font-body: 12px;
+  --roadmap-font-header: 11px;
+  --roadmap-font-lane: 12px;
+  --roadmap-font-item: 12px;
+}
+
+.roadmap-gantt-shell.roadmap-gantt-shell-comfortable {
+  --roadmap-font-body: 13px;
+  --roadmap-font-header: 12px;
+  --roadmap-font-lane: 13px;
+  --roadmap-font-item: 13px;
+}
+
+.roadmap-grid-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-2px);
+  transition:
+    opacity 140ms ease,
+    max-height 140ms ease,
+    transform 140ms ease;
+}
+
+.roadmap-grid-area:hover .roadmap-grid-hint,
+.roadmap-grid-area:focus-within .roadmap-grid-hint {
+  opacity: 0.9;
+  max-height: 32px;
+  transform: translateY(0);
+}
+
 .roadmap-gantt-shell .react-calendar-timeline {
   border: 1px solid var(--border-default);
-  border-radius: 0.9rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   background: var(--surface-base);
+  position: relative;
+}
+
+.roadmap-gantt-shell::before,
+.roadmap-gantt-shell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.roadmap-gantt-shell::before {
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--surface-base) 96%, transparent),
+    color-mix(in srgb, var(--surface-base) 0%, transparent)
+  );
+}
+
+.roadmap-gantt-shell::after {
+  right: 0;
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--surface-base) 96%, transparent),
+    color-mix(in srgb, var(--surface-base) 0%, transparent)
+  );
+}
+
+.roadmap-gantt-shell.roadmap-gantt-shell-can-scroll-left::before {
+  opacity: 1;
+}
+
+.roadmap-gantt-shell.roadmap-gantt-shell-can-scroll-right::after {
+  opacity: 1;
 }
 
 .roadmap-gantt-shell .rct-header-root {
   border-bottom: 1px solid var(--border-default);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface-raised) 85%, transparent),
-    color-mix(in srgb, var(--surface-base) 95%, transparent)
-  );
+  background: var(--surface-base);
 }
 
 .roadmap-gantt-shell .rct-sidebar {
   border-right: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  background: var(--surface-base);
+  position: sticky;
+  left: 0;
+  z-index: 8;
+}
+
+.roadmap-gantt-shell .rct-sidebar .rct-sidebar-header {
+  position: sticky;
+  left: 0;
+  z-index: 9;
 }
 
 .roadmap-gantt-shell .rct-sidebar-row {
   color: var(--text-secondary);
   font-weight: 500;
+  font-size: var(--roadmap-font-lane);
 }
 
 .roadmap-gantt-shell .rct-sidebar-row-even,
 .roadmap-gantt-shell .rct-sidebar-row-odd {
-  border-bottom: 1px dashed color-mix(in srgb, var(--border-default) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
+}
+
+.roadmap-gantt-shell .rct-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.roadmap-gantt-shell .rct-scroll::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-day-divider {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 64%, transparent);
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-week-divider {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-month-divider {
+  border-left: 1px solid color-mix(in srgb, var(--text-secondary) 35%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-today-divider {
+  border-left: 1px solid color-mix(in srgb, var(--glc-blue) 62%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-dateHeader {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--roadmap-font-header);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.roadmap-gantt-shell .rct-dateHeader-primary {
+  height: 32px;
+  line-height: 32px;
+  font-size: var(--roadmap-font-header);
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-default);
+  padding-left: 10px;
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-day-header {
+  height: 30px;
+  line-height: 30px;
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+}
+
+.roadmap-gantt-shell .roadmap-month-header {
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-time-headers {
+  box-shadow: inset 0 -1px 0 var(--border-default);
+}
+
+.roadmap-gantt-shell .roadmap-sidebar-header {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: var(--roadmap-font-header);
+  font-weight: 600;
+  color: var(--text-primary) !important;
+  border-right: 1px solid var(--border-default);
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-today-marker-line {
+  width: 2px;
+  height: 100%;
+  background: color-mix(in srgb, var(--glc-blue) 68%, var(--border-default));
+  position: relative;
+  z-index: 5;
+}
+
+.roadmap-gantt-shell .roadmap-today-marker-nub {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--glc-blue) 78%, white);
+  box-shadow: 0 0 0 2px var(--surface-base);
 }
 
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid {
-  border-radius: 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--glc-blue) 55%, var(--border-default));
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--glc-blue) 80%, white),
-    color-mix(in srgb, var(--glc-blue) 65%, var(--surface-base))
-  );
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--glc-blue) 22%, transparent);
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-default);
+  background: var(--surface-raised);
+  box-shadow: none;
   transition:
-    transform 160ms ease,
-    box-shadow 200ms ease,
-    filter 180ms ease,
-    border-color 180ms ease,
-    background-position 240ms ease;
-  background-size: 200% 100%;
-  background-position: 0% 50%;
+    transform 120ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
 }
 
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated {
@@ -57,81 +409,351 @@
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--glc-blue) 28%, transparent);
-  filter: saturate(1.06);
-  border-color: color-mix(in srgb, var(--glc-blue) 75%, white);
-  animation: roadmapTaskShimmerLight 1300ms ease-in-out infinite;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--glc-blue) 30%, transparent);
+  border-color: color-mix(in srgb, var(--glc-blue) 52%, var(--border-default));
+  background: color-mix(in srgb, var(--surface-raised) 88%, var(--glc-blue));
 }
 
 .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
-  outline: 2px solid color-mix(in srgb, var(--glc-blue) 80%, white);
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 45%, transparent);
   outline-offset: 1px;
-  animation: roadmapTaskShimmerLight 1500ms ease-in-out infinite;
+}
+
+.roadmap-gantt-shell:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 50%, transparent);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-focused {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--glc-blue) 42%, transparent);
+  border-color: color-mix(in srgb, var(--glc-blue) 58%, var(--border-default));
 }
 
 .roadmap-gantt-shell .rct-item-content {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--roadmap-font-item);
+  font-weight: 500;
   letter-spacing: 0.01em;
+  line-height: 1.25;
+  padding: 0 6px;
+  text-wrap: balance;
 }
 
 .roadmap-dependency-arrow {
+  opacity: 0.62;
   transition:
     stroke-width 140ms ease,
     opacity 180ms ease,
     filter 180ms ease;
 }
 
+.roadmap-dependency-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.roadmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roadmap-legend-line {
+  width: 24px;
+  height: 2px;
+  display: inline-block;
+  border-radius: 9999px;
+  background: var(--text-tertiary);
+}
+
+.roadmap-legend-line-fs {
+  background: var(--score-5);
+}
+
+.roadmap-legend-line-ss {
+  background: var(--glc-blue);
+}
+
+.roadmap-legend-line-ff {
+  background: var(--score-3);
+}
+
+.roadmap-legend-line-sf {
+  background: var(--text-tertiary);
+}
+
+.roadmap-legend-line-weak {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--text-tertiary) 92%, transparent) 0 3px,
+    transparent 3px 6px
+  );
+}
+
 .roadmap-dependency-arrow:hover,
 .roadmap-dependency-arrow-hovered {
   opacity: 1;
-  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glc-blue) 35%, transparent));
+  filter: none;
+}
+
+/* Status accents inspired by GitHub Roadmap issue pills. */
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-planned {
+  border-left: 3px solid color-mix(in srgb, var(--text-tertiary) 70%, var(--border-default));
+  border-top: 1px dashed color-mix(in srgb, var(--text-tertiary) 74%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-in-progress {
+  border-left: 3px solid color-mix(in srgb, var(--glc-blue) 72%, white);
+  border-top: 1px solid color-mix(in srgb, var(--glc-blue) 46%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-done {
+  border-left: 3px solid color-mix(in srgb, var(--status-success-fg) 78%, var(--border-default));
+  border-top: 2px double color-mix(in srgb, var(--status-success-fg) 66%, var(--border-default));
+  opacity: 0.88;
 }
 
 html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
 html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid {
+  background: color-mix(in srgb, var(--surface-raised) 82%, rgb(18 21 30));
+  border-color: color-mix(in srgb, var(--border-default) 85%, rgb(128 146 176));
+  box-shadow: none;
+}
+
+html.dark .roadmap-controls-bar {
+  background: color-mix(in srgb, var(--surface-base) 82%, rgb(11 16 24));
+  border-color: color-mix(in srgb, var(--border-default) 72%, rgb(70 84 110));
+}
+
+html.dark .roadmap-controls-section-actions {
+  border-top-color: color-mix(in srgb, var(--border-default) 62%, rgb(70 84 110));
+}
+
+html.dark .roadmap-restore-notice {
+  border-color: color-mix(in srgb, var(--border-default) 62%, rgb(70 84 110));
+  background: color-mix(in srgb, var(--surface-raised) 70%, rgb(18 25 37));
+}
+
+@media (max-width: 980px) {
+  .roadmap-controls-section-title {
+    min-width: 52px;
+  }
+
+  .roadmap-controls-section-actions {
+    border-top-style: solid;
+  }
+}
+
+html.dark .roadmap-overview-strip {
+  background: color-mix(in srgb, var(--surface-raised) 72%, rgb(15 20 31));
+  border-color: color-mix(in srgb, var(--border-default) 74%, rgb(70 84 110));
+}
+
+html.dark .roadmap-overview-task {
+  background: color-mix(in srgb, var(--glc-blue) 62%, rgb(59 87 138));
+}
+
+html.dark .roadmap-gantt-shell::before {
   background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--glc-blue) 58%, rgb(21 24 34)),
-    color-mix(in srgb, var(--glc-blue) 42%, rgb(12 14 22)),
-    color-mix(in srgb, rgb(188 219 255) 34%, rgb(22 27 38)),
-    color-mix(in srgb, var(--glc-blue) 40%, rgb(10 12 20))
+    90deg,
+    color-mix(in srgb, var(--surface-base) 92%, rgb(10 12 18)),
+    color-mix(in srgb, var(--surface-base) 0%, transparent)
   );
-  border-color: color-mix(in srgb, var(--glc-blue) 62%, rgb(158 196 255));
-  box-shadow: 0 8px 18px color-mix(in srgb, rgb(0 0 0) 62%, transparent);
+}
+
+html.dark .roadmap-gantt-shell::after {
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--surface-base) 92%, rgb(10 12 18)),
+    color-mix(in srgb, var(--surface-base) 0%, transparent)
+  );
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-day-divider {
+  border-left-color: color-mix(in srgb, var(--border-default) 72%, rgb(53 63 82));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-week-divider {
+  border-left-color: color-mix(in srgb, var(--border-default) 82%, rgb(84 101 130));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-month-divider {
+  border-left-color: color-mix(in srgb, rgb(165 186 220) 40%, var(--border-default));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-today-divider,
+html.dark .roadmap-gantt-shell .roadmap-today-marker-line {
+  background: color-mix(in srgb, var(--glc-blue) 66%, rgb(132 174 255));
+  border-left-color: color-mix(in srgb, var(--glc-blue) 66%, rgb(132 174 255));
+}
+
+html.dark .roadmap-gantt-shell .roadmap-today-marker-nub {
+  background: color-mix(in srgb, var(--glc-blue) 68%, rgb(187 214 255));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-base) 90%, rgb(12 16 24));
+}
+
+html.dark .roadmap-gantt-shell .rct-dateHeader-primary,
+html.dark .roadmap-gantt-shell .roadmap-month-header,
+html.dark .roadmap-gantt-shell .roadmap-sidebar-header {
+  background: color-mix(in srgb, var(--surface-base) 86%, rgb(14 18 26));
+}
+
+html.dark .roadmap-gantt-shell .roadmap-day-header {
+  background: color-mix(in srgb, var(--surface-raised) 76%, rgb(17 22 31));
+}
+
+.roadmap-deps-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.roadmap-deps-table thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.roadmap-deps-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.roadmap-deps-sort-btn:hover {
+  color: var(--text-primary);
+}
+
+.roadmap-deps-sort-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.roadmap-deps-cta {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.roadmap-deps-cta:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--glc-blue) 40%, var(--border-default));
+  background: color-mix(in srgb, var(--surface-raised) 88%, var(--glc-blue));
+}
+
+.roadmap-deps-cta:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.roadmap-deps-table tbody td {
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: var(--roadmap-font-body);
+  line-height: 1.35;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 82%, transparent);
+  vertical-align: middle;
+}
+
+.roadmap-deps-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.roadmap-deps-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+}
+
+.roadmap-deps-table-empty {
+  text-align: center;
+  color: var(--text-tertiary) !important;
+}
+
+.roadmap-deps-empty-action {
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.roadmap-deps-table-callout td {
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+}
+
+.roadmap-deps-row-hovered td {
+  background: color-mix(in srgb, var(--surface-raised) 88%, var(--glc-blue)) !important;
+}
+
+html.dark .roadmap-deps-table thead th {
+  background: color-mix(in srgb, var(--surface-raised) 72%, rgb(17 22 31));
+}
+
+html.dark .roadmap-deps-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--surface-raised) 62%, rgb(39 52 74));
+}
+
+html.dark .roadmap-deps-table-callout td {
+  background: color-mix(in srgb, var(--surface-raised) 74%, rgb(20 27 38));
+}
+
+html.dark .roadmap-deps-row-hovered td {
+  background: color-mix(in srgb, var(--surface-raised) 56%, rgb(55 79 122)) !important;
 }
 
 html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
 html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover,
 html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
-  animation-name: roadmapTaskShimmerDark;
+  background: color-mix(in srgb, var(--surface-raised) 58%, rgb(51 74 116));
+  border-color: color-mix(in srgb, var(--glc-blue) 54%, var(--border-default));
 }
 
-@keyframes roadmapTaskShimmerLight {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-focused {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--glc-blue) 58%, rgb(126 180 255));
+  border-color: color-mix(in srgb, var(--glc-blue) 62%, rgb(154 199 255));
 }
 
-@keyframes roadmapTaskShimmerDark {
-  0% {
-    background-position: 12% 50%;
-  }
-  50% {
-    background-position: 88% 50%;
-  }
-  100% {
-    background-position: 12% 50%;
-  }
+html.dark .roadmap-dependency-arrow {
+  opacity: 0.72;
+}
+
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-planned {
+  border-left-color: color-mix(in srgb, var(--text-tertiary) 70%, rgb(100 112 132));
+}
+
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-in-progress {
+  border-left-color: color-mix(in srgb, var(--glc-blue) 72%, rgb(170 201 255));
+}
+
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-status-done {
+  border-left-color: color-mix(in srgb, var(--status-success-fg) 72%, rgb(138 229 181));
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .roadmap-grid-hint {
+    transition: none;
+    transform: none;
+  }
+
   .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
   .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid,
   .roadmap-dependency-arrow {
@@ -141,7 +763,6 @@ html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
   .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
   .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover,
   .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
-    animation: none;
     transform: none;
   }
 }
