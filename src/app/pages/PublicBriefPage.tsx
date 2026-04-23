@@ -39,12 +39,47 @@ export function PublicBriefPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+  const [guidedMode, setGuidedMode] = useState(true);
+  const [guidedIndex, setGuidedIndex] = useState(0);
 
   const visibleQuestions = useMemo(
     () => questions.filter(q => !(q.id === 'a11' && unwrapResponse(responses.a5) === WEBSITE_PRESENCE_NO_SITE_LABEL)),
     [questions, responses],
   );
   const sections = useMemo(() => groupBriefQuestionsBySection(visibleQuestions), [visibleQuestions]);
+  const activeQuestion = useMemo(() => visibleQuestions[guidedIndex] ?? null, [guidedIndex, visibleQuestions]);
+  const displayedSections = useMemo(() => {
+    if (!guidedMode || !activeQuestion) return sections;
+    return groupBriefQuestionsBySection([activeQuestion]);
+  }, [activeQuestion, guidedMode, sections]);
+  const fastPassTotal = Math.min(8, Math.max(visibleQuestions.length, 1));
+  const inFastPass = visibleQuestions.length <= 8 || guidedIndex < fastPassTotal;
+  const stageLabel = inFastPass ? PB.guidedFastPassLabel : PB.guidedPrecisionPassLabel;
+  const stageProgress = inFastPass
+    ? `${Math.min(guidedIndex + 1, fastPassTotal)}/${fastPassTotal}`
+    : `${Math.max(guidedIndex - fastPassTotal + 1, 1)}/${Math.max(visibleQuestions.length - fastPassTotal, 1)}`;
+  const guidedProgressRatio =
+    visibleQuestions.length > 0 ? Math.min((guidedIndex + 1) / visibleQuestions.length, 1) : 0;
+  const guidedValueFeedback =
+    guidedProgressRatio < 0.35
+      ? PB.guidedValueFeedbackEarly
+      : guidedProgressRatio < 0.8
+        ? PB.guidedValueFeedbackMid
+        : PB.guidedValueFeedbackLate;
+  const currentAnswerQualityFeedback = useMemo(() => {
+    if (!activeQuestion) return null;
+    const raw = unwrapResponse(responses[activeQuestion.id]);
+    if (typeof raw !== 'string') return null;
+    const text = raw.trim();
+    if (!text) return null;
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    if (text.length < 28 || wordCount < 4) return PB.guidedValueFeedbackQualityShort;
+    const normalized = text.toLowerCase();
+    if (/^(ok|good|fine|normal|none|n\/a|na|same|idk|unknown|not sure|maybe)$/.test(normalized)) {
+      return PB.guidedValueFeedbackQualityVague;
+    }
+    return null;
+  }, [activeQuestion, responses]);
 
   const {
     register,
@@ -113,6 +148,8 @@ export function PublicBriefPage() {
       setQuestions(res.questions);
       setResponses(res.responses as BriefResponses);
       setPhase('questions');
+      setGuidedMode(true);
+      setGuidedIndex(0);
       const params = new URLSearchParams(window.location.search);
       params.set('session', res.session_token);
       window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
@@ -133,6 +170,15 @@ export function PublicBriefPage() {
       const next: BriefResponses = { ...prev, [id]: { value: value as BriefResponseValue, source: 'client' } };
       if (!choiceValueNeedsSpecify(value)) delete next[`${id}__other`];
       if (id === 'a2' && value !== 'Other') delete next.intake_industry_specify;
+      return next;
+    });
+  }
+
+  function setUnknownAnswer(id: string) {
+    setResponses(prev => {
+      const next: BriefResponses = { ...prev, [id]: { value: null, source: 'unknown' } };
+      delete next[`${id}__other`];
+      if (id === 'a2') delete next.intake_industry_specify;
       return next;
     });
   }
@@ -263,7 +309,26 @@ export function PublicBriefPage() {
             <div className="glc-card max-w-3xl space-y-6 p-6">
               <h2 className="text-foreground font-display text-lg font-bold">{PB.personalizedTitle}</h2>
               <p className="text-muted-foreground text-sm">{PB.personalizedSubtitle}</p>
-              {sections.map(section => (
+              <div className="rounded-lg border border-[var(--border-subtle)] p-3 space-y-2">
+                <p className="text-xs font-semibold m-0">{PB.guidedModeTitle}</p>
+                <p className="text-xs text-muted-foreground m-0">{PB.guidedModeHint}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground m-0">
+                    {stageLabel} {stageProgress}
+                  </p>
+                  <button
+                    type="button"
+                    className="text-xs underline text-[var(--text-secondary)]"
+                    onClick={() => setGuidedMode(prev => !prev)}
+                  >
+                    {guidedMode ? PB.guidedToggleShowAll : PB.guidedToggleBack}
+                  </button>
+                </div>
+                {guidedMode ? (
+                  <p className="text-xs text-muted-foreground m-0">{currentAnswerQualityFeedback ?? guidedValueFeedback}</p>
+                ) : null}
+              </div>
+              {displayedSections.map(section => (
                 <section
                   key={section.questions.map(q => q.id).join('-')}
                   className="space-y-4"
@@ -275,7 +340,7 @@ export function PublicBriefPage() {
                       q={q}
                       value={responses[q.id]}
                       onChange={v => setAnswer(q.id, v)}
-                      onSetUnknown={() => setAnswer(q.id, null)}
+                      onSetUnknown={() => setUnknownAnswer(q.id)}
                       otherSpecify={
                         q.id === 'a2'
                           ? (unwrapResponse(responses.intake_industry_specify) as string | undefined) ?? ''
@@ -290,6 +355,26 @@ export function PublicBriefPage() {
                   ))}
                 </section>
               ))}
+              {guidedMode && visibleQuestions.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-[var(--border-default)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
+                    disabled={guidedIndex <= 0}
+                    onClick={() => setGuidedIndex(prev => Math.max(prev - 1, 0))}
+                  >
+                    {PB.guidedBackLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-[var(--gradient-brand)] px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                    disabled={guidedIndex >= visibleQuestions.length - 1}
+                    onClick={() => setGuidedIndex(prev => Math.min(prev + 1, Math.max(visibleQuestions.length - 1, 0)))}
+                  >
+                    {PB.guidedContinueLabel}
+                  </button>
+                </div>
+              )}
               {submitError && <p className="text-destructive text-sm">{submitError}</p>}
               <div className="flex flex-wrap gap-3">
                 <button type="button" onClick={() => { void saveDraft(); }} disabled={savingDraft} className="rounded-xl border border-[var(--border-default)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]">

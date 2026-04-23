@@ -15,7 +15,7 @@ import {
 } from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
 import type { IntakeSurface } from '@glc/intake-core';
-import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
+import { briefTrackGuidedFeedbackShown, type BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
@@ -64,6 +64,14 @@ export function IntakeBankWizard({
   productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
   focusQuestionId,
   serverVisibleQuestionIds,
+  clientGuidedRail = false,
+  clientGuidedFastPassLabel = 'Fast Pass',
+  clientGuidedPrecisionPassLabel = 'Precision Pass',
+  clientGuidedValueFeedbackEarly,
+  clientGuidedValueFeedbackMid,
+  clientGuidedValueFeedbackLate,
+  clientGuidedValueFeedbackQualityShort,
+  clientGuidedValueFeedbackQualityVague,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
@@ -86,6 +94,17 @@ export function IntakeBankWizard({
   focusQuestionId?: string | null;
   /** Optional server-authored visible sequence for this surface. */
   serverVisibleQuestionIds?: string[];
+  /** Client self-serve UX rail: show Fast/Precision stage labels. */
+  clientGuidedRail?: boolean;
+  /** Copy override for client guided rail stage labels. */
+  clientGuidedFastPassLabel?: string;
+  clientGuidedPrecisionPassLabel?: string;
+  /** Optional value-feedback copy for client guided rail. */
+  clientGuidedValueFeedbackEarly?: string;
+  clientGuidedValueFeedbackMid?: string;
+  clientGuidedValueFeedbackLate?: string;
+  clientGuidedValueFeedbackQualityShort?: string;
+  clientGuidedValueFeedbackQualityVague?: string;
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -108,6 +127,7 @@ export function IntakeBankWizard({
     intakeAnalytics,
     serverVisibleQuestionIds,
   });
+  const analyticsSink = wizard.analyticsSink;
 
   const responsesFingerprint = useMemo(() => JSON.stringify(responses), [responses]);
   useBriefDiagnosticIntakeAnalyticsEvents({
@@ -147,7 +167,42 @@ export function IntakeBankWizard({
   const totalVisibleSteps = visibleQuestionStubs.length;
   const isFirstVisibleStep = currentVisibleIndex <= 0;
   const isLastVisibleStep = totalVisibleSteps > 0 && currentVisibleIndex >= totalVisibleSteps - 1;
+  const fastPassTotal = Math.min(8, Math.max(totalVisibleSteps, 1));
+  const inFastPass = totalVisibleSteps <= 8 || currentVisibleIndex < fastPassTotal;
+  const stageLabel = inFastPass ? clientGuidedFastPassLabel : clientGuidedPrecisionPassLabel;
+  const stageProgress = inFastPass
+    ? `${Math.min(currentVisibleIndex + 1, fastPassTotal)}/${fastPassTotal}`
+    : `${Math.max(currentVisibleIndex - fastPassTotal + 1, 1)}/${Math.max(totalVisibleSteps - fastPassTotal, 1)}`;
+  const guidedProgressRatio =
+    totalVisibleSteps > 0 ? Math.min((currentVisibleIndex + 1) / totalVisibleSteps, 1) : 0;
   const q = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
+  const baseGuidedFeedback =
+    guidedProgressRatio < 0.35
+      ? clientGuidedValueFeedbackEarly
+      : guidedProgressRatio < 0.8
+        ? clientGuidedValueFeedbackMid
+        : clientGuidedValueFeedbackLate;
+  const guidedQualityFeedback = useMemo(() => {
+    if (!q) return null;
+    const raw = unwrapForField(wizard.responses[q.id] as BriefResponses[string]);
+    if (typeof raw !== 'string') return null;
+    const text = raw.trim();
+    if (!text) return null;
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    if (text.length < 28 || wordCount < 4) return clientGuidedValueFeedbackQualityShort ?? null;
+    const normalized = text.toLowerCase();
+    if (/^(ok|good|fine|normal|none|n\/a|na|same|idk|unknown|not sure|maybe)$/.test(normalized)) {
+      return clientGuidedValueFeedbackQualityVague ?? null;
+    }
+    return null;
+  }, [clientGuidedValueFeedbackQualityShort, clientGuidedValueFeedbackQualityVague, q, wizard.responses]);
+  const guidedFeedbackVariant: 'early' | 'mid' | 'late' | 'quality_short' | 'quality_vague' = guidedQualityFeedback
+    ? (guidedQualityFeedback === clientGuidedValueFeedbackQualityShort ? 'quality_short' : 'quality_vague')
+    : guidedProgressRatio < 0.35
+      ? 'early'
+      : guidedProgressRatio < 0.8
+        ? 'mid'
+        : 'late';
 
   const reportGapLabels = useMemo(
     () => labelsForMissingReportDomains(wizard.missingForReport),
@@ -156,6 +211,7 @@ export function IntakeBankWizard({
 
   const [planExplainOpen, setPlanExplainOpen] = useState(false);
   const lastFocusedQuestionRef = useRef<string | null>(null);
+  const lastGuidedFeedbackRef = useRef<string>('');
 
   useEffect(() => {
     setPlanExplainOpen(false);
@@ -170,6 +226,19 @@ export function IntakeBankWizard({
       lastFocusedQuestionRef.current = focusQuestionId;
     }
   }, [focusQuestionId, wizard]);
+
+  useEffect(() => {
+    if (!clientGuidedRail) return;
+    if (!analyticsSink) return;
+    if (totalVisibleSteps === 0 || currentVisibleIndex < 0) return;
+    const key = `${currentVisibleIndex}:${guidedFeedbackVariant}`;
+    if (lastGuidedFeedbackRef.current === key) return;
+    lastGuidedFeedbackRef.current = key;
+    briefTrackGuidedFeedbackShown(analyticsSink, {
+      stepIndex: currentVisibleIndex,
+      feedbackVariant: guidedFeedbackVariant,
+    });
+  }, [analyticsSink, clientGuidedRail, currentVisibleIndex, guidedFeedbackVariant, totalVisibleSteps]);
 
   const planReasonLines = useMemo(() => {
     if (!planExplainOpen || !currentVisibleStub) return [];
@@ -246,14 +315,18 @@ export function IntakeBankWizard({
         <div className="flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           <ListBullets className="w-4 h-4" aria-hidden />
           <span>
-            Question-bank step {totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of {totalVisibleSteps}
+            {clientGuidedRail
+              ? `${stageLabel} ${stageProgress}`
+              : `Question-bank step ${totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of ${totalVisibleSteps}`}
           </span>
         </div>
         <div className="text-xs text-[var(--text-tertiary)]">
-          Score {Math.round(wizard.dataQuality.score * 100)}% · required {wizard.dataQuality.answeredRequired}/
-          {wizard.dataQuality.visibleRequired}
+          Required {wizard.dataQuality.answeredRequired}/{wizard.dataQuality.visibleRequired}
         </div>
       </div>
+      {clientGuidedRail && (guidedQualityFeedback ?? baseGuidedFeedback) ? (
+        <p className="text-xs text-[var(--text-tertiary)]">{guidedQualityFeedback ?? baseGuidedFeedback}</p>
+      ) : null}
 
       <div className="h-[3px] rounded-full overflow-hidden bg-[var(--bg-muted)]">
         <div
@@ -266,14 +339,6 @@ export function IntakeBankWizard({
           }}
         />
       </div>
-
-      {reportGapLabels.length > 0 && (
-        <p className="text-xs leading-snug text-[var(--text-tertiary)]">
-          <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
-          {reportGapLabels.slice(0, 5).join(' · ')}
-          {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
-        </p>
-      )}
 
       {q && (() => {
         // a2 "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
@@ -343,7 +408,23 @@ export function IntakeBankWizard({
         );
       })()}
 
-      {suggestedNextBlock}
+      {(reportGapLabels.length > 0 || suggestedNextBlock) ? (
+        <details className="rounded-lg border ds-border-subtle ds-bg-inset p-3">
+          <summary className="cursor-pointer list-none text-xs font-medium ds-text-secondary">
+            Show guidance details
+          </summary>
+          <div className="mt-3 space-y-3">
+            {reportGapLabels.length > 0 ? (
+              <p className="text-xs leading-snug text-[var(--text-tertiary)]">
+                <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
+                {reportGapLabels.slice(0, 5).join(' · ')}
+                {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
+              </p>
+            ) : null}
+            {suggestedNextBlock}
+          </div>
+        </details>
+      ) : null}
 
       {totalVisibleSteps === 0 && (
         <p className="text-sm text-[var(--text-tertiary)]">

@@ -18,6 +18,7 @@ export const INTAKE_ANALYTICS_EVENT_TYPES = [
   'remediation_asked',
   'sequencing_transition_taken',
   'guard_question_triggered',
+  'guided_feedback_shown',
 ] as const;
 
 export type IntakeAnalyticsEventType = (typeof INTAKE_ANALYTICS_EVENT_TYPES)[number];

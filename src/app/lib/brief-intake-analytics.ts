@@ -21,7 +21,8 @@ export type BriefIntakeAnalyticsEventType =
   | 'readiness_blocked'
   | 'remediation_asked'
   | 'sequencing_transition_taken'
-  | 'guard_question_triggered';
+  | 'guard_question_triggered'
+  | 'guided_feedback_shown';
 
 const FLUSH_MS = CLIENT_ANALYTICS_FLUSH_MS_DEFAULT;
 const MAX_BATCH = CLIENT_ANALYTICS_MAX_BATCH_DEFAULT;
@@ -263,5 +264,16 @@ export function briefTrackGuardQuestionTriggered(
     event_type: 'guard_question_triggered',
     question_id: p.questionId,
     ...(p.signalKey ? { signal_key: p.signalKey } : {}),
+  });
+}
+
+export function briefTrackGuidedFeedbackShown(
+  sink: BriefIntakeAnalyticsSink,
+  p: { stepIndex: number; feedbackVariant: 'early' | 'mid' | 'late' | 'quality_short' | 'quality_vague' },
+): void {
+  sink.enqueue({
+    event_type: 'guided_feedback_shown',
+    step_index: p.stepIndex,
+    transition_rule_ref: p.feedbackVariant,
   });
 }

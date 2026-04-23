@@ -31,7 +31,8 @@ export function useBriefLayoutState(params: {
       if (params.seededChoice === BRIEF_LAYOUT_CLASSIC || params.seededChoice === BRIEF_LAYOUT_WIZARD) {
         return params.seededChoice;
       }
-      return resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? BRIEF_LAYOUT_UNSET;
+      // Client self-serve defaults to guided wizard to reduce perceived load.
+      return resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? BRIEF_LAYOUT_WIZARD;
     }
     return resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET;
   });

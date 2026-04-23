@@ -97,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           target.searchParams.delete('code');
           target.searchParams.delete('access_token');
           target.searchParams.delete('refresh_token');
+          target.searchParams.delete('provider_token');
+          target.searchParams.delete('provider_refresh_token');
+          target.searchParams.delete('sb');
           if (target.hash) {
             const hashParams = new URLSearchParams(target.hash.startsWith('#') ? target.hash.slice(1) : target.hash);
             hashParams.delete('access_token');
@@ -105,6 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hashParams.delete('expires_at');
             hashParams.delete('token_type');
             hashParams.delete('type');
+            hashParams.delete('provider_token');
+            hashParams.delete('provider_refresh_token');
+            hashParams.delete('sb');
             const cleanedHash = hashParams.toString();
             target.hash = cleanedHash ? `#${cleanedHash}` : '';
           }
@@ -152,10 +158,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const hashParams = new URLSearchParams(hash);
           const accessToken = hashParams.get('access_token');
           const refreshToken = hashParams.get('refresh_token');
+          const providerToken = hashParams.get('provider_token');
+          const sbHashParam = hashParams.get('sb');
           const linkType = hashParams.get('type');
           logger.debug('Auth: hash fragment parsed', {
             hasAccessToken: !!accessToken,
             hasRefreshToken: !!refreshToken,
+            hasProviderToken: !!providerToken,
+            hasSbHashParam: !!sbHashParam,
             linkType,
           });
 
@@ -182,6 +192,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               cleanupAuthUrl(url);
             }
             return;
+          }
+
+          if (providerToken || sbHashParam) {
+            // Supabase may redirect with provider-only hash params before session settles.
+            // Clean URL immediately to avoid exposing long token fragments in the address bar.
+            cleanupAuthUrl(url);
           }
         }
 

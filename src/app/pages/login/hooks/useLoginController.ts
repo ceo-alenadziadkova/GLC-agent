@@ -309,6 +309,9 @@ export function useLoginController() {
       search.includes('error=') ||
       hash.includes('access_token=') ||
       hash.includes('refresh_token=') ||
+      hash.includes('provider_token=') ||
+      hash.includes('provider_refresh_token=') ||
+      hash.includes('sb=') ||
       hash.includes('error=')
     );
   }, [authLoading]);
