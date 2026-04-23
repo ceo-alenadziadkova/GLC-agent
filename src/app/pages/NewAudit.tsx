@@ -15,7 +15,8 @@ import {
   PreBriefModal,
   Step0Basics,
   Step1Brief,
-  Step2Confirm,
+  Step2Review,
+  Step3Launch,
   StepIndicator,
   useNewAuditWizard,
   type NewAuditVariant,
@@ -62,6 +63,24 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       </p>
     </div>
   ) : null;
+  const clientDraftSaveInlineAction = isClientSelfServe ? (
+    <button
+      type="button"
+      disabled={wizard.draftSaving}
+      data-busy={wizard.draftSaving ? 'true' : 'false'}
+      onClick={() => {
+        void wizard.handleSaveClientDraft();
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-transparent px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30 disabled:cursor-not-allowed disabled:text-muted-foreground/60"
+    >
+      {wizard.draftSaving ? (
+        <Spinner className="h-4 w-4 animate-spin" />
+      ) : (
+        <FloppyDisk className="h-4 w-4" />
+      )}
+      {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
+    </button>
+  ) : null;
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -107,7 +126,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
               </BreadcrumbList>
             </Breadcrumb>
           )}
-          <StepIndicator current={wizard.step} />
+          <StepIndicator
+            current={wizard.step}
+            onStepClick={step => {
+              if (step < wizard.step) {
+                wizard.setStep(step);
+              }
+            }}
+          />
 
           {isClientSelfServe && wizard.draftRestoredVisible && (
             <div className="bg-info/10 border-info/40 mb-5 flex items-start gap-3 rounded-xl border px-4 py-3">
@@ -233,6 +259,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 onBackToStep0={() => wizard.setStep(0)}
                 onGoToStep2={() => wizard.setStep(2)}
                 clientDraftSaveSection={clientDraftSaveSection}
+                clientDraftSaveInlineAction={clientDraftSaveInlineAction}
                 briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
                 briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
                 briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
@@ -240,9 +267,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
               />
             )}
 
-            {/* ── Step 2: Confirm ───────────────────────── */}
+            {/* ── Step 2: Review ───────────────────────── */}
             {wizard.step === 2 && (
-              <Step2Confirm
+              <Step2Review
                 url={wizard.url}
                 name={wizard.name}
                 industry={wizard.industry}
@@ -250,8 +277,17 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 selectedDomains={wizard.selectedDomains}
                 answeredRequired={wizard.answeredRequired}
                 pipelineRequiredTotal={wizard.pipelineRequiredTotal}
-                answeredPipelineRequiredIds={wizard.answeredPipelineRequiredIds}
+                answeredQuestionIds={wizard.answeredPipelineRequiredIds}
                 pipelineGateBriefResponses={wizard.pipelineGateBriefResponses}
+                onBackToStep1={() => wizard.setStep(1)}
+                onGoToStep3={() => wizard.setStep(3)}
+                clientDraftSaveSection={clientDraftSaveSection}
+              />
+            )}
+
+            {/* ── Step 3: Launch ───────────────────────── */}
+            {wizard.step === 3 && (
+              <Step3Launch
                 error={wizard.error}
                 loading={wizard.loading}
                 isClientSelfServe={isClientSelfServe}
@@ -259,7 +295,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 consultantDpaOnFile={wizard.consultantDpaOnFile}
                 consultantDpaChecked={wizard.consultantDpaChecked}
                 onConsultantDpaCheckedChange={wizard.setConsultantDpaChecked}
-                onBackToStep1={() => wizard.setStep(1)}
+                onBackToStep2={() => wizard.setStep(2)}
                 onLaunchSubmit={wizard.handleLaunch}
                 clientDraftSaveSection={clientDraftSaveSection}
               />

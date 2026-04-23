@@ -1,11 +1,12 @@
 export const NEW_AUDIT_WIZARD_STEPS = {
   min: 0,
-  max: 2,
+  max: 3,
 } as const;
 
 export const NEW_AUDIT_STEP_ZERO = 0 as const;
 export const NEW_AUDIT_STEP_ONE = 1 as const;
 export const NEW_AUDIT_STEP_TWO = 2 as const;
+export const NEW_AUDIT_STEP_THREE = 3 as const;
 
 export const INDUSTRY_OTHER_VALUE = 'Other' as const;
 

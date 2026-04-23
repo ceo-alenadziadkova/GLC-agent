@@ -7,7 +7,7 @@ import type { BriefLayoutChoice } from '../wizard-state/useBriefLayoutState';
 
 export function useDraftAutosaveEffect(params: {
   isClientSelfServe: boolean;
-  step: 0 | 1 | 2;
+  step: 0 | 1 | 2 | 3;
   url: string;
   noPublicWebsite: boolean;
   name: string;

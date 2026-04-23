@@ -182,7 +182,7 @@ export function Step0Basics({
           <FormField
             htmlFor="cname"
             label={WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}
-            optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.optionalLabel}
+            requiredMark
           >
             <Input
               id="cname"
@@ -190,6 +190,7 @@ export function Step0Basics({
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyNamePlaceholder}
+              required
               className="glc-field-control h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
             />
           </FormField>
@@ -198,7 +199,7 @@ export function Step0Basics({
           <FormField
             htmlFor="industry"
             label={WORKSPACE_PAGE_COPY.newAudit.step0.industryLabel}
-            optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.industryTailorsRecommendations}
+            requiredMark
           >
             <select
               id="industry"
@@ -219,6 +220,7 @@ export function Step0Basics({
                 'glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none',
                 industry ? 'text-foreground' : 'text-muted-foreground',
               )}
+              required
             >
               <option value="">{WORKSPACE_PAGE_COPY.newAudit.step0.industrySelectPlaceholder}</option>
               {INDUSTRY_OPTIONS.map((i: IndustryOption) => (

@@ -102,7 +102,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   });
 
   // UI state
-  const [step, setStep] = useState<0 | 1 | 2>(() => {
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(() => {
     const s = portalDraftSeed?.step ?? 0;
     return s >= NEW_AUDIT_WIZARD_STEPS.min && s <= NEW_AUDIT_WIZARD_STEPS.max ? s : 0;
   });
@@ -185,7 +185,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   useDraftAutosaveEffect({
     isClientSelfServe,
-    step: step as 0 | 1 | 2,
+    step: step as 0 | 1 | 2 | 3,
     url,
     noPublicWebsite,
     name,
@@ -206,12 +206,13 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       validateNewAuditStep0Input({
         url,
         noPublicWebsite,
+        name,
         industry,
         industrySpecify,
         selectedDomains,
         coveragePackage,
       }),
-    [url, noPublicWebsite, industry, industrySpecify, selectedDomains, coveragePackage],
+    [url, noPublicWebsite, name, industry, industrySpecify, selectedDomains, coveragePackage],
   );
 
   const {
@@ -367,7 +368,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     await saveClientDraft({
       isClientSelfServe,
       step0Valid,
-      step: step as 0 | 1 | 2,
+      step: step as 0 | 1 | 2 | 3,
       url,
       noPublicWebsite,
       name,

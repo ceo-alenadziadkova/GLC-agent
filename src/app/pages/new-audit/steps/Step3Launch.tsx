@@ -2,27 +2,12 @@ import { motion } from 'motion/react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ArrowLeft, Lightning, Rocket, Warning } from '@phosphor-icons/react';
-import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
-import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { APP_ROUTE_PATHS } from '../../../config/route-paths';
-import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
 import { Callout } from '../../../components/ui/callout';
 import { cn } from '../../../components/ui/utils';
-import type { BriefResponses } from '../../../data/briefQuestions';
 
-export type Step2ConfirmProps = {
-  url: string;
-  name: string;
-  industry: string;
-  coveragePackage: AuditCoveragePackage;
-  selectedDomains: DomainKey[];
-
-  answeredRequired: number;
-  pipelineRequiredTotal: number;
-  answeredPipelineRequiredIds: string[];
-  pipelineGateBriefResponses: BriefResponses;
-
+export type Step3LaunchProps = {
   error: string | null;
   loading: boolean;
   isClientSelfServe: boolean;
@@ -32,22 +17,13 @@ export type Step2ConfirmProps = {
   consultantDpaChecked: boolean;
   onConsultantDpaCheckedChange: (next: boolean) => void;
 
-  onBackToStep1: () => void;
+  onBackToStep2: () => void;
   onLaunchSubmit: (e: FormEvent) => void | Promise<void>;
 
   clientDraftSaveSection: ReactNode;
 };
 
-export function Step2Confirm({
-  url,
-  name,
-  industry,
-  coveragePackage,
-  selectedDomains,
-  answeredRequired,
-  pipelineRequiredTotal,
-  answeredPipelineRequiredIds,
-  pipelineGateBriefResponses,
+export function Step3Launch({
   error,
   loading,
   isClientSelfServe,
@@ -55,16 +31,16 @@ export function Step2Confirm({
   consultantDpaOnFile,
   consultantDpaChecked,
   onConsultantDpaCheckedChange,
-  onBackToStep1,
+  onBackToStep2,
   onLaunchSubmit,
   clientDraftSaveSection,
-}: Step2ConfirmProps) {
+}: Step3LaunchProps) {
   const launchBlockedByDpa =
     !isClientSelfServe && !consultantDpaLoading && !consultantDpaOnFile && !consultantDpaChecked;
 
   return (
     <motion.form
-      key="step2"
+      key="step3-launch"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -84,51 +60,6 @@ export function Step2Confirm({
           </p>
         )}
       </div>
-
-      {/* Summary */}
-      <Callout intent="neutral" className="space-y-2 rounded-xl p-4">
-        {[
-          [WORKSPACE_PAGE_COPY.newAudit.step2.summaryWebsiteLabel, url],
-          name ? [WORKSPACE_PAGE_COPY.newAudit.step2.summaryCompanyLabel, name] : null,
-          industry ? [WORKSPACE_PAGE_COPY.newAudit.step2.summaryIndustryLabel, industry] : null,
-          [WORKSPACE_PAGE_COPY.newAudit.step2.summaryCoverageLabel, `${coveragePackageLabel(coveragePackage)} · ${selectedDomains.length} domain(s)`],
-        ]
-          .filter((row): row is [string, string] => row != null)
-          .map(([label, value]) => (
-            <div key={label} className="flex items-start gap-3">
-              <span className="ds-step2-summary-label-col pt-[length:var(--border-width-default)] text-xs text-[var(--text-tertiary)]">{label}</span>
-              <span className="break-words text-sm text-[var(--text-primary)]">{value}</span>
-            </div>
-          ))}
-        <div className="flex items-start gap-3">
-          <span className="ds-step2-summary-label-col pt-[length:var(--border-width-default)] text-xs text-[var(--text-tertiary)]">
-            {WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefLabel}
-          </span>
-          <div className="min-w-0 flex-1 space-y-2">
-            <p className="m-0 break-words text-sm text-[var(--text-primary)]">
-              {answeredRequired}/{pipelineRequiredTotal}{' '}
-              {WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefRequiredAnsweredSuffix}
-            </p>
-            {answeredPipelineRequiredIds.length > 0 ? (
-              <details className="ds-step2-brief-answered-details">
-                <summary>{WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredExpand}</summary>
-                <BriefPipelineAnsweredTable
-                  answeredIds={answeredPipelineRequiredIds}
-                  responses={pipelineGateBriefResponses}
-                  questionHeader={WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredTableQuestionCol}
-                  answerHeader={WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredTableAnswerCol}
-                  valueLabels={{
-                    unknown: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueUnknown,
-                    yes: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueYes,
-                    no: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueNo,
-                    empty: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueEmpty,
-                  }}
-                />
-              </details>
-            ) : null}
-          </div>
-        </div>
-      </Callout>
 
       {error && (
         <Callout intent="danger">
@@ -180,7 +111,7 @@ export function Step2Confirm({
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
         <button
           type="button"
-          onClick={onBackToStep1}
+          onClick={onBackToStep2}
           className="glc-touch-target flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2.5 text-sm text-[var(--text-tertiary)] sm:min-h-0 sm:min-w-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> {WORKSPACE_PAGE_COPY.newAudit.step2.navigationBackText}
@@ -212,4 +143,3 @@ export function Step2Confirm({
     </motion.form>
   );
 }
-

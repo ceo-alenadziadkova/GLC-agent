@@ -46,14 +46,16 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
           onSave={() => void controller.onSaveSelfServe()}
         />
       )}
-      <BriefLayoutSection
-        showClient={Boolean(controller.profile && controller.isClient)}
-        showConsultant={Boolean(controller.profile && controller.isConsultant)}
-        clientBriefDefault={controller.clientBriefDefault}
-        consultantBriefDefault={controller.consultantBriefDefault}
-        onClientChange={controller.setClientBriefLayoutDefault}
-        onConsultantChange={controller.setConsultantBriefLayoutDefault}
-      />
+      {controller.isConsultant ? (
+        <BriefLayoutSection
+          showClient={false}
+          showConsultant={Boolean(controller.profile && controller.isConsultant)}
+          clientBriefDefault={controller.clientBriefDefault}
+          consultantBriefDefault={controller.consultantBriefDefault}
+          onClientChange={controller.setClientBriefLayoutDefault}
+          onConsultantChange={controller.setConsultantBriefLayoutDefault}
+        />
+      ) : null}
       <NotificationsSection
         notifyPrefs={controller.notifyPrefs}
         setNotifyPrefs={controller.setNotifyPrefs}

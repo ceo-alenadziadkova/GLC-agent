@@ -19,8 +19,8 @@ export type NewAuditWizardContract = {
   isClientSelfServe: boolean;
   intakeTokenFromUrl: string;
   fromDiscovery: string;
-  step: 0 | 1 | 2;
-  setStep: Dispatch<SetStateAction<0 | 1 | 2>>;
+  step: 0 | 1 | 2 | 3;
+  setStep: Dispatch<SetStateAction<0 | 1 | 2 | 3>>;
   loading: boolean;
   setLoading: Dispatch<SetStateAction<boolean>>;
   error: string | null;

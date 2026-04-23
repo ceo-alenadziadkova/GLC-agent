@@ -33,7 +33,7 @@ export type NewAuditBriefLayoutChoice = 'unset' | 'classic' | 'wizard';
 export type SaveClientDraftParams = {
   isClientSelfServe: boolean;
   step0Valid: boolean;
-  step: 0 | 1 | 2;
+  step: 0 | 1 | 2 | 3;
 
   url: string;
   noPublicWebsite: boolean;

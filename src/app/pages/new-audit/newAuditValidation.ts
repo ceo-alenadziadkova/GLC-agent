@@ -43,6 +43,7 @@ export function effectiveBriefForNewAuditPipelineGates(params: {
 export type NewAuditStep0Input = {
   url: string;
   noPublicWebsite: boolean;
+  name: string;
   industry: string;
   industrySpecify: string;
   selectedDomains: DomainKey[];
@@ -77,6 +78,8 @@ export function validateNewAuditStep0Input(input: NewAuditStep0Input): {
 } {
   const step1Valid =
     (input.noPublicWebsite || isValidUrl(input.url))
+    && input.name.trim().length > 0
+    && input.industry.trim().length > 0
     && (input.industry !== 'Other' || input.industrySpecify.trim().length > 0);
 
   if (input.coveragePackage == null) {

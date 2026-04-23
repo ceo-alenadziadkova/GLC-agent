@@ -72,6 +72,14 @@ export function IntakeBankWizard({
   clientGuidedValueFeedbackLate,
   clientGuidedValueFeedbackQualityShort,
   clientGuidedValueFeedbackQualityVague,
+  clientGuidedCompletionPrefix = 'Completed',
+  clientGuidedContextDepthPrefix = 'Context depth',
+  guidedPrevButtonLabel = 'Previous question',
+  guidedNextButtonLabel = 'Next question',
+  guidanceDetailsToggleLabel = 'More context (optional)',
+  reportInputGapsPrefix = 'Still unclear:',
+  reportInputGapsOverflowSuffix = 'more',
+  noVisibleQuestionsHint = 'No questions are available yet. Complete Basics first, then continue here.',
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
@@ -105,6 +113,14 @@ export function IntakeBankWizard({
   clientGuidedValueFeedbackLate?: string;
   clientGuidedValueFeedbackQualityShort?: string;
   clientGuidedValueFeedbackQualityVague?: string;
+  clientGuidedCompletionPrefix?: string;
+  clientGuidedContextDepthPrefix?: string;
+  guidedPrevButtonLabel?: string;
+  guidedNextButtonLabel?: string;
+  guidanceDetailsToggleLabel?: string;
+  reportInputGapsPrefix?: string;
+  reportInputGapsOverflowSuffix?: string;
+  noVisibleQuestionsHint?: string;
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -173,17 +189,26 @@ export function IntakeBankWizard({
   const stageProgress = inFastPass
     ? `${Math.min(currentVisibleIndex + 1, fastPassTotal)}/${fastPassTotal}`
     : `${Math.max(currentVisibleIndex - fastPassTotal + 1, 1)}/${Math.max(totalVisibleSteps - fastPassTotal, 1)}`;
-  const guidedProgressRatio =
-    totalVisibleSteps > 0 ? Math.min((currentVisibleIndex + 1) / totalVisibleSteps, 1) : 0;
+  const answeredRequired = wizard.dataQuality.answeredRequired;
+  const visibleRequired = wizard.dataQuality.visibleRequired;
+  const answeredRecommended = wizard.dataQuality.answeredRecommended;
+  const visibleRecommended = wizard.dataQuality.visibleRecommended;
+  const guidedCompletionRatio = visibleRequired > 0 ? Math.min(answeredRequired / visibleRequired, 1) : 0;
+  const guidedCompletionPct = Math.round(guidedCompletionRatio * 100);
+  const contextDepthTotal = visibleRequired + visibleRecommended;
+  const contextDepthAnswered = answeredRequired + answeredRecommended;
+  const contextDepthRatio = contextDepthTotal > 0 ? Math.min(contextDepthAnswered / contextDepthTotal, 1) : 0;
+  const contextDepthPct = Math.round(contextDepthRatio * 100);
   const q = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
   const baseGuidedFeedback =
-    guidedProgressRatio < 0.35
+    guidedCompletionRatio < 0.35
       ? clientGuidedValueFeedbackEarly
-      : guidedProgressRatio < 0.8
+      : guidedCompletionRatio < 0.8
         ? clientGuidedValueFeedbackMid
         : clientGuidedValueFeedbackLate;
   const guidedQualityFeedback = useMemo(() => {
     if (!q) return null;
+    if (q.type !== 'free_text') return null;
     const raw = unwrapForField(wizard.responses[q.id] as BriefResponses[string]);
     if (typeof raw !== 'string') return null;
     const text = raw.trim();
@@ -198,11 +223,12 @@ export function IntakeBankWizard({
   }, [clientGuidedValueFeedbackQualityShort, clientGuidedValueFeedbackQualityVague, q, wizard.responses]);
   const guidedFeedbackVariant: 'early' | 'mid' | 'late' | 'quality_short' | 'quality_vague' = guidedQualityFeedback
     ? (guidedQualityFeedback === clientGuidedValueFeedbackQualityShort ? 'quality_short' : 'quality_vague')
-    : guidedProgressRatio < 0.35
+    : guidedCompletionRatio < 0.35
       ? 'early'
-      : guidedProgressRatio < 0.8
+      : guidedCompletionRatio < 0.8
         ? 'mid'
         : 'late';
+  const guidedFeedbackMessage = guidedQualityFeedback ?? baseGuidedFeedback ?? null;
 
   const reportGapLabels = useMemo(
     () => labelsForMissingReportDomains(wizard.missingForReport),
@@ -229,6 +255,7 @@ export function IntakeBankWizard({
 
   useEffect(() => {
     if (!clientGuidedRail) return;
+    if (!guidedFeedbackMessage) return;
     if (!analyticsSink) return;
     if (totalVisibleSteps === 0 || currentVisibleIndex < 0) return;
     const key = `${currentVisibleIndex}:${guidedFeedbackVariant}`;
@@ -238,7 +265,7 @@ export function IntakeBankWizard({
       stepIndex: currentVisibleIndex,
       feedbackVariant: guidedFeedbackVariant,
     });
-  }, [analyticsSink, clientGuidedRail, currentVisibleIndex, guidedFeedbackVariant, totalVisibleSteps]);
+  }, [analyticsSink, clientGuidedRail, currentVisibleIndex, guidedFeedbackMessage, guidedFeedbackVariant, totalVisibleSteps]);
 
   const planReasonLines = useMemo(() => {
     if (!planExplainOpen || !currentVisibleStub) return [];
@@ -319,13 +346,13 @@ export function IntakeBankWizard({
               ? `${stageLabel} ${stageProgress}`
               : `Question-bank step ${totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of ${totalVisibleSteps}`}
           </span>
-        </div>
-        <div className="text-xs text-[var(--text-tertiary)]">
-          Required {wizard.dataQuality.answeredRequired}/{wizard.dataQuality.visibleRequired}
+          {clientGuidedRail ? (
+            <span>{`${clientGuidedCompletionPrefix} ${guidedCompletionPct}% · ${clientGuidedContextDepthPrefix} ${contextDepthPct}%`}</span>
+          ) : null}
         </div>
       </div>
-      {clientGuidedRail && (guidedQualityFeedback ?? baseGuidedFeedback) ? (
-        <p className="text-xs text-[var(--text-tertiary)]">{guidedQualityFeedback ?? baseGuidedFeedback}</p>
+      {clientGuidedRail && guidedFeedbackMessage ? (
+        <p className="text-xs text-[var(--text-tertiary)]">{guidedFeedbackMessage}</p>
       ) : null}
 
       <div className="h-[3px] rounded-full overflow-hidden bg-[var(--bg-muted)]">
@@ -344,6 +371,20 @@ export function IntakeBankWizard({
         // a2 "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
         const otherSpecify = (unwrapForField(wizard.responses[otherKey] as BriefResponses[string]) as string | undefined) ?? '';
+        const currentResponseEntry = wizard.responses[q.id] as BriefResponses[string] | undefined;
+        const normalizedFieldValue = q.id === 'f2' && productMode === 'express'
+          ? (
+            currentResponseEntry &&
+            typeof currentResponseEntry === 'object' &&
+            !Array.isArray(currentResponseEntry) &&
+            'source' in currentResponseEntry
+              ? {
+                value: normalizeF2ValueForExpress(unwrapForField(currentResponseEntry)),
+                source: (currentResponseEntry as BriefResponseEntry).source,
+              }
+              : normalizeF2ValueForExpress(unwrapForField(currentResponseEntry))
+          )
+          : currentResponseEntry;
         return (
           <div className="space-y-3">
             <div>
@@ -370,11 +411,7 @@ export function IntakeBankWizard({
             </div>
             <BriefField
               q={q}
-              value={
-                q.id === 'f2' && productMode === 'express'
-                  ? normalizeF2ValueForExpress(unwrapForField(wizard.responses[q.id] as BriefResponses[string])) as string[] | null
-                  : unwrapForField(wizard.responses[q.id] as BriefResponses[string])
-              }
+              value={normalizedFieldValue}
               onChange={v => {
                 wizard.setResponses(prev => {
                   const normalizedValue = q.id === 'f2' && productMode === 'express'
@@ -404,21 +441,51 @@ export function IntakeBankWizard({
               disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
               productMode={productMode}
             />
+            <div className="flex items-center justify-between pt-0.5">
+              <button
+                type="button"
+                onClick={goToPrevVisibleStep}
+                disabled={isFirstVisibleStep}
+                className={cn(
+                  'text-muted-foreground glc-touch-target inline-flex min-h-[40px] min-w-[40px] items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-2.5 py-1.5 text-xs sm:min-h-0 sm:min-w-0',
+                  isFirstVisibleStep
+                    ? 'cursor-not-allowed text-muted-foreground/50'
+                    : 'cursor-pointer text-muted-foreground hover:bg-muted/30',
+                )}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{guidedPrevButtonLabel}</span>
+              </button>
+              <button
+                type="button"
+                onClick={goToNextVisibleStep}
+                disabled={isLastVisibleStep || totalVisibleSteps === 0}
+                className={cn(
+                  'text-muted-foreground glc-touch-target inline-flex min-h-[40px] min-w-[40px] items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-transparent px-2.5 py-1.5 text-xs sm:min-h-0 sm:min-w-0',
+                  isLastVisibleStep || totalVisibleSteps === 0
+                    ? 'cursor-not-allowed text-muted-foreground/50'
+                    : 'cursor-pointer text-muted-foreground hover:bg-muted/30',
+                )}
+              >
+                <span className="hidden sm:inline">{guidedNextButtonLabel}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         );
       })()}
 
-      {(reportGapLabels.length > 0 || suggestedNextBlock) ? (
+      {!clientGuidedRail && (reportGapLabels.length > 0 || suggestedNextBlock) ? (
         <details className="rounded-lg border ds-border-subtle ds-bg-inset p-3">
           <summary className="cursor-pointer list-none text-xs font-medium ds-text-secondary">
-            Show guidance details
+            {guidanceDetailsToggleLabel}
           </summary>
           <div className="mt-3 space-y-3">
             {reportGapLabels.length > 0 ? (
               <p className="text-xs leading-snug text-[var(--text-tertiary)]">
-                <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
+                <span className="font-semibold text-[var(--text-secondary)]">{reportInputGapsPrefix} </span>
                 {reportGapLabels.slice(0, 5).join(' · ')}
-                {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
+                {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} ${reportInputGapsOverflowSuffix}` : ''}
               </p>
             ) : null}
             {suggestedNextBlock}
@@ -428,34 +495,10 @@ export function IntakeBankWizard({
 
       {totalVisibleSteps === 0 && (
         <p className="text-sm text-[var(--text-tertiary)]">
-          No bank questions visible yet. Answer basics (e.g. industry and website presence) in step 0 or switch to
-          classic brief view.
+          {noVisibleQuestionsHint}
         </p>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        <button
-          type="button"
-          onClick={goToPrevVisibleStep}
-          disabled={isFirstVisibleStep}
-          className="ds-intake-bank-wizard-back flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back
-        </button>
-        <button
-          type="button"
-          onClick={goToNextVisibleStep}
-          disabled={isLastVisibleStep || totalVisibleSteps === 0}
-          className={cn(
-            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold',
-            isLastVisibleStep || totalVisibleSteps === 0
-              ? 'ds-intake-bank-wizard-next--disabled'
-              : 'ds-intake-bank-wizard-next--active',
-          )}
-        >
-          Next <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 }

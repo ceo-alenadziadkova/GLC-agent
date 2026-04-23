@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, CheckCircle, Circle, Warning } from '@phosphor-icons/react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ArrowLeft, CheckCircle, Circle } from '@phosphor-icons/react';
 import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
@@ -9,7 +9,6 @@ import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHi
 import { Callout } from '../../../components/ui/callout';
 import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
-import { Progress } from '../../../components/ui/progress';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import type {
   BriefResponseSource,
@@ -19,7 +18,6 @@ import type {
   ProductMode,
 } from '../../../data/auditTypes';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
-import { INTAKE_DIAGNOSTIC_PILOT_COPY_EN } from '../../../config/intake-diagnostic-pilot-copy.en';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
 import { getQuestionLabel } from '../../../lib/intake-question-lookup';
@@ -87,6 +85,7 @@ export type Step1BriefProps = {
   onGoToStep2: () => void;
 
   clientDraftSaveSection: ReactNode;
+  clientDraftSaveInlineAction?: ReactNode;
 
   /** Portal self-serve: simpler copy (no Settings / consultant defaults). */
   isClientSelfServe: boolean;
@@ -132,6 +131,7 @@ export function Step1Brief({
   onBackToStep0,
   onGoToStep2,
   clientDraftSaveSection,
+  clientDraftSaveInlineAction,
   isClientSelfServe,
   briefExecutionDiagnostic,
   briefExecutionDiagnosticLoading,
@@ -139,6 +139,7 @@ export function Step1Brief({
   serverVisibleQuestionIds,
 }: Step1BriefProps) {
   const [focusedWizardQuestionId, setFocusedWizardQuestionId] = useState<string | null>(null);
+  const [showMissingRequired, setShowMissingRequired] = useState(false);
   const pipelineProductMode = briefProductMode === 'express' ? 'express' : 'full';
   const missingRequiredIds = useMemo(
     () =>
@@ -181,11 +182,12 @@ export function Step1Brief({
   const isBlockedReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'blocked';
   const isCaveatReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'ready_with_caveats';
   const remainingRequiredCount = Math.max(pipelineRequiredTotal - answeredRequired, 0);
-  const primaryStepHint = step2Complete
-    ? WORKSPACE_PAGE_COPY.newAudit.step1.primaryHintReady
-    : intakePrefillActive || discoveryPrefilled
-      ? WORKSPACE_PAGE_COPY.newAudit.step1.primaryHintReturning.replace('{{count}}', String(remainingRequiredCount))
-      : WORKSPACE_PAGE_COPY.newAudit.step1.primaryHintInProgress.replace('{{count}}', String(remainingRequiredCount));
+
+  useEffect(() => {
+    if (step2Complete && showMissingRequired) {
+      setShowMissingRequired(false);
+    }
+  }, [showMissingRequired, step2Complete]);
 
   return (
     <motion.div
@@ -211,7 +213,9 @@ export function Step1Brief({
           )}
         </div>
 
-        {layoutSelected && (
+        {isClientSelfServe ? clientDraftSaveInlineAction : null}
+
+        {layoutSelected && !isClientSelfServe && (
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -220,193 +224,167 @@ export function Step1Brief({
             >
               {WORKSPACE_PAGE_COPY.newAudit.step1.changeLayoutButton}
             </button>
-            <span className="text-muted-foreground text-xs">
-              {answeredRequired} / {pipelineRequiredTotal} {WORKSPACE_PAGE_COPY.newAudit.step1.requiredLowercase}
-            </span>
           </div>
         )}
       </div>
 
-      <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
-        {isClientSelfServe ? (
-          WORKSPACE_PAGE_COPY.newAudit.step1.layoutIntroClient
-        ) : (
-          <>
-            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
-            <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
-              {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsLinkText}
-            </Link>
-            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsMidSuffix}
-            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsChangeLayoutText}
-            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsSuffix}
-          </>
-        )}
-      </p>
+      {!layoutSelected && !isClientSelfServe && (
+        <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
+          {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
+          <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
+            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsLinkText}
+          </Link>
+          {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsMidSuffix}
+          {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsChangeLayoutText}
+          {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsSuffix}
+        </p>
+      )}
 
-      {!layoutSelected && (
+      {!layoutSelected && !isClientSelfServe && (
         <BriefLayoutPreferenceCards selected={null} onSelect={onSelectConsultantBriefLayout} />
       )}
 
       {layoutSelected && (
         <>
-          <div className="mb-4 rounded-xl border border-border/70 bg-background/70 p-3.5">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="m-0 text-xs font-semibold text-foreground">
-                {WORKSPACE_PAGE_COPY.newAudit.step1.primaryProgressLabel}
-              </p>
-              <span className="rounded border px-2 py-0.5 text-xs text-muted-foreground">
-                {answeredRequired}/{pipelineRequiredTotal} {WORKSPACE_PAGE_COPY.newAudit.step1.requiredLowercase}
-              </span>
-            </div>
-            <Progress
-              value={(answeredRequired / pipelineRequiredTotal) * 100}
-              className="ds-step1-brief-progress-thin mb-2 bg-muted [&>[data-slot=progress-indicator]]:bg-[var(--gradient-brand)]"
-            />
-            <p className="m-0 text-xs text-muted-foreground">{primaryStepHint}</p>
-          </div>
-
-          <p className="text-muted-foreground mb-4 text-sm">
-            {WORKSPACE_PAGE_COPY.newAudit.step1.questionsFeedTextPrefix}{' '}
-            <strong className="text-muted-foreground inline-flex items-center gap-1">
-              <Circle size={7} weight="fill" className="text-destructive" />
-              {WORKSPACE_PAGE_COPY.newAudit.step1.requiredLabel}
-            </strong>{' '}
-            {WORKSPACE_PAGE_COPY.newAudit.step1.questionsMustBeAnsweredText}
-          </p>
-
-          {briefExecutionDiagnosticLoading ? (
-            <p className="text-muted-foreground mb-3 text-xs">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessSyncing}</p>
-          ) : null}
-
-          {briefExecutionDiagnosticError ? (
-            <Callout intent="info" className="mb-4">
-              {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.schemaLoadError}
-            </Callout>
-          ) : null}
-
           {isBlockedReadiness ? (
-            <Callout intent="warning" className="mb-4" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}>
-              <p className="m-0 mb-2">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessBlockedLead}</p>
-              <ul className="m-0 list-disc space-y-1 pl-4">
-                {briefExecutionDiagnostic.readiness.trace
-                  .filter(t => Boolean(t.semanticCause))
-                  .slice(0, 6)
-                  .map((t, i) => (
-                    <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
-                  ))}
-              </ul>
+            <Callout intent="warning" className="mb-4" title={WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutTitle}>
+              <p className="m-0 mb-2">{WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutBody}</p>
+              {briefExecutionDiagnostic?.remediation_queue?.[0] ? (
+                <button
+                  type="button"
+                  className="text-info text-xs font-medium underline-offset-2 hover:underline"
+                  onClick={() => {
+                    if (briefLayoutChoice !== 'wizard') {
+                      onSelectConsultantBriefLayout('wizard');
+                    }
+                    setFocusedWizardQuestionId(briefExecutionDiagnostic.remediation_queue[0] ?? null);
+                  }}
+                >
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutActionPrefix}
+                  {getQuestionLabel(briefExecutionDiagnostic.remediation_queue[0])}
+                </button>
+              ) : null}
+              {!briefExecutionDiagnostic?.remediation_queue?.length && missingRequiredPreview.visible[0] ? (
+                <button
+                  type="button"
+                  className="text-info text-xs font-medium underline-offset-2 hover:underline"
+                  onClick={() => setShowMissingRequired(true)}
+                >
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutFallbackAction}
+                </button>
+              ) : null}
             </Callout>
           ) : null}
-          <details className="mb-4 rounded-lg border border-border/60 bg-muted/20 p-3">
-            <summary className="cursor-pointer list-none text-xs font-medium text-foreground">
-              {WORKSPACE_PAGE_COPY.newAudit.step1.supportDetailsToggle}
-            </summary>
-            <div className="mt-3 space-y-3">
-              {discoveryPrefilled && (
-                <Callout intent="info">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle
-                      size={15}
-                      weight="fill"
-                      className="text-info mt-0.5 flex-shrink-0"
-                    />
-                    <p className="text-muted-foreground text-xs leading-[1.55]">
-                      {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
-                    </p>
-                  </div>
-                </Callout>
-              )}
-              {isClientSelfServe && briefLayoutChoice === 'wizard' && (
-                <Callout intent="info">
-                  <div className="space-y-1">
-                    <p className="m-0 text-xs font-semibold">{WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedModeTitle}</p>
-                    <p className="m-0 text-xs text-muted-foreground">{WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedModeHint}</p>
-                  </div>
-                </Callout>
-              )}
-              {interviewMode && (
-                <Callout intent="warning">
-                  <div className="text-warning-foreground flex items-start gap-2 text-xs">
-                    <Circle className="mt-px h-3 w-3 shrink-0 text-current" weight="fill" aria-hidden />
-                    <span>
-                      {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
-                      <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsConsultantTag}</strong>
-                      {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsMid}
-                      <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsClientTag}</strong>
-                      {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsSuffix}
+          {!isClientSelfServe ? (
+            <details className="mb-4 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <summary className="cursor-pointer list-none text-xs font-medium text-foreground">
+                {WORKSPACE_PAGE_COPY.newAudit.step1.supportDetailsToggle}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {briefExecutionDiagnosticLoading ? (
+                  <p className="text-muted-foreground text-xs">{WORKSPACE_PAGE_COPY.newAudit.step1.detailsSyncing}</p>
+                ) : null}
+                {briefExecutionDiagnosticError ? (
+                  <Callout intent="info">
+                    {WORKSPACE_PAGE_COPY.newAudit.step1.detailsLoadError}
+                  </Callout>
+                ) : null}
+                {discoveryPrefilled && (
+                  <Callout intent="info">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle
+                        size={15}
+                        weight="fill"
+                        className="text-info mt-0.5 flex-shrink-0"
+                      />
+                      <p className="text-muted-foreground text-xs leading-[1.55]">
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
+                      </p>
+                    </div>
+                  </Callout>
+                )}
+                {interviewMode && (
+                  <Callout intent="warning">
+                    <div className="text-warning-foreground flex items-start gap-2 text-xs">
+                      <Circle className="mt-px h-3 w-3 shrink-0 text-current" weight="fill" aria-hidden />
+                      <span>
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
+                        <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsConsultantTag}</strong>
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsMid}
+                        <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsClientTag}</strong>
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsSuffix}
+                      </span>
+                    </div>
+                  </Callout>
+                )}
+                {intakePrefillActive ? (
+                  <Callout intent="info">
+                    <span className="text-muted-foreground text-sm">
+                      {WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
                     </span>
-                  </div>
-                </Callout>
-              )}
-              {intakePrefillActive && (
-                <Callout intent="info">
-                  <span className="text-muted-foreground text-sm">
-                    {isClientSelfServe
-                      ? WORKSPACE_PAGE_COPY.newAudit.step1.prefilledBriefNoteClient
-                      : WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
+                  </Callout>
+                ) : null}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">
+                    {WORKSPACE_PAGE_COPY.newAudit.step1.auditReadinessPrefix}
+                    {progressPct}%
                   </span>
-                </Callout>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground text-xs">
-                  {WORKSPACE_PAGE_COPY.newAudit.step1.auditReadinessPrefix}
-                  {progressPct}%
-                </span>
-                <span className="text-muted-foreground rounded border px-2 py-0.5 text-xs">
-                  {readinessBadge.toUpperCase()}
-                </span>
-              </div>
-              <IntakeBankCoverageHint
-                dataQualityPct={bankMetrics.dataQualityPct}
-                visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
-                visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
-                visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
-                visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
-                reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
-              />
-              {isCaveatReadiness ? (
-                <Callout intent="info" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessTitle}>
-                  <p className="m-0 mb-2">{INTAKE_DIAGNOSTIC_PILOT_COPY_EN.executionReadinessCaveatsLead}</p>
-                  <ul className="m-0 list-disc space-y-1 pl-4">
-                    {briefExecutionDiagnostic?.readiness.trace
-                      .filter(t => Boolean(t.semanticCause))
-                      .slice(0, 6)
-                      .map((t, i) => (
-                        <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                  <span className="text-muted-foreground rounded border px-2 py-0.5 text-xs">
+                    {readinessBadge.toUpperCase()}
+                  </span>
+                </div>
+                <IntakeBankCoverageHint
+                  dataQualityPct={bankMetrics.dataQualityPct}
+                  visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+                  visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+                  visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+                  visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                  reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
+                />
+                {isCaveatReadiness ? (
+                  <Callout intent="info" title={WORKSPACE_PAGE_COPY.newAudit.step1.detailsCaveatsTitle}>
+                    <p className="m-0 mb-2">{WORKSPACE_PAGE_COPY.newAudit.step1.detailsCaveatsLead}</p>
+                    <ul className="m-0 list-disc space-y-1 pl-4">
+                      {briefExecutionDiagnostic?.readiness.trace
+                        .filter(t => Boolean(t.semanticCause))
+                        .slice(0, 6)
+                        .map((t, i) => (
+                          <li key={`${t.code}-${i}`}>{t.semanticCause}</li>
+                        ))}
+                    </ul>
+                  </Callout>
+                ) : null}
+                {briefExecutionDiagnostic?.remediation_queue && briefExecutionDiagnostic.remediation_queue.length > 0 ? (
+                  <Callout intent="neutral" title={WORKSPACE_PAGE_COPY.newAudit.step1.detailsRemediationTitle}>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      {WORKSPACE_PAGE_COPY.newAudit.step1.detailsRemediationLead}
+                    </p>
+                    <ul className="m-0 list-disc space-y-1 pl-4">
+                      {briefExecutionDiagnostic.remediation_queue.map(id => (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            className="text-info underline-offset-2 hover:underline"
+                            onClick={() => {
+                              if (briefLayoutChoice !== 'wizard') {
+                                onSelectConsultantBriefLayout('wizard');
+                              }
+                              setFocusedWizardQuestionId(id);
+                            }}
+                          >
+                            {getQuestionLabel(id)}
+                          </button>
+                        </li>
                       ))}
-                  </ul>
-                </Callout>
-              ) : null}
-              {briefExecutionDiagnostic?.remediation_queue && briefExecutionDiagnostic.remediation_queue.length > 0 ? (
-                <Callout intent="neutral" title={INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationTitle}>
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    {INTAKE_DIAGNOSTIC_PILOT_COPY_EN.remediationCheckpointLead}
-                  </p>
-                  <ul className="m-0 list-disc space-y-1 pl-4">
-                    {briefExecutionDiagnostic.remediation_queue.map(id => (
-                      <li key={id}>
-                        <button
-                          type="button"
-                          className="text-info underline-offset-2 hover:underline"
-                          onClick={() => {
-                            if (briefLayoutChoice !== 'wizard') {
-                              onSelectConsultantBriefLayout('wizard');
-                            }
-                            setFocusedWizardQuestionId(id);
-                          }}
-                        >
-                          {getQuestionLabel(id)}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </Callout>
-              ) : null}
-              <p className="m-0 text-xs text-muted-foreground">
-                {WORKSPACE_PAGE_COPY.newAudit.nextActionText[nextBestAction]}
-              </p>
-            </div>
-          </details>
+                    </ul>
+                  </Callout>
+                ) : null}
+                <p className="m-0 text-xs text-muted-foreground">
+                  {WORKSPACE_PAGE_COPY.newAudit.nextActionText[nextBestAction]}
+                </p>
+              </div>
+            </details>
+          ) : null}
 
           {briefLayoutChoice === 'wizard' ? (
             <div className="ds-step1-brief-scroll">
@@ -430,6 +408,14 @@ export function Step1Brief({
                 clientGuidedValueFeedbackLate={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedValueFeedbackLate}
                 clientGuidedValueFeedbackQualityShort={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedValueFeedbackQualityShort}
                 clientGuidedValueFeedbackQualityVague={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedValueFeedbackQualityVague}
+                clientGuidedCompletionPrefix={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedCompletionPrefix}
+                clientGuidedContextDepthPrefix={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedContextDepthPrefix}
+                guidedPrevButtonLabel={WORKSPACE_PAGE_COPY.newAudit.step1.guidedPrevQuestionButton}
+                guidedNextButtonLabel={WORKSPACE_PAGE_COPY.newAudit.step1.guidedNextQuestionButton}
+                guidanceDetailsToggleLabel={WORKSPACE_PAGE_COPY.newAudit.step1.guidanceDetailsToggle}
+                reportInputGapsPrefix={WORKSPACE_PAGE_COPY.newAudit.step1.guidanceGapsPrefix}
+                reportInputGapsOverflowSuffix={WORKSPACE_PAGE_COPY.newAudit.step1.guidanceGapsOverflowSuffix}
+                noVisibleQuestionsHint={WORKSPACE_PAGE_COPY.newAudit.step1.noVisibleQuestionsHint}
               />
             </div>
           ) : (
@@ -452,48 +438,72 @@ export function Step1Brief({
       <div className="glc-divider mt-5" />
 
       {/* Navigation */}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3 mt-4">
+      <div className="mt-3 flex items-end gap-2 sm:gap-4">
         <button
           type="button"
           onClick={onBackToStep0}
-          className="text-muted-foreground glc-touch-target flex items-center justify-center gap-1.5 rounded-lg border bg-transparent px-4 py-2.5 text-sm sm:min-h-0 sm:min-w-0"
+          className="text-muted-foreground glc-touch-target inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-transparent px-3 py-2 text-sm sm:min-h-0 sm:min-w-0 hover:bg-muted/30"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> {WORKSPACE_PAGE_COPY.newAudit.step1.navigationBackText}
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{WORKSPACE_PAGE_COPY.newAudit.step1.navigationBackText}</span>
         </button>
-        <button
-          type="button"
-          onClick={onGoToStep2}
-          disabled={!step2Complete}
-          aria-describedby={
-            !step2Complete && missingRequiredPreview.visible.length > 0
-              ? NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID
-              : undefined
-          }
-          className={cn(
-            'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all sm:min-h-0 sm:py-2.5',
-            step2Complete
-              ? 'bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--shadow-brand-cta)]'
-              : 'bg-muted text-muted-foreground cursor-not-allowed border',
-          )}
-        >
-          {step2Complete ? (
-            <>
-              <CheckCircle className="w-4 h-4" />{' '}
-              {isClientSelfServe
+        <div className="flex-1 space-y-1">
+          {!step2Complete && remainingRequiredCount > 0 ? (
+            <p className="m-0 text-right text-[11px] text-muted-foreground">
+              {WORKSPACE_PAGE_COPY.newAudit.step1.navigationRequiredLeftInline.replace(
+                '{{count}}',
+                String(remainingRequiredCount),
+              )}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={onGoToStep2}
+            disabled={!step2Complete}
+            aria-describedby={!step2Complete && showMissingRequired ? NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID : undefined}
+            className={cn(
+              'glc-touch-target flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all',
+              step2Complete
+                ? 'bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--shadow-brand-cta)] ring-1 ring-primary/20'
+                : 'bg-muted text-muted-foreground cursor-not-allowed border',
+            )}
+          >
+            {step2Complete ? (
+              <>
+                <CheckCircle className="w-4 h-4" />{' '}
+                {isClientSelfServe
+                  ? WORKSPACE_PAGE_COPY.newAudit.step1.navigationContinueClientText
+                  : WORKSPACE_PAGE_COPY.newAudit.step1.navigationReviewLaunchText}
+              </>
+            ) : (
+              <>{isClientSelfServe
                 ? WORKSPACE_PAGE_COPY.newAudit.step1.navigationContinueClientText
-                : WORKSPACE_PAGE_COPY.newAudit.step1.navigationReviewLaunchText}
-            </>
-          ) : (
-            <>
-              <Warning className="w-4 h-4" /> {WORKSPACE_PAGE_COPY.newAudit.step1.navigationFillMoreRequiredPrefix}
-              {pipelineRequiredTotal - answeredRequired}
-              {WORKSPACE_PAGE_COPY.newAudit.step1.navigationFillMoreRequiredSuffix}
-            </>
-          )}
-        </button>
+                : WORKSPACE_PAGE_COPY.newAudit.step1.navigationReviewLaunchText}</>
+            )}
+          </button>
+        </div>
       </div>
 
       {!step2Complete && missingRequiredPreview.visible.length > 0 && (
+        <div className="mt-2 flex items-center gap-3">
+          <p className="m-0 text-xs text-muted-foreground">
+            {WORKSPACE_PAGE_COPY.newAudit.step1.navigationMissingRequiredHint}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowMissingRequired(prev => !prev)}
+            className="text-xs font-medium text-info underline-offset-2 hover:underline"
+            aria-expanded={showMissingRequired}
+            aria-controls={NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID}
+          >
+            {showMissingRequired
+              ? WORKSPACE_PAGE_COPY.newAudit.step1.navigationMissingRequiredToggleHide
+              : WORKSPACE_PAGE_COPY.newAudit.step1.navigationMissingRequiredToggleShow}
+          </button>
+        </div>
+      )}
+
+      {!step2Complete && showMissingRequired && missingRequiredPreview.visible.length > 0 && (
         <div
           id={NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID}
           className="ds-step1-brief-missing-required"
@@ -518,7 +528,7 @@ export function Step1Brief({
         </div>
       )}
 
-      {clientDraftSaveSection}
+      {isClientSelfServe ? null : clientDraftSaveSection}
     </motion.div>
   );
 }

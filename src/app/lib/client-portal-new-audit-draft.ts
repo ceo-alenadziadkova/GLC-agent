@@ -36,7 +36,7 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
 
 export type ClientPortalNewAuditDraftV1 = {
   v: 1;
-  step: 0 | 1 | 2;
+  step: 0 | 1 | 2 | 3;
   url: string;
   noPublicWebsite: boolean;
   name: string;
@@ -70,7 +70,7 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
     if (!o || typeof o !== 'object') return null;
     const d = o as Partial<ClientPortalNewAuditDraftV1>;
     if (d.v !== 1) return null;
-    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 2 ? (d.step as 0 | 1 | 2) : 0;
+    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 3 ? (d.step as 0 | 1 | 2 | 3) : 0;
     const bl = d.briefLayoutChoice;
     const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
       bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
