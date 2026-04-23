@@ -9,10 +9,12 @@ describe('logger sanitization', () => {
 
   it('redacts sensitive keys and email-like values in context', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const testToken = 'token_for_test_only_not_a_real_secret';
+    // Low-entropy placeholder (still long enough to hit token-shaped redaction in strings).
+    const testToken = 'a'.repeat(24);
     logger.info('orchestration.test_metric', {
       email: 'user@example.com',
-      accessToken: testToken,
+      // Use "token" in the key name (not accessToken) to avoid gitleaks generic-api-key false positives.
+      sessionToken: testToken,
       detail: `contact user@example.com and use Bearer ${testToken}`,
     });
     expect(logSpy).toHaveBeenCalledTimes(1);
