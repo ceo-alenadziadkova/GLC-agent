@@ -1,4 +1,11 @@
-import { API_PATHS, apiIntakePrefill, apiIntakeRespond, apiIntakeToken } from '../../config/api-paths';
+import {
+  API_PATHS,
+  apiIntakeIntelligenceKpi,
+  apiIntakeNlDescribe,
+  apiIntakePrefill,
+  apiIntakeRespond,
+  apiIntakeToken,
+} from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { BriefQuestion, BriefResponses } from '../briefQuestions';
 
@@ -60,5 +67,34 @@ export const intakeTokensApi = {
       method: 'POST',
       body: JSON.stringify({ responses }),
     });
+  },
+
+  /**
+   * Diagnostic intake KPI (question visibility / drop-off). Fire-and-forget; ignores network errors.
+   * 404 when diagnostic pilot is disabled; `persisted: false` when the token is not linked to an audit.
+   */
+  async reportIntelligenceKpi(
+    token: string,
+    body: { event: 'question_shown' | 'drop_off'; question_id?: string; client_session_id?: string },
+  ) {
+    try {
+      return await publicApiFetch<{ ok: true; persisted: boolean }>(apiIntakeIntelligenceKpi(token), {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  /** Sprint 5 NL ingress stub — no graph merge; 404 when diagnostic pilot is disabled on the server. */
+  async submitIntakeNlDescribe(token: string, text: string) {
+    return publicApiFetch<{ ok: boolean; prefer_explicit_over_inferred: boolean; graphDraft: unknown; message: string }>(
+      apiIntakeNlDescribe(token),
+      {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      },
+    );
   },
 };

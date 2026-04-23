@@ -77,11 +77,18 @@ describe('lintIntelligenceContractV1', () => {
     expect(findings.some(f => f.code === 'INTELLIGENCE_TODO_METADATA_MISSING')).toBe(true);
   });
 
-  it('keeps anti-pattern checks as warnings only', () => {
+  it('keeps generic anti-pattern checks as warnings', () => {
     const findings = lintIntelligenceContractV1();
     const genericWarnings = findings.filter(f => f.code === 'INTELLIGENCE_ANTIPATTERN_GENERIC');
     expect(genericWarnings.length).toBeGreaterThan(0);
     expect(genericWarnings.every(f => f.severity === 'warn')).toBe(true);
+  });
+
+  it('treats leading labels as errors when the heuristic matches', () => {
+    const findings = lintIntelligenceContractV1({
+      labelOverrides: { f1: 'Do you agree this is important?' },
+    });
+    expect(findings.some(f => f.code === 'INTELLIGENCE_ANTIPATTERN_LEADING' && f.severity === 'error')).toBe(true);
   });
 
   it('warns about duplicate intent when semantic domain and impact target are indistinguishable', () => {

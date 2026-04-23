@@ -105,7 +105,7 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     const plan = planFromResponses({
       a2: 'Healthcare',
     });
-    expect(plan.criticalSignals?.confidenceByKey.industry).toBe('low');
+    expect(plan.criticalSignals?.confidenceByKey.industry).toBe('medium');
     expect(plan.criticalSignals?.confidenceByKey.website_presence).toBe('unknown');
   });
 

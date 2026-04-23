@@ -5,8 +5,17 @@ const { addMock, upsertMock } = vi.hoisted(() => ({
   upsertMock: vi.fn(async () => ({ error: null })),
 }));
 
+type DeepDiveJobRunRow = {
+  queue_job_id: string;
+  status: string;
+  metadata: { idempotency_key?: string; idempotency_signature?: string };
+};
+
 const { selectQueueRowsMock, selectMetadataMock, updateMock } = vi.hoisted(() => ({
-  selectQueueRowsMock: vi.fn(async () => ({ data: [], count: 0 })),
+  selectQueueRowsMock: vi.fn(async (): Promise<{ data: DeepDiveJobRunRow[]; count: number }> => ({
+    data: [],
+    count: 0,
+  })),
   selectMetadataMock: vi.fn(async () => ({ data: { metadata: {} } })),
   updateMock: vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) })),
 }));

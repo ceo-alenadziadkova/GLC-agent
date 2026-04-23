@@ -44,11 +44,12 @@ Canonical critical-signals registry path:
 
 - `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`
 
-Lint policy in Sprint 1:
+Lint policy (current):
 
 - hard error if a P0 question misses any required-now field
 - hard error if `semanticDomain` is outside Core Diagnostic Spine
-- anti-pattern heuristics are warnings only
+- hard error if a **Sprint 2 gate** question misses the full contract (`INTELLIGENCE_SPRINT2_INCOMPLETE`)
+- anti-pattern heuristics: **errors** for leading, tautological, vanity, double-barreled labels; **warnings** for generic, outside-scope, low-gain, duplicate-intent, and low-gain `whyAsked` fragments (see `lint-intelligence-contract.ts`)
 
 Runtime policy in Sprint 1:
 
@@ -85,16 +86,25 @@ Post-Sprint implementation order is fixed to avoid policy drift:
 3. Sprint 3: runtime prioritization/depth execution (`currentPriority`, `skipPolicy`, stop/follow-up semantics).
 4. Only after Sprint 3: NL ingress orchestration into the same decision graph.
 
-## Baseline Metrics (Sprint 1)
+## Baseline Metrics (current)
 
 - total questions: 78
 - P0 questions: 17
-- fully covered questions (required-now): 17 (21.8%)
+- fully covered questions (`required_now`): 54 (~69.2%)
 - fully covered P0: 17 (100%)
+- Sprint 2 gate: 47 ids with **full** contract including `expectedInfoGainBits` ≥ 0.3 (see [`ADR-INFO-GAIN-THRESHOLD-V1.md`](./ADR-INFO-GAIN-THRESHOLD-V1.md))
+
+## Changelog
+
+- **2026-04-23 — Sprint 2:** Introduced the **Sprint 2 gate** (47 bank ids) with full contract rows in `intake-intelligence-gate-metadata.ts`: stewardship, pilot `signalContribution` with `expectedInfoGainBits` floor (**0.3**), `followupPolicy`, `stopCondition`, and removal of `todo` deferrals for gate questions. Lint now errors with `INTELLIGENCE_SPRINT2_INCOMPLETE` for any gate id missing that shape. `PUT /api/audits/:id/brief` continues to expose minimal readiness as `trace` (see `docs/API.md`). Coverage summary `fullyCoveredQuestions` baseline moves to **58** / **78** for `required_now` completeness.
+- **2026-04-23 — Sprint 2.5 (lint):** Promoted **leading**, **tautological**, **vanity**, and **double-barreled** anti-pattern findings to **`error`** in `lintIntelligenceContractV1`; generic / outside-scope / low-gain / duplicate-intent remain **`warn`**. Numeric floor **0.3** bits is enforced via Sprint 2 completeness (`ADR-INFO-GAIN-THRESHOLD-V1`).
+- **2026-04-23 — Docs sync:** `docs/QUESTION_BANK.md` §16 and this ADR baseline metrics aligned with `intake-intelligence-contract.test.ts` (54 `required_now`, 47 Sprint 2 complete).
 
 ## References
 
 - `packages/intake-core/src/config/intake-intelligence-contract.ts`
+- `packages/intake-core/src/config/intake-intelligence-gate-metadata.ts`
+- `packages/intake-core/src/config/intake-intelligence-sprint2.ts`
 - `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`
 - `packages/intake-core/src/core/lint-bank-policy/lint-intelligence-contract.ts`
 - `packages/intake-core/src/core/build-intake-plan.ts`
@@ -113,4 +123,4 @@ Expected invariants:
 - All P0 ids have `required_now` (`whyAsked`, `semanticDomain`, `decisionImpact`).
 - Lint emits hard errors for missing `required_now` and invalid `semanticDomain`.
 - Runtime keeps question flow operational and emits `intelligence_metadata_incomplete` trace on incomplete metadata.
-- Baseline summary remains deterministic (`78` total, `17` P0, `17` fully covered, `100%` P0 coverage).
+- Baseline summary: `78` total questions, `17` P0, **`58`** bank ids with `required_now` intelligence (`fullyCoveredQuestions`), **47** Sprint 2 gate ids with full contract (`getIntakeIntelligenceSprint2CoverageSummary`), `100%` P0 coverage for `required_now`.

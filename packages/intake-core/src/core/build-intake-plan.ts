@@ -327,6 +327,20 @@ function buildIntakePlanInternal(
     }
   }
 
+  if (layoutProjectedRecommended.length > 0) {
+    for (const id of layoutProjectedRecommended.slice(0, 5)) {
+      const fp = getIntakeIntelligenceContract(id).followupPolicy;
+      if (fp?.stopIf?.trim() || fp?.deeperIf?.trim()) {
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'followup_policy_considered_for_next_recommended',
+          message: `Follow-up policy for "${id}": stopIf=${fp.stopIf ?? ''}; deeperIf=${fp.deeperIf ?? ''}`,
+        });
+      }
+    }
+  }
+
   const planCore: IntakePlan = {
     eligible: eligibleAfterPolicy,
     visible: finalVisible,

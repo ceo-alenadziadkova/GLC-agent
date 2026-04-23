@@ -22,6 +22,10 @@ export const PIPELINE_EVENT_TYPES = {
   reviewApproved: 'review_approved',
   reviewNeeded: 'review_needed',
   phaseStalled: 'phase_stalled',
+  /** Diagnostic intake KPI (ADR Sprint 3) — non-pipeline phase; consumers should filter by `event_type`. */
+  intakeIntelligenceQuestionShown: 'intake_intelligence_question_shown',
+  intakeIntelligenceAnswerChangedSignal: 'intake_intelligence_answer_changed_signal',
+  intakeIntelligenceDropOff: 'intake_intelligence_drop_off',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

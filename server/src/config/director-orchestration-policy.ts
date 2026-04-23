@@ -97,7 +97,14 @@ export const MAX_SUB_AGENTS_PER_DEEP_DIVE: Record<AuditCoveragePackage, number> 
  * Domain-scoped rollout for director sub-agent orchestration.
  * Keep this list config-driven; runtime services must not hardcode domain literals.
  */
-export const DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS: readonly DomainKey[] = ['marketing_utp'];
+export const DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS: readonly DomainKey[] = [
+  'marketing_utp',
+  'ux_conversion',
+  'automation_processes',
+  'security_compliance',
+  'tech_infrastructure',
+  'seo_digital',
+];
 
 export const SUB_AGENT_TOKEN_BUDGET_BY_DEPTH: Record<'min' | 'standard' | 'max', number> = {
   min: 8_000,

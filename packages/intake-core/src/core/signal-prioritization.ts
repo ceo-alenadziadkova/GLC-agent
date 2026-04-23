@@ -47,6 +47,14 @@ export function computeSignalPrioritization(args: {
       state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'primary_problem_mentions_compliance' };
     }
 
+    const industry = normalizeStringValue(args.responses.a2);
+    if (
+      (industry.includes('e-commerce') || industry.includes('ecommerce') || industry.includes('e commerce')) &&
+      signalKey === 'audit_focus'
+    ) {
+      state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'ecommerce_vertical_elevates_audit_focus' };
+    }
+
     bySignalKey[signalKey] = state;
   }
 
@@ -81,7 +89,11 @@ export function deriveSignalPrioritization(args: {
       code: 'signal_priority_evaluated',
       semanticCause: `Signal "${signalKey}" evaluated with priority ${state.currentPriority} (${state.skipPolicy}) due to ${state.reason}`,
       signalKey,
-      detail: state,
+      detail: {
+        currentPriority: state.currentPriority,
+        skipPolicy: state.skipPolicy,
+        reason: state.reason,
+      },
     });
   }
   return result;

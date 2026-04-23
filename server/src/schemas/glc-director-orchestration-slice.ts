@@ -25,6 +25,8 @@ export const DirectorActionSchema = z.object({
       missing: evidenceBucketSchema.optional(),
     })
     .optional(),
+  /** Optional A/B/C solution framing (CDO and future directors). */
+  solution_options: z.array(z.string().min(1).max(500)).max(3).optional(),
 });
 
 export type DirectorAction = z.infer<typeof DirectorActionSchema>;

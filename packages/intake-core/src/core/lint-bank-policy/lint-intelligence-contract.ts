@@ -5,6 +5,10 @@ import {
   INTAKE_INTELLIGENCE_P0_IDS,
   type IntakeIntelligenceContract,
 } from '../../config/intake-intelligence-contract.js';
+import {
+  INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
+  isIntakeIntelligenceSprint2Complete,
+} from '../../config/intake-intelligence-sprint2.js';
 import { QUESTION_BANK_V1_IDS, getQuestionBankSchemaMeta } from '../../question-bank.js';
 import { DIAGNOSTIC_SPINE_CATEGORIES } from '../../audit-contract.js';
 
@@ -49,7 +53,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('do you agree') || text.includes('is it important')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_LEADING',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may be leading; wording should remain neutral.`,
       detail: label,
     });
@@ -57,7 +61,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('how important is importance') || text.includes('important importance')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_TAUTOLOGICAL',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may be tautological and not add diagnostic signal.`,
       detail: label,
     });
@@ -65,7 +69,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('likes') || text.includes('followers') || text.includes('vanity')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_VANITY',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may optimize vanity metrics instead of decision signal.`,
       detail: label,
     });
@@ -93,7 +97,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes(' and ') && (text.includes('?') || text.includes(','))) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_DOUBLE_BARRELED',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may include multiple prompts in one sentence.`,
       detail: label,
     });
@@ -133,18 +137,23 @@ function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceC
 }
 
 /**
- * Sprint 1 guardrails for Intake Intelligence Contract:
+ * Intake Intelligence Contract lint:
  * - P0 questions must include required_now fields (whyAsked + semanticDomain + decisionImpact[0])
  * - semanticDomain must map to Core Diagnostic Spine
- * - anti-pattern checks are warnings only in this phase
+ * - Sprint 2 gate ids must satisfy full contract (stewardship, signalContribution, follow-up, no todo)
+ * - anti-pattern heuristics: generic/outside-scope/low-gain stay warn; leading/tautological/vanity/double-barreled are errors (Sprint 3)
  */
 export function lintIntelligenceContractV1(args?: {
   contractResolver?: (questionId: string) => IntakeIntelligenceContract;
+  /** Test-only: override bank label text for anti-pattern heuristics without mutating JSON. */
+  labelOverrides?: Record<string, string>;
 }): LintFinding[] {
   const findings: LintFinding[] = [];
   const p0Set = new Set(INTAKE_INTELLIGENCE_P0_IDS);
+  const sprint2Gate = new Set(INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS);
   const knownIds = new Set(QUESTION_BANK_V1_IDS);
   const resolver = args?.contractResolver ?? getIntakeIntelligenceContract;
+  const labelOverrides = args?.labelOverrides;
   const completeContracts: Array<{ questionId: string; contract: IntakeIntelligenceContract }> = [];
 
   for (const p0Id of INTAKE_INTELLIGENCE_P0_IDS) {
@@ -182,11 +191,24 @@ export function lintIntelligenceContractV1(args?: {
     }
 
     if (!isP0) {
-      findings.push(...lintNonP0TodoMetadata(questionId, contract));
+      const sprint2Done = isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow);
+      if (!(sprint2Gate.has(questionId) && sprint2Done)) {
+        findings.push(...lintNonP0TodoMetadata(questionId, contract));
+      }
     }
 
-    if (meta?.label) {
-      findings.push(...warnForAntiPatternHeuristics(questionId, meta.label));
+    if (sprint2Gate.has(questionId) && !isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow)) {
+      findings.push({
+        code: 'INTELLIGENCE_SPRINT2_INCOMPLETE',
+        severity: 'error',
+        message: `question "${questionId}" is in the Sprint 2 gate set but is missing the full intelligence contract (stewardship, signalContribution with info-gain floor, follow-up policy, stop rule, and no todo deferral).`,
+        detail: questionId,
+      });
+    }
+
+    const labelForLint = labelOverrides?.[questionId] ?? meta?.label;
+    if (labelForLint) {
+      findings.push(...warnForAntiPatternHeuristics(questionId, labelForLint));
     }
 
     if (

@@ -7,6 +7,7 @@ import type {
   DomainKey,
   FlowReadinessStatus,
   IntakeBriefCollectionMode,
+  IntakeCriticalSignalConfidence,
   IntakeReadinessCaveatClass,
   IntakeReadinessEnvelope,
   IntakeReadinessTraceEntry,
@@ -31,6 +32,109 @@ import { isSurfaceReadinessEnforcedAt, type SurfaceMatrixEnforcementPoint } from
 import { deriveSignalPrioritization } from './signal-prioritization.js';
 
 const INTAKE_SLA_FULL: ProductMode = 'full';
+
+const PILOT_BANK_TO_SIGNAL: Record<string, string> = {
+  a2: 'industry',
+  a5: 'website_presence',
+  f1: 'primary_problem',
+  f2: 'audit_focus',
+  d2: 'operations_bottleneck',
+  d_closing_flow: 'delivery_shape_baseline',
+};
+
+/** Confidence band at which we treat pilot evidence as sufficient to close uncertainty without a second source. */
+const UNCERTAINTY_CLOSED_CONFIDENCE_TARGET: IntakeCriticalSignalConfidence[] = ['high', 'medium'];
+
+function normalizeIntakeAnswerForCrossCheck(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.toLowerCase().trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).toLowerCase();
+  if (Array.isArray(value)) {
+    return [...value]
+      .map(item => normalizeIntakeAnswerForCrossCheck(item))
+      .filter(Boolean)
+      .sort()
+      .join('|');
+  }
+  return '';
+}
+
+function appendProgressiveCertaintyHypothesisTrace(args: {
+  responses: Record<string, unknown>;
+  confidenceByKey: Record<string, IntakeCriticalSignalConfidence>;
+  trace: IntakeReadinessTraceEntry[];
+  hypothesisCrossCheckByQuestionId?: Record<
+    string,
+    { value: unknown; source?: 'recon_confirmed' | 'consultant_prefill' | 'imported' }
+  >;
+}): void {
+  const emittedSignals = new Set<string>();
+  for (const [questionId, signalKey] of Object.entries(PILOT_BANK_TO_SIGNAL)) {
+    const raw = args.responses[questionId];
+    const answered =
+      raw !== undefined &&
+      raw !== null &&
+      !(typeof raw === 'string' && raw.trim() === '') &&
+      !(Array.isArray(raw) && raw.length === 0);
+    if (!answered) continue;
+    if (emittedSignals.has(signalKey)) continue;
+    emittedSignals.add(signalKey);
+    const conf = args.confidenceByKey[signalKey] ?? 'unknown';
+    const cross = args.hypothesisCrossCheckByQuestionId?.[questionId];
+    const primaryNorm = normalizeIntakeAnswerForCrossCheck(raw);
+    const crossNorm = cross ? normalizeIntakeAnswerForCrossCheck(cross.value) : '';
+
+    if (crossNorm.length > 0 && primaryNorm.length > 0 && crossNorm !== primaryNorm) {
+      args.trace.push({
+        code: 'hypothesis_disconfirmed',
+        semanticCause: `Cross-source value disagrees with structured answer for pilot signal "${signalKey}" on ${questionId}`,
+        questionId,
+        signalKey,
+        detail: {
+          confidence: conf,
+          crossCheckSource: cross?.source ?? 'unknown',
+        },
+      });
+      continue;
+    }
+
+    if (
+      crossNorm.length > 0 &&
+      primaryNorm.length > 0 &&
+      crossNorm === primaryNorm &&
+      !UNCERTAINTY_CLOSED_CONFIDENCE_TARGET.includes(conf)
+    ) {
+      args.trace.push({
+        code: 'hypothesis_confirmed',
+        semanticCause: `Second source agrees with structured answer for pilot signal "${signalKey}" on ${questionId}`,
+        questionId,
+        signalKey,
+        detail: {
+          confidence: conf,
+          crossCheckSource: cross?.source ?? 'unknown',
+        },
+      });
+      continue;
+    }
+
+    if (UNCERTAINTY_CLOSED_CONFIDENCE_TARGET.includes(conf)) {
+      args.trace.push({
+        code: 'uncertainty_closed',
+        semanticCause: `Pilot signal "${signalKey}" reached confident state after structured answer on ${questionId}`,
+        questionId,
+        signalKey,
+      });
+    } else {
+      args.trace.push({
+        code: 'hypothesis_formed',
+        semanticCause: `Structured answer on ${questionId} anchors hypothesis for pilot signal "${signalKey}"`,
+        questionId,
+        signalKey,
+        detail: { confidence: conf },
+      });
+    }
+  }
+}
 
 export type IntakeReadinessCriticalSignalsMode = 'full' | 'sla_only';
 
@@ -62,6 +166,15 @@ export interface EvaluateIntakeReadinessInput {
   executionIncludeStrategy?: boolean;
   /** Runtime boundary where readiness is being evaluated. */
   enforcementPoint?: SurfaceMatrixEnforcementPoint;
+  /**
+   * Optional echo from recon/consultant/import for the same bank id. When it disagrees with the
+   * respondent `responses` value, emits `hypothesis_disconfirmed`; when it agrees and confidence
+   * is still below `UNCERTAINTY_CLOSED_CONFIDENCE_TARGET`, emits `hypothesis_confirmed`.
+   */
+  hypothesisCrossCheckByQuestionId?: Record<
+    string,
+    { value: unknown; source?: 'recon_confirmed' | 'consultant_prefill' | 'imported' }
+  >;
 }
 
 export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessInput): IntakeReadinessEnvelope {
@@ -76,6 +189,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     applyExecutionPlanCoverageScope,
     executionSelectedDomains,
     executionIncludeStrategy,
+    hypothesisCrossCheckByQuestionId,
   } = input;
   const critMode = criticalSignalsMode ?? 'full';
   const enforcementPoint = input.enforcementPoint ?? 'pipeline_start';
@@ -272,6 +386,15 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
         slaProductMode === INTAKE_SLA_FULL
           ? 'Full SLA satisfied and pilot critical signals present with non-unknown evidence where required'
           : 'Express SLA satisfied and pilot critical signals present with non-unknown evidence where required',
+    });
+  }
+
+  if (critMode === 'full') {
+    appendProgressiveCertaintyHypothesisTrace({
+      responses,
+      confidenceByKey: critical.confidenceByKey ?? {},
+      trace,
+      hypothesisCrossCheckByQuestionId,
     });
   }
 

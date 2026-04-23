@@ -8,6 +8,7 @@ export {
   idempotencyPostAuditsCreateKey,
   idempotencyPostAuditsOrchestrationPackKey,
   idempotencyPostAuditsOrchestrationPackRegenerateKey,
+  idempotencyPostAuditsOrchestrationSelectedInitiativeKey,
   idempotencyPostAuditsOrchestratorRunKey,
   idempotencyPostAuditsRoadmapManifestSnapshotsKey,
   idempotencyPostKey,

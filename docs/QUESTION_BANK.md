@@ -80,6 +80,16 @@ Per bank question id, **`packages/intake-core/src/question-bank-legal-meta.v1.ts
 - **Classic consultant brief UI (ADR Phase A):** каталог для классической формы собирается в **`@glc/intake-core`** (`intake-brief-catalog-meta.ts` из **`intake-policy.v1.json`** → **`modes.classic_brief`** + банк); в приложении — реэкспорт через **`intake_brief_questions`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`). Тексты/типы/опции для каждой строки **`modes.classic_brief.main`** — через **`buildBriefQuestionStemFromBankId(bankId)`**; **ключ ответа в `responses` = bank id** (например `f1`, `b1`, `c5`). Исключение — уточнение для отрасли «Other»: **`intake_industry_specify`** (см. `choiceSpecifyResponseKey('a2')`). **`prepareBriefForValidation`** применяет **answer contract** только по ключу bank id. `intake_brief` реэкспортирует определения и добавляет Zod. Фронт: `briefQuestions` — типы и хелперы. **public Discovery** — `GET /api/discover/ui-fragment`. Анти-drift: `brief_spa_parity.test`, `bank_question_ui_catalog_parity.test`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
 - `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** — это **`requiredAlways`** + **`requiredIfVisible`**, пересечённые с **`modes.pre_brief.bankIncluded`** (см. `intake-brief-catalog-meta.ts`). Публичный submit и прогресс `/intake/:token` используют **`resolvePreBriefSubmitExpressBankIds`** (ветки + tuple), чтобы слоты не требовали полей вне pre-brief UI.
 
+### 2.1.1 Intake Intelligence Contract (Sprint 2)
+
+English contract for decision-oriented metadata (see [ADR-DECISION-IMPACT-METADATA-V1.md](adrs/ADR-DECISION-IMPACT-METADATA-V1.md)):
+
+- **Canonical modules:** `packages/intake-core/src/config/intake-intelligence-types.ts` (shared types), `packages/intake-core/src/config/intake-intelligence-contract.ts` (resolver + coverage), `packages/intake-core/src/config/intake-intelligence-gate-metadata.ts` (Sprint 2 gate rows), `packages/intake-core/src/config/intake-intelligence-sprint2.ts` (gate id computation + completeness rules).
+- **Core Diagnostic Spine:** `semanticDomain` must be one of `market` \| `value` \| `economics` \| `operations` \| `resources` \| `risks` (validated by `lint-intelligence-contract.ts`).
+- **Sprint 2 gate set:** section **A** ∪ **B** ∪ `{ c1, c2, c3, c4, d2, d_closing_flow, f1–f9, f_idea_1–f_idea_4 }` — currently **47** bank ids. Each must satisfy **full contract**: `required_now` fields, no `todo`, `stewardship` (`ownerDomain` from `IntakeIntelligenceOwnerDomain`, `reviewByIsoDate` `YYYY-MM-DD`), `signalContribution[]` with `signalKey` matching pilot signals and `expectedInfoGainBits` ≥ `MIN_EXPECTED_INFO_GAIN_BITS_SPRINT2` (**0.3**), plus `followupPolicy` / `stopCondition`.
+- **Anti-patterns** (label + `whyAsked` heuristics): generic, leading, tautological, vanity, outside-spine, low info-gain, double-barreled; duplicate-intent fingerprint across completed contracts. **As implemented:** `leading`, `tautological`, `vanity`, and `double-barreled` are **errors** in `lintIntelligenceContractV1`; `generic`, `outside-scope`, `low-gain` heuristics, `INTELLIGENCE_LOW_GAIN_WHY_ASKED`, and `INTELLIGENCE_DUPLICATE_INTENT` remain **warn** (see §16.1).
+- **Adding a bank question:** extend `question-bank.v1.json`, then either attach to Sprint 2 gate (expand `computeIntakeIntelligenceSprint2GateIds` + metadata) or keep `{ todo: DEFAULT_TODO }` fallback until product assigns stewardship. Follow [`intake-question-bank-change-protocol.mdc`](../.cursor/rules/intake-question-bank-change-protocol.mdc).
+
 ### 2.2. Секции (клиент видит)
 
 Вопросы организованы по 6 секциям — **для клиента**, не по нашим доменам:
@@ -556,6 +566,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 Каноническая реализация: `**branch_rules`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `is_visible`.
 
+- Декларативный артефакт `packages/intake-core/src/branch-rules.v1.json` — версия **1.1.0** (Sprint 4 stage-gate / артефактный bump; набор предикатов см. JSON и `evalRuleEntry` в `branch-rules.ts`).
 - Ключи в `branch` / `branchCondition` JSON **должны** совпадать с ключами `BRANCH_RULES`. Неизвестный ключ → `console.warn` с префиксом `[branch-rules] Unknown branchCondition`, вопрос считается **видимым** (fail-open).
 - Ниже — краткая шпаргалка по ключам (без дословного кода; детали смотри в репозитории).
 
@@ -825,100 +836,106 @@ Use this checklist for **any** change to `question_bank.v1`, answer options, or 
  - One vertical pack per release train; do not parallelize pack rollouts.
  - For each pack, add/update parity tests and sequencing artifact metadata before enabling traffic.
 
-## 16. Intake Intelligence Contract v1 (Sprint 1 baseline)
+## 16. Intake Intelligence Contract v1 (baseline + Sprint 2 gate)
 
-This section defines the Decision-Intelligence baseline introduced in Sprint 1.
+This section is the **documentation mirror** of `lintIntelligenceContractV1`, `intake-intelligence-contract.test.ts`, and [`ADR-DECISION-IMPACT-METADATA-V1.md`](./adrs/ADR-DECISION-IMPACT-METADATA-V1.md). Sprint 1 definitions still apply; Sprint 2 adds a **47-question full-contract gate** (see §2.1.1).
 
 - Contract location: `packages/intake-core/src/config/intake-intelligence-contract.ts`
+- Sprint 2 gate rows: `packages/intake-core/src/config/intake-intelligence-gate-metadata.ts`
+- Gate rules and info-gain floor: `packages/intake-core/src/config/intake-intelligence-sprint2.ts` (see [`ADR-INFO-GAIN-THRESHOLD-V1.md`](./adrs/ADR-INFO-GAIN-THRESHOLD-V1.md))
 - Required now (`required_now`) fields:
   - `whyAsked`
   - `semanticDomain` (`market | value | economics | operations | resources | risks`)
   - `decisionImpact` (minimum one item)
-- Optional-with-todo fields (allowed in Sprint 1):
-  - `signalContribution`
-  - `followupPolicy`
-  - `stopCondition`
-  - `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) for non-P0 questions
+- Sprint 2 **full** contract (gate ids only): `required_now` + `stewardship` + non-empty `signalContribution` with `expectedInfoGainBits` ≥ **0.3** + `followupPolicy` + `stopCondition`, and **no** `todo`.
+- Optional-with-todo fields for ids **outside** the Sprint 2 gate (when not yet Sprint-2-complete):
+  - `signalContribution`, `followupPolicy`, `stopCondition`
+  - `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) for non-P0 questions, or partial P0 extensions documented in `intake-intelligence-contract.ts`
 
-P0 scope in Sprint 1 is computed from:
+P0 scope is computed from:
 - all bank ids used by critical signals registry (`packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json`)
 - all Section `F` (goals) bank questions
 
 Lint and fallback behavior:
 - `lintIntelligenceContractV1` blocks CI when a P0 question misses any `required_now` field
 - `semanticDomain` outside Core Spine is a hard error
-- anti-pattern heuristics are warnings only in Sprint 1
+- any id in the **Sprint 2 gate set** missing the full Sprint 2 contract shape → **`INTELLIGENCE_SPRINT2_INCOMPLETE`** (**error**)
+- anti-pattern heuristics: **errors** for leading / tautological / vanity / double-barreled labels; **warn** for generic / outside-scope / low-gain and duplicate-intent fingerprint (see §16.1)
 - runtime fallback keeps questions visible and emits `intelligence_metadata_incomplete` trace when metadata is incomplete
 - canonical ADR: [`ADR-DECISION-IMPACT-METADATA-V1.md`](./adrs/ADR-DECISION-IMPACT-METADATA-V1.md)
 
-Sprint 1 enforcement matrix:
+Current enforcement matrix:
 
 | Rule | Level | Checked in |
 | --- | --- | --- |
 | P0 question has `whyAsked`, `semanticDomain`, and `decisionImpact[0]` | error | `lintIntelligenceContractV1`, `intake-intelligence-contract.test.ts` |
 | `semanticDomain` belongs to Core Diagnostic Spine | error | `lintIntelligenceContractV1`, `lint-intelligence-contract.test.ts` |
-| Non-P0 question has valid `todo` (`ownerDomain`, `reviewByIsoDate`, `todoReason`) | warning (lint), required by tests | `lintIntelligenceContractV1`, `intake-intelligence-contract.test.ts` |
-| Anti-pattern heuristics (generic/leading/double-barreled/etc.) | warning | `lintIntelligenceContractV1` |
+| Sprint 2 gate id missing full contract (stewardship, signalContribution ≥ 0.3 bits, follow-up, stop, no todo) | error | `lintIntelligenceContractV1` (`INTELLIGENCE_SPRINT2_INCOMPLETE`) |
+| Non-P0 question outside Sprint-2-complete: valid `todo` | error in tests; lint may warn on incomplete todo rows | `intake-intelligence-contract.test.ts`, `lintIntelligenceContractV1` |
+| Anti-pattern heuristics (see §16.1) | error or warn per code | `lintIntelligenceContractV1` |
 | Incomplete metadata does not break runtime plan build | runtime guard | `build-intake-plan.ts`, `intelligence-fallback-runtime.test.ts` |
 
-Baseline snapshot (Sprint 1):
+Deterministic baseline snapshot (**must match** `intake-intelligence-contract.test.ts`):
 - `question_count = 78`
-- `P0_question_count = 17`
-- `fully_covered_questions = 17` (`21.8%`)
-- `fully_covered_P0_questions = 17` (`100%`)
+- `P0_question_count = 17` (derived from critical signals ∪ section **F**)
+- `fully_covered_questions = 54` (`required_now` present via `hasIntakeIntelligenceRequiredNow`) ≈ **69.2%**
+- `fully_covered_P0_questions = 17` (**100%** of P0)
+- `Sprint_2_gate_question_count = 47`; **`Sprint_2_complete_questions = 47`** (`getIntakeIntelligenceSprint2CoverageSummary`, ratio **1**)
 
 Baseline release gate policy:
-- Any PR that changes `question-bank.v1.json`, P0 scope, or intelligence contract coverage must update:
+- Any PR that changes `question-bank.v1.json`, P0 scope, Sprint 2 gate ids, or intelligence contract coverage must update:
   - `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` (deterministic baseline expectations)
   - this section baseline snapshot values
 - Mismatched updates are treated as a release-blocking contract drift.
 
-### 16.1 Anti-pattern taxonomy (warning-only in Sprint 1)
+### 16.1 Anti-pattern taxonomy (mixed severity)
 
-The following heuristics are intentionally non-blocking in Sprint 1 and must be treated as editorial warnings:
+Lint codes in `lint-intelligence-contract.ts` (label-based heuristics unless noted):
 
-- `generic`: broad prompts that do not express decision impact (`tell us about your business`, generic `anything else`).
-- `leading`: wording that pushes a preferred answer (`do you agree`, `is it important` framing).
-- `double-barreled`: multiple asks packed into one sentence.
-- `tautological`: restating the same concept without new decision signal.
-- `vanity`: asks that optimize optics rather than actionable change.
-- `outside-scope`: no clear mapping to Core Diagnostic Spine.
-- `low-gain`: weak expected signal movement with no justified override.
+| Category | Lint code (prefix `INTELLIGENCE_ANTIPATTERN_*` where applicable) | Severity |
+| --- | --- | --- |
+| Generic opening | `GENERIC` | warn |
+| Leading framing | `LEADING` | **error** |
+| Tautological | `TAUTOLOGICAL` | **error** |
+| Vanity metrics | `VANITY` | **error** |
+| Outside spine (label shape) | `OUTSIDE_SCOPE` | warn |
+| Low gain (label) | `LOW_GAIN` | warn |
+| Double-barreled | `DOUBLE_BARRELED` | **error** |
+| `whyAsked` contains low-information phrases | `INTELLIGENCE_LOW_GAIN_WHY_ASKED` | warn |
+| Duplicate intent fingerprint vs same `semanticDomain` + `decisionImpact[0].target` | `INTELLIGENCE_DUPLICATE_INTENT` | warn |
 
-Promotion path after Sprint 1:
-- Keep warning-only until editorial governance calibrates false-positive rate.
-- Promote selected heuristics to hard errors only with explicit ADR update and test coverage.
+Editorial guidance for authors is unchanged; only CI severity differs by row.
 
-### 16.2 Sprint 1 Decision-Intelligence DoD (single source of truth)
+### 16.2 Decision-Intelligence DoD (single source of truth)
 
 | Criterion | Proof path | Command / test | Pass condition |
 | --- | --- | --- | --- |
 | P0 has required-now fields (`whyAsked`, `semanticDomain`, `decisionImpact[0]`) | `packages/intake-core/src/config/intake-intelligence-contract.ts`, `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All P0 ids pass `hasIntakeIntelligenceRequiredNow` |
 | Invalid `semanticDomain` is blocked | `packages/intake-core/src/core/lint-bank-policy/lint-intelligence-contract.ts`, `packages/intake-core/src/tests/lint-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/lint-intelligence-contract.test.ts` | Lint emits `INTELLIGENCE_SEMANTIC_DOMAIN_INVALID` as `error` |
 | Missing required-now for P0 is blocked | same as above | same as above | Lint emits `INTELLIGENCE_REQUIRED_NOW_MISSING` as `error` |
-| Non-P0 TODO metadata is enforced in Sprint 1 workflow | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All non-P0 ids contain valid `todo` metadata |
-| Runtime fallback never crashes on incomplete metadata | `packages/intake-core/src/core/build-intake-plan.ts`, `packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Plan build succeeds and emits `intelligence_metadata_incomplete` trace |
-| Baseline remains deterministic (`78/17/17/100%`) | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts`, this doc section | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | Snapshot numbers match tests and docs |
+| Non-P0 outside Sprint-2-complete has valid `todo` | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All such ids pass `isValidIntakeIntelligenceTodo` |
+| Sprint 2 gate fully enriched | `intake-intelligence-sprint2.ts`, `intake-intelligence-gate-metadata.ts`, `intake-intelligence-contract.test.ts` | same Vitest file | `gateQuestionCount === 47` and `sprint2CompleteRatio === 1` |
+| Runtime fallback never crashes on incomplete metadata | `packages/intake-core/src/core/build-intake-plan.ts`, `packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Plan build succeeds and emits `intelligence_metadata_incomplete` trace when applicable |
+| Baseline remains deterministic (`78` / `17` P0 / `54` required_now / `47` Sprint2 / P0 `100%`) | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts`, this doc section | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | Snapshot numbers match tests and docs |
 | Package-level verification is green | `packages/intake-core/src/tests/` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts packages/intake-core/src/tests/lint-intelligence-contract.test.ts packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Command exits 0 |
 
-Sprint 1 `go/no-go` rule:
+Release `go/no-go` rule:
 - `go` only when every row above is green in the same branch.
 - Any failure is `no-go` until code + docs are reconciled.
 
 ### 16.3 Post-Sprint roadmap lock (sequence)
 
-To prevent scope creep and preserve deterministic rollout behavior, post-Sprint work follows this fixed order:
+Rollout order (items **1–2** are shipped in code + UI; **3+** remain iterative):
 
-1. `Sprint 2 / Phase 1b`: explanatory UI surface on public intake (`whyAsked`, `decisionImpact`, readiness + signal state).
-2. `Sprint 2.5`: deterministic Question Quality Engine v2 (anti-pattern heuristics calibration, selective promotion to hard errors).
-3. `Sprint 3`: runtime prioritization and depth policy (`currentPriority`, `skipPolicy`, follow-up/stop execution semantics).
-4. `After Sprint 3`: NL ingress orchestration mapped into the same decision graph (no parallel logic path).
+1. ~~Sprint 2 / Phase 1b~~: public intake shows `whyAsked`, `decisionImpact`, readiness + signal state (`IntakeBriefFormPhase`, `useIntakeBriefController`).
+2. ~~Sprint 2.5 (partial)~~: anti-pattern **hard errors** for selected codes in `lintIntelligenceContractV1`; remaining heuristics stay **warn**.
+3. **Sprint 3+**: progressive certainty trace vocabulary, KPI pipeline coverage, follow-up/stop **runtime** consumer, NL orchestration (see ADR changelog).
+4. **After KPI baseline**: NL-first polish and governance; stage-aware branching + vertical packs per checklist item **7. Vertical expansion order is mandatory (post-KPI)** in this document.
 
-Strict out-of-scope until steps 1-3 are green:
+Still strict out-of-scope for ungoverned rollout:
 - embedding-based semantic dedup gates,
-- numeric info-gain runtime scoring,
-- NL-first intake experience,
-- stage-aware branching expansion and new vertical activation packs.
+- numeric info-gain **runtime** scoring beyond the authored `expectedInfoGainBits` field,
+- stage-aware branching expansion **without** question-bank protocol + tests (when enabled, follow checklist item **7** in this document).
 
 ## Для разработчиков
 

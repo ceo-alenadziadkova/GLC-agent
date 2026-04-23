@@ -9,7 +9,7 @@ Most `/api/*` endpoints require a valid Supabase JWT in the `Authorization: Bear
 
 Authentication exceptions (no JWT):
 
-- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/respond`, public discovery routes.
+- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/respond`, public discovery routes.
 - Token-protected operator routes: `/api/snapshot/operator/*` (requires `SNAPSHOT_OPERATOR_TOKEN`, not JWT).
 - Secret-header route: `POST /api/benchmarks/recompute` (cron/system secret header, not JWT).
 
@@ -565,8 +565,11 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 }
 ```
 
-`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and supports the full CMO set:
-- `cmo.agent_1_market`, `cmo.agent_2_awareness_ladder`, `cmo.agent_3_positioning`, `cmo.agent_4_voice`, `cmo.agent_5_content_strategy`, `cmo.agent_6_viral`, `cmo.agent_7_storytelling`, `cmo.agent_8_ready_posts`, `cmo.agent_9_traffic`, `cmo.agent_10_distribution`, `cmo.agent_11_founder_brand`, `cmo.agent_12_growth_loops`
+`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and currently supports:
+- CMO: `cmo.agent_1_market` ... `cmo.agent_12_growth_loops`
+- CDO: `cdo.funnel_architect`, `cdo.friction`, `cdo.experimentation`
+- CAO: `cao.process_map`, `cao.automation_candidates`, `cao.throughput`
+- CSO: `cso.case_classifier`, `cso.threat_model`, `cso.compliance_map`
 
 - **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
 - **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
@@ -815,17 +818,17 @@ Notes for consumers:
 
 **PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
 
-**PUT `200`:** `{ brief, validation, gates, intakeProgress }` and, when `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, additive **`intake_trace`** with minimal public-safe entries:
+**PUT `200`:** `{ brief, validation, gates, intakeProgress }` and, when `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, additive **`trace`** with minimal public-safe entries:
 
 ```json
 {
-  "intake_trace": [
+  "trace": [
     { "code": "critical_signal_unknown", "questionId": "f1" }
   ]
 }
 ```
 
-`intake_trace` intentionally excludes `semanticCause` and verbose internals; full diagnostics remain in server logs / schema snapshot APIs.
+`trace` intentionally excludes `semanticCause` and verbose internals; full diagnostics remain in server logs / schema snapshot APIs.
 
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
 - **`intake_versions` present** — must include all **five** keys (`sequencingVersion` included), **or** the legacy **four** keys (`questionBankVersion`, `policyVersion`, `layoutVersion`, `resolverVersion`) only — in the four-key case the server treats **`sequencingVersion`** as the current pilot default on parse. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
@@ -1259,6 +1262,22 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Response `410`:** link expired.
 
+### `POST /api/intake/:token/nl-describe`
+
+**Auth:** none. **Availability:** only when **`FEATURE_DIAGNOSTIC_INTAKE_PILOT`** is enabled on the server; otherwise **`404`** (same envelope as unknown token for clients).
+
+**Body:** `{ "text": string }` — non-empty after trim, max **8000** characters. **Privacy:** this stub does **not** persist `text`; it only logs a short operational line (length + token prefix). Structured answers from **`POST .../respond`** remain authoritative (`prefer_explicit_over_inferred: true` in the JSON response).
+
+**Response `200`:** `{ "ok": true, "prefer_explicit_over_inferred": true, "graphDraft": null, "message": string }` — `graphDraft` is reserved for a future NL→bank orchestrator (see `docs/adrs/ADR-NL-TO-GRAPH-INGRESS-V1.md`).
+
+### `POST /api/intake/:token/intelligence-kpi`
+
+**Auth:** none. **Availability:** only when **`FEATURE_DIAGNOSTIC_INTAKE_PILOT`** is enabled; otherwise **`404`**.
+
+**Body:** JSON with **`event`** or **`kind`**: `question_shown` | `drop_off`. For `question_shown`, **`question_id`** (bank id) is required. Optional **`client_session_id`** (short string) correlates browser beacons with fetch calls.
+
+**Response `200`:** `{ "ok": true, "persisted": boolean }` — when the intake token has no linked **`audit_id`**, the server accepts the request but skips `pipeline_events` insert (`persisted: false`). **`sendBeacon`** from the public page uses the same path and JSON body.
+
 ### `POST /api/intake/:token/respond`
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
@@ -1456,7 +1475,29 @@ Queues an on-demand director deep-dive job.
 
 **Access:** same as quota route — `503` `DIRECTOR_DEEP_DIVE_DISABLED` when not enabled. Base toggle: `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`; staged rollout: `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` + allowlist (see `server/src/config/orchestration-rollout-gates.ts`).
 
-**Client initiative hint:** there is no separate `selected-initiative` route. The client re-ranks priorities by passing **`selected_action_ids`** on existing orchestration endpoints (for example `POST /api/audits/:id/orchestrator/run` and pack regenerate paths); the server applies `applySelectedActionHint` during pack persistence. See the manifest and orchestration pack subsections above.
+### `POST /api/audits/:id/orchestration/selected-initiative`
+
+Lightweight initiative-selection alias for cockpit/timeline CTA (`Mark as my next step`).
+
+**Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
+
+**Request body (JSON):**
+
+```json
+{
+  "action_id": "node-id-from-pack"
+}
+```
+
+**Behavior:** server resolves latest manifest snapshot for the audit and internally reuses orchestration pack persistence flow with `selected_action_ids: [action_id]`. This keeps governance, validation, and idempotency semantics aligned with `POST /api/audits/:id/orchestration/pack`.
+
+**Response `200`:** same shape as `POST /api/audits/:id/orchestration/pack` (`pack`, `orchestration_pack_version`, `roadmap_version`, `last_revision_diff`, `plan_governance`).
+
+**Errors:**
+
+- `400` `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID` when `action_id` is missing/invalid.
+- `409` `AUDITS_ORCHESTRATION_PACK_NOT_READY` when latest manifest snapshot is absent (`not_ready_reason_code: "manifest_snapshot_missing"`).
+- `400` `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID` when `action_id` is not found in pack nodes (propagated `invalid_selected_action_ids`).
 
 **Request body (JSON):**
 

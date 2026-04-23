@@ -176,6 +176,10 @@ export function evaluateCriticalSignalsPilot(args: {
             // Lower-priority sources cannot elevate confidence above low in the pilot.
             sourceBoundedConfidence = 'low';
           }
+        } else if (sourcePriority.length > 0 && !rawSource) {
+          // Typical client submits value-only cells without provenance metadata — treat as structured capture
+          // for progressive certainty (hypothesis / uncertainty_closed lanes), bounded below explicit provenance.
+          sourceBoundedConfidence = 'medium';
         }
         signalWorst = minConfidence(signalWorst, sourceBoundedConfidence);
       }

@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "rules": {
     "has_website": {
       "reads": ["a5"],
@@ -71,6 +71,36 @@
       "kind": "question_lower_includes_any",
       "questionId": "a3",
       "substrings": ["spain", "españa", "mallorca"]
+    },
+    "stage_launching": {
+      "reads": ["a7"],
+      "kind": "unwrap_string_eq",
+      "questionId": "a7",
+      "expectValue": "Launching"
+    },
+    "stage_growing_fast": {
+      "reads": ["a7"],
+      "kind": "unwrap_string_eq",
+      "questionId": "a7",
+      "expectValue": "Growing fast"
+    },
+    "stage_stabilising": {
+      "reads": ["a7"],
+      "kind": "unwrap_string_eq",
+      "questionId": "a7",
+      "expectValue": "Stabilising"
+    },
+    "stage_scaling": {
+      "reads": ["a7"],
+      "kind": "unwrap_string_eq",
+      "questionId": "a7",
+      "expectValue": "Scaling"
+    },
+    "stage_mature": {
+      "reads": ["a7"],
+      "kind": "unwrap_string_eq",
+      "questionId": "a7",
+      "expectValue": "Mature and optimising"
     }
   }
 }

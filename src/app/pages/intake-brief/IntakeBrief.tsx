@@ -49,6 +49,7 @@ export function IntakeBrief() {
               <IntakeBriefFormPhase
                 questionSections={c.questionSections}
                 responses={c.responses}
+                nlIngress={c.nlIngress}
                 readinessPanel={c.readinessPanel}
                 intelligenceByQuestionId={c.intelligenceByQuestionId}
                 signalConfidenceByQuestionId={c.signalConfidenceByQuestionId}

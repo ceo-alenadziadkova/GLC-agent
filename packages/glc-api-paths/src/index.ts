@@ -155,6 +155,10 @@ export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
 }
 
+export function apiAuditsOrchestrationSelectedInitiative(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/selected-initiative`;
+}
+
 export function apiAuditsOrchestrationPackRegenerate(auditId: string): string {
   return `${apiAuditsOrchestrationPack(auditId)}/regenerate`;
 }
@@ -165,6 +169,10 @@ export function idempotencyPostAuditsOrchestrationPackKey(auditId: string): stri
 
 export function idempotencyPostAuditsOrchestrationPackRegenerateKey(auditId: string): string {
   return idempotencyPostKey(apiAuditsOrchestrationPackRegenerate(auditId));
+}
+
+export function idempotencyPostAuditsOrchestrationSelectedInitiativeKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationSelectedInitiative(auditId));
 }
 
 export function apiAuditsOrchestrationPackDiffHistory(
@@ -261,6 +269,14 @@ export function apiIntakeToken(token: string): string {
 
 export function apiIntakeRespond(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/respond`;
+}
+
+export function apiIntakeNlDescribe(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/nl-describe`;
+}
+
+export function apiIntakeIntelligenceKpi(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/intelligence-kpi`;
 }
 
 export function apiBriefPublicSession(token: string): string {

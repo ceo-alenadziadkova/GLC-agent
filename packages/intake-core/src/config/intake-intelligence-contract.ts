@@ -1,33 +1,32 @@
 import criticalSignalsPilot from '../artifacts/intake-critical-signals-pilot-1.0.0.json' with { type: 'json' };
-import type {
-  DecisionImpact,
-  DiagnosticSpineCategory,
-  FollowupPolicy,
-  SignalContribution,
-  StopCondition,
-} from '../audit-contract.js';
 import { QUESTION_BANK_V1_IDS, getQuestionBankSchemaMeta } from '../question-bank.js';
+import { INTAKE_INTELLIGENCE_GATE_METADATA } from './intake-intelligence-gate-metadata.js';
+import {
+  getIntakeIntelligenceSprint2CoverageSummary as computeIntakeIntelligenceSprint2CoverageSummary,
+  isIntakeIntelligenceSprint2Complete as isIntakeIntelligenceSprint2ContractComplete,
+} from './intake-intelligence-sprint2.js';
+import type {
+  IntakeIntelligenceContract,
+  IntakeIntelligenceOwnerDomain,
+  IntakeIntelligenceTodo,
+} from './intake-intelligence-types.js';
+
+export type {
+  IntakeIntelligenceContract,
+  IntakeIntelligenceOwnerDomain,
+  IntakeIntelligenceStewardship,
+  IntakeIntelligenceTodo,
+} from './intake-intelligence-types.js';
+
+export {
+  INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE,
+  INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
+  getIntakeIntelligenceBankIdsOutsideSprint2Gate,
+} from './intake-intelligence-sprint2.js';
 
 type CriticalSignalsArtifact = {
   signals?: Record<string, { bankIds?: string[] }>;
 };
-
-export type IntakeIntelligenceOwnerDomain =
-  | 'product'
-  | 'recon'
-  | 'tech_infrastructure'
-  | 'security_compliance'
-  | 'seo_digital'
-  | 'ux_conversion'
-  | 'marketing_utp'
-  | 'automation_processes'
-  | 'strategy';
-
-export interface IntakeIntelligenceTodo {
-  ownerDomain: IntakeIntelligenceOwnerDomain;
-  reviewByIsoDate: string;
-  todoReason: string;
-}
 
 export const INTAKE_INTELLIGENCE_REQUIRED_NOW_FIELDS = [
   'whyAsked',
@@ -46,451 +45,13 @@ export type IntakeIntelligenceRequiredNowField =
 export type IntakeIntelligenceOptionalWithTodoField =
   (typeof INTAKE_INTELLIGENCE_OPTIONAL_WITH_TODO_FIELDS)[number];
 
-export interface IntakeIntelligenceContract {
-  whyAsked?: string;
-  decisionImpact?: DecisionImpact[];
-  signalContribution?: SignalContribution[];
-  followupPolicy?: FollowupPolicy;
-  stopCondition?: StopCondition;
-  semanticDomain?: DiagnosticSpineCategory;
-  antiPatternExemptions?: string[];
-  todo?: IntakeIntelligenceTodo;
-}
-
 const DEFAULT_TODO: IntakeIntelligenceTodo = {
   ownerDomain: 'product',
   reviewByIsoDate: '2026-07-31',
   todoReason: 'Sprint 1 scope: full metadata enrichment is deferred, fallback remains enabled.',
 };
 
-const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
-  a2: {
-    whyAsked: 'Industry context changes risk posture and recommendation path from the very first sequencing step.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'strategy.vertical_path',
-        weight: 'high',
-        effectDescription: 'Activates vertical-specific hypotheses and affects required evidence order.',
-      },
-    ],
-  },
-  a5: {
-    whyAsked: 'Website presence determines whether diagnostics should prioritize digital surface or operations-first discovery.',
-    semanticDomain: 'resources',
-    decisionImpact: [
-      {
-        target: 'strategy.intake_path',
-        weight: 'high',
-        effectDescription: 'Switches between website and no-site decision graph branches.',
-      },
-    ],
-  },
-  d2: {
-    whyAsked: 'Primary bottleneck identifies where process change can produce the largest near-term operational impact.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'strategy.automation_quick_wins',
-        weight: 'high',
-        effectDescription: 'Prioritizes automation opportunities around the highest-friction workflow.',
-      },
-    ],
-  },
-  d_closing_flow: {
-    whyAsked: 'Closing-flow steps expose friction between first contact and payment, which drives conversion and efficiency recommendations.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'ux_conversion.funnel_interventions',
-        weight: 'high',
-        effectDescription: 'Defines whether recommendations should remove, simplify, or automate pre-payment steps.',
-      },
-    ],
-  },
-  f1: {
-    whyAsked: 'The primary business problem anchors which outcomes are optimized first in the final strategy.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'strategy.primary_problem',
-        weight: 'high',
-        effectDescription: 'Determines top-level roadmap objective and triage order.',
-      },
-    ],
-  },
-  f2: {
-    whyAsked: 'Audit focus areas constrain the decision space to what is relevant for this client and this audit.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'strategy.focus_package',
-        weight: 'high',
-        effectDescription: 'Controls domain depth allocation in recommendations.',
-      },
-    ],
-  },
-  f3: {
-    whyAsked: 'Self-rating calibrates advisory tone and expected implementation complexity.',
-    semanticDomain: 'resources',
-    decisionImpact: [
-      {
-        target: 'strategy.change_tone',
-        weight: 'medium',
-        effectDescription: 'Adjusts roadmap framing from stabilization to acceleration language.',
-      },
-    ],
-  },
-  f4: {
-    whyAsked: 'Change readiness indicates whether to prioritize low-friction wins or longer systemic changes.',
-    semanticDomain: 'resources',
-    decisionImpact: [
-      {
-        target: 'strategy.execution_pacing',
-        weight: 'high',
-        effectDescription: 'Changes sequencing and implementation horizon assumptions.',
-      },
-    ],
-  },
-  f5: {
-    whyAsked: 'Budget range prevents infeasible recommendations and aligns scope with financial constraints.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.investment_envelope',
-        weight: 'medium',
-        effectDescription: 'Filters recommendation set by feasible spend range.',
-      },
-    ],
-  },
-  f6: {
-    whyAsked: 'Explicit constraints protect trust by excluding recommendations that conflict with hard business boundaries.',
-    semanticDomain: 'risks',
-    decisionImpact: [
-      {
-        target: 'strategy.constraint_guardrails',
-        weight: 'medium',
-        effectDescription: 'Blocks disallowed recommendation patterns from downstream synthesis.',
-      },
-    ],
-  },
-  f7: {
-    whyAsked: 'Approval ownership predicts execution friction and helps sequence implementable actions first.',
-    semanticDomain: 'resources',
-    decisionImpact: [
-      {
-        target: 'strategy.decision_latency',
-        weight: 'medium',
-        effectDescription: 'Reorders roadmap by expected approval cycle speed.',
-      },
-    ],
-  },
-  f8: {
-    whyAsked: 'Deadline context determines urgency and whether to favor immediate impact over longer discovery.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.timeline_pressure',
-        weight: 'high',
-        effectDescription: 'Prioritizes near-term delivery sequence under time constraints.',
-      },
-    ],
-  },
-  f9: {
-    whyAsked: 'Additional context captures exceptions that materially change recommendation validity.',
-    semanticDomain: 'risks',
-    decisionImpact: [
-      {
-        target: 'strategy.exception_handling',
-        weight: 'medium',
-        effectDescription: 'Adds explicit caveats that prevent invalid assumptions.',
-      },
-    ],
-  },
-  c2: {
-    whyAsked: 'Revenue and pipeline shape determine whether to prioritize growth, retention, or unit economics in the first roadmap wave.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.revenue_reality',
-        weight: 'high',
-        effectDescription: 'Tightens ICP, pricing, and channel advice to the actual revenue motion.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  e3: {
-    whyAsked: 'Adoption and usage truth separates product issues from GTM issues when triaging bottlenecks.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'ux_conversion.activation_narrative',
-        weight: 'high',
-        effectDescription: 'Shifts focus between product UX work and marketing/packaging if adoption is the gap.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b5: {
-    whyAsked: 'Team and operating capacity bounds what can be executed in parallel in the 30–90 day plan.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'automation_processes.throughput_ceiling',
-        weight: 'medium',
-        effectDescription: 'Scales or caps initiative counts and parallel workstreams to realistic headcount.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  f_idea_1: {
-    whyAsked: 'Problem evidence level indicates whether to prioritize validation experiments or scaling actions.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'strategy.validation_priority',
-        weight: 'high',
-        effectDescription: 'Determines validation-first versus execution-first recommendation mode.',
-      },
-    ],
-  },
-  f_idea_2: {
-    whyAsked: 'ICP clarity determines how precise channel and offer recommendations can be.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.targeting_precision',
-        weight: 'high',
-        effectDescription: 'Controls specificity of go-to-market channel recommendations.',
-      },
-    ],
-  },
-  f_idea_3: {
-    whyAsked: 'GTM test readiness identifies what evidence can be collected quickly with realistic effort.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'strategy.experiment_sequence',
-        weight: 'medium',
-        effectDescription: 'Orders practical launch experiments by feasibility.',
-      },
-    ],
-  },
-  f_idea_4: {
-    whyAsked: 'Primary launch blocker reveals the dominant constraint that should be addressed first.',
-    semanticDomain: 'risks',
-    decisionImpact: [
-      {
-        target: 'strategy.constraint_resolution',
-        weight: 'high',
-        effectDescription: 'Defines first unblock action in launch roadmap.',
-      },
-    ],
-  },
-  a1: {
-    whyAsked: 'A crisp company one-liner calibrates recon prompts and sets default narrative for downstream strategy synthesis.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'strategy.macro_positioning',
-        weight: 'medium',
-        effectDescription: 'Influences how initiative titles and problem framing are phrased for the client.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a3: {
-    whyAsked: 'Geography and operating footprint affect compliance, localization, and channel reality for the roadmap.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'recon.operating_context',
-        weight: 'medium',
-        effectDescription: 'Tightens region-specific constraints and go-to-market assumptions.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a4: {
-    whyAsked: 'Headcount range bounds parallel initiative capacity and the feasible pace of execution.',
-    semanticDomain: 'resources',
-    decisionImpact: [
-      {
-        target: 'automation_processes.throughput_ceiling',
-        weight: 'high',
-        effectDescription: 'Scales the number and complexity of recommended concurrent workstreams.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a6: {
-    whyAsked: 'Current payment-surface scope determines whether e-commerce, billing, and trust UX are in play.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'ux_conversion.trust_ladder',
-        weight: 'high',
-        effectDescription: 'Gates how aggressively payment and conversion experiments can be recommended.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a7: {
-    whyAsked: 'Business stage calibrates risk appetite, time horizon, and the balance of quick wins vs foundation work.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.execution_pacing',
-        weight: 'high',
-        effectDescription: 'Reorders the roadmap to match launch vs growth vs optimization phases.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a8: {
-    whyAsked: 'Order volume situates the business on a scale curve so recommendations stay proportionate to operating load.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.capacity_assumptions',
-        weight: 'medium',
-        effectDescription: 'Influences whether automation, outsourcing, or manual processes are the default play.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a9: {
-    whyAsked: 'Customer language footprint affects copy, support depth, and localized acquisition surfaces.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.localisation_scope',
-        weight: 'medium',
-        effectDescription: 'Turns on or off multi-locale GTM, SEO, and creative variants.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a10: {
-    whyAsked: 'Monetization model sets unit economics, payback windows, and which growth loops are structurally available.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.unit_economics',
-        weight: 'high',
-        effectDescription: 'Calibrates CAC tolerance, LTV models, and which channels are viable at scale.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a11: {
-    whyAsked: 'Primary revenue source concentration determines diversification vs doubling-down in the execution plan.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.revenue_diversification',
-        weight: 'high',
-        effectDescription: 'Influences risk of single-channel dependency in roadmap and experiments.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  a12: {
-    whyAsked: 'Revenue range bands scope feasible tooling, headcount, and marketing investment without fantasy scenarios.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'strategy.spend_guardrails',
-        weight: 'medium',
-        effectDescription: 'Bounds recommended initiative cost and expected proof thresholds.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b1: {
-    whyAsked: 'Ideal customer definition narrows ICP, channel choice, and pricing tolerance before tactical plans.',
-    semanticDomain: 'market',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.targeting_model',
-        weight: 'high',
-        effectDescription: 'Drives message-market fit, offer shape, and organic vs paid mix.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b2: {
-    whyAsked: 'Buying triggers determine timing, creative angles, and which proof assets to prepare first.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'strategy.demand_window',
-        weight: 'medium',
-        effectDescription: 'Aligns GTM waves and follow-up SLAs to real purchase events.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b3: {
-    whyAsked: 'Objection patterns shape landing narrative, risk-reversal, and success metrics in trials.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'ux_conversion.friction_map',
-        weight: 'high',
-        effectDescription: 'Links copy and UX fixes to the highest-frequency drop-off reasons.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b4: {
-    whyAsked: 'Proof inventory determines credibility depth on site, ads, and sales collateral.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.proof_layer',
-        weight: 'high',
-        effectDescription: 'Selects which evidence to lift into hero, retargeting, and case studies.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  c1: {
-    whyAsked: 'Channel efficiency caps set realistic CAC/ROAS plans and where to reallocate when limits hit.',
-    semanticDomain: 'economics',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.acquisition_guardrails',
-        weight: 'high',
-        effectDescription: 'Prevents over-spend before measurement loops are trusted.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  c3: {
-    whyAsked: 'Funnel shape exposes whether to fix top-of-funnel, mid-funnel nurture, or closing.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'strategy.pipeline_diagnosis',
-        weight: 'high',
-        effectDescription: 'Sequencing of experiments and content against the true bottleneck stage.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  c4: {
-    whyAsked: 'Cycle length sets forecast realism, sales capacity planning, and nurture depth.',
-    semanticDomain: 'operations',
-    decisionImpact: [
-      {
-        target: 'automation_processes.sales_cadence',
-        weight: 'medium',
-        effectDescription: 'Drives handoff design between marketing, SDR, and account teams.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
+const P0_METADATA_OUT_OF_GATE: Record<string, IntakeIntelligenceContract> = {
   c5: {
     whyAsked: 'Revenue model clarity avoids mixed messaging, pricing page drift, and wrong KPI dashboards.',
     semanticDomain: 'economics',
@@ -523,30 +84,6 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
         target: 'strategy.risk_register',
         weight: 'high',
         effectDescription: 'Sets time-boxes for roadmap bets and default stall policies.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b7: {
-    whyAsked: 'Repeat purchase rate drives retention program priority, CAC payback, and LTV-based channel choices.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.retention_posture',
-        weight: 'high',
-        effectDescription: 'Chooses whether acquisition vs lifecycle messaging gets top roadmap slots.',
-      },
-    ],
-    todo: DEFAULT_TODO,
-  },
-  b10: {
-    whyAsked: 'Referral and word-of-mouth mix affects proof strategy, creative hooks, and incentive design.',
-    semanticDomain: 'value',
-    decisionImpact: [
-      {
-        target: 'marketing_utp.amplification',
-        weight: 'medium',
-        effectDescription: 'Allocates social proof and community touches vs paid acquisition work.',
       },
     ],
     todo: DEFAULT_TODO,
@@ -587,6 +124,311 @@ const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
     ],
     todo: DEFAULT_TODO,
   },
+  d3: {
+    whyAsked: 'Manual hours quantify automation ROI and where throughput work will pay back first.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.throughput_priority',
+        weight: 'high',
+        effectDescription: 'Prioritizes process-map depth vs automation candidates when hours are concentrated.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d4: {
+    whyAsked: 'Onboarding knowledge location affects ramp time, quality risk, and whether playbooks can scale.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.knowledge_transfer',
+        weight: 'medium',
+        effectDescription: 'Influences documentation and training initiatives before heavy automation.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  e1: {
+    whyAsked: 'Payment acceptance scope drives PCI exposure, checkout UX requirements, and fraud controls.',
+    semanticDomain: 'risks',
+    decisionImpact: [
+      {
+        target: 'security_compliance.payment_scope',
+        weight: 'high',
+        effectDescription: 'Determines whether threat-model and compliance-map depth should emphasize payments.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  e2: {
+    whyAsked: 'EU footprint triggers GDPR-style obligations, subprocessors, and data residency decisions.',
+    semanticDomain: 'risks',
+    decisionImpact: [
+      {
+        target: 'security_compliance.data_residency',
+        weight: 'high',
+        effectDescription: 'Shapes compliance-map emphasis and incident-response assumptions.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  e3: {
+    whyAsked: 'Adoption and usage truth separates product issues from GTM issues when triaging bottlenecks.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.activation_narrative',
+        weight: 'high',
+        effectDescription: 'Shifts focus between product UX work and marketing/packaging if adoption is the gap.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_1: {
+    whyAsked: 'No-site lead source indicates where trust and acquisition must start before web-dependent recommendations.',
+    semanticDomain: 'market',
+    decisionImpact: [
+      {
+        target: 'strategy.nosite_acquisition_entry',
+        weight: 'medium',
+        effectDescription: 'Prioritizes channel experiments that do not require a full website stack.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_2: {
+    whyAsked: 'Current messaging clarity without a site determines whether offer positioning must be rebuilt first.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.message_foundation',
+        weight: 'medium',
+        effectDescription: 'Shifts effort toward value proposition and proof assets before paid scale.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_3: {
+    whyAsked: 'Lead follow-up process quality controls conversion even when traffic generation is healthy.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.follow_up_sequence',
+        weight: 'high',
+        effectDescription: 'Guides automation and SLA recommendations for response consistency.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_4: {
+    whyAsked: 'Social or marketplace profile depth acts as a proxy trust layer when a canonical site is absent.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.trust_ladder',
+        weight: 'medium',
+        effectDescription: 'Informs whether trust interventions should focus on profile completeness and proof.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_5: {
+    whyAsked: 'Primary conversion handoff mechanism without a site determines instrumentation and attribution options.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'tech_infrastructure.attribution_minimum',
+        weight: 'medium',
+        effectDescription: 'Sets the minimum event tracking path before optimization experiments.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  c_nosite_reviews: {
+    whyAsked: 'Public review signal strength influences trust recovery urgency and conversion friction assumptions.',
+    semanticDomain: 'value',
+    decisionImpact: [
+      {
+        target: 'marketing_utp.social_proof_recovery',
+        weight: 'high',
+        effectDescription: 'Prioritizes reputation and testimonial workstreams when proof is weak.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d1a: {
+    whyAsked: 'CRM data structure maturity determines whether pipeline automation can be safely introduced.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'automation_processes.crm_readiness',
+        weight: 'high',
+        effectDescription: 'Gates sequence of cleanup vs workflow automation.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d1b: {
+    whyAsked: 'Contact and account ownership clarity reduces duplicate follow-up and routing failures.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.routing_integrity',
+        weight: 'medium',
+        effectDescription: 'Determines whether ownership normalization precedes orchestration changes.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_response_time: {
+    whyAsked: 'Response-time variance directly impacts win-rate and should shape SLA-first interventions.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.sla_design',
+        weight: 'high',
+        effectDescription: 'Prioritizes queueing, alerting, and staffing recommendations.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_billing_flow: {
+    whyAsked: 'Billing handoff complexity is a frequent conversion leak that changes checkout and operations priorities.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.checkout_handoff',
+        weight: 'high',
+        effectDescription: 'Focuses roadmap on billing simplification when payment step loss is material.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_automation_attempt: {
+    whyAsked: 'Prior automation attempts reveal adoption constraints and prevent repeating failed implementation patterns.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.change_adoption',
+        weight: 'medium',
+        effectDescription: 'Adjusts automation scope to team readiness and historical blockers.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d4a: {
+    whyAsked: 'Internal documentation depth determines whether process scaling can happen without quality regression.',
+    semanticDomain: 'resources',
+    decisionImpact: [
+      {
+        target: 'automation_processes.playbook_quality',
+        weight: 'medium',
+        effectDescription: 'Prioritizes documentation remediation before advanced automation rollout.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d4b: {
+    whyAsked: 'Training consistency affects throughput predictability and onboarding ramp in multi-role teams.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.ramp_time_reduction',
+        weight: 'medium',
+        effectDescription: 'Guides whether training assets or process redesign should come first.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d5: {
+    whyAsked: 'Current reporting cadence defines decision latency and where operating reviews need tightening.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'strategy.operating_rhythm',
+        weight: 'medium',
+        effectDescription: 'Shapes recommendation cadence for weekly and monthly decision loops.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d6: {
+    whyAsked: 'Data ownership ambiguity increases execution risk when multiple teams touch the same workflow.',
+    semanticDomain: 'risks',
+    decisionImpact: [
+      {
+        target: 'security_compliance.data_accountability',
+        weight: 'medium',
+        effectDescription: 'Determines governance controls required before scaling process automations.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_hotel_1: {
+    whyAsked: 'Hotel operations bottlenecks change whether recommendations should prioritize occupancy or service consistency.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'strategy.vertical_path',
+        weight: 'medium',
+        effectDescription: 'Keeps hospitality interventions aligned with frontline operational constraints.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_hotel_2: {
+    whyAsked: 'Seasonality handling maturity affects staffing and channel pacing recommendations for hospitality.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'strategy.seasonality_plan',
+        weight: 'medium',
+        effectDescription: 'Reorders roadmap timing around demand volatility windows.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_realestate_1: {
+    whyAsked: 'Real-estate lead qualification rigor determines whether automation or conversion copy should be prioritized.',
+    semanticDomain: 'operations',
+    decisionImpact: [
+      {
+        target: 'automation_processes.lead_qualification',
+        weight: 'medium',
+        effectDescription: 'Sets sequence for triage automation and nurture logic.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  d_restaurant_1: {
+    whyAsked: 'Restaurant demand and reservation flow reliability drive near-term staffing and revenue protection decisions.',
+    semanticDomain: 'economics',
+    decisionImpact: [
+      {
+        target: 'ux_conversion.reservation_reliability',
+        weight: 'medium',
+        effectDescription: 'Prioritizes booking funnel stability and no-show mitigation actions.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+  e4: {
+    whyAsked: 'Security incident response readiness determines downside risk and required control urgency.',
+    semanticDomain: 'risks',
+    decisionImpact: [
+      {
+        target: 'security_compliance.incident_response',
+        weight: 'high',
+        effectDescription: 'Elevates response playbooks and control priorities before aggressive growth bets.',
+      },
+    ],
+    todo: DEFAULT_TODO,
+  },
+};
+
+const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
+  ...INTAKE_INTELLIGENCE_GATE_METADATA,
+  ...P0_METADATA_OUT_OF_GATE,
 };
 
 function collectCriticalSignalBankIds(): Set<string> {
@@ -659,6 +501,7 @@ export function hasIntakeIntelligenceOptionalWithTodo(
     !!contract.followupPolicy ||
     !!contract.stopCondition;
   if (!hasOptionalField) return false;
+  if (isIntakeIntelligenceSprint2ContractComplete(contract, hasIntakeIntelligenceRequiredNow)) return true;
   return isValidIntakeIntelligenceTodo(contract.todo);
 }
 
@@ -693,4 +536,18 @@ export function getIntakeIntelligenceCoverageSummary(): {
     coverageRatio: totalQuestions > 0 ? fullyCoveredQuestions / totalQuestions : 0,
     p0CoverageRatio: p0Questions > 0 ? fullyCoveredP0Questions / p0Questions : 0,
   };
+}
+
+export function getIntakeIntelligenceSprint2CoverageSummary() {
+  return computeIntakeIntelligenceSprint2CoverageSummary({
+    getContract: getIntakeIntelligenceContract,
+    hasRequiredNow: hasIntakeIntelligenceRequiredNow,
+  });
+}
+
+export function isIntakeIntelligenceSprint2GateSatisfied(questionId: string): boolean {
+  return isIntakeIntelligenceSprint2ContractComplete(
+    getIntakeIntelligenceContract(questionId),
+    hasIntakeIntelligenceRequiredNow,
+  );
 }

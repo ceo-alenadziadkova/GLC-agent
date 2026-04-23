@@ -203,3 +203,15 @@ Available artifacts:
 4. Prefer reversible rollout and pilot-first for high-risk initiatives.
 5. If data is missing, produce a validation plan, not fake certainty.
 
+---
+
+## 10) Deep-dive MVP sub-agents (registry alignment)
+
+These headings anchor `server/prompts/sub-agents/cao/*.md` and `DIRECTOR_SUB_AGENTS` rows; keep them synchronized when changing the CAO wave.
+
+### AGENT 1 — Process map (deep-dive MVP)
+
+### AGENT 2 — Automation candidates (deep-dive MVP)
+
+### AGENT 3 — Throughput & WIP guardrails (deep-dive MVP)
+

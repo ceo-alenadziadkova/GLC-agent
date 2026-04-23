@@ -64,26 +64,41 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * When false, staged access uses `orchestrationRoadmapNarrativeRolloutMode` + allowlist (see orchestration-rollout-gates).
    * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED
    */
-  orchestrationRoadmapNarrativeEnabled: false,
+  orchestrationRoadmapNarrativeEnabled: true,
   /**
    * Rollout mode for client roadmap narrative surface.
    * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE
    */
-  orchestrationRoadmapNarrativeRolloutMode: 'internal',
+  orchestrationRoadmapNarrativeRolloutMode: 'ga',
   /**
    * Rollout mode for on-demand director deep-dive flow.
    * Env: FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE
    */
-  directorDeepDiveRolloutMode: 'internal',
+  directorDeepDiveRolloutMode: 'ga',
   /**
    * Rollout mode for director sub-agent experience.
    * Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE
    */
-  directorSubAgentsRolloutMode: 'internal',
-  directorDeepDiveOnDemandEnabled: false,
-  directorSubAgentsEnabled: false,
+  directorSubAgentsRolloutMode: 'ga',
+  directorDeepDiveOnDemandEnabled: true,
+  directorSubAgentsEnabled: true,
   /** CDO/CAO/CSO deep-dive stub bundles (non-CMO). Env: FEATURE_DIRECTOR_CDO_SUB_AGENTS, etc. */
   directorCdoSubAgentsEnabled: false,
+  /**
+   * When true, `ux_conversion` deep-dive uses CDO LLM sub-agent orchestration instead of deterministic stub.
+   * Separate from `directorCdoSubAgentsEnabled` (materialized stub for all CDO domains). Env: FEATURE_CDO_DEEP_DIVE_LLM
+   */
+  cdoDeepDiveLlmEnabled: false,
+  /**
+   * When true, `automation_processes` deep-dive uses CAO LLM sub-agent orchestration instead of deterministic stub.
+   * Separate from `directorCaoSubAgentsEnabled`. Env: FEATURE_CAO_DEEP_DIVE_LLM
+   */
+  caoDeepDiveLlmEnabled: false,
+  /**
+   * When true, `security_compliance` deep-dive uses CSO LLM sub-agent orchestration instead of deterministic stub.
+   * Separate from `directorCsoSubAgentsEnabled`. Env: FEATURE_CSO_DEEP_DIVE_LLM
+   */
+  csoDeepDiveLlmEnabled: false,
   directorCaoSubAgentsEnabled: false,
   directorCsoSubAgentsEnabled: false,
   /**

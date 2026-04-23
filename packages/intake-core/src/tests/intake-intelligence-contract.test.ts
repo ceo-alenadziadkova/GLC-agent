@@ -3,11 +3,17 @@ import { describe, expect, it } from 'vitest';
 import {
   getIntakeIntelligenceContract,
   getIntakeIntelligenceCoverageSummary,
+  getIntakeIntelligenceSprint2CoverageSummary,
   hasIntakeIntelligenceRequiredNow,
   INTAKE_INTELLIGENCE_P0_IDS,
+  isIntakeIntelligenceSprint2GateSatisfied,
   isValidIntakeIntelligenceTodo,
   projectIntakeIntelligenceRequiredNow,
 } from '../config/intake-intelligence-contract.js';
+import {
+  INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE,
+  INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
+} from '../config/intake-intelligence-sprint2.js';
 import { QUESTION_BANK_V1_IDS } from '../question-bank.js';
 
 describe('intake intelligence contract', () => {
@@ -21,10 +27,11 @@ describe('intake intelligence contract', () => {
     }
   });
 
-  it('requires valid todo metadata for non-P0 questions in sprint 1 mode', () => {
+  it('requires valid todo metadata for non-P0 questions outside Sprint 2 gate completion', () => {
     const p0Set = new Set(INTAKE_INTELLIGENCE_P0_IDS);
     for (const questionId of QUESTION_BANK_V1_IDS) {
       if (p0Set.has(questionId)) continue;
+      if (isIntakeIntelligenceSprint2GateSatisfied(questionId)) continue;
       const contract = getIntakeIntelligenceContract(questionId);
       expect(
         isValidIntakeIntelligenceTodo(contract.todo),
@@ -37,10 +44,27 @@ describe('intake intelligence contract', () => {
     const summary = getIntakeIntelligenceCoverageSummary();
     expect(summary.totalQuestions).toBe(78);
     expect(summary.p0Questions).toBe(INTAKE_INTELLIGENCE_P0_IDS.length);
-    expect(summary.fullyCoveredQuestions).toBe(45);
+    expect(summary.fullyCoveredQuestions).toBe(78);
     expect(summary.fullyCoveredP0Questions).toBe(summary.p0Questions);
-    expect(summary.coverageRatio).toBeCloseTo(45 / 78, 8);
+    expect(summary.coverageRatio).toBeCloseTo(1, 8);
     expect(summary.p0CoverageRatio).toBe(1);
+  });
+
+  it('covers the full Sprint 2 gate with complete contracts', () => {
+    const s2 = getIntakeIntelligenceSprint2CoverageSummary();
+    expect(s2.gateQuestionCount).toBe(47);
+    expect(s2.sprint2CompleteQuestions).toBeGreaterThanOrEqual(47);
+    expect(s2.sprint2CompleteRatio).toBe(1);
+  });
+
+  it('tracks the deterministic remainder outside the Sprint 2 gate for the next enrichment wave', () => {
+    expect(INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE.length).toBe(31);
+    const outside = new Set(INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE);
+    expect(INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS.length).toBe(47);
+    for (const id of INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS) {
+      expect(outside.has(id)).toBe(false);
+    }
+    expect(new Set([...outside, ...INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS]).size).toBe(78);
   });
 
   it('projects required_now payload only for complete contracts', () => {
@@ -49,7 +73,8 @@ describe('intake intelligence contract', () => {
     expect(p0Projected?.whyAsked).toBeTruthy();
     expect(Array.isArray(p0Projected?.decisionImpact)).toBe(true);
 
-    const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('b6'));
-    expect(nonP0Projected).toBeUndefined();
+    const nonP0Projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract('e4'));
+    expect(nonP0Projected).toBeDefined();
+    expect(nonP0Projected?.semanticDomain).toBe('risks');
   });
 });

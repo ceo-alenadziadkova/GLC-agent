@@ -4,7 +4,7 @@
     {
       "key": "ecommerce",
       "label": "E-commerce",
-      "status": "planned",
+      "status": "active",
       "diagnosticDepthProbes": [
         "order_funnel_dropoff_point",
         "fulfillment_returns_maturity",

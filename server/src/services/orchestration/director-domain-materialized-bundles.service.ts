@@ -2,6 +2,8 @@ import {
   CAO_MATERIALIZED_PROMPT_REFS,
   CDO_MATERIALIZED_PROMPT_REFS,
   CSO_MATERIALIZED_PROMPT_REFS,
+  CTO_MATERIALIZED_PROMPT_REFS,
+  SEO_MATERIALIZED_PROMPT_REFS,
 } from '../../config/director-domain-materialized-prompt-refs.js';
 import { DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES } from '../../config/director-orchestration-policy.js';
 import type { CaoDeepDiveRoute } from './director-cao-router.service.js';
@@ -229,6 +231,74 @@ export function buildCsoMaterializedWaveBundle(input: {
           derived: [CSO_MATERIALIZED_PROMPT_REFS.compliance_map],
           observed: [],
           assumed: [CSO_CASE_LABEL[input.csoCase]],
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * CTO: deterministic infra/readiness stub for `tech_infrastructure` deep-dive (no LLM).
+ */
+export function buildCtoMaterializedWaveBundle(input: {
+  domainKey: string;
+  goals: string[];
+  constraints: string[];
+}): DirectorWaveBundle {
+  const primaryId = `sub_agent:cto.readiness:${input.domainKey}`;
+  return {
+    zones: [input.domainKey, 'tech_infrastructure'],
+    bottlenecks: ['Reliability, delivery cadence, and technical debt hotspots (heuristic stub)'],
+    risks: input.constraints.slice(0, 3),
+    actions: [
+      {
+        id: primaryId,
+        title: 'Infrastructure & delivery readiness',
+        description: `Prioritize foundations for: ${input.goals[0] ?? 'stated goals'}. Validate SLAs, environments, and release risk.`,
+        impact: s.impact,
+        effort: s.effort,
+        risk: s.risk,
+        urgency: s.urgency,
+        confidence: s.confidence,
+        dependencies: [],
+        evidence: {
+          derived: [CTO_MATERIALIZED_PROMPT_REFS.readiness],
+          observed: input.goals.slice(0, 2),
+          assumed: input.constraints.slice(0, 2),
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * SEO: deterministic visibility stub for `seo_digital` deep-dive (no LLM).
+ */
+export function buildSeoMaterializedWaveBundle(input: {
+  domainKey: string;
+  goals: string[];
+  constraints: string[];
+}): DirectorWaveBundle {
+  const primaryId = `sub_agent:seo.visibility:${input.domainKey}`;
+  return {
+    zones: [input.domainKey, 'seo_digital'],
+    bottlenecks: ['Discoverability, crawl/index health, and on-page intent match (heuristic stub)'],
+    risks: input.constraints.slice(0, 3),
+    actions: [
+      {
+        id: primaryId,
+        title: 'SEO & digital visibility layer',
+        description: `Clarify measurable SEO outcomes for: ${input.goals[0] ?? 'stated goals'}. Focus on technical + content signals without inventing rankings.`,
+        impact: s.impact,
+        effort: s.effort,
+        risk: s.risk,
+        urgency: s.urgency,
+        confidence: s.confidence,
+        dependencies: [],
+        evidence: {
+          derived: [SEO_MATERIALIZED_PROMPT_REFS.visibility],
+          observed: input.goals.slice(0, 2),
+          assumed: input.constraints.slice(0, 2),
         },
       },
     ],

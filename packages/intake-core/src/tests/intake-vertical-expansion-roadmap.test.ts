@@ -22,6 +22,12 @@ describe('intake vertical expansion roadmap', () => {
     ]);
   });
 
+  it('marks ecommerce as the active vertical for Sprint 4 dashboards', () => {
+    const parsed = roadmap as VerticalExpansionRoadmap;
+    const ecommerce = parsed.orderedVerticals.find(v => v.key === 'ecommerce');
+    expect(ecommerce?.status).toBe('active');
+  });
+
   it('requires at least three diagnostic probes per vertical', () => {
     const parsed = roadmap as VerticalExpansionRoadmap;
     for (const vertical of parsed.orderedVerticals) {

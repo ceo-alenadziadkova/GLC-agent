@@ -143,6 +143,8 @@ type TopActionItemRowProps = {
   canMarkInitiative: boolean;
   initiativeMarkPendingId: string | null;
   onMarkInitiative: (id: string) => void;
+  markBadgeLabel: string;
+  isMarkedNextStep: boolean;
   bucketForAria: string;
 };
 
@@ -158,6 +160,8 @@ function TopActionItemRow({
   canMarkInitiative,
   initiativeMarkPendingId,
   onMarkInitiative,
+  markBadgeLabel,
+  isMarkedNextStep,
   bucketForAria,
 }: TopActionItemRowProps) {
   return (
@@ -165,6 +169,11 @@ function TopActionItemRow({
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
           <span>{readNodeTitle(nid)}</span>
+          {isMarkedNextStep ? (
+            <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--status-success-fg)]">
+              {markBadgeLabel}
+            </span>
+          ) : null}
           <OrchestrationTimelineProvenanceBadges {...(nodeProvenanceById.get(nid) ?? {})} />
           <OrchestrationEvidenceTaxonomyBadges taxonomy={evidenceTaxonomyByNodeId.get(nid)} />
         </div>
@@ -298,6 +307,7 @@ export function PortalTimelinePage() {
   const effectiveDirectorSubAgents = getEffectiveDirectorSubAgentsEnabled(userEmail);
   const [executionPackPendingNodeId, setExecutionPackPendingNodeId] = useState<string | null>(null);
   const [initiativeMarkPendingId, setInitiativeMarkPendingId] = useState<string | null>(null);
+  const [lastMarkedNextStepId, setLastMarkedNextStepId] = useState<string | null>(null);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
   const [selectedSubAgentFilter, setSelectedSubAgentFilter] = useState<string>('all');
   const isMobile = useIsMobile();
@@ -442,7 +452,8 @@ export function PortalTimelinePage() {
       }
       setInitiativeMarkPendingId(actionId);
       try {
-        await api.postOrchestrationPack(id, { manifest_snapshot_id: snap, selected_action_ids: [actionId] });
+        await api.postSelectedInitiative(id, { action_id: actionId });
+        setLastMarkedNextStepId(actionId);
         await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(id) });
         await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(id) });
         toast.success(ORCHESTRATION_UI_COPY.initiativeMarkNextStepSuccess);
@@ -687,6 +698,8 @@ export function PortalTimelinePage() {
                     canMarkInitiative={canClientMarkInitiative}
                     initiativeMarkPendingId={initiativeMarkPendingId}
                     onMarkInitiative={requestMarkAsNextInitiative}
+                    markBadgeLabel={CLIENT_AUDIT_VIEW_COPY.cockpit.nextInPlanBadge}
+                    isMarkedNextStep={lastMarkedNextStepId === row.id}
                     bucketForAria={row.bucket === '7d' ? ORCHESTRATION_UI_COPY.topActions7dLabel : ORCHESTRATION_UI_COPY.topActions30dLabel}
                   />
                 ))}
@@ -715,6 +728,8 @@ export function PortalTimelinePage() {
                         canMarkInitiative={canClientMarkInitiative}
                         initiativeMarkPendingId={initiativeMarkPendingId}
                         onMarkInitiative={requestMarkAsNextInitiative}
+                        markBadgeLabel={CLIENT_AUDIT_VIEW_COPY.cockpit.nextInPlanBadge}
+                        isMarkedNextStep={lastMarkedNextStepId === nid}
                         bucketForAria={ORCHESTRATION_UI_COPY.topActions7dLabel}
                       />
                     ))}
@@ -738,6 +753,8 @@ export function PortalTimelinePage() {
                         canMarkInitiative={canClientMarkInitiative}
                         initiativeMarkPendingId={initiativeMarkPendingId}
                         onMarkInitiative={requestMarkAsNextInitiative}
+                        markBadgeLabel={CLIENT_AUDIT_VIEW_COPY.cockpit.nextInPlanBadge}
+                        isMarkedNextStep={lastMarkedNextStepId === nid}
                         bucketForAria={ORCHESTRATION_UI_COPY.topActions30dLabel}
                       />
                     ))}
@@ -767,6 +784,8 @@ export function PortalTimelinePage() {
                   canMarkInitiative={canClientMarkInitiative}
                   initiativeMarkPendingId={initiativeMarkPendingId}
                   onMarkInitiative={requestMarkAsNextInitiative}
+                  markBadgeLabel={CLIENT_AUDIT_VIEW_COPY.cockpit.nextInPlanBadge}
+                  isMarkedNextStep={lastMarkedNextStepId === nid}
                   bucketForAria={ORCHESTRATION_UI_COPY.topActions7dLabel}
                 />
               ))}
@@ -790,6 +809,8 @@ export function PortalTimelinePage() {
                   canMarkInitiative={canClientMarkInitiative}
                   initiativeMarkPendingId={initiativeMarkPendingId}
                   onMarkInitiative={requestMarkAsNextInitiative}
+                  markBadgeLabel={CLIENT_AUDIT_VIEW_COPY.cockpit.nextInPlanBadge}
+                  isMarkedNextStep={lastMarkedNextStepId === nid}
                   bucketForAria={ORCHESTRATION_UI_COPY.topActions30dLabel}
                 />
               ))}

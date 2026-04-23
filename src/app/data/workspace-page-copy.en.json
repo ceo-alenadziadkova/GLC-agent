@@ -228,9 +228,18 @@
     "signalConfidencePrefix": "Signal confidence:",
     "whyAskedLabel": "Why this is asked",
     "decisionImpactLabel": "Decision impact",
+    "decisionImpactDetailsTrigger": "Details",
     "progressLabel": "Progress",
     "reviewAnswers": "Review answers",
-    "defaultConsultantLabel": "Your consultant"
+    "defaultConsultantLabel": "Your consultant",
+    "nlIngressTitle": "Describe your business (optional)",
+    "nlIngressHelper": "Plain language is fine. Your structured answers below still take priority for the audit.",
+    "nlIngressPlaceholder": "Example: we run an online store in Spain, ~40 orders/day, main pain is checkout drop-off…",
+    "nlIngressSubmit": "Send description",
+    "nlIngressSending": "Sending…",
+    "nlIngressOk": "Received — your consultant can use this as context only.",
+    "nlIngressError": "Could not send this description. You can continue the form.",
+    "nlIngressPrivacy": "Do not paste secrets, credentials, or personal data you would not send by email."
   },
   "snapshotLanding": {
     "trustSignedIn": "Signed in — results save to your account. Continue with Starter, Pro, or Complete from Workspace.",

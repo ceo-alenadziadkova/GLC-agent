@@ -2,6 +2,7 @@ import {
   apiAuditsOrchestrationCommercialOffer,
   apiAuditsOrchestrationPackDiff,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
   apiAuditsOrchestratorLatest,
@@ -261,6 +262,20 @@ export const auditsOrchestrationApi = {
       last_revision_diff_summary?: string | null;
       plan_governance: OrchestrationPlanGovernanceDto;
     }>(apiAuditsOrchestrationPackRegenerate(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postSelectedInitiative(auditId: string, body: { action_id: string }) {
+    return apiFetch<{
+      pack: GlcOrchestrationPackView;
+      orchestration_pack_version: number;
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      plan_governance: OrchestrationPlanGovernanceDto;
+    }>(apiAuditsOrchestrationSelectedInitiative(auditId), {
       method: 'POST',
       body: JSON.stringify(body),
     });

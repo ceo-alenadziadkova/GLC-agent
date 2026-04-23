@@ -260,6 +260,21 @@ export function isDirectorCdoSubAgentsEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CDO_SUB_AGENTS, FF.directorCdoSubAgentsEnabled);
 }
 
+/** CDO LLM orchestration for `ux_conversion` deep-dive (MVP 3 sub-agents). Env: FEATURE_CDO_DEEP_DIVE_LLM */
+export function isCdoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CDO_DEEP_DIVE_LLM, FF.cdoDeepDiveLlmEnabled);
+}
+
+/** CAO LLM orchestration for `automation_processes` deep-dive (MVP 3 sub-agents). Env: FEATURE_CAO_DEEP_DIVE_LLM */
+export function isCaoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CAO_DEEP_DIVE_LLM, FF.caoDeepDiveLlmEnabled);
+}
+
+/** CSO LLM orchestration for `security_compliance` deep-dive (MVP 3 sub-agents). Env: FEATURE_CSO_DEEP_DIVE_LLM */
+export function isCsoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CSO_DEEP_DIVE_LLM, FF.csoDeepDiveLlmEnabled);
+}
+
 /** CAO deep-dive stub (automation / processes). Env: FEATURE_DIRECTOR_CAO_SUB_AGENTS */
 export function isDirectorCaoSubAgentsEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CAO_SUB_AGENTS, FF.directorCaoSubAgentsEnabled);

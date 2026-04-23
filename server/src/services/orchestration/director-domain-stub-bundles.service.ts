@@ -1,19 +1,19 @@
 import { DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES } from '../../config/director-orchestration-policy.js';
 import type { DirectorWaveBundle } from '../../schemas/glc-director-orchestration-slice.js';
-import type { DirectorDeepDiveHandlerKind } from '../../config/director-domain-deep-dive-dispatch.js';
-
-const LABEL: Record<Exclude<DirectorDeepDiveHandlerKind, 'cmo' | 'single_fallback'>, string> = {
+const LABEL = {
   cdo_stub: 'CDO (delivery & data)',
   cao_stub: 'CAO (automation & ops)',
   cso_stub: 'CSO (security & risk)',
-};
+  cto_stub: 'CTO (infrastructure & delivery)',
+  seo_stub: 'SEO (digital visibility)',
+} as const;
 
 /**
  * Placeholder deep-dive bundle for non-CMO director lanes until per-domain sub-agent orchestrators
  * (router + policy + LLM) are fully wired. Uses the same DTO as CMO `deep` slice.
  */
 export function buildDirectorDomainStubBundle(
-  kind: 'cdo_stub' | 'cao_stub' | 'cso_stub',
+  kind: keyof typeof LABEL,
   payload: { domainKey: string; goals: string[]; constraints: string[] },
 ): DirectorWaveBundle {
   const label = LABEL[kind];

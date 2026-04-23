@@ -94,6 +94,17 @@ export interface IntakeReadinessTraceEntry {
   detail?: Record<string, unknown>;
 }
 
+/** Progressive certainty vocabulary emitted by `intake-readiness-envelope` (extend with tests). */
+export const INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES = [
+  'hypothesis_formed',
+  'hypothesis_confirmed',
+  'hypothesis_disconfirmed',
+  'uncertainty_closed',
+] as const;
+
+export type IntakeReadinessProgressiveCertaintyTraceCode =
+  (typeof INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES)[number];
+
 /**
  * Decision-intelligence metadata (Sprint 1): immutable semantic spine used by adaptive intake.
  * Keep categories broad and stable; question-level metadata maps into one of these buckets.

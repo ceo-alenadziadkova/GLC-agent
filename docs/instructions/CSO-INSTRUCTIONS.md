@@ -288,3 +288,15 @@ Select deep-audit zones (or say "recommend for me"):
 3. Prefer measurable controls and instrumentation when data is missing.
 4. Always separate **observable** misconfigurations from **organizational** gaps.
 5. If scope is unclear, widen assumptions conservatively and mark them as `Assumed`.
+
+---
+
+## 11) Deep-dive MVP sub-agents (registry alignment)
+
+These headings anchor `server/prompts/sub-agents/cso/*.md` and `DIRECTOR_SUB_AGENTS` rows; keep them synchronized when changing the CSO wave.
+
+### AGENT 1 — Case classifier (deep-dive MVP)
+
+### AGENT 2 — Threat model (deep-dive MVP)
+
+### AGENT 3 — Compliance map (deep-dive MVP)

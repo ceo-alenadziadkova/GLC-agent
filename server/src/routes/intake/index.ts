@@ -7,6 +7,8 @@ import { getIntakePublicController } from './controllers/get-intake-public.contr
 import { getIntakeSubmissionsController } from './controllers/get-intake-submissions.controller.js';
 import { postIntakeLinkAuditController } from './controllers/post-intake-link-audit.controller.js';
 import { postIntakePlanTraceController } from './controllers/post-intake-plan-trace.controller.js';
+import { postIntakeIntelligenceKpiController } from './controllers/post-intake-intelligence-kpi.controller.js';
+import { postIntakeNlDescribeController } from './controllers/post-intake-nl-describe.controller.js';
 import { postIntakeRespondController } from './controllers/post-intake-respond.controller.js';
 import { postIntakeTokenController } from './controllers/post-intake-token.controller.js';
 
@@ -47,5 +49,9 @@ intakeRouter.post(
 );
 
 intakeRouter.get('/:token', intakePublicReadLimiter, getIntakePublicController);
+
+intakeRouter.post('/:token/nl-describe', intakePublicWriteLimiter, postIntakeNlDescribeController);
+
+intakeRouter.post('/:token/intelligence-kpi', intakePublicWriteLimiter, postIntakeIntelligenceKpiController);
 
 intakeRouter.post('/:token/respond', intakePublicWriteLimiter, postIntakeRespondController);

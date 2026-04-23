@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { type Node } from '@xyflow/react';
 import type { IntakeSurface } from '@glc/intake-core';
-import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import {
+  getIntakeIntelligenceCoverageSummary,
+  getIntakeIntelligenceSprint2CoverageSummary,
+  QUESTION_BANK_V1_STUBS,
+} from '@glc/intake-core';
 
 import type { IntakeBriefCollectionMode, ProductMode } from '../../../data/auditTypes';
 import { useGlcTheme } from '../../../hooks/useGlcTheme';
@@ -136,6 +140,16 @@ export function QuestionBankStudioContainer() {
   });
 
   const policyBannerStats = useMemo(() => computeStudioPolicyModeStats(policyMode), [policyMode]);
+  const intelligenceMetrics = useMemo(() => {
+    const cov = getIntakeIntelligenceCoverageSummary();
+    const s2 = getIntakeIntelligenceSprint2CoverageSummary();
+    return {
+      fullyCoveredQuestions: cov.fullyCoveredQuestions,
+      totalQuestions: cov.totalQuestions,
+      sprint2Complete: s2.sprint2CompleteQuestions,
+      sprint2GateTotal: s2.gateQuestionCount,
+    };
+  }, []);
   const branchFocusQuestionIds = useMemo(() => {
     if (!branchFocusFromSelection || !selectedId) return null;
     const n = layoutGraph.nodes.find(x => x.id === selectedId);
@@ -294,6 +308,7 @@ export function QuestionBankStudioContainer() {
           tracePlan={tracePlan}
           traceError={traceError}
           branchFocusSize={branchFocusQuestionIds ? branchFocusQuestionIds.size : null}
+          intelligenceMetrics={intelligenceMetrics}
         />
         {viewMode === 'logic' && (
           <StudioLegendSection

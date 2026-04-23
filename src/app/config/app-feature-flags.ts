@@ -60,15 +60,23 @@ export const APP_FEATURE_FLAGS = {
    * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
    * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
    */
-  orchestrationRoadmapNarrativeEnabled: false,
+  orchestrationRoadmapNarrativeEnabled: true,
   /** Client timeline narrative staged rollout mode. */
-  orchestrationRoadmapNarrativeRolloutMode: 'internal' as FeatureRolloutMode,
+  orchestrationRoadmapNarrativeRolloutMode: 'ga' as FeatureRolloutMode,
   /** On-demand director deep-dive from timeline/report surfaces. */
-  directorDeepDiveOnDemandEnabled: false,
+  directorDeepDiveOnDemandEnabled: true,
   /** Director deep-dive staged rollout mode. */
-  directorDeepDiveRolloutMode: 'internal' as FeatureRolloutMode,
+  directorDeepDiveRolloutMode: 'ga' as FeatureRolloutMode,
   /** Sub-agent selection for director deep-dive (CMO MVP). */
-  directorSubAgentsEnabled: false,
+  directorSubAgentsEnabled: true,
   /** Director sub-agent staged rollout mode. */
-  directorSubAgentsRolloutMode: 'internal' as FeatureRolloutMode,
+  directorSubAgentsRolloutMode: 'ga' as FeatureRolloutMode,
+  /**
+   * Non-CMO director LLM deep-dive mirrors (CDO → CAO → CSO promotion order on the server — see `DEPLOYMENT.md` + rollout ADR).
+   * Keep defaults identical to `SYSTEM_DEFAULTS_FEATURE_FLAGS` in `feature-flags-defaults.ts`; `orchestration-contract-parity.test.ts` enforces alignment.
+   * `cdoDeepDiveLlmEnabled` / `caoDeepDiveLlmEnabled` / `csoDeepDiveLlmEnabled`: UI gating only; dispatch is **server-authoritative** (`FEATURE_CDO_DEEP_DIVE_LLM`, `FEATURE_CAO_DEEP_DIVE_LLM`, `FEATURE_CSO_DEEP_DIVE_LLM` on Railway).
+   */
+  cdoDeepDiveLlmEnabled: false,
+  caoDeepDiveLlmEnabled: false,
+  csoDeepDiveLlmEnabled: false,
 } as const;

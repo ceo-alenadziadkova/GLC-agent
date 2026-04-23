@@ -21,8 +21,18 @@ export const CSO_MATERIALIZED_PROMPT_REFS = {
   compliance_map: 'server/prompts/sub-agents/cso/compliance-map.md',
 } as const;
 
+export const CTO_MATERIALIZED_PROMPT_REFS = {
+  readiness: 'server/prompts/sub-agents/cto/readiness.md',
+} as const;
+
+export const SEO_MATERIALIZED_PROMPT_REFS = {
+  visibility: 'server/prompts/sub-agents/seo/visibility-layer.md',
+} as const;
+
 export const ALL_DOMAIN_MATERIALIZED_PROMPT_REFS: readonly string[] = [
   ...Object.values(CDO_MATERIALIZED_PROMPT_REFS),
   ...Object.values(CAO_MATERIALIZED_PROMPT_REFS),
   ...Object.values(CSO_MATERIALIZED_PROMPT_REFS),
+  ...Object.values(CTO_MATERIALIZED_PROMPT_REFS),
+  ...Object.values(SEO_MATERIALIZED_PROMPT_REFS),
 ];

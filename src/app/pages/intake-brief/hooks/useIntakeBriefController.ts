@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildBriefSchemaSnapshot, currentIntakeVersionTuple } from '@glc/intake-core';
+import { apiIntakeIntelligenceKpi } from '../../../config/api-paths';
+import { API_URL } from '../../../data/api-http';
 import { api, ApiError } from '../../../data/apiService';
 import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
 import {
@@ -48,8 +50,13 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const [phase, setPhase] = useState<IntakeBriefPhase>('form');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmittedIso, setLastSubmittedIso] = useState<string | null>(null);
+  const [nlIngressText, setNlIngressText] = useState('');
+  const [nlIngressStatus, setNlIngressStatus] = useState<'idle' | 'sending' | 'ok' | 'error' | 'hidden'>('idle');
 
   const hadSubmissionOnLoadRef = useRef(false);
+  const intakeKpiSessionIdRef = useRef(crypto.randomUUID());
+  const intakeKpiHadActivityRef = useRef(false);
+  const intakeKpiShownQuestionIdsRef = useRef(new Set<string>());
 
   const intakeSchemaSnapshot = useMemo(() => {
     try {
@@ -172,6 +179,8 @@ export function useIntakeBriefController(rawToken: string | undefined) {
         );
         setPhase('form');
         setLastSubmittedIso(null);
+        setNlIngressText('');
+        setNlIngressStatus('idle');
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && (e.code === 'INTAKE_LINK_EXPIRED' || e.status === 410)) {
@@ -197,21 +206,29 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const total = getPreBriefSubmitSlotIds(responses).length;
   const formComplete = answered === total;
 
-  const onFieldChange = useCallback((id: string, value: string | string[] | number | null) => {
-    setResponses(prev => patchBriefQuestionResponse(prev, id, value));
+  const markIntakeKpiActivity = useCallback(() => {
+    intakeKpiHadActivityRef.current = true;
   }, []);
+
+  const onFieldChange = useCallback((id: string, value: string | string[] | number | null) => {
+    markIntakeKpiActivity();
+    setResponses(prev => patchBriefQuestionResponse(prev, id, value));
+  }, [markIntakeKpiActivity]);
 
   const onIndustryChange = useCallback((value: string | string[] | number | null) => {
+    markIntakeKpiActivity();
     setResponses(prev => patchIndustryResponse(prev, value));
-  }, []);
+  }, [markIntakeKpiActivity]);
 
   const onWebsitePresenceChange = useCallback((value: string | string[] | number | null) => {
+    markIntakeKpiActivity();
     setResponses(prev => patchWebsitePresenceResponse(prev, value));
-  }, []);
+  }, [markIntakeKpiActivity]);
 
   const onUnknown = useCallback((id: string) => {
+    markIntakeKpiActivity();
     setResponses(prev => patchUnknownResponse(prev, id));
-  }, []);
+  }, [markIntakeKpiActivity]);
 
   const scrollToQuestion = useCallback((id: string) => {
     setPhase('form');
@@ -219,6 +236,75 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       document.getElementById(`intake-q-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, []);
+
+  useEffect(() => {
+    if (loading || !token || phase !== 'form') return;
+    const ids = questionSections.flatMap(block => block.questions.map(q => q.id));
+    if (ids.length === 0) return;
+
+    const io = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target as HTMLElement;
+          const bankId = el.id?.replace(/^intake-q-/, '') ?? '';
+          if (!bankId || intakeKpiShownQuestionIdsRef.current.has(bankId)) continue;
+          intakeKpiShownQuestionIdsRef.current.add(bankId);
+          void api.reportIntelligenceKpi(token, {
+            event: 'question_shown',
+            question_id: bankId,
+            client_session_id: intakeKpiSessionIdRef.current,
+          });
+        }
+      },
+      { root: null, threshold: 0.25 },
+    );
+
+    const handle = window.requestAnimationFrame(() => {
+      for (const id of ids) {
+        const node = document.getElementById(`intake-q-${id}`);
+        if (node) io.observe(node);
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(handle);
+      io.disconnect();
+    };
+  }, [loading, token, phase, questionSections]);
+
+  useEffect(() => {
+    if (!token) return;
+    const onPageHide = () => {
+      if (!intakeKpiHadActivityRef.current) return;
+      if (phase !== 'form') return;
+      const payload = JSON.stringify({
+        event: 'drop_off' as const,
+        client_session_id: intakeKpiSessionIdRef.current,
+      });
+      const url = `${API_URL}${apiIntakeIntelligenceKpi(token)}`;
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, [token, phase]);
+
+  const submitNlIngress = useCallback(async () => {
+    if (!token || !nlIngressText.trim()) return;
+    setNlIngressStatus('sending');
+    try {
+      await api.submitIntakeNlDescribe(token, nlIngressText.trim());
+      setNlIngressStatus('ok');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setNlIngressStatus('hidden');
+      } else {
+        setNlIngressStatus('error');
+      }
+    }
+  }, [token, nlIngressText]);
 
   const confirmSubmit = useCallback(async () => {
     if (!token) return;
@@ -285,5 +371,15 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     onUnknown,
     scrollToQuestion,
     confirmSubmit,
+    nlIngress:
+      nlIngressStatus === 'hidden'
+        ? undefined
+        : {
+            text: nlIngressText,
+            onTextChange: setNlIngressText,
+            onSubmit: () => void submitNlIngress(),
+            busy: nlIngressStatus === 'sending',
+            status: nlIngressStatus === 'ok' ? 'ok' : nlIngressStatus === 'error' ? 'error' : 'idle',
+          },
   };
 }

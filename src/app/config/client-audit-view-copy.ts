@@ -133,6 +133,8 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     topActionsSelectionCountLabel: 'Selected actions',
     topActionsSelectCta: 'Select',
     topActionsSelectedCta: 'Selected',
+    /** Shown on a decision card after a successful one-click "mark as next step" (orchestration pack reorder). */
+    nextInPlanBadge: 'Next in your plan',
     topActionsImpactLabel: 'Impact',
     topActionsEffortLabel: 'Effort',
     topActionsEtaLabel: 'ETA',

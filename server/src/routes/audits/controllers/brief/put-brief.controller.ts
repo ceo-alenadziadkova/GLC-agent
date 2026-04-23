@@ -70,7 +70,7 @@ export async function putBriefController(req: AuthRequest, res: Response) {
         brief: result.brief,
         actorUserId: req.userId!,
       });
-      body.intake_trace = snapshot.readiness.trace.map(item => ({
+      body.trace = snapshot.readiness.trace.map(item => ({
         code: item.code,
         questionId: item.questionId,
       }));

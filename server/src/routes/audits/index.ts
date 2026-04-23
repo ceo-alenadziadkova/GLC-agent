@@ -29,6 +29,7 @@ import { getAuditTimelineController } from './controllers/get-audit-timeline.con
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
 import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
 import { getDirectorDeepDiveQuotaController } from './controllers/get-director-deep-dive-quota.controller.js';
+import { postSelectedInitiativeController } from './controllers/post-selected-initiative.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -166,6 +167,12 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getDirectorDeepDiveStatusController,
+);
+auditsRouter.post(
+  '/:id/orchestration/selected-initiative',
+  attachProfile,
+  rejectGuestFromPortal,
+  postSelectedInitiativeController,
 );
 auditsRouter.post(
   '/:id/orchestration/commercial-offer',

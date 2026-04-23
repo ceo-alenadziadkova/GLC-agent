@@ -31,7 +31,7 @@ export interface IntakeQuestionQualityReport {
 export const INTAKE_QUESTION_QUALITY_BASELINE_V1: IntakeQuestionQualityBaseline = {
   totalQuestions: 78,
   p0Questions: 17,
-  fullyCoveredQuestions: 28,
+  fullyCoveredQuestions: 78,
   fullyCoveredP0Questions: 17,
   errorCount: 0,
   warningCount: 2,

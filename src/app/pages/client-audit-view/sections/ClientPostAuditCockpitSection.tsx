@@ -1,7 +1,8 @@
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { ClipboardText, FileText, MapTrifold, Path } from '@phosphor-icons/react';
+import { ArrowsClockwise, ClipboardText, FileText, MapTrifold, Path } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 import { SectionLabel } from '../../../components/glc/SectionLabel';
 import { Button } from '../../../components/ui/button';
@@ -57,6 +58,7 @@ function effortTone(effort: 'high' | 'medium' | 'low'): string {
 }
 
 export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: AuditState; auditId: string }) {
+  const queryClient = useQueryClient();
   const copy = CLIENT_AUDIT_VIEW_COPY.cockpit;
   const vm = getReportPageViewModel(audit, 'full');
   const { coverage } = vm;
@@ -125,6 +127,8 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const [selectionRunBusy, setSelectionRunBusy] = useState(false);
   const [selectionRunError, setSelectionRunError] = useState<string | null>(null);
   const [selectionRunSuccess, setSelectionRunSuccess] = useState<string | null>(null);
+  const [initiativeMarkPendingId, setInitiativeMarkPendingId] = useState<string | null>(null);
+  const [lastMarkedNextStepId, setLastMarkedNextStepId] = useState<string | null>(null);
   const selectedManifestSnapshotId =
     timeline?.version.latest_manifest_snapshot_id ??
     timeline?.version.manifest_snapshot_id ??
@@ -149,6 +153,27 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
       setSelectionRunError(copy.selectionAppliedError);
     } finally {
       setSelectionRunBusy(false);
+    }
+  }
+
+  const canMarkSingleNextStep = Boolean(roadmapVersion && selectedManifestSnapshotId);
+
+  async function handleMarkAsNextStep(actionId: string): Promise<void> {
+    if (!selectedManifestSnapshotId) {
+      toast.error(ORCHESTRATION_UI_COPY.initiativeMarkNextStepUnavailable);
+      return;
+    }
+    setInitiativeMarkPendingId(actionId);
+    try {
+      await api.postSelectedInitiative(auditId, { action_id: actionId });
+      setLastMarkedNextStepId(actionId);
+      await timelineStatusQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
+      toast.success(ORCHESTRATION_UI_COPY.initiativeMarkNextStepSuccess);
+    } catch {
+      toast.error(ORCHESTRATION_UI_COPY.initiativeMarkNextStepError);
+    } finally {
+      setInitiativeMarkPendingId(null);
     }
   }
 
@@ -330,20 +355,47 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
                   key={row.id}
                   className="rounded-md border border-[var(--border-default)] bg-[var(--surface-default)] p-3"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{row.title}</h4>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={selected ? 'default' : 'outline'}
-                      onClick={() =>
-                        setSelectedActionIds((prev) =>
-                          selected ? prev.filter((id) => id !== row.id) : [...prev, row.id],
-                        )
-                      }
-                    >
-                      {selected ? copy.topActionsSelectedCta : copy.topActionsSelectCta}
-                    </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      <h4 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">{row.title}</h4>
+                      {lastMarkedNextStepId === row.id ? (
+                        <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--status-success-fg)]">
+                          {copy.nextInPlanBadge}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {canMarkSingleNextStep ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="inline-flex shrink-0"
+                          disabled={initiativeMarkPendingId === row.id}
+                          aria-busy={initiativeMarkPendingId === row.id}
+                          onClick={() => void handleMarkAsNextStep(row.id)}
+                        >
+                          {initiativeMarkPendingId === row.id ? (
+                            <ArrowsClockwise className="mr-1 h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                          ) : null}
+                          {initiativeMarkPendingId === row.id
+                            ? ORCHESTRATION_UI_COPY.initiativeMarkNextStepBusy
+                            : ORCHESTRATION_UI_COPY.initiativeMarkNextStepCta}
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selected ? 'default' : 'outline'}
+                        onClick={() =>
+                          setSelectedActionIds((prev) =>
+                            selected ? prev.filter((id) => id !== row.id) : [...prev, row.id],
+                          )
+                        }
+                      >
+                        {selected ? copy.topActionsSelectedCta : copy.topActionsSelectCta}
+                      </Button>
+                    </div>
                   </div>
                   <p className="mt-2 text-[length:var(--text-2xs)] text-[var(--text-secondary)]">{row.description}</p>
                   <div className="mt-2 flex flex-wrap gap-1">

@@ -94,6 +94,15 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps CDO deep-dive LLM toggle default aligned (server vs SPA static map)', () => {
+    expect(APP_FEATURE_FLAGS.cdoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.cdoDeepDiveLlmEnabled);
+  });
+
+  it('keeps CAO/CSO deep-dive LLM toggle defaults aligned (server vs SPA static map)', () => {
+    expect(APP_FEATURE_FLAGS.caoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.caoDeepDiveLlmEnabled);
+    expect(APP_FEATURE_FLAGS.csoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.csoDeepDiveLlmEnabled);
+  });
+
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
     expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
