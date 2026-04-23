@@ -60,6 +60,28 @@ Pitfalls below apply to long **external** v9 “full product” write-ups (chat 
 
 **Valid backlog (not in DoD-7):** pack single-cache, `governance.service.ts` state machine, ESLint for lane literals, IndexedDB for revision history — see sync ADR and [`e2e/README.md`](../../e2e/README.md) “post–v9” notes; they are **engineering follow-ups**, not a duplicate of shipped v9 surfaces.
 
+### Summary verdict (blackdraft vs repository)
+
+| Area | Verdict |
+| --- | --- |
+| §5-style surfaces, governance, registry, LLM cache, race-safety UI (code paths) | Mostly **shipped**; remaining work is **rollout, flags, and product acceptance** |
+| Metric names in external v9 docs (`kpi_llm_*`) | **Incorrect** — canonical names are `kpi_orchestration_llm_*` (see **Decision** §1) |
+| Multi-week phase plan with Ψ2–Ψ8 as parallel tranches | **Overstated** for the current tree — **recompute** critical path toward ops, E2E non-skip, bundle, and V4 flag gate |
+| P-7, P-8, P-10 | **Still active**: ops observability, creds + KPI for real E2E, bundle budget after UX merges |
+| §16-style ideas (single-cache, `governance.service.ts`, etc.) | Valid **engineering backlog**, not duplicate “v9 DoD” surface work |
+
+### What external blackdrafts still get right (remaining “full product” scope)
+
+- **P-7:** Grafana panels, alerts, on-call routing, synthetic canary — **organizational**; anchors in [DEPLOYMENT.md](../DEPLOYMENT.md) and [`.github/workflows/orchestration-synthetic-probe.yml`](../../.github/workflows/orchestration-synthetic-probe.yml).
+- **P-8:** “Full” E2E coverage means **repository secrets + `VITE_API_URL` proxy** (and optional `E2E_ORCHESTRATION_STRICT`), not only adding more spec files.
+- **P-10:** After large orchestration UX merges, run `pnpm build && pnpm run audit:bundle-main-budget`.
+- **P-5 (V4):** When the plan-level ADR is **Accepted**, enable `FEATURE_PLAN_CONTROL_OBJECT` and [`planControlObjectUiEnabled`](../../src/app/config/app-feature-flags.ts); JSONB-only fields do not require a new SQL migration by default.
+- **V3 (pack schema vs ADR v1.1):** Any **new** ADR field on the pack still requires **Zod + `glc-orchestration-pack-adr-v1-1-parity` coverage in the same PR** — unchanged from sync ADR policy.
+
+### Canonical docs (do not fork a second “v9 full product” source of truth)
+
+Use this ADR plus [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md). Reconcile external chat/PM blackdrafts **to these** before sprint planning (metrics, paths, phases, E2E assumptions).
+
 ## References
 
 - [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md)
