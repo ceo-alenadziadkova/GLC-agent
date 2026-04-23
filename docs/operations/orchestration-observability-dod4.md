@@ -41,14 +41,28 @@ Emitters use the string values in `ORCHESTRATION_TELEMETRY_METRICS` (e.g. `kpi_o
 ## 4. Synthetic / health probes
 
 - Example shell probe: [`scripts/orchestration-synthetic-probe.example.sh`](../../scripts/orchestration-synthetic-probe.example.sh).
-- GitHub Actions workflow: [`.github/workflows/orchestration-synthetic-probe.yml`](../../.github/workflows/orchestration-synthetic-probe.yml) (enable in the Actions tab; set `VITE_API_URL` or `ORCH_PUBLIC_API_BASE`).
+- GitHub Actions workflow: [`.github/workflows/orchestration-synthetic-probe.yml`](../../.github/workflows/orchestration-synthetic-probe.yml) (enable in the Actions tab; set `VITE_API_URL` or `ORCH_PUBLIC_API_BASE` as **repository variables** for the unauthenticated `GET /api/health` job).
+
+**Authenticated timeline canary (second job, optional):** the workflow runs a **`timeline-canary`** job when these **repository secrets** are set: **`ORCHESTRATION_PROBE_TOKEN`** (Bearer for a long-lived or machine user that can read the audit) and **`ORCHESTRATION_CANARY_AUDIT_ID`** (a stable audit id with timeline data on the same API as `VITE_API_URL`). This is **not** the same as Playwright `E2E_ORCHESTRATION_*` — it only validates `GET /api/audits/:id/timeline` on a schedule. Forks and repos without these secrets skip the canary job safely.
 
 ## 5. Triage
 
 See [Runbook: orchestration alert triage](../DEPLOYMENT.md#runbook-orchestration-alert-triage) in DEPLOYMENT.md.
+
+## 5b. Runbook: Delivery OS (export)
+
+- **Sprint CSV/JSON** is a **projection** of the saved pack (read-only API). It does not fix pipeline failures; use §2–3 if export errors correlate with 5xx on pack routes.
+- **`dri` column:** suggested role labels come from `lane` (see `server/src/config/sprint-export-lane-dri-hints.ts`); teams replace with named owners after import.
+- **Import into Linear/Jira** is org-specific: [sprint-export-import-ops.md](./sprint-export-import-ops.md). Native issue APIs (future) would reuse the same row shape; manual CSV import remains the contract today.
 
 For **client outcome** tracking (OKR / check-ins, outside platform telemetry), see [client-outcome-measurement.md](./client-outcome-measurement.md).
 
 ## 6. DoD-4 sign-off (v9 extension)
 
 (1) Primary dashboard URL stored in the ops index. (2) At least one scheduled synthetic or ping check. (3) Alert routes tested on a known cadence (e.g. quarterly). Details: [DEPLOYMENT.md — DoD-4 ops sign-off checklist (v9)](../DEPLOYMENT.md#orchestration-slo-product-mvp).
+
+## 7. Chaos drill (quarterly, optional)
+
+- **Intent:** confirm orchestration can still return a **deterministic** pack when an LLM path is off (incident or deliberate toggle).
+- **Pattern:** in a **non-prod** or narrow pilot window, set `FEATURE_LLM_PROMPT_CACHE=false` and/or a director `FEATURE_*_DEEP_DIVE_LLM=false` per [DEPLOYMENT.md — Environment layers](../DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides), rebuild or request pack, and assert pack persistence + client surfaces still load. Document outcome in the runbook.
+- **Not a code change:** this is an **ops rehearsal**; keys remain in [feature-flags.ts](../../server/src/config/feature-flags.ts) / deploy env.
