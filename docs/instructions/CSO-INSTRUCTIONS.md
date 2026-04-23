@@ -300,3 +300,27 @@ These headings anchor `server/prompts/sub-agents/cso/*.md` and `DIRECTOR_SUB_AGE
 ### AGENT 2 — Threat model (deep-dive MVP)
 
 ### AGENT 3 — Compliance map (deep-dive MVP)
+
+### AGENT 4 — Attack surface map
+
+### AGENT 5 — Risk scoring
+
+### AGENT 6 — Exploitability vs exposure
+
+### AGENT 7 — Metrics framework
+
+### AGENT 8 — Incident readiness
+
+### AGENT 9 — Secure SDLC & access governance
+
+### AGENT 4 — Attack surface map (deep-dive R3)
+
+### AGENT 5 — Risk scoring (deep-dive R3)
+
+### AGENT 6 — Exploitability vs exposure (deep-dive R3)
+
+### AGENT 7 — Metrics framework (deep-dive R3)
+
+### AGENT 8 — Incident readiness & continuity (deep-dive R3)
+
+### AGENT 9 — Secure SDLC & access governance (deep-dive R3)

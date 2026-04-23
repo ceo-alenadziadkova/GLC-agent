@@ -11,8 +11,18 @@ export const CDO_MATERIALIZED_PROMPT_REFS = {
 
 export const CAO_MATERIALIZED_PROMPT_REFS = {
   process_map: 'server/prompts/sub-agents/cao/process-map.md',
+  sop_governance: 'server/prompts/sub-agents/cao/sop-governance.md',
+  sla_targets: 'server/prompts/sub-agents/cao/sla-targets.md',
+  data_quality_gates: 'server/prompts/sub-agents/cao/data-quality-gates.md',
+  adoption_rollout_governance: 'server/prompts/sub-agents/cao/adoption-rollout-governance.md',
   automation_candidates: 'server/prompts/sub-agents/cao/automation-candidates.md',
+  integrations_handoffs: 'server/prompts/sub-agents/cao/integrations-handoffs.md',
+  followup_notifications: 'server/prompts/sub-agents/cao/followup-notifications.md',
+  billing_quote_automation: 'server/prompts/sub-agents/cao/billing-quote-automation.md',
+  ai_ops_guardrails: 'server/prompts/sub-agents/cao/ai-ops-guardrails.md',
   throughput: 'server/prompts/sub-agents/cao/throughput.md',
+  build_vs_buy: 'server/prompts/sub-agents/cao/build-vs-buy.md',
+  synthesis_bundle: 'server/prompts/sub-agents/cao/synthesis-bundle.md',
 } as const;
 
 export const CSO_MATERIALIZED_PROMPT_REFS = {

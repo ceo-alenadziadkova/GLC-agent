@@ -14,7 +14,16 @@ describe('runCsoSubAgentOrchestrator', () => {
       goals: ['Improve vendor risk posture'],
       constraints: ['GDPR applies'],
     });
-    expect(out.run_order).toEqual(['cso.case_classifier', 'cso.threat_model', 'cso.compliance_map']);
+    expect(out.run_order).toEqual([
+      'cso.case_classifier',
+      'cso.threat_model',
+      'cso.compliance_map',
+      'cso.attack_surface_map',
+      'cso.risk_scoring',
+      'cso.exploitability_exposure',
+      'cso.metrics_framework',
+      'cso.sdlc_access_governance',
+    ]);
     expect(out.director_bundle.actions.length).toBeGreaterThan(0);
     expect(out.director_bundle.actions[0]?.id).toContain('sub_agent:cso');
     expect(out.qa_block.measurement.length).toBeGreaterThan(0);
@@ -38,9 +47,34 @@ describe('runCsoSubAgentOrchestrator', () => {
       domainKey: 'security_compliance',
       goals: ['Reduce compliance exposure'],
       constraints: ['Short timeline'],
-      requestedSubAgentIds: ['cso.compliance_map', 'cso.case_classifier'],
+      requestedSubAgentIds: ['cso.risk_scoring'],
     });
-    expect(out.selected_sub_agents).toEqual(['cso.case_classifier', 'cso.threat_model', 'cso.compliance_map']);
-    expect(out.run_order).toEqual(['cso.case_classifier', 'cso.threat_model', 'cso.compliance_map']);
+    expect(out.selected_sub_agents).toEqual([
+      'cso.case_classifier',
+      'cso.threat_model',
+      'cso.attack_surface_map',
+      'cso.compliance_map',
+      'cso.risk_scoring',
+    ]);
+    expect(out.run_order).toEqual([
+      'cso.case_classifier',
+      'cso.threat_model',
+      'cso.attack_surface_map',
+      'cso.compliance_map',
+      'cso.risk_scoring',
+    ]);
+  });
+
+  it('drops requested agents that are not applicable to routed case', async () => {
+    const out = await runCsoSubAgentOrchestrator({
+      auditId: 'audit-test',
+      domainKey: 'security_compliance',
+      goals: ['Baseline hardening'],
+      constraints: [],
+      requestedSubAgentIds: ['cso.sdlc_access_governance', 'cso.case_classifier'],
+    });
+    expect(out.cso_case).toBe('A_zero_knowledge');
+    expect(out.selected_sub_agents).toEqual(['cso.case_classifier']);
+    expect(out.run_order).toEqual(['cso.case_classifier']);
   });
 });

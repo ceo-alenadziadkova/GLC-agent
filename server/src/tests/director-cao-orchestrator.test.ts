@@ -40,7 +40,15 @@ describe('runCaoSubAgentOrchestrator', () => {
       constraints: ['No headcount increase'],
       requestedSubAgentIds: ['cao.throughput', 'cao.process_map'],
     });
-    expect(out.selected_sub_agents).toEqual(['cao.process_map', 'cao.automation_candidates', 'cao.throughput']);
-    expect(out.run_order).toEqual(['cao.process_map', 'cao.automation_candidates', 'cao.throughput']);
+    expect(out.selected_sub_agents).toEqual([
+      'cao.process_map',
+      'cao.automation_candidates',
+      'cao.throughput',
+    ]);
+    expect(out.run_order).toEqual([
+      'cao.process_map',
+      'cao.automation_candidates',
+      'cao.throughput',
+    ]);
   });
 });

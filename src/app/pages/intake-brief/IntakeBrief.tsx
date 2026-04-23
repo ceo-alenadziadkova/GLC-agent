@@ -48,6 +48,7 @@ export function IntakeBrief() {
             ) : (
               <IntakeBriefFormPhase
                 questionSections={c.questionSections}
+                displayedQuestionSections={c.displayedQuestionSections}
                 responses={c.responses}
                 nlIngress={c.nlIngress}
                 readinessPanel={c.readinessPanel}
@@ -61,11 +62,28 @@ export function IntakeBrief() {
                 answered={c.answered}
                 total={c.total}
                 formComplete={c.formComplete}
+                isCurrentStepSatisfied={c.isCurrentStepSatisfied}
+                journeyStage={c.journeyStage}
+                questionMode={c.questionMode}
+                progressiveStepIndex={c.progressiveStepIndex}
+                progressiveStepTotal={c.progressiveStepTotal}
+                precisionPassQuestionCount={c.precisionPassQuestionCount}
+                skippedByConfidenceIds={c.skippedByConfidenceIds}
+                showFastPassDoneBanner={c.showFastPassDoneBanner}
+                optionalDetailsOpenById={c.optionalDetailsOpenById}
+                resumeBannerVisible={c.resumeBannerVisible}
                 submitError={c.submitError}
                 onFieldChange={c.onFieldChange}
                 onIndustryChange={c.onIndustryChange}
                 onWebsitePresenceChange={c.onWebsitePresenceChange}
                 onUnknown={c.onUnknown}
+                onOpenOptionalDetails={c.onOpenOptionalDetails}
+                onSubmitOptionalDetails={c.onSubmitOptionalDetails}
+                onAdvanceProgressive={c.onAdvanceProgressive}
+                onBackProgressive={c.onBackProgressive}
+                onSaveAndContinueLater={c.onSaveAndContinueLater}
+                onToggleQuestionMode={c.onToggleQuestionMode}
+                onDismissResumeBanner={c.onDismissResumeBanner}
                 onGoReview={() => c.setPhase('review')}
               />
             )}

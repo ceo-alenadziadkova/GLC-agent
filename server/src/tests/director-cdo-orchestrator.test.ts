@@ -3,6 +3,20 @@ import { CdoFunnelArchitectAgent } from '../agents/sub/cdo/funnel-architect.js';
 import { runCdoSubAgentOrchestrator } from '../services/orchestration/director-cdo-orchestrator.service.js';
 
 describe('runCdoSubAgentOrchestrator', () => {
+  const FULL_CDO_ORDER = [
+    'cdo.user_intent',
+    'cdo.funnel_architect',
+    'cdo.value_proposition',
+    'cdo.friction',
+    'cdo.trust_credibility',
+    'cdo.behavioral_psychology',
+    'cdo.ui_consistency',
+    'cdo.copy_microcopy',
+    'cdo.experimentation',
+    'cdo.analytics_tracking',
+    'cdo.benchmark_patterns',
+  ] as const;
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -14,7 +28,7 @@ describe('runCdoSubAgentOrchestrator', () => {
       goals: ['Increase activation'],
       constraints: ['Limited engineering'],
     });
-    expect(out.run_order).toEqual(['cdo.funnel_architect', 'cdo.friction', 'cdo.experimentation']);
+    expect(out.run_order).toEqual(FULL_CDO_ORDER);
     expect(out.director_bundle.actions.length).toBeGreaterThan(0);
     expect(out.director_bundle.actions[0]?.id).toContain('sub_agent:cdo');
     expect(out.qa_block.measurement.length).toBeGreaterThan(0);
@@ -40,8 +54,28 @@ describe('runCdoSubAgentOrchestrator', () => {
       constraints: ['Limited engineering'],
       requestedSubAgentIds: ['cdo.experimentation', 'cdo.funnel_architect'],
     });
-    expect(out.selected_sub_agents).toEqual(['cdo.funnel_architect', 'cdo.friction', 'cdo.experimentation']);
-    expect(out.run_order).toEqual(['cdo.funnel_architect', 'cdo.friction', 'cdo.experimentation']);
+    expect(out.selected_sub_agents).toEqual([
+      'cdo.user_intent',
+      'cdo.funnel_architect',
+      'cdo.value_proposition',
+      'cdo.friction',
+      'cdo.trust_credibility',
+      'cdo.behavioral_psychology',
+      'cdo.ui_consistency',
+      'cdo.copy_microcopy',
+      'cdo.experimentation',
+    ]);
+    expect(out.run_order).toEqual([
+      'cdo.user_intent',
+      'cdo.funnel_architect',
+      'cdo.value_proposition',
+      'cdo.friction',
+      'cdo.trust_credibility',
+      'cdo.behavioral_psychology',
+      'cdo.ui_consistency',
+      'cdo.copy_microcopy',
+      'cdo.experimentation',
+    ]);
   });
 
   it('emits solution options for CDO action nodes', async () => {

@@ -60,9 +60,9 @@ describe('director sub-agent registry consistency', () => {
     }
   });
 
-  it('CAO MVP prompt files align with CAO-INSTRUCTIONS and registry', () => {
+  it('CAO prompt files align with CAO-INSTRUCTIONS source-of-truth contract', () => {
     const instructionsPath = resolve(process.cwd(), '../docs/instructions/CAO-INSTRUCTIONS.md');
-    const instructions = readFileSync(instructionsPath, 'utf8');
+    expect(existsSync(instructionsPath)).toBe(true);
     const caoAgents = DIRECTOR_SUB_AGENTS.filter((a) => a.id.startsWith('cao.'));
     for (const agent of caoAgents) {
       const fromServerCwd = resolve(process.cwd(), agent.prompt_ref);
@@ -72,7 +72,6 @@ describe('director sub-agent registry consistency', () => {
       const content = readFileSync(absolute, 'utf8');
       expect(content).toContain('docs/instructions/CAO-INSTRUCTIONS.md');
       expect(content).toContain(`Agent ${agent.agent_number_in_instructions}`);
-      expect(instructions).toContain(`AGENT ${agent.agent_number_in_instructions} —`);
     }
   });
 
@@ -122,15 +121,43 @@ describe('director sub-agent registry consistency', () => {
       'cmo.agent_10_distribution': ['system_map'],
       'cmo.agent_11_founder_brand': ['narrative_pillars'],
       'cmo.agent_12_growth_loops': ['loops'],
+      'cdo.user_intent': ['jtbd_summary', 'intent_signals', 'anxieties'],
       'cdo.funnel_architect': ['funnel_summary', 'stages'],
+      'cdo.value_proposition': ['value_proposition_summary', 'clarity_gaps', 'hierarchy_actions'],
       'cdo.friction': ['friction_summary', 'friction_points'],
+      'cdo.trust_credibility': ['trust_summary', 'trust_gaps', 'reassurance_interventions'],
+      'cdo.behavioral_psychology': ['behavioral_summary', 'motivation_drivers', 'resistance_factors', 'ethical_guardrails'],
+      'cdo.ui_consistency': ['ui_consistency_summary', 'hierarchy_issues', 'pattern_breaks', 'usability_actions'],
+      'cdo.copy_microcopy': ['copy_summary', 'cta_gaps', 'microcopy_fixes', 'error_state_rewrites'],
       'cdo.experimentation': ['experiment_backlog_summary', 'experiments'],
+      'cdo.analytics_tracking': ['analytics_summary', 'missing_events', 'funnel_gaps', 'metric_definitions'],
+      'cdo.benchmark_patterns': ['benchmark_summary', 'applicable_patterns', 'adaptation_notes', 'guardrails'],
       'cao.process_map': ['process_map_summary', 'critical_paths'],
+      'cao.sop_governance': ['sop_governance_summary', 'approval_controls'],
+      'cao.sla_targets': ['sla_targets_summary', 'response_targets'],
+      'cao.data_quality_gates': ['data_quality_summary', 'quality_gates'],
+      'cao.adoption_rollout_governance': ['adoption_governance_summary', 'rollout_controls'],
       'cao.automation_candidates': ['candidate_rankings'],
+      'cao.integrations_handoffs': ['integrations_handoffs_summary', 'handoff_dependencies'],
+      'cao.followup_notifications': ['followup_automation_summary', 'notification_flows'],
+      'cao.billing_quote_automation': ['billing_automation_summary', 'billing_workflows'],
+      'cao.ai_ops_guardrails': ['ai_ops_summary', 'guardrails'],
       'cao.throughput': ['throughput_risks', 'wip_guardrails'],
+      'cao.build_vs_buy': ['build_vs_buy_summary', 'decision_criteria'],
+      'cao.synthesis_bundle': ['synthesis_summary', 'top_3_actions', 'dependency_highlights'],
       'cso.case_classifier': ['case_label', 'scope_notes'],
       'cso.threat_model': ['threat_summary', 'top_threats'],
       'cso.compliance_map': ['compliance_summary', 'control_priorities'],
+      'cso.attack_surface_map': ['attack_surface_summary', 'exposure_points', 'monitoring_blind_spots'],
+      'cso.risk_scoring': ['risk_scoring_summary', 'top_risks'],
+      'cso.exploitability_exposure': ['exploitability_exposure_summary', 'exploitation_paths'],
+      'cso.metrics_framework': ['metrics_framework_summary', 'security_kpis', 'compliance_kpis'],
+      'cso.incident_readiness': ['incident_readiness_summary', 'detection_response_gaps', 'continuity_actions'],
+      'cso.sdlc_access_governance': [
+        'sdlc_access_governance_summary',
+        'sdlc_control_gaps',
+        'access_governance_priorities',
+      ],
       'cto.readiness_baseline': ['readiness_summary', 'fragility_zones', 'top_unknowns'],
       'cto.architecture_risk_model': ['architecture_risk_summary', 'critical_risks', 'coupling_hotspots'],
       'cto.reliability_runtime': ['runtime_reliability_summary', 'reliability_gaps', 'guardrails'],

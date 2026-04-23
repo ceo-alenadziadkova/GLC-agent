@@ -36,8 +36,8 @@ import {
 } from '../../config/director-cdo-routing-policy.js';
 import {
   DIRECTOR_CSO_CASE_AGENT_DEPTHS,
-  listCsoMvpAgentIds,
-  type CsoMvpSubAgentId,
+  listCsoSubAgentIds,
+  type CsoSubAgentId,
 } from '../../config/director-cso-routing-policy.js';
 import { resolveDirectorDeepDiveHandler } from '../../config/director-domain-deep-dive-dispatch.js';
 import { isDirectorSubAgentsEnabledForRequest } from '../../config/orchestration-rollout-gates.js';
@@ -268,11 +268,11 @@ function enforceDirectorDeepDiveTokenBudget(args: {
 
   if (args.domainKey === 'security_compliance' && isCsoDeepDiveLlmEnabled()) {
     const csoCase = routeCsoDeepDiveCase({ goals: args.goals, constraints: args.constraints });
-    const csoIds = listCsoMvpAgentIds();
-    const requested = (args.requestedSubAgentIds ?? []).filter((id): id is CsoMvpSubAgentId =>
+    const csoIds = listCsoSubAgentIds();
+    const requested = (args.requestedSubAgentIds ?? []).filter((id): id is CsoSubAgentId =>
       (csoIds as readonly string[]).includes(id),
     );
-    const selected: CsoMvpSubAgentId[] = requested.length > 0 ? requested : [...csoIds];
+    const selected: CsoSubAgentId[] = requested.length > 0 ? requested : [...csoIds];
     const totalTokenBudget = selected.reduce((sum, id) => {
       const depth = DIRECTOR_CSO_CASE_AGENT_DEPTHS[csoCase][id];
       if (depth === 'deferred') return sum;

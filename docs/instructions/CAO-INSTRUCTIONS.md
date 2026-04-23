@@ -209,9 +209,29 @@ Available artifacts:
 
 These headings anchor `server/prompts/sub-agents/cao/*.md` and `DIRECTOR_SUB_AGENTS` rows; keep them synchronized when changing the CAO wave.
 
-### AGENT 1 — Process map (deep-dive MVP)
+### AGENT 1 — Process map and ownership
 
-### AGENT 2 — Automation candidates (deep-dive MVP)
+### AGENT 2 — SOP and approval governance
 
-### AGENT 3 — Throughput & WIP guardrails (deep-dive MVP)
+### AGENT 3 — SLA/response operating targets
+
+### AGENT 4 — Data readiness and quality gates
+
+### AGENT 5 — Adoption and rollout governance
+
+### AGENT 6 — Workflow automation opportunities
+
+### AGENT 7 — Integrations and handoffs
+
+### AGENT 8 — Follow-up/notification automation
+
+### AGENT 9 — Billing/quote workflow automation
+
+### AGENT 10 — AI-assisted operations with guardrails
+
+### AGENT 11 — Reliability and exception handling
+
+### AGENT 12 — Build-vs-buy stack decisions
+
+### AGENT 13 — Prioritization + dependency graph + 30/90 plan + KPI/ROI + risk register
 

@@ -19,7 +19,15 @@ import {
 } from '../../../services/intake/intake-token-guards.js';
 import { fetchIntakeTokenRowForRespond } from '../../../services/intake/intake-token.service.js';
 
-const KPI_KINDS = ['question_shown', 'drop_off'] as const;
+const KPI_KINDS = [
+  'question_shown',
+  'drop_off',
+  'fast_pass_started',
+  'fast_pass_completed',
+  'precision_pass_started',
+  'optional_details_opened',
+  'optional_details_submitted',
+] as const;
 
 type KpiKind = (typeof KPI_KINDS)[number];
 
@@ -31,7 +39,7 @@ function parseKpiBody(body: unknown): { kind: KpiKind; questionId?: string; clie
   const questionId = typeof rec.question_id === 'string' ? rec.question_id.trim() : undefined;
   const clientSessionId =
     typeof rec.client_session_id === 'string' ? rec.client_session_id.trim().slice(0, 128) : undefined;
-  if (kind === 'question_shown' && (!questionId || questionId.length === 0)) {
+  if ((kind === 'question_shown' || kind === 'optional_details_opened' || kind === 'optional_details_submitted') && (!questionId || questionId.length === 0)) {
     return null;
   }
   return { kind: kind as KpiKind, questionId, clientSessionId };

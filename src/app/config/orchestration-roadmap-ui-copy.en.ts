@@ -351,24 +351,93 @@ export const ORCHESTRATION_UI_COPY = {
   subAgent_cmo_agent_11_founder_brand_description: 'Defines narrative pillars and visibility tactics for founders.',
   subAgent_cmo_agent_12_growth_loops_title: 'Agent 12 Growth loops',
   subAgent_cmo_agent_12_growth_loops_description: 'Identifies compounding loops and North Star metrics.',
+  subAgent_cdo_user_intent_title: 'CDO — User intent (JTBD)',
+  subAgent_cdo_user_intent_description: 'Clarifies jobs-to-be-done, switching triggers, and intent mismatches.',
   subAgent_cdo_funnel_architect_title: 'CDO — Funnel architect',
   subAgent_cdo_funnel_architect_description: 'Defines funnel stages, entry metrics, and primary conversion events.',
+  subAgent_cdo_value_proposition_title: 'CDO — Value proposition',
+  subAgent_cdo_value_proposition_description: 'Assesses first-screen clarity, specificity, and message hierarchy.',
   subAgent_cdo_friction_title: 'CDO — Friction analyst',
   subAgent_cdo_friction_description: 'Maps friction points with measurable signals and severity.',
+  subAgent_cdo_trust_credibility_title: 'CDO — Trust and credibility',
+  subAgent_cdo_trust_credibility_description: 'Finds reassurance gaps, social proof issues, and perceived risk blockers.',
+  subAgent_cdo_behavioral_psychology_title: 'CDO — Behavioral psychology',
+  subAgent_cdo_behavioral_psychology_description:
+    'Applies ethical behavioral levers to reduce resistance and increase motivated action.',
+  subAgent_cdo_ui_consistency_title: 'CDO — UI consistency and usability',
+  subAgent_cdo_ui_consistency_description:
+    'Audits hierarchy, scanability, and pattern consistency for conversion-critical flows.',
+  subAgent_cdo_copy_microcopy_title: 'CDO — Copy and microcopy',
+  subAgent_cdo_copy_microcopy_description:
+    'Improves CTA, form, and state messaging to reduce hesitation and abandonment.',
   subAgent_cdo_experimentation_title: 'CDO — Experimentation',
   subAgent_cdo_experimentation_description: 'Prioritizes tests with metrics, cost, and decision windows.',
+  subAgent_cdo_analytics_tracking_title: 'CDO — Analytics and tracking',
+  subAgent_cdo_analytics_tracking_description:
+    'Defines missing events, funnel instrumentation, and metric contracts.',
+  subAgent_cdo_benchmark_patterns_title: 'CDO — Benchmark patterns',
+  subAgent_cdo_benchmark_patterns_description:
+    'Maps ethical, adaptable industry patterns relevant to the current product context.',
   subAgent_cao_process_map_title: 'CAO — Process map',
   subAgent_cao_process_map_description: 'Documents critical paths, owners, and handoffs for automation goals.',
+  subAgent_cao_sop_governance_title: 'CAO — SOP and approval governance',
+  subAgent_cao_sop_governance_description:
+    'Defines SOP ownership, approval boundaries, and escalation control points.',
+  subAgent_cao_sla_targets_title: 'CAO — SLA and response targets',
+  subAgent_cao_sla_targets_description:
+    'Sets measurable response and handoff targets with breach visibility rules.',
+  subAgent_cao_data_quality_gates_title: 'CAO — Data quality gates',
+  subAgent_cao_data_quality_gates_description:
+    'Establishes intake and workflow data checks required before automation steps.',
+  subAgent_cao_adoption_rollout_governance_title: 'CAO — Adoption and rollout governance',
+  subAgent_cao_adoption_rollout_governance_description:
+    'Plans staged rollout controls, ownership readiness, and change adoption risk.',
   subAgent_cao_automation_candidates_title: 'CAO — Automation candidates',
   subAgent_cao_automation_candidates_description: 'Ranks automation opportunities with rationale and expected deltas.',
+  subAgent_cao_integrations_handoffs_title: 'CAO — Integrations and handoffs',
+  subAgent_cao_integrations_handoffs_description:
+    'Maps system handoff points, sync rules, and dependency risks across tools.',
+  subAgent_cao_followup_notifications_title: 'CAO — Follow-up and notifications',
+  subAgent_cao_followup_notifications_description:
+    'Designs reminder, escalation, and notification logic for process reliability.',
+  subAgent_cao_billing_quote_automation_title: 'CAO — Billing and quote workflows',
+  subAgent_cao_billing_quote_automation_description:
+    'Prioritizes billing and quote automations with controls for exceptions and approvals.',
+  subAgent_cao_ai_ops_guardrails_title: 'CAO — AI-assisted operations guardrails',
+  subAgent_cao_ai_ops_guardrails_description:
+    'Defines where AI assists operations safely, with human review and fallback rules.',
   subAgent_cao_throughput_title: 'CAO — Throughput & WIP',
   subAgent_cao_throughput_description: 'Surfaces throughput risks and WIP guardrails aligned to constraints.',
+  subAgent_cao_build_vs_buy_title: 'CAO — Build vs buy',
+  subAgent_cao_build_vs_buy_description:
+    'Compares platform choices by flexibility, reliability risk, and operating cost.',
+  subAgent_cao_synthesis_bundle_title: 'CAO — Synthesis bundle',
+  subAgent_cao_synthesis_bundle_description:
+    'Combines dependencies, 30/90 plan, KPI/ROI path, and risk register into one program.',
   subAgent_cso_case_classifier_title: 'CSO — Case classifier',
   subAgent_cso_case_classifier_description: 'Locks scope and case assumptions before threat and compliance work.',
   subAgent_cso_threat_model_title: 'CSO — Threat model',
   subAgent_cso_threat_model_description: 'Summarizes top threat vectors with impact context.',
   subAgent_cso_compliance_map_title: 'CSO — Compliance map',
   subAgent_cso_compliance_map_description: 'Prioritizes controls and compliance actions for the selected case.',
+  subAgent_cso_attack_surface_map_title: 'CSO — Attack surface map',
+  subAgent_cso_attack_surface_map_description:
+    'Maps externally reachable and trust-boundary surfaces before risk scoring.',
+  subAgent_cso_risk_scoring_title: 'CSO — Risk scoring',
+  subAgent_cso_risk_scoring_description:
+    'Ranks priority risks using likelihood and impact scoring for execution order.',
+  subAgent_cso_exploitability_exposure_title: 'CSO — Exploitability and exposure',
+  subAgent_cso_exploitability_exposure_description:
+    'Classifies practical exploitability against exposure context to avoid security theater.',
+  subAgent_cso_metrics_framework_title: 'CSO — Metrics framework',
+  subAgent_cso_metrics_framework_description:
+    'Defines security and compliance KPI structure for continuous program tracking.',
+  subAgent_cso_incident_readiness_title: 'CSO — Incident readiness',
+  subAgent_cso_incident_readiness_description:
+    'Prioritizes incident preparedness actions for detection, triage, and continuity.',
+  subAgent_cso_sdlc_access_governance_title: 'CSO — SDLC and access governance',
+  subAgent_cso_sdlc_access_governance_description:
+    'Hardens engineering controls and access governance with measurable guardrails.',
   subAgent_cto_readiness_baseline_title: 'CTO — Readiness baseline',
   subAgent_cto_readiness_baseline_description:
     'Summarizes architecture readiness, fragility zones, and top delivery unknowns.',

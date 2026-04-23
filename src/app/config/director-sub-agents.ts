@@ -15,15 +15,39 @@ export type DirectorSubAgentId =
   | 'cmo.agent_10_distribution'
   | 'cmo.agent_11_founder_brand'
   | 'cmo.agent_12_growth_loops'
+  | 'cdo.user_intent'
   | 'cdo.funnel_architect'
+  | 'cdo.value_proposition'
   | 'cdo.friction'
+  | 'cdo.trust_credibility'
+  | 'cdo.behavioral_psychology'
+  | 'cdo.ui_consistency'
+  | 'cdo.copy_microcopy'
   | 'cdo.experimentation'
+  | 'cdo.analytics_tracking'
+  | 'cdo.benchmark_patterns'
   | 'cao.process_map'
+  | 'cao.sop_governance'
+  | 'cao.sla_targets'
+  | 'cao.data_quality_gates'
+  | 'cao.adoption_rollout_governance'
   | 'cao.automation_candidates'
+  | 'cao.integrations_handoffs'
+  | 'cao.followup_notifications'
+  | 'cao.billing_quote_automation'
+  | 'cao.ai_ops_guardrails'
   | 'cao.throughput'
+  | 'cao.build_vs_buy'
+  | 'cao.synthesis_bundle'
   | 'cso.case_classifier'
   | 'cso.threat_model'
   | 'cso.compliance_map'
+  | 'cso.attack_surface_map'
+  | 'cso.risk_scoring'
+  | 'cso.exploitability_exposure'
+  | 'cso.metrics_framework'
+  | 'cso.incident_readiness'
+  | 'cso.sdlc_access_governance'
   | 'cto.readiness_baseline'
   | 'cto.architecture_risk_model'
   | 'cto.reliability_runtime'
@@ -122,10 +146,22 @@ export const DIRECTOR_SUB_AGENT_OPTIONS: ReadonlyArray<DirectorSubAgentOption> =
     description: ORCHESTRATION_UI_COPY.subAgent_cmo_agent_12_growth_loops_description,
   },
   {
+    id: 'cdo.user_intent',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_user_intent_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_user_intent_description,
+  },
+  {
     id: 'cdo.funnel_architect',
     domainKey: 'ux_conversion',
     title: ORCHESTRATION_UI_COPY.subAgent_cdo_funnel_architect_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cdo_funnel_architect_description,
+  },
+  {
+    id: 'cdo.value_proposition',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_value_proposition_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_value_proposition_description,
   },
   {
     id: 'cdo.friction',
@@ -134,10 +170,46 @@ export const DIRECTOR_SUB_AGENT_OPTIONS: ReadonlyArray<DirectorSubAgentOption> =
     description: ORCHESTRATION_UI_COPY.subAgent_cdo_friction_description,
   },
   {
+    id: 'cdo.trust_credibility',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_trust_credibility_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_trust_credibility_description,
+  },
+  {
+    id: 'cdo.behavioral_psychology',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_behavioral_psychology_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_behavioral_psychology_description,
+  },
+  {
+    id: 'cdo.ui_consistency',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_ui_consistency_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_ui_consistency_description,
+  },
+  {
+    id: 'cdo.copy_microcopy',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_copy_microcopy_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_copy_microcopy_description,
+  },
+  {
     id: 'cdo.experimentation',
     domainKey: 'ux_conversion',
     title: ORCHESTRATION_UI_COPY.subAgent_cdo_experimentation_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cdo_experimentation_description,
+  },
+  {
+    id: 'cdo.analytics_tracking',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_analytics_tracking_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_analytics_tracking_description,
+  },
+  {
+    id: 'cdo.benchmark_patterns',
+    domainKey: 'ux_conversion',
+    title: ORCHESTRATION_UI_COPY.subAgent_cdo_benchmark_patterns_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cdo_benchmark_patterns_description,
   },
   {
     id: 'cao.process_map',
@@ -146,16 +218,76 @@ export const DIRECTOR_SUB_AGENT_OPTIONS: ReadonlyArray<DirectorSubAgentOption> =
     description: ORCHESTRATION_UI_COPY.subAgent_cao_process_map_description,
   },
   {
+    id: 'cao.sop_governance',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_sop_governance_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_sop_governance_description,
+  },
+  {
+    id: 'cao.sla_targets',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_sla_targets_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_sla_targets_description,
+  },
+  {
+    id: 'cao.data_quality_gates',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_data_quality_gates_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_data_quality_gates_description,
+  },
+  {
+    id: 'cao.adoption_rollout_governance',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_adoption_rollout_governance_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_adoption_rollout_governance_description,
+  },
+  {
     id: 'cao.automation_candidates',
     domainKey: 'automation_processes',
     title: ORCHESTRATION_UI_COPY.subAgent_cao_automation_candidates_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cao_automation_candidates_description,
   },
   {
+    id: 'cao.integrations_handoffs',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_integrations_handoffs_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_integrations_handoffs_description,
+  },
+  {
+    id: 'cao.followup_notifications',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_followup_notifications_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_followup_notifications_description,
+  },
+  {
+    id: 'cao.billing_quote_automation',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_billing_quote_automation_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_billing_quote_automation_description,
+  },
+  {
+    id: 'cao.ai_ops_guardrails',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_ai_ops_guardrails_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_ai_ops_guardrails_description,
+  },
+  {
     id: 'cao.throughput',
     domainKey: 'automation_processes',
     title: ORCHESTRATION_UI_COPY.subAgent_cao_throughput_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cao_throughput_description,
+  },
+  {
+    id: 'cao.build_vs_buy',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_build_vs_buy_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_build_vs_buy_description,
+  },
+  {
+    id: 'cao.synthesis_bundle',
+    domainKey: 'automation_processes',
+    title: ORCHESTRATION_UI_COPY.subAgent_cao_synthesis_bundle_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cao_synthesis_bundle_description,
   },
   {
     id: 'cso.case_classifier',
@@ -174,6 +306,42 @@ export const DIRECTOR_SUB_AGENT_OPTIONS: ReadonlyArray<DirectorSubAgentOption> =
     domainKey: 'security_compliance',
     title: ORCHESTRATION_UI_COPY.subAgent_cso_compliance_map_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cso_compliance_map_description,
+  },
+  {
+    id: 'cso.attack_surface_map',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_attack_surface_map_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_attack_surface_map_description,
+  },
+  {
+    id: 'cso.risk_scoring',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_risk_scoring_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_risk_scoring_description,
+  },
+  {
+    id: 'cso.exploitability_exposure',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_exploitability_exposure_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_exploitability_exposure_description,
+  },
+  {
+    id: 'cso.metrics_framework',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_metrics_framework_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_metrics_framework_description,
+  },
+  {
+    id: 'cso.incident_readiness',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_incident_readiness_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_incident_readiness_description,
+  },
+  {
+    id: 'cso.sdlc_access_governance',
+    domainKey: 'security_compliance',
+    title: ORCHESTRATION_UI_COPY.subAgent_cso_sdlc_access_governance_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cso_sdlc_access_governance_description,
   },
   {
     id: 'cto.readiness_baseline',

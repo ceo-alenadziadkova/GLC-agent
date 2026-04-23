@@ -50,10 +50,38 @@ function SignalConfidenceGlyph(props: {
   );
 }
 
+function resolveDeepenPrompt(args: {
+  questionId: string;
+  questionType: BriefQuestion['type'];
+  value: string;
+  copy: typeof WORKSPACE_PAGE_COPY.intakePublicPrebrief;
+}): string | null {
+  if (args.questionType !== 'free_text') return null;
+  const text = args.value.trim();
+  if (!text) return null;
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const normalized = text.toLowerCase();
+  const isVeryShort = text.length < 28 || wordCount < 4;
+  if (isVeryShort) return args.copy.deepenPromptShortAnswer;
+  const questionSpecificPrompt =
+    args.questionId === 'f1'
+      ? args.copy.deepenPromptF1
+      : args.questionId === 'd2'
+        ? args.copy.deepenPromptD2
+        : args.questionId === 'b1'
+          ? args.copy.deepenPromptB1
+          : null;
+  const vaguePattern = /^(ok|good|fine|normal|none|n\/a|na|same|idk|unknown|not sure|maybe)$/i;
+  if (vaguePattern.test(normalized) || wordCount <= 5) return args.copy.deepenPromptVagueAnswer;
+  if (text.length < 90 && !/[0-9]/.test(text)) return questionSpecificPrompt ?? args.copy.deepenPromptExample;
+  return null;
+}
+
 type SectionBlock = { section: string; questions: BriefQuestion[] };
 
 export function IntakeBriefFormPhase(props: {
   questionSections: SectionBlock[];
+  displayedQuestionSections: SectionBlock[];
   responses: BriefResponses;
   nlIngress?: {
     text: string;
@@ -96,15 +124,33 @@ export function IntakeBriefFormPhase(props: {
   answered: number;
   total: number;
   formComplete: boolean;
+  isCurrentStepSatisfied: boolean;
+  journeyStage: 'fast_pass' | 'precision_pass';
+  questionMode: 'progressive' | 'all_questions';
+  progressiveStepIndex: number;
+  progressiveStepTotal: number;
+  precisionPassQuestionCount: number;
+  skippedByConfidenceIds: string[];
+  showFastPassDoneBanner: boolean;
+  optionalDetailsOpenById: Record<string, boolean>;
+  resumeBannerVisible: boolean;
   submitError: string | null;
   onFieldChange: (id: string, value: string | string[] | number | null) => void;
   onIndustryChange: (value: string | string[] | number | null) => void;
   onWebsitePresenceChange: (value: string | string[] | number | null) => void;
   onUnknown: (id: string) => void;
+  onOpenOptionalDetails: (id: string) => void;
+  onSubmitOptionalDetails: (id: string) => void;
+  onAdvanceProgressive: () => void;
+  onBackProgressive: () => void;
+  onSaveAndContinueLater: () => void;
+  onToggleQuestionMode: (mode: 'progressive' | 'all_questions') => void;
+  onDismissResumeBanner: () => void;
   onGoReview: () => void;
 }) {
   const {
     questionSections,
+    displayedQuestionSections,
     responses,
     nlIngress,
     readinessPanel,
@@ -118,11 +164,28 @@ export function IntakeBriefFormPhase(props: {
     answered,
     total,
     formComplete,
+    isCurrentStepSatisfied,
+    journeyStage,
+    questionMode,
+    progressiveStepIndex,
+    progressiveStepTotal,
+    precisionPassQuestionCount,
+    skippedByConfidenceIds,
+    showFastPassDoneBanner,
+    optionalDetailsOpenById,
+    resumeBannerVisible,
     submitError,
     onFieldChange,
     onIndustryChange,
     onWebsitePresenceChange,
     onUnknown,
+    onOpenOptionalDetails,
+    onSubmitOptionalDetails,
+    onAdvanceProgressive,
+    onBackProgressive,
+    onSaveAndContinueLater,
+    onToggleQuestionMode,
+    onDismissResumeBanner,
     onGoReview,
   } = props;
 
@@ -140,6 +203,13 @@ export function IntakeBriefFormPhase(props: {
     if (confidence === 'low') return 'text-[var(--ds-semantic-danger)]';
     return 'text-[var(--ds-text-muted)]';
   };
+  const progressRatio = total > 0 ? answered / total : 0;
+  const progressValueLine =
+    progressRatio < 0.4
+      ? copy.progressValueEarly
+      : progressRatio < 0.85
+        ? copy.progressValueMid
+        : copy.progressValueLate;
 
   return (
     <motion.div
@@ -156,7 +226,19 @@ export function IntakeBriefFormPhase(props: {
             {message}
           </p>
         )}
+        <p className="text-xs ds-text-quaternary m-0">{copy.trustLine}</p>
       </div>
+
+      {resumeBannerVisible && (
+        <div className="rounded-lg border px-3 py-2 text-xs ds-intake-brief-inline-notice ds-intake-brief-inline-notice--info w-full max-w-2xl">
+          <div className="flex items-center justify-between gap-2">
+            <span>{copy.resumeBannerText}</span>
+            <button type="button" className="underline" onClick={onDismissResumeBanner}>
+              {copy.resumeBannerDismiss}
+            </button>
+          </div>
+        </div>
+      )}
 
       {submittedAt && (
         <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice">
@@ -198,7 +280,7 @@ export function IntakeBriefFormPhase(props: {
               onChange={e => nlIngress.onConsentChange(e.target.checked)}
               className="mt-0.5"
             />
-            <span>I consent to processing this text via LLM-assisted intake mapping.</span>
+            <span>{copy.nlConsentLabel}</span>
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -218,6 +300,33 @@ export function IntakeBriefFormPhase(props: {
           </div>
         </div>
       ) : null}
+
+      {showFastPassDoneBanner ? (
+        <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice ds-intake-brief-inline-notice--info">
+          {copy.fastPassDoneBanner}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ds-border-subtle)] p-2">
+        <div className="text-xs ds-text-secondary">
+          {journeyStage === 'fast_pass'
+            ? `${copy.stageFastPassLabel} ${Math.min(progressiveStepIndex + 1, Math.max(progressiveStepTotal, 1))}/${Math.max(progressiveStepTotal, 1)}`
+            : `${copy.stagePrecisionPassLabel} ${Math.min(progressiveStepIndex + 1, Math.max(progressiveStepTotal, 1))}/${Math.max(progressiveStepTotal, 1)}`}
+          {journeyStage === 'precision_pass' ? ` · ${precisionPassQuestionCount} ${copy.stageTargetedChecksSuffix}` : ''}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="ds-btn ds-btn--secondary text-xs"
+            onClick={() => onToggleQuestionMode(questionMode === 'progressive' ? 'all_questions' : 'progressive')}
+          >
+            {questionMode === 'progressive' ? copy.showAllQuestions : copy.backToGuidedMode}
+          </button>
+          <button type="button" className="ds-btn ds-btn--secondary text-xs" onClick={onSaveAndContinueLater}>
+            {copy.saveAndContinueLater}
+          </button>
+        </div>
+      </div>
 
       <div className="w-full lg:grid lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:gap-8 lg:items-start">
         <aside className="mb-6 space-y-3 lg:mb-0 lg:sticky lg:top-20 self-start">
@@ -287,10 +396,11 @@ export function IntakeBriefFormPhase(props: {
                 style={{ width: `${total ? (answered / total) * 100 : 0}%` }}
               />
             </div>
+            <p className="text-xs mt-2 mb-0 ds-text-secondary">{progressValueLine}</p>
           </div>
 
           <div className="glc-card overflow-hidden p-5 space-y-8 ds-radius-xl">
-            {questionSections.map((block, blockIdx) => (
+            {displayedQuestionSections.map((block, blockIdx) => (
               <section
                 key={`intake-form-section-${blockIdx}`}
                 className="space-y-6"
@@ -316,6 +426,12 @@ export function IntakeBriefFormPhase(props: {
                         : specKey
                           ? briefResponseTrimmedString(responses[specKey])
                           : '';
+                    const deepenPrompt = resolveDeepenPrompt({
+                      questionId: q.id,
+                      questionType: q.type,
+                      value: briefResponseTrimmedString(responses[q.id]),
+                      copy,
+                    });
                     return (
                       <div key={q.id} id={`intake-q-${q.id}`}>
                         {signalConfidenceByQuestionId[q.id] && (
@@ -380,6 +496,28 @@ export function IntakeBriefFormPhase(props: {
                                 : undefined
                           }
                         />
+                        {!optionalDetailsOpenById[q.id] ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs underline ds-text-secondary"
+                            onClick={() => onOpenOptionalDetails(q.id)}
+                          >
+                            {copy.addDetails}
+                          </button>
+                        ) : deepenPrompt ? (
+                          <p className="mt-2 text-xs ds-text-secondary">{deepenPrompt}</p>
+                        ) : (
+                          <p className="mt-2 text-xs ds-text-secondary">{copy.detailsEnough}</p>
+                        )}
+                        {optionalDetailsOpenById[q.id] ? (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs underline ds-text-secondary"
+                            onClick={() => onSubmitOptionalDetails(q.id)}
+                          >
+                            {copy.doneAddingDetails}
+                          </button>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -390,20 +528,35 @@ export function IntakeBriefFormPhase(props: {
         </div>
       </div>
 
+      {skippedByConfidenceIds.length > 0 && (
+        <p className="text-xs ds-text-secondary">
+          {copy.skippedByConfidencePrefix} {skippedByConfidenceIds.length} {copy.skippedByConfidenceSuffix}
+        </p>
+      )}
+
       {submitError && (
         <p className="text-sm text-center ds-text-score-1" >
           {submitError}
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={!formComplete}
-        className="ds-intake-brief-review-cta w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
-        onClick={onGoReview}
-      >
-        {copy.reviewAnswers} <ArrowRight className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="ds-btn ds-btn--secondary flex-1 py-3 text-sm"
+          onClick={onBackProgressive}
+        >
+          {copy.backButton}
+        </button>
+        <button
+          type="button"
+          disabled={questionMode === 'progressive' ? !isCurrentStepSatisfied : !formComplete}
+          className="ds-intake-brief-review-cta flex-[2] flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
+          onClick={questionMode === 'progressive' ? onAdvanceProgressive : onGoReview}
+        >
+          {questionMode === 'progressive' ? copy.continueButton : copy.reviewAnswers} <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
     </motion.div>
   );
 }

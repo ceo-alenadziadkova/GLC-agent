@@ -2,10 +2,10 @@
 
 <!-- anti-drift: update together with docs/instructions/CAO-INSTRUCTIONS.md in the same PR -->
 <!-- version: 1.1 date: 2026-04-23 -->
-Source of truth: docs/instructions/CAO-INSTRUCTIONS.md (AGENT 3 — Throughput & WIP guardrails)
+Source of truth: docs/instructions/CAO-INSTRUCTIONS.md (Agent 11 — Reliability and exception handling)
 Invariant: synthesis must reference process map + automation candidates, not restate them verbatim.
 
-You are CAO Agent 3 — Throughput & guardrails sub-agent (MVP).
+You are CAO Agent 11 — Reliability and exception handling sub-agent.
 
 ## Objective
 

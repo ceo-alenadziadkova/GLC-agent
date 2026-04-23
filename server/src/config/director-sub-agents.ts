@@ -19,15 +19,39 @@ export type DirectorSubAgentId =
   | 'cmo.agent_10_distribution'
   | 'cmo.agent_11_founder_brand'
   | 'cmo.agent_12_growth_loops'
+  | 'cdo.user_intent'
   | 'cdo.funnel_architect'
+  | 'cdo.value_proposition'
   | 'cdo.friction'
+  | 'cdo.trust_credibility'
+  | 'cdo.behavioral_psychology'
+  | 'cdo.ui_consistency'
+  | 'cdo.copy_microcopy'
   | 'cdo.experimentation'
+  | 'cdo.analytics_tracking'
+  | 'cdo.benchmark_patterns'
   | 'cao.process_map'
+  | 'cao.sop_governance'
+  | 'cao.sla_targets'
+  | 'cao.data_quality_gates'
+  | 'cao.adoption_rollout_governance'
   | 'cao.automation_candidates'
+  | 'cao.integrations_handoffs'
+  | 'cao.followup_notifications'
+  | 'cao.billing_quote_automation'
+  | 'cao.ai_ops_guardrails'
   | 'cao.throughput'
+  | 'cao.build_vs_buy'
+  | 'cao.synthesis_bundle'
   | 'cso.case_classifier'
   | 'cso.threat_model'
   | 'cso.compliance_map'
+  | 'cso.attack_surface_map'
+  | 'cso.risk_scoring'
+  | 'cso.exploitability_exposure'
+  | 'cso.metrics_framework'
+  | 'cso.incident_readiness'
+  | 'cso.sdlc_access_governance'
   | 'cto.readiness_baseline'
   | 'cto.architecture_risk_model'
   | 'cto.reliability_runtime'
@@ -63,11 +87,13 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
   id: DirectorSubAgentId;
   director_domain: DomainKey;
   agent_number_in_instructions: number;
+  zone_stage?: 'discovery' | 'deep_audit' | 'both';
   title_copy_key: string;
   description_copy_key: string;
   output_schema_ref: string;
   prompt_ref: string;
   depends_on: DirectorSubAgentId[];
+  applicable_cases?: readonly ['A_zero_knowledge' | 'B_regulated' | 'C_data_heavy' | 'D_incident', ...('A_zero_knowledge' | 'B_regulated' | 'C_data_heavy' | 'D_incident')[]];
 }> = [
   {
     id: 'cmo.agent_1_market',
@@ -190,6 +216,16 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     depends_on: ['cmo.agent_1_market', 'cmo.agent_3_positioning', 'cmo.agent_9_traffic', 'cmo.agent_10_distribution'],
   },
   {
+    id: 'cdo.user_intent',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 1,
+    title_copy_key: 'subAgent.cdo.user_intent.title',
+    description_copy_key: 'subAgent.cdo.user_intent.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/user-intent',
+    prompt_ref: 'server/prompts/sub-agents/cdo/user-intent.md',
+    depends_on: [],
+  },
+  {
     id: 'cdo.funnel_architect',
     director_domain: 'ux_conversion',
     agent_number_in_instructions: 2,
@@ -197,7 +233,17 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     description_copy_key: 'subAgent.cdo.funnel_architect.description',
     output_schema_ref: 'schemas/sub-agents/cdo/funnel-architect',
     prompt_ref: 'server/prompts/sub-agents/cdo/funnel-architect.md',
-    depends_on: [],
+    depends_on: ['cdo.user_intent'],
+  },
+  {
+    id: 'cdo.value_proposition',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 3,
+    title_copy_key: 'subAgent.cdo.value_proposition.title',
+    description_copy_key: 'subAgent.cdo.value_proposition.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/value-proposition',
+    prompt_ref: 'server/prompts/sub-agents/cdo/value-proposition.md',
+    depends_on: ['cdo.user_intent'],
   },
   {
     id: 'cdo.friction',
@@ -207,7 +253,47 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     description_copy_key: 'subAgent.cdo.friction.description',
     output_schema_ref: 'schemas/sub-agents/cdo/friction',
     prompt_ref: 'server/prompts/sub-agents/cdo/friction.md',
-    depends_on: ['cdo.funnel_architect'],
+    depends_on: ['cdo.funnel_architect', 'cdo.value_proposition'],
+  },
+  {
+    id: 'cdo.trust_credibility',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 5,
+    title_copy_key: 'subAgent.cdo.trust_credibility.title',
+    description_copy_key: 'subAgent.cdo.trust_credibility.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/trust-credibility',
+    prompt_ref: 'server/prompts/sub-agents/cdo/trust-credibility.md',
+    depends_on: ['cdo.value_proposition', 'cdo.friction'],
+  },
+  {
+    id: 'cdo.behavioral_psychology',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 6,
+    title_copy_key: 'subAgent.cdo.behavioral_psychology.title',
+    description_copy_key: 'subAgent.cdo.behavioral_psychology.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/behavioral-psychology',
+    prompt_ref: 'server/prompts/sub-agents/cdo/behavioral-psychology.md',
+    depends_on: ['cdo.friction', 'cdo.trust_credibility'],
+  },
+  {
+    id: 'cdo.ui_consistency',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 7,
+    title_copy_key: 'subAgent.cdo.ui_consistency.title',
+    description_copy_key: 'subAgent.cdo.ui_consistency.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/ui-consistency',
+    prompt_ref: 'server/prompts/sub-agents/cdo/ui-consistency.md',
+    depends_on: ['cdo.funnel_architect', 'cdo.friction', 'cdo.behavioral_psychology'],
+  },
+  {
+    id: 'cdo.copy_microcopy',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 8,
+    title_copy_key: 'subAgent.cdo.copy_microcopy.title',
+    description_copy_key: 'subAgent.cdo.copy_microcopy.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/copy-microcopy',
+    prompt_ref: 'server/prompts/sub-agents/cdo/copy-microcopy.md',
+    depends_on: ['cdo.value_proposition', 'cdo.friction', 'cdo.ui_consistency'],
   },
   {
     id: 'cdo.experimentation',
@@ -217,12 +303,33 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     description_copy_key: 'subAgent.cdo.experimentation.description',
     output_schema_ref: 'schemas/sub-agents/cdo/experimentation',
     prompt_ref: 'server/prompts/sub-agents/cdo/experimentation.md',
-    depends_on: ['cdo.friction', 'cmo.agent_9_traffic'],
+    depends_on: ['cdo.friction', 'cdo.copy_microcopy', 'cmo.agent_9_traffic'],
+  },
+  {
+    id: 'cdo.analytics_tracking',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 10,
+    title_copy_key: 'subAgent.cdo.analytics_tracking.title',
+    description_copy_key: 'subAgent.cdo.analytics_tracking.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/analytics-tracking',
+    prompt_ref: 'server/prompts/sub-agents/cdo/analytics-tracking.md',
+    depends_on: ['cdo.funnel_architect', 'cdo.friction', 'cdo.experimentation'],
+  },
+  {
+    id: 'cdo.benchmark_patterns',
+    director_domain: 'ux_conversion',
+    agent_number_in_instructions: 11,
+    title_copy_key: 'subAgent.cdo.benchmark_patterns.title',
+    description_copy_key: 'subAgent.cdo.benchmark_patterns.description',
+    output_schema_ref: 'schemas/sub-agents/cdo/benchmark-patterns',
+    prompt_ref: 'server/prompts/sub-agents/cdo/benchmark-patterns.md',
+    depends_on: ['cdo.funnel_architect', 'cdo.value_proposition', 'cdo.trust_credibility'],
   },
   {
     id: 'cao.process_map',
     director_domain: 'automation_processes',
     agent_number_in_instructions: 1,
+    zone_stage: 'both',
     title_copy_key: 'subAgent.cao.process_map.title',
     description_copy_key: 'subAgent.cao.process_map.description',
     output_schema_ref: 'schemas/sub-agents/cao/process-map',
@@ -230,9 +337,54 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     depends_on: [],
   },
   {
-    id: 'cao.automation_candidates',
+    id: 'cao.sop_governance',
     director_domain: 'automation_processes',
     agent_number_in_instructions: 2,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.sop_governance.title',
+    description_copy_key: 'subAgent.cao.sop_governance.description',
+    output_schema_ref: 'schemas/sub-agents/cao/sop-governance',
+    prompt_ref: 'server/prompts/sub-agents/cao/sop-governance.md',
+    depends_on: ['cao.process_map'],
+  },
+  {
+    id: 'cao.sla_targets',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 3,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.sla_targets.title',
+    description_copy_key: 'subAgent.cao.sla_targets.description',
+    output_schema_ref: 'schemas/sub-agents/cao/sla-targets',
+    prompt_ref: 'server/prompts/sub-agents/cao/sla-targets.md',
+    depends_on: ['cao.process_map', 'cao.sop_governance'],
+  },
+  {
+    id: 'cao.data_quality_gates',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 4,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.data_quality_gates.title',
+    description_copy_key: 'subAgent.cao.data_quality_gates.description',
+    output_schema_ref: 'schemas/sub-agents/cao/data-quality-gates',
+    prompt_ref: 'server/prompts/sub-agents/cao/data-quality-gates.md',
+    depends_on: ['cao.process_map'],
+  },
+  {
+    id: 'cao.adoption_rollout_governance',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 5,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.adoption_rollout_governance.title',
+    description_copy_key: 'subAgent.cao.adoption_rollout_governance.description',
+    output_schema_ref: 'schemas/sub-agents/cao/adoption-rollout-governance',
+    prompt_ref: 'server/prompts/sub-agents/cao/adoption-rollout-governance.md',
+    depends_on: ['cao.sop_governance', 'cao.sla_targets'],
+  },
+  {
+    id: 'cao.automation_candidates',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 6,
+    zone_stage: 'both',
     title_copy_key: 'subAgent.cao.automation_candidates.title',
     description_copy_key: 'subAgent.cao.automation_candidates.description',
     output_schema_ref: 'schemas/sub-agents/cao/automation-candidates',
@@ -240,14 +392,94 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     depends_on: ['cao.process_map'],
   },
   {
+    id: 'cao.integrations_handoffs',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 7,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.integrations_handoffs.title',
+    description_copy_key: 'subAgent.cao.integrations_handoffs.description',
+    output_schema_ref: 'schemas/sub-agents/cao/integrations-handoffs',
+    prompt_ref: 'server/prompts/sub-agents/cao/integrations-handoffs.md',
+    depends_on: ['cao.process_map', 'cao.automation_candidates'],
+  },
+  {
+    id: 'cao.followup_notifications',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 8,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.followup_notifications.title',
+    description_copy_key: 'subAgent.cao.followup_notifications.description',
+    output_schema_ref: 'schemas/sub-agents/cao/followup-notifications',
+    prompt_ref: 'server/prompts/sub-agents/cao/followup-notifications.md',
+    depends_on: ['cao.automation_candidates', 'cao.integrations_handoffs'],
+  },
+  {
+    id: 'cao.billing_quote_automation',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 9,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.billing_quote_automation.title',
+    description_copy_key: 'subAgent.cao.billing_quote_automation.description',
+    output_schema_ref: 'schemas/sub-agents/cao/billing-quote-automation',
+    prompt_ref: 'server/prompts/sub-agents/cao/billing-quote-automation.md',
+    depends_on: ['cao.automation_candidates', 'cao.data_quality_gates'],
+  },
+  {
+    id: 'cao.ai_ops_guardrails',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 10,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.ai_ops_guardrails.title',
+    description_copy_key: 'subAgent.cao.ai_ops_guardrails.description',
+    output_schema_ref: 'schemas/sub-agents/cao/ai-ops-guardrails',
+    prompt_ref: 'server/prompts/sub-agents/cao/ai-ops-guardrails.md',
+    depends_on: ['cao.automation_candidates', 'cao.sop_governance'],
+  },
+  {
     id: 'cao.throughput',
     director_domain: 'automation_processes',
-    agent_number_in_instructions: 3,
+    agent_number_in_instructions: 11,
+    zone_stage: 'both',
     title_copy_key: 'subAgent.cao.throughput.title',
     description_copy_key: 'subAgent.cao.throughput.description',
     output_schema_ref: 'schemas/sub-agents/cao/throughput',
     prompt_ref: 'server/prompts/sub-agents/cao/throughput.md',
     depends_on: ['cao.automation_candidates'],
+  },
+  {
+    id: 'cao.build_vs_buy',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 12,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.build_vs_buy.title',
+    description_copy_key: 'subAgent.cao.build_vs_buy.description',
+    output_schema_ref: 'schemas/sub-agents/cao/build-vs-buy',
+    prompt_ref: 'server/prompts/sub-agents/cao/build-vs-buy.md',
+    depends_on: ['cao.automation_candidates', 'cao.integrations_handoffs', 'cao.throughput'],
+  },
+  {
+    id: 'cao.synthesis_bundle',
+    director_domain: 'automation_processes',
+    agent_number_in_instructions: 13,
+    zone_stage: 'deep_audit',
+    title_copy_key: 'subAgent.cao.synthesis_bundle.title',
+    description_copy_key: 'subAgent.cao.synthesis_bundle.description',
+    output_schema_ref: 'schemas/sub-agents/cao/synthesis-bundle',
+    prompt_ref: 'server/prompts/sub-agents/cao/synthesis-bundle.md',
+    depends_on: [
+      'cao.process_map',
+      'cao.sop_governance',
+      'cao.sla_targets',
+      'cao.data_quality_gates',
+      'cao.adoption_rollout_governance',
+      'cao.automation_candidates',
+      'cao.integrations_handoffs',
+      'cao.followup_notifications',
+      'cao.billing_quote_automation',
+      'cao.ai_ops_guardrails',
+      'cao.throughput',
+      'cao.build_vs_buy',
+    ],
   },
   {
     id: 'cso.case_classifier',
@@ -258,6 +490,7 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     output_schema_ref: 'schemas/sub-agents/cso/case-classifier',
     prompt_ref: 'server/prompts/sub-agents/cso/case-classifier.md',
     depends_on: [],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
   },
   {
     id: 'cso.threat_model',
@@ -268,6 +501,7 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     output_schema_ref: 'schemas/sub-agents/cso/threat-model',
     prompt_ref: 'server/prompts/sub-agents/cso/threat-model.md',
     depends_on: ['cso.case_classifier'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
   },
   {
     id: 'cso.compliance_map',
@@ -278,6 +512,73 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     output_schema_ref: 'schemas/sub-agents/cso/compliance-map',
     prompt_ref: 'server/prompts/sub-agents/cso/compliance-map.md',
     depends_on: ['cso.threat_model'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.attack_surface_map',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 4,
+    title_copy_key: 'subAgent.cso.attack_surface_map.title',
+    description_copy_key: 'subAgent.cso.attack_surface_map.description',
+    output_schema_ref: 'schemas/sub-agents/cso/attack-surface-map',
+    prompt_ref: 'server/prompts/sub-agents/cso/attack-surface-map.md',
+    depends_on: ['cso.case_classifier'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.risk_scoring',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 5,
+    title_copy_key: 'subAgent.cso.risk_scoring.title',
+    description_copy_key: 'subAgent.cso.risk_scoring.description',
+    output_schema_ref: 'schemas/sub-agents/cso/risk-scoring',
+    prompt_ref: 'server/prompts/sub-agents/cso/risk-scoring.md',
+    depends_on: ['cso.threat_model', 'cso.attack_surface_map', 'cso.compliance_map'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.exploitability_exposure',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 6,
+    title_copy_key: 'subAgent.cso.exploitability_exposure.title',
+    description_copy_key: 'subAgent.cso.exploitability_exposure.description',
+    output_schema_ref: 'schemas/sub-agents/cso/exploitability-exposure',
+    prompt_ref: 'server/prompts/sub-agents/cso/exploitability-exposure.md',
+    depends_on: ['cso.threat_model', 'cso.attack_surface_map'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.metrics_framework',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 7,
+    title_copy_key: 'subAgent.cso.metrics_framework.title',
+    description_copy_key: 'subAgent.cso.metrics_framework.description',
+    output_schema_ref: 'schemas/sub-agents/cso/metrics-framework',
+    prompt_ref: 'server/prompts/sub-agents/cso/metrics-framework.md',
+    depends_on: ['cso.compliance_map', 'cso.risk_scoring'],
+    applicable_cases: ['A_zero_knowledge', 'B_regulated', 'C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.incident_readiness',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 8,
+    title_copy_key: 'subAgent.cso.incident_readiness.title',
+    description_copy_key: 'subAgent.cso.incident_readiness.description',
+    output_schema_ref: 'schemas/sub-agents/cso/incident-readiness',
+    prompt_ref: 'server/prompts/sub-agents/cso/incident-readiness.md',
+    depends_on: ['cso.threat_model', 'cso.exploitability_exposure'],
+    applicable_cases: ['C_data_heavy', 'D_incident'],
+  },
+  {
+    id: 'cso.sdlc_access_governance',
+    director_domain: 'security_compliance',
+    agent_number_in_instructions: 9,
+    title_copy_key: 'subAgent.cso.sdlc_access_governance.title',
+    description_copy_key: 'subAgent.cso.sdlc_access_governance.description',
+    output_schema_ref: 'schemas/sub-agents/cso/sdlc-access-governance',
+    prompt_ref: 'server/prompts/sub-agents/cso/sdlc-access-governance.md',
+    depends_on: ['cso.metrics_framework', 'cso.incident_readiness'],
+    applicable_cases: ['B_regulated', 'C_data_heavy', 'D_incident'],
   },
   {
     id: 'cto.readiness_baseline',

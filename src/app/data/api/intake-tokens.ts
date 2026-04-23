@@ -75,7 +75,18 @@ export const intakeTokensApi = {
    */
   async reportIntelligenceKpi(
     token: string,
-    body: { event: 'question_shown' | 'drop_off'; question_id?: string; client_session_id?: string },
+    body: {
+      event:
+        | 'question_shown'
+        | 'drop_off'
+        | 'fast_pass_started'
+        | 'fast_pass_completed'
+        | 'precision_pass_started'
+        | 'optional_details_opened'
+        | 'optional_details_submitted';
+      question_id?: string;
+      client_session_id?: string;
+    },
   ) {
     try {
       return await publicApiFetch<{ ok: true; persisted: boolean }>(apiIntakeIntelligenceKpi(token), {

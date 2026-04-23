@@ -10,6 +10,8 @@ import {
   briefResponseTrimmedString,
   getPreBriefSubmitSlotIds,
   groupBriefQuestionsBySection,
+  isPreBriefQuestionSatisfied,
+  mergeBriefResponsesPreferFilled,
   websitePresenceMeansNoPublicSite,
 } from '../../../data/briefQuestions';
 import { normalizeIntakeToResponses } from '../../../data/intakeBriefMap';
@@ -32,9 +34,55 @@ import {
 import { INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID } from '../../../config/intake-critical-signal-map';
 
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
+type IntakeJourneyStage = 'fast_pass' | 'precision_pass';
+type IntakeQuestionMode = 'progressive' | 'all_questions';
 
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 const NL_INGRESS_CONSENT_KEY = 'glc:intake:nl-consent-v1';
+const INTAKE_PROGRESSIVE_STATE_KEY_PREFIX = 'glc:intake:progressive-state:';
+
+function intakeProgressiveStateKey(token: string): string {
+  return `${INTAKE_PROGRESSIVE_STATE_KEY_PREFIX}${token}`;
+}
+
+function isReliableSource(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const source = (value as { source?: unknown }).source;
+  return source === 'client' || source === 'consultant' || source === 'recon_confirmed';
+}
+
+function buildFastPassQuestionIds(args: {
+  questions: BriefQuestion[];
+  confidenceByQuestionId: Record<string, { confidence: 'high' | 'medium' | 'low' | 'unknown' }>;
+}): string[] {
+  const requiredIds = args.questions.filter(q => q.priority === 'required').map(q => q.id);
+  const lowConfidenceIds = args.questions
+    .filter(q => {
+      const confidence = args.confidenceByQuestionId[q.id]?.confidence ?? 'unknown';
+      return confidence === 'low' || confidence === 'unknown';
+    })
+    .map(q => q.id);
+  const dedup = Array.from(new Set([...requiredIds, ...lowConfidenceIds, ...args.questions.map(q => q.id)]));
+  return dedup.slice(0, 8);
+}
+
+function buildProgressiveQueue(visibleQuestions: BriefQuestion[], ids: string[]): string[][] {
+  const byId = new Set(visibleQuestions.map(q => q.id));
+  const queue: string[][] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    if (id === 'a5' && byId.has('a11') && ids.includes('a11')) {
+      queue.push(['a5', 'a11']);
+      seen.add('a5');
+      seen.add('a11');
+      continue;
+    }
+    queue.push([id]);
+    seen.add(id);
+  }
+  return queue;
+}
 
 export function useIntakeBriefController(rawToken: string | undefined) {
   const token = rawToken?.trim() ?? '';
@@ -54,11 +102,19 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const [nlIngressText, setNlIngressText] = useState('');
   const [nlIngressStatus, setNlIngressStatus] = useState<'idle' | 'sending' | 'ok' | 'error' | 'hidden'>('idle');
   const [nlIngressConsentAccepted, setNlIngressConsentAccepted] = useState(false);
+  const [journeyStage, setJourneyStage] = useState<IntakeJourneyStage>('fast_pass');
+  const [questionMode, setQuestionMode] = useState<IntakeQuestionMode>('progressive');
+  const [progressiveStepIndex, setProgressiveStepIndex] = useState(0);
+  const [optionalDetailsOpenById, setOptionalDetailsOpenById] = useState<Record<string, boolean>>({});
+  const [resumeBannerVisible, setResumeBannerVisible] = useState(false);
 
   const hadSubmissionOnLoadRef = useRef(false);
   const intakeKpiSessionIdRef = useRef(crypto.randomUUID());
   const intakeKpiHadActivityRef = useRef(false);
   const intakeKpiShownQuestionIdsRef = useRef(new Set<string>());
+  const fastPassStartedRef = useRef(false);
+  const fastPassCompletedRef = useRef(false);
+  const precisionPassStartedRef = useRef(false);
 
   const intakeSchemaSnapshot = useMemo(() => {
     try {
@@ -136,6 +192,47 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     () => groupBriefQuestionsBySection(visibleQuestions),
     [visibleQuestions],
   );
+  const adaptiveFastPassIds = useMemo(
+    () => buildFastPassQuestionIds({ questions: visibleQuestions, confidenceByQuestionId: signalConfidenceByQuestionId }),
+    [visibleQuestions, signalConfidenceByQuestionId],
+  );
+  const precisionPassIds = useMemo(
+    () =>
+      visibleQuestions
+        .filter(q => !adaptiveFastPassIds.includes(q.id))
+        .filter(q => {
+          const confidence = signalConfidenceByQuestionId[q.id]?.confidence ?? 'unknown';
+          return confidence === 'low' || confidence === 'unknown';
+        })
+        .map(q => q.id),
+    [adaptiveFastPassIds, signalConfidenceByQuestionId, visibleQuestions],
+  );
+  const skippedByConfidenceIds = useMemo(
+    () =>
+      visibleQuestions
+        .filter(q => !adaptiveFastPassIds.includes(q.id))
+        .filter(q => {
+          const confidence = signalConfidenceByQuestionId[q.id]?.confidence ?? 'unknown';
+          return (confidence === 'high' || confidence === 'medium') && isReliableSource(responses[q.id]);
+        })
+        .map(q => q.id),
+    [adaptiveFastPassIds, responses, signalConfidenceByQuestionId, visibleQuestions],
+  );
+  const activeQuestionIds = useMemo(() => {
+    if (journeyStage === 'fast_pass') return adaptiveFastPassIds;
+    return precisionPassIds;
+  }, [adaptiveFastPassIds, journeyStage, precisionPassIds]);
+  const progressiveQueue = useMemo(
+    () => buildProgressiveQueue(visibleQuestions, activeQuestionIds),
+    [activeQuestionIds, visibleQuestions],
+  );
+  const activeQueueItem = useMemo(() => progressiveQueue[progressiveStepIndex] ?? [], [progressiveQueue, progressiveStepIndex]);
+  const displayedQuestionSections = useMemo(() => {
+    if (questionMode === 'all_questions') return questionSections;
+    const activeIds = new Set(activeQueueItem);
+    const subset = visibleQuestions.filter(q => activeIds.has(q.id));
+    return groupBriefQuestionsBySection(subset);
+  }, [questionMode, questionSections, activeQueueItem, visibleQuestions]);
 
   const readinessPanel = useMemo(() => {
     const readiness = intakeSchemaSnapshot?.readiness;
@@ -197,6 +294,28 @@ export function useIntakeBriefController(rawToken: string | undefined) {
             ),
           ),
         );
+        if (typeof window !== 'undefined') {
+          const saved = window.localStorage.getItem(intakeProgressiveStateKey(token));
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved) as {
+                responses?: BriefResponses;
+                stage?: IntakeJourneyStage;
+                mode?: IntakeQuestionMode;
+                stepIndex?: number;
+              };
+              if (parsed.responses) {
+                setResponses(prev => mergeBriefResponsesPreferFilled(prev, parsed.responses ?? {}));
+                setResumeBannerVisible(true);
+              }
+              if (parsed.stage === 'fast_pass' || parsed.stage === 'precision_pass') setJourneyStage(parsed.stage);
+              if (parsed.mode === 'progressive' || parsed.mode === 'all_questions') setQuestionMode(parsed.mode);
+              if (typeof parsed.stepIndex === 'number' && parsed.stepIndex >= 0) setProgressiveStepIndex(parsed.stepIndex);
+            } catch {
+              // no-op
+            }
+          }
+        }
         setPhase('form');
         setLastSubmittedIso(null);
         setNlIngressText('');
@@ -228,6 +347,11 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const answered = countPreBriefSatisfied(responses);
   const total = getPreBriefSubmitSlotIds(responses).length;
   const formComplete = answered === total;
+  const isCurrentStepSatisfied = useMemo(() => {
+    if (questionMode === 'all_questions') return formComplete;
+    if (activeQueueItem.length === 0) return true;
+    return activeQueueItem.every(id => isPreBriefQuestionSatisfied(id, responses));
+  }, [activeQueueItem, formComplete, questionMode, responses]);
 
   const markIntakeKpiActivity = useCallback(() => {
     intakeKpiHadActivityRef.current = true;
@@ -252,6 +376,83 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     markIntakeKpiActivity();
     setResponses(prev => patchUnknownResponse(prev, id));
   }, [markIntakeKpiActivity]);
+  const onOpenOptionalDetails = useCallback(
+    (id: string) => {
+      setOptionalDetailsOpenById(prev => ({ ...prev, [id]: true }));
+      if (!token) return;
+      void api.reportIntelligenceKpi(token, {
+        event: 'optional_details_opened',
+        question_id: id,
+        client_session_id: intakeKpiSessionIdRef.current,
+      });
+    },
+    [token],
+  );
+  const onSubmitOptionalDetails = useCallback(
+    (id: string) => {
+      if (!token) return;
+      void api.reportIntelligenceKpi(token, {
+        event: 'optional_details_submitted',
+        question_id: id,
+        client_session_id: intakeKpiSessionIdRef.current,
+      });
+    },
+    [token],
+  );
+  const onAdvanceProgressive = useCallback(() => {
+    if (questionMode === 'all_questions') {
+      setPhase('review');
+      return;
+    }
+    const atLastStep = progressiveStepIndex >= progressiveQueue.length - 1;
+    if (!atLastStep) {
+      setProgressiveStepIndex(prev => prev + 1);
+      return;
+    }
+    if (journeyStage === 'fast_pass') {
+      if (!fastPassCompletedRef.current && token) {
+        fastPassCompletedRef.current = true;
+        void api.reportIntelligenceKpi(token, {
+          event: 'fast_pass_completed',
+          client_session_id: intakeKpiSessionIdRef.current,
+        });
+      }
+      if (precisionPassIds.length > 0) {
+        setJourneyStage('precision_pass');
+        setProgressiveStepIndex(0);
+      } else {
+        setPhase('review');
+      }
+      return;
+    }
+    setPhase('review');
+  }, [journeyStage, precisionPassIds.length, progressiveQueue.length, progressiveStepIndex, questionMode, token]);
+  const onBackProgressive = useCallback(() => {
+    if (questionMode === 'all_questions') {
+      setQuestionMode('progressive');
+      return;
+    }
+    if (progressiveStepIndex > 0) {
+      setProgressiveStepIndex(prev => prev - 1);
+      return;
+    }
+    if (journeyStage === 'precision_pass') {
+      setJourneyStage('fast_pass');
+      setProgressiveStepIndex(0);
+    }
+  }, [journeyStage, progressiveStepIndex, questionMode]);
+  const onSaveAndContinueLater = useCallback(() => {
+    if (!token || typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      intakeProgressiveStateKey(token),
+      JSON.stringify({
+        responses,
+        stage: journeyStage,
+        mode: questionMode,
+        stepIndex: progressiveStepIndex,
+      }),
+    );
+  }, [journeyStage, progressiveStepIndex, questionMode, responses, token]);
 
   const scrollToQuestion = useCallback((id: string) => {
     setPhase('form');
@@ -295,6 +496,23 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       io.disconnect();
     };
   }, [loading, token, phase, questionSections]);
+  useEffect(() => {
+    if (!token || phase !== 'form') return;
+    if (!fastPassStartedRef.current && journeyStage === 'fast_pass') {
+      fastPassStartedRef.current = true;
+      void api.reportIntelligenceKpi(token, {
+        event: 'fast_pass_started',
+        client_session_id: intakeKpiSessionIdRef.current,
+      });
+    }
+    if (!precisionPassStartedRef.current && journeyStage === 'precision_pass') {
+      precisionPassStartedRef.current = true;
+      void api.reportIntelligenceKpi(token, {
+        event: 'precision_pass_started',
+        client_session_id: intakeKpiSessionIdRef.current,
+      });
+    }
+  }, [journeyStage, phase, token]);
 
   useEffect(() => {
     if (!token) return;
@@ -338,6 +556,9 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       setLastSubmittedIso(result.submitted_at);
       setSubmittedAt(result.submitted_at);
       setPhase('success');
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(intakeProgressiveStateKey(token));
+      }
     } catch (err) {
       if (err instanceof ApiError && (err.code === 'INTAKE_LINK_EXPIRED' || err.status === 410)) {
         setExpired(true);
@@ -358,6 +579,16 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const followUpLine = buildFollowUpExpectationLine(clientMeta);
   const contactFooter = buildIntakeContactFooterLines(clientMeta);
   const successIsUpdate = hadSubmissionOnLoadRef.current;
+  const showFastPassDoneBanner =
+    journeyStage === 'precision_pass' &&
+    (precisionPassIds.length > 0 || fastPassCompletedRef.current);
+  const visibleOptionalDetailsById = useMemo(() => {
+    const out: Record<string, boolean> = {};
+    for (const id of activeQueueItem) {
+      if (optionalDetailsOpenById[id]) out[id] = true;
+    }
+    return out;
+  }, [activeQueueItem, optionalDetailsOpenById]);
 
   return {
     token,
@@ -369,6 +600,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     questions,
     responses,
     questionSections,
+    displayedQuestionSections,
     readinessPanel,
     intelligenceByQuestionId,
     signalConfidenceByQuestionId,
@@ -378,8 +610,19 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     submitError,
     lastSubmittedIso,
     formComplete,
+    isCurrentStepSatisfied,
     answered,
     total,
+    journeyStage,
+    questionMode,
+    progressiveStepIndex,
+    progressiveStepTotal: progressiveQueue.length,
+    activeQueueItem,
+    precisionPassQuestionCount: precisionPassIds.length,
+    skippedByConfidenceIds,
+    showFastPassDoneBanner,
+    optionalDetailsOpenById: visibleOptionalDetailsById,
+    resumeBannerVisible,
     clientMeta,
     consultantPrefilledIdentity,
     companyName,
@@ -392,6 +635,13 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     onIndustryChange,
     onWebsitePresenceChange,
     onUnknown,
+    onOpenOptionalDetails,
+    onSubmitOptionalDetails,
+    onAdvanceProgressive,
+    onBackProgressive,
+    onSaveAndContinueLater,
+    onToggleQuestionMode: (mode: IntakeQuestionMode) => setQuestionMode(mode),
+    onDismissResumeBanner: () => setResumeBannerVisible(false),
     scrollToQuestion,
     confirmSubmit,
     nlIngress:

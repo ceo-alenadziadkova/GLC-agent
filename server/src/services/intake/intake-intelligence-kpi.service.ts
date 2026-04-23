@@ -2,7 +2,14 @@ import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import { logger } from '../logger.js';
 import { supabase } from '../supabase.js';
 
-export type IntakeIntelligenceKpiKind = 'question_shown' | 'drop_off';
+export type IntakeIntelligenceKpiKind =
+  | 'question_shown'
+  | 'drop_off'
+  | 'fast_pass_started'
+  | 'fast_pass_completed'
+  | 'precision_pass_started'
+  | 'optional_details_opened'
+  | 'optional_details_submitted';
 
 /**
  * Persists diagnostic intake KPI rows into `pipeline_events` when the token is linked to an audit.
@@ -17,14 +24,16 @@ export async function recordIntakeIntelligenceKpiEvent(params: {
   clientSessionId?: string;
 }): Promise<{ persisted: boolean }> {
   const eventType = params.auditId
-    ? params.kind === 'question_shown'
-      ? PIPELINE_EVENT_TYPES.intakeIntelligenceQuestionShown
-      : PIPELINE_EVENT_TYPES.intakeIntelligenceDropOff
+    ? params.kind === 'drop_off'
+      ? PIPELINE_EVENT_TYPES.intakeIntelligenceDropOff
+      : PIPELINE_EVENT_TYPES.intakeIntelligenceQuestionShown
     : 'intake_intelligence_pre_audit_kpi';
   const message = params.auditId
-    ? params.kind === 'question_shown'
+    ? params.kind === 'drop_off'
+      ? 'Public intake: session drop-off signal (intelligence KPI)'
+      : params.kind === 'question_shown'
       ? 'Public intake: question became visible (intelligence KPI)'
-      : 'Public intake: session drop-off signal (intelligence KPI)'
+      : `Public intake: ${params.kind} signal (intelligence KPI)`
     : 'Public intake: pre-audit KPI signal captured';
 
   const { error } = await supabase.from('pipeline_events').insert({
