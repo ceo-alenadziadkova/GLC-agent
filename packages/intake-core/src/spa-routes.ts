@@ -37,6 +37,7 @@ export const APP_ROUTE_SEGMENTS = {
   adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
   timelineById: 'timeline/:id',
+  roadmapById: 'roadmap/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
   settings: 'settings',
@@ -44,6 +45,7 @@ export const APP_ROUTE_SEGMENTS = {
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
   portalTimelineById: 'portal/timeline/:id',
+  portalRoadmapById: 'portal/roadmap/:id',
   portalStrategyById: 'portal/strategy/:id',
   /** Client manifest-first wizard (V2): guided roadmap inputs before pack build. */
   portalRoadmapManifestByAuditId: 'portal/audit/:id/roadmap-manifest',

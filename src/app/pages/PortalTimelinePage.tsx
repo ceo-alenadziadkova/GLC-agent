@@ -557,6 +557,7 @@ export function PortalTimelinePage() {
 
   const reportHref = isClient ? buildAppRoute.portalReports(id) : buildAppRoute.reports(id);
   const labHref = isClient ? buildAppRoute.portalStrategy(id) : buildAppRoute.strategy(id);
+  const roadmapHref = isClient ? buildAppRoute.portalRoadmap(id) : buildAppRoute.roadmap(id);
   const labManifestFlowHref = `${labHref}?${ORCHESTRATION_LAB_FOCUS_QUERY_KEY}=${ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE}`;
   const manifestWizardHref = buildAppRoute.portalRoadmapManifest(id);
   const auditHref = isClient ? buildAppRoute.portalAudit(id) : buildAppRoute.audit(id);
@@ -839,6 +840,9 @@ export function PortalTimelinePage() {
               <Flask className="h-4 w-4" />
               {CLIENT_AUDIT_VIEW_COPY.cockpit.adjustScopeTitle}
             </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="no-underline">
+            <Link to={roadmapHref}>{'Roadmap schedule'}</Link>
           </Button>
         </div>
         {timelineQuery.isPending && (

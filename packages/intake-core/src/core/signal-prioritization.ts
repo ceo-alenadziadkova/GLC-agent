@@ -54,6 +54,18 @@ export function computeSignalPrioritization(args: {
     ) {
       state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'ecommerce_vertical_elevates_audit_focus' };
     }
+    if (
+      (industry.includes('saas') || industry.includes('software')) &&
+      (signalKey === 'operations_bottleneck' || signalKey === 'audit_focus')
+    ) {
+      state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'saas_vertical_elevates_ops_and_focus' };
+    }
+    if (
+      industry.includes('retail') &&
+      (signalKey === 'operations_bottleneck' || signalKey === 'delivery_shape_baseline')
+    ) {
+      state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'retail_vertical_elevates_ops_and_delivery' };
+    }
 
     bySignalKey[signalKey] = state;
   }

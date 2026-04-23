@@ -19,11 +19,13 @@ export type IntakeIntelligenceOwnerDomain =
 
 export interface IntakeIntelligenceStewardship {
   ownerDomain: IntakeIntelligenceOwnerDomain;
+  ownerAlias?: string;
   reviewByIsoDate: string;
 }
 
 export interface IntakeIntelligenceTodo {
   ownerDomain: IntakeIntelligenceOwnerDomain;
+  ownerAlias?: string;
   reviewByIsoDate: string;
   todoReason: string;
 }

@@ -13,7 +13,14 @@ import {
   INTERNAL_SERVER_ERROR_MESSAGE,
   intakeResponsesSchemaInvalidMessage,
 } from '../../../config/api-user-messages.en.js';
-import { isDiagnosticIntakePilotEnabled } from '../../../config/feature-flags.js';
+import {
+  getNlIngressLlmAllowlistTokens,
+  getNlIngressLlmGeoGroups,
+  getNlIngressLlmRolloutMode,
+  getNlIngressLlmRolloutPercent,
+  isDiagnosticIntakePilotEnabled,
+  isNlIngressLlmEnabled,
+} from '../../../config/feature-flags.js';
 import { logger } from '../../../services/logger.js';
 import {
   buildAuthoritativePlanTrace,
@@ -25,6 +32,7 @@ import {
   normalizePublicIntakeRouteTokenParam,
 } from '../../../services/intake/intake-token-guards.js';
 import { mapNlDescribeTextToGraphDraft } from '../../../services/intake/nl-describe-graph-mapper.js';
+import { mapNlDescribeTextToGraphDraftLlm } from '../../../services/intake/nl-describe-llm-mapper.js';
 import {
   fetchIntakeTokenRowForRespond,
   updateIntakeTokenResponsesDraft,
@@ -33,6 +41,67 @@ import { DEFAULT_AUDIT_PRODUCT_MODE, type IntakeBriefCollectionMode, type Produc
 import type { IntakeSurface } from '@glc/intake-core';
 
 const MAX_TEXT_LEN = 8000;
+const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
+const nlDescribeIdempotencyCache = new Map<string, { at: number; response: unknown }>();
+
+function readHeader(req: Request, headerName: string): string | undefined {
+  if (typeof req.header === 'function') return req.header(headerName) ?? undefined;
+  const raw = req.headers?.[headerName.toLowerCase()];
+  if (Array.isArray(raw)) return raw[0];
+  return typeof raw === 'string' ? raw : undefined;
+}
+
+function scrubNlTextPii(text: string): { scrubbed: string; emailCount: number; phoneCount: number } {
+  let emailCount = 0;
+  let phoneCount = 0;
+  const scrubbedEmails = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, () => {
+    emailCount += 1;
+    return '[redacted_email]';
+  });
+  const scrubbed = scrubbedEmails.replace(/(?:\+?\d[\d\s\-().]{7,}\d)/g, () => {
+    phoneCount += 1;
+    return '[redacted_phone]';
+  });
+  return { scrubbed, emailCount, phoneCount };
+}
+
+function cleanupIdempotencyCache(now = Date.now()): void {
+  for (const [key, value] of nlDescribeIdempotencyCache.entries()) {
+    if (now - value.at > IDEMPOTENCY_TTL_MS) {
+      nlDescribeIdempotencyCache.delete(key);
+    }
+  }
+}
+
+function hashToPercent(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % 100;
+}
+
+function isTokenAllowlisted(token: string, allowlist: string[]): boolean {
+  return allowlist.some(item => token === item || token.startsWith(item));
+}
+
+function shouldUseLlmAsPrimary(token: string): boolean {
+  if (!isNlIngressLlmEnabled()) return false;
+  const mode = getNlIngressLlmRolloutMode();
+  const allowlist = getNlIngressLlmAllowlistTokens();
+  if (mode === 'shadow') return false;
+  if (mode === 'internal') return isTokenAllowlisted(token, allowlist);
+  if (mode === 'ga') return true;
+  const rolloutPercent = getNlIngressLlmRolloutPercent();
+  return hashToPercent(token) < rolloutPercent;
+}
+
+function isGeoGroupAllowed(geoGroup: string | null): boolean {
+  const groups = getNlIngressLlmGeoGroups();
+  if (groups.length === 0) return true;
+  if (!geoGroup) return false;
+  return groups.includes(geoGroup.toLowerCase());
+}
 
 /**
  * Sprint 5 NL ingress stub: records intent only; graph draft is produced by a future orchestrator.
@@ -83,6 +152,13 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
 
     const minConfidence = req.body?.min_confidence === 'low' ? 'low' : 'medium';
     const persistDraft = req.body?.persist_draft !== false;
+    const idempotencyKeyRaw = readHeader(req, 'x-idempotency-key')?.trim();
+    const idempotencyKey = idempotencyKeyRaw && idempotencyKeyRaw.length > 0 ? `${token}:${idempotencyKeyRaw}` : null;
+    cleanupIdempotencyCache();
+    if (idempotencyKey && nlDescribeIdempotencyCache.has(idempotencyKey)) {
+      res.status(200).json(nlDescribeIdempotencyCache.get(idempotencyKey)?.response);
+      return;
+    }
     const collectionMode =
       typeof req.body?.collectionMode === 'string' ? (req.body.collectionMode as IntakeBriefCollectionMode) : undefined;
     const surface = typeof req.body?.surface === 'string' ? (req.body.surface as IntakeSurface) : undefined;
@@ -96,7 +172,36 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
       minConfidence,
     });
 
-    const graphDraft = mapNlDescribeTextToGraphDraft(raw);
+    const rolloutMode = getNlIngressLlmRolloutMode();
+    const geoGroupRaw = readHeader(req, 'x-geo-group')?.trim() ?? null;
+    const geoEligible = isGeoGroupAllowed(geoGroupRaw);
+    const llmPrimary = geoEligible && shouldUseLlmAsPrimary(token);
+    const pii = scrubNlTextPii(raw);
+    let regexDraft = mapNlDescribeTextToGraphDraft(raw);
+    let graphDraft = regexDraft;
+    let llmDraft: Awaited<ReturnType<typeof mapNlDescribeTextToGraphDraftLlm>> | null = null;
+    let llmFailure: string | null = null;
+    if (isNlIngressLlmEnabled()) {
+      try {
+        llmDraft = await mapNlDescribeTextToGraphDraftLlm(pii.scrubbed);
+        if (llmPrimary) {
+          graphDraft = llmDraft;
+        }
+      } catch (err) {
+        llmFailure = err instanceof Error ? err.message : 'unknown_llm_error';
+      }
+    }
+    if (rolloutMode === 'shadow' && llmDraft) {
+      logger.info('nl_ingress_shadow_comparison', {
+        tokenPrefix: token.slice(0, 6),
+        regexInferredCount: regexDraft.inferred.length,
+        llmInferredCount: llmDraft.inferred.length,
+        piiRedaction: {
+          emailCount: pii.emailCount,
+          phoneCount: pii.phoneCount,
+        },
+      });
+    }
     const authoritative = mergeNlDraftIntoAuthoritativeResponses({
       graphDraft,
       existingResponses: row.responses,
@@ -114,9 +219,18 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
       surface,
     });
 
-    res.status(200).json({
+    const responsePayload = {
       ok: true,
       prefer_explicit_over_inferred: true,
+      llm_rollout: {
+        enabled: isNlIngressLlmEnabled(),
+        mode: rolloutMode,
+        geo_group: geoGroupRaw,
+        geo_eligible: geoEligible,
+        llm_primary: llmPrimary,
+        llm_failed: llmFailure != null,
+        fallback_used: llmPrimary && llmFailure != null,
+      },
       graphDraft,
       authoritative: {
         merged_responses: authoritative.mergedResponses,
@@ -129,7 +243,11 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
         text: planTrace.text,
       },
       message: 'NL ingress produced authoritative merged responses and plan trace with confidence/evidence gating.',
-    });
+    };
+    if (idempotencyKey) {
+      nlDescribeIdempotencyCache.set(idempotencyKey, { at: Date.now(), response: responsePayload });
+    }
+    res.status(200).json(responsePayload);
   } catch (err) {
     logger.error('post_intake_nl_describe_failed', { err });
     const isPlanFailure = err instanceof Error && err.message.includes('buildIntakePlan');

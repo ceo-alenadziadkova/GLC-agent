@@ -18,8 +18,11 @@ import { replaceIntakePublicCopyPlaceholders } from '../lib/intake-public-copy-h
 
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 
-function SignalConfidenceGlyph(props: { confidence: 'high' | 'medium' | 'low' | 'unknown' }) {
-  const { confidence } = props;
+function SignalConfidenceGlyph(props: {
+  confidence: 'high' | 'medium' | 'low' | 'unknown';
+  certaintyStage?: 'assumed' | 'confirming' | 'confirmed';
+}) {
+  const { confidence, certaintyStage = 'assumed' } = props;
   const tone = (() => {
     if (confidence === 'high') return 'text-[var(--ds-semantic-success)]';
     if (confidence === 'medium') return 'text-[var(--ds-semantic-warning)]';
@@ -37,6 +40,9 @@ function SignalConfidenceGlyph(props: { confidence: 'high' | 'medium' | 'low' | 
   return (
     <span className={`inline-flex items-center gap-1 ${tone}`} title={`${copy.signalConfidencePrefix} ${confidence}`}>
       <Icon className="h-4 w-4 shrink-0" weight="duotone" aria-hidden />
+      <span className="rounded border px-1 py-0.5 text-[10px] leading-none text-[var(--ds-text-muted)]">
+        {certaintyStage}
+      </span>
       <span className="sr-only">
         {copy.signalConfidencePrefix} {confidence}
       </span>
@@ -53,6 +59,8 @@ export function IntakeBriefFormPhase(props: {
     text: string;
     onTextChange: (v: string) => void;
     onSubmit: () => void;
+    consentAccepted: boolean;
+    onConsentChange: (accepted: boolean) => void;
     busy: boolean;
     status: 'idle' | 'ok' | 'error';
   };
@@ -74,7 +82,11 @@ export function IntakeBriefFormPhase(props: {
   >;
   signalConfidenceByQuestionId: Record<
     string,
-    { signalKey: string; confidence: 'high' | 'medium' | 'low' | 'unknown' }
+    {
+      signalKey: string;
+      confidence: 'high' | 'medium' | 'low' | 'unknown';
+      certaintyStage: 'assumed' | 'confirming' | 'confirmed';
+    }
   >;
   companyName: string;
   message: string;
@@ -179,11 +191,20 @@ export function IntakeBriefFormPhase(props: {
             aria-label={copy.nlIngressTitle}
           />
           <p className="text-xs m-0 ds-text-quaternary">{copy.nlIngressPrivacy}</p>
+          <label className="flex items-start gap-2 text-xs ds-text-secondary">
+            <input
+              type="checkbox"
+              checked={nlIngress.consentAccepted}
+              onChange={e => nlIngress.onConsentChange(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>I consent to processing this text via LLM-assisted intake mapping.</span>
+          </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="ds-btn ds-btn--secondary text-sm"
-              disabled={nlIngress.busy || !nlIngress.text.trim()}
+              disabled={nlIngress.busy || !nlIngress.text.trim() || !nlIngress.consentAccepted}
               onClick={() => nlIngress.onSubmit()}
             >
               {nlIngress.busy ? copy.nlIngressSending : copy.nlIngressSubmit}
@@ -299,7 +320,10 @@ export function IntakeBriefFormPhase(props: {
                       <div key={q.id} id={`intake-q-${q.id}`}>
                         {signalConfidenceByQuestionId[q.id] && (
                           <div className="mb-2 flex items-center gap-2">
-                            <SignalConfidenceGlyph confidence={signalConfidenceByQuestionId[q.id]!.confidence} />
+                            <SignalConfidenceGlyph
+                              confidence={signalConfidenceByQuestionId[q.id]!.confidence}
+                              certaintyStage={signalConfidenceByQuestionId[q.id]!.certaintyStage}
+                            />
                           </div>
                         )}
                         {intelligenceByQuestionId[q.id] && (

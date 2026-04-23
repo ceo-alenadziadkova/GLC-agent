@@ -34,6 +34,7 @@ import { INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID } from '../../../config/intake-
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
 
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
+const NL_INGRESS_CONSENT_KEY = 'glc:intake:nl-consent-v1';
 
 export function useIntakeBriefController(rawToken: string | undefined) {
   const token = rawToken?.trim() ?? '';
@@ -52,6 +53,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const [lastSubmittedIso, setLastSubmittedIso] = useState<string | null>(null);
   const [nlIngressText, setNlIngressText] = useState('');
   const [nlIngressStatus, setNlIngressStatus] = useState<'idle' | 'sending' | 'ok' | 'error' | 'hidden'>('idle');
+  const [nlIngressConsentAccepted, setNlIngressConsentAccepted] = useState(false);
 
   const hadSubmissionOnLoadRef = useRef(false);
   const intakeKpiSessionIdRef = useRef(crypto.randomUUID());
@@ -91,14 +93,32 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   }, [intakeSchemaSnapshot]);
 
   const signalConfidenceByQuestionId = useMemo(() => {
-    const byQuestion: Record<string, { signalKey: string; confidence: 'high' | 'medium' | 'low' | 'unknown' }> = {};
+    const byQuestion: Record<
+      string,
+      {
+        signalKey: string;
+        confidence: 'high' | 'medium' | 'low' | 'unknown';
+        certaintyStage: 'assumed' | 'confirming' | 'confirmed';
+      }
+    > = {};
     const byKey = intakeSchemaSnapshot?.critical_signals?.by_key ?? {};
+    const certaintyBySignal = new Map<string, 'assumed' | 'confirming' | 'confirmed'>();
+    for (const entry of intakeSchemaSnapshot?.readiness?.trace ?? []) {
+      const signalKey = entry.signalKey;
+      if (!signalKey) continue;
+      if (entry.code === 'uncertainty_closed' || entry.code === 'hypothesis_confirmed') {
+        certaintyBySignal.set(signalKey, 'confirmed');
+      } else if (entry.code === 'hypothesis_formed' && !certaintyBySignal.has(signalKey)) {
+        certaintyBySignal.set(signalKey, 'confirming');
+      }
+    }
     for (const [questionId, signalKeys] of Object.entries(INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID)) {
       const signalKey = signalKeys[0];
       if (!signalKey) continue;
       byQuestion[questionId] = {
         signalKey,
         confidence: byKey[signalKey] ?? 'unknown',
+        certaintyStage: certaintyBySignal.get(signalKey) ?? 'assumed',
       };
     }
     return byQuestion;
@@ -181,6 +201,9 @@ export function useIntakeBriefController(rawToken: string | undefined) {
         setLastSubmittedIso(null);
         setNlIngressText('');
         setNlIngressStatus('idle');
+        if (typeof window !== 'undefined') {
+          setNlIngressConsentAccepted(window.localStorage.getItem(NL_INGRESS_CONSENT_KEY) === 'true');
+        }
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && (e.code === 'INTAKE_LINK_EXPIRED' || e.status === 410)) {
@@ -292,10 +315,10 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   }, [token, phase]);
 
   const submitNlIngress = useCallback(async () => {
-    if (!token || !nlIngressText.trim()) return;
+    if (!token || !nlIngressText.trim() || !nlIngressConsentAccepted) return;
     setNlIngressStatus('sending');
     try {
-      await api.submitIntakeNlDescribe(token, nlIngressText.trim());
+      await api.submitIntakeNlDescribe(token, nlIngressText.trim(), crypto.randomUUID());
       setNlIngressStatus('ok');
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
@@ -304,7 +327,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
         setNlIngressStatus('error');
       }
     }
-  }, [token, nlIngressText]);
+  }, [token, nlIngressText, nlIngressConsentAccepted]);
 
   const confirmSubmit = useCallback(async () => {
     if (!token) return;
@@ -377,6 +400,13 @@ export function useIntakeBriefController(rawToken: string | undefined) {
         : {
             text: nlIngressText,
             onTextChange: setNlIngressText,
+            consentAccepted: nlIngressConsentAccepted,
+            onConsentChange: (accepted: boolean) => {
+              setNlIngressConsentAccepted(accepted);
+              if (typeof window !== 'undefined') {
+                window.localStorage.setItem(NL_INGRESS_CONSENT_KEY, accepted ? 'true' : 'false');
+              }
+            },
             onSubmit: () => void submitNlIngress(),
             busy: nlIngressStatus === 'sending',
             status: nlIngressStatus === 'ok' ? 'ok' : nlIngressStatus === 'error' ? 'error' : 'idle',

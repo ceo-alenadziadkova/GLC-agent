@@ -126,6 +126,7 @@ export function mergeOrchestrationActionInputs(
   const hasFallbackDomains = domainsWithBaselineDirector.size < selectedSet.size;
   const input_quality: OrchestrationInputQuality = {
     input_mode: hasAnyDirectorCoverage ? 'director_enriched' : 'strategy_fallback',
+    input_gate_status: !hasAnyDirectorCoverage || hasFallbackDomains ? 'degraded' : 'finalized',
     director_coverage_ratio: directorCoverageRatio,
     director_input_coverage_ratio: directorInputCoverageRatio,
     degraded: !hasAnyDirectorCoverage || hasFallbackDomains,

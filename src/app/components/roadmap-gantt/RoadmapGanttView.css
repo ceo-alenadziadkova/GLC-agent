@@ -1,0 +1,147 @@
+.roadmap-gantt-shell .react-calendar-timeline {
+  border: 1px solid var(--border-default);
+  border-radius: 0.9rem;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .rct-header-root {
+  border-bottom: 1px solid var(--border-default);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-raised) 85%, transparent),
+    color-mix(in srgb, var(--surface-base) 95%, transparent)
+  );
+}
+
+.roadmap-gantt-shell .rct-sidebar {
+  border-right: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+}
+
+.roadmap-gantt-shell .rct-sidebar-row {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.roadmap-gantt-shell .rct-sidebar-row-even,
+.roadmap-gantt-shell .rct-sidebar-row-odd {
+  border-bottom: 1px dashed color-mix(in srgb, var(--border-default) 70%, transparent);
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid {
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--glc-blue) 55%, var(--border-default));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--glc-blue) 80%, white),
+    color-mix(in srgb, var(--glc-blue) 65%, var(--surface-base))
+  );
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--glc-blue) 22%, transparent);
+  transition:
+    transform 160ms ease,
+    box-shadow 200ms ease,
+    filter 180ms ease,
+    border-color 180ms ease,
+    background-position 240ms ease;
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated {
+  border-style: dashed;
+  opacity: 0.9;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--glc-blue) 28%, transparent);
+  filter: saturate(1.06);
+  border-color: color-mix(in srgb, var(--glc-blue) 75%, white);
+  animation: roadmapTaskShimmerLight 1300ms ease-in-out infinite;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
+  outline: 2px solid color-mix(in srgb, var(--glc-blue) 80%, white);
+  outline-offset: 1px;
+  animation: roadmapTaskShimmerLight 1500ms ease-in-out infinite;
+}
+
+.roadmap-gantt-shell .rct-item-content {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.roadmap-dependency-arrow {
+  transition:
+    stroke-width 140ms ease,
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
+.roadmap-dependency-arrow:hover,
+.roadmap-dependency-arrow-hovered {
+  opacity: 1;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glc-blue) 35%, transparent));
+}
+
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--glc-blue) 58%, rgb(21 24 34)),
+    color-mix(in srgb, var(--glc-blue) 42%, rgb(12 14 22)),
+    color-mix(in srgb, rgb(188 219 255) 34%, rgb(22 27 38)),
+    color-mix(in srgb, var(--glc-blue) 40%, rgb(10 12 20))
+  );
+  border-color: color-mix(in srgb, var(--glc-blue) 62%, rgb(158 196 255));
+  box-shadow: 0 8px 18px color-mix(in srgb, rgb(0 0 0) 62%, transparent);
+}
+
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover,
+html.dark .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
+  animation-name: roadmapTaskShimmerDark;
+}
+
+@keyframes roadmapTaskShimmerLight {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes roadmapTaskShimmerDark {
+  0% {
+    background-position: 12% 50%;
+  }
+  50% {
+    background-position: 88% 50%;
+  }
+  100% {
+    background-position: 12% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated,
+  .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid,
+  .roadmap-dependency-arrow {
+    transition: none;
+  }
+
+  .roadmap-gantt-shell .rct-item.roadmap-gantt-item-estimated:hover,
+  .roadmap-gantt-shell .rct-item.roadmap-gantt-item-solid:hover,
+  .roadmap-gantt-shell .rct-item.roadmap-gantt-item-highlighted {
+    animation: none;
+    transform: none;
+  }
+}

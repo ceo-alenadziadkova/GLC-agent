@@ -73,12 +73,13 @@ export async function runPipelineNext(params: {
       execution_plan?: Partial<AuditExecutionPlan> | null;
       product_mode?: string | null;
     });
-    const slaMode = intakeBriefGateModeFromExecutionPlan(gatePlanForReadiness);
+    const slaModeRaw = intakeBriefGateModeFromExecutionPlan(gatePlanForReadiness);
+    const slaMode: 'full' | 'express' = slaModeRaw === 'express' ? 'express' : 'full';
     const preflight = runIntakeReadinessPreflight({
       responses: (brief?.responses ?? {}) as Record<string, unknown>,
       slaProductMode: slaMode,
       collectionMode,
-      surface,
+      surface: surface ?? 'consultant_interview',
       intakeVersionsRaw: (brief?.intake_versions as Record<string, unknown> | null | undefined) ?? null,
       enforcementPoint: 'pipeline_next',
       executionCoveragePackage:

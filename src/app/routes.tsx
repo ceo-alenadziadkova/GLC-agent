@@ -19,6 +19,7 @@ import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { PortalTimelinePage } from './pages/PortalTimelinePage';
+import { PortalRoadmapGanttPage } from './pages/PortalRoadmapGanttPage';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
@@ -143,6 +144,7 @@ export const router = createBrowserRouter([
       { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
       { path: P.timelineById, element: <Consultant><PortalTimelinePage /></Consultant> },
+      { path: P.roadmapById, element: <Consultant><PortalRoadmapGanttPage /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
       { path: P.settings, element: <PNoGuest><SettingsPage /></PNoGuest> },
@@ -152,6 +154,7 @@ export const router = createBrowserRouter([
       { path: P.portalPipelineById, element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
       { path: P.portalTimelineById, element: <ClientPortalShell><PortalTimelinePage /></ClientPortalShell> },
+      { path: P.portalRoadmapById, element: <ClientPortalShell><PortalRoadmapGanttPage /></ClientPortalShell> },
       { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
       { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },

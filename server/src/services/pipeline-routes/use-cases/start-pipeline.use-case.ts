@@ -67,7 +67,8 @@ export async function runPipelineStart(params: {
     execution_plan?: Partial<AuditExecutionPlan> | null;
     product_mode?: string | null;
   });
-  const slaMode = intakeBriefGateModeFromExecutionPlan(gatePlan);
+  const slaModeRaw = intakeBriefGateModeFromExecutionPlan(gatePlan);
+  const slaMode: 'full' | 'express' = slaModeRaw === 'express' ? 'express' : 'full';
   const gates = evaluateBriefGates(brief?.responses ?? {}, slaMode, collectionMode, surface, intakeTuple);
 
   if (isDiagnosticIntakePilotEnabled()) {
@@ -75,7 +76,7 @@ export async function runPipelineStart(params: {
       responses: (brief?.responses ?? {}) as Record<string, unknown>,
       slaProductMode: slaMode,
       collectionMode,
-      surface,
+      surface: surface ?? 'consultant_interview',
       intakeVersionsRaw: intakeVersionsRaw ?? null,
       enforcementPoint: 'pipeline_start',
       executionCoveragePackage:

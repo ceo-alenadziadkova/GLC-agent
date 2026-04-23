@@ -5,6 +5,7 @@ import { intakePublicReadLimiter, intakePublicWriteLimiter } from '../../middlew
 import { getIntakePrefillController } from './controllers/get-intake-prefill.controller.js';
 import { getIntakePublicController } from './controllers/get-intake-public.controller.js';
 import { getIntakeSubmissionsController } from './controllers/get-intake-submissions.controller.js';
+import { getIntakeIntelligenceKpiDashboardController } from './controllers/get-intake-intelligence-kpi-dashboard.controller.js';
 import { postIntakeLinkAuditController } from './controllers/post-intake-link-audit.controller.js';
 import { postIntakePlanTraceController } from './controllers/post-intake-plan-trace.controller.js';
 import { postIntakeIntelligenceKpiController } from './controllers/post-intake-intelligence-kpi.controller.js';
@@ -22,6 +23,14 @@ intakeRouter.post(
   attachProfile,
   requireRole('consultant'),
   postIntakeLinkAuditController,
+);
+
+intakeRouter.get(
+  '/intelligence-kpi/dashboard',
+  requireAuth,
+  attachProfile,
+  requireRole('consultant'),
+  getIntakeIntelligenceKpiDashboardController,
 );
 
 intakeRouter.get(

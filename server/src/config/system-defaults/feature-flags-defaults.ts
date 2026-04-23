@@ -36,24 +36,24 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * After phase 7 (strategy) completes, auto-build and persist orchestration pack when a latest
    * roadmap manifest snapshot exists (same path as POST pack). Env: FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY
    */
-  orchestrationPackAutoAfterStrategyEnabled: false,
+  orchestrationPackAutoAfterStrategyEnabled: true,
   /**
    * Plan-level governance rollout mode for orchestration pack persistence.
    * Allowed: shadow | hard_structure_soft_quality | tightened_quality.
    * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
    */
-  orchestrationPlanGovernanceRolloutMode: 'shadow',
+  orchestrationPlanGovernanceRolloutMode: 'tightened_quality',
   /**
    * Enables high-volume debug logs for pipeline events, including extended LLM call telemetry.
    * Env: FEATURE_PIPELINE_DEBUG_LOGS
    */
-  pipelineDebugLogsEnabled: false,
+  pipelineDebugLogsEnabled: true,
   /**
    * Enables Director orchestration slice emission from domain-agent output.
    * Until enabled, strict director phases are blocked before any LLM call to avoid wasted token spend.
    * Env: FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT
    */
-  directorOrchestrationAgentOutputEnabled: false,
+  directorOrchestrationAgentOutputEnabled: true,
   /**
    * When true, timeline-first UX rollout hooks may emit extra structured logs / gates.
    * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
@@ -83,39 +83,66 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
   directorDeepDiveOnDemandEnabled: true,
   directorSubAgentsEnabled: true,
   /** CDO/CAO/CSO deep-dive stub bundles (non-CMO). Env: FEATURE_DIRECTOR_CDO_SUB_AGENTS, etc. */
-  directorCdoSubAgentsEnabled: false,
+  directorCdoSubAgentsEnabled: true,
   /**
    * When true, `ux_conversion` deep-dive uses CDO LLM sub-agent orchestration instead of deterministic stub.
    * Separate from `directorCdoSubAgentsEnabled` (materialized stub for all CDO domains). Env: FEATURE_CDO_DEEP_DIVE_LLM
    */
-  cdoDeepDiveLlmEnabled: false,
+  cdoDeepDiveLlmEnabled: true,
   /**
    * When true, `automation_processes` deep-dive uses CAO LLM sub-agent orchestration instead of deterministic stub.
    * Separate from `directorCaoSubAgentsEnabled`. Env: FEATURE_CAO_DEEP_DIVE_LLM
    */
-  caoDeepDiveLlmEnabled: false,
+  caoDeepDiveLlmEnabled: true,
   /**
    * When true, `security_compliance` deep-dive uses CSO LLM sub-agent orchestration instead of deterministic stub.
    * Separate from `directorCsoSubAgentsEnabled`. Env: FEATURE_CSO_DEEP_DIVE_LLM
    */
-  csoDeepDiveLlmEnabled: false,
-  directorCaoSubAgentsEnabled: false,
-  directorCsoSubAgentsEnabled: false,
+  csoDeepDiveLlmEnabled: true,
+  /** CTO LLM orchestration for `tech_infrastructure` deep-dive. Env: FEATURE_CTO_DEEP_DIVE_LLM */
+  ctoDeepDiveLlmEnabled: true,
+  /** SEO LLM orchestration for `seo_digital` deep-dive. Env: FEATURE_SEO_DEEP_DIVE_LLM */
+  seoDeepDiveLlmEnabled: true,
+  directorCaoSubAgentsEnabled: true,
+  directorCsoSubAgentsEnabled: true,
   /**
    * When true, pipeline start and discovery convert apply `evaluateIntakeReadinessEnvelope` blocking rules.
    * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT
    */
-  diagnosticIntakePilotEnabled: false,
+  diagnosticIntakePilotEnabled: true,
   /**
    * When true, readiness uses execution-plan domain slice for in-scope coverage gaps (post-KPI Phase-B).
    * Requires pilot flag for blocking paths; default off preserves Phase-1 behavior.
    * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE
    */
-  executionPlanCoverageScopeEnabled: false,
+  executionPlanCoverageScopeEnabled: true,
   /**
    * When true, ContextBuilder includes `intake_project_context_envelope` in agent context metadata.
    * Keep disabled by default until post-KPI Phase-B/C context envelope rollout is approved.
    * Env: FEATURE_PROJECT_CONTEXT_ENVELOPE
    */
-  projectContextEnvelopeEnabled: false,
+  projectContextEnvelopeEnabled: true,
+  /**
+   * NL ingress LLM mapper for intake `/nl-describe`.
+   * Primary enable switch; staged behavior is controlled by rollout mode + percent.
+   * Env: FEATURE_NL_INGRESS_LLM
+   */
+  nlIngressLlmEnabled: false,
+  /**
+   * Rollout mode for NL ingress LLM mapper.
+   * Allowed: shadow | internal | pilot | ga.
+   * Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE
+   */
+  nlIngressLlmRolloutMode: 'pilot',
+  /**
+   * Percentage rollout for pilot mode.
+   * Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT
+   */
+  nlIngressLlmRolloutPercent: 0,
+  /**
+   * Optional geo-group allowlist for staged rollout (`eu-west,latam,...`).
+   * Empty = no geo restriction.
+   * Env: FEATURE_NL_INGRESS_LLM_GEO_GROUPS
+   */
+  nlIngressLlmGeoGroups: '',
 } as const;

@@ -1,4 +1,4 @@
-import type { DirectorSubAgentId } from './director-sub-agents.js';
+import { DIRECTOR_SUB_AGENT_IDS, type DirectorSubAgentId } from './director-sub-agents.js';
 
 export const DIRECTOR_OPERATING_MODES = [
   'discovery',
@@ -13,12 +13,19 @@ export type DirectorOperatingMode = (typeof DIRECTOR_OPERATING_MODES)[number];
 const D = 'deferred' as const;
 type Depth = 'min' | 'standard' | 'max' | 'deferred';
 
+function buildDeferredDepthMap(): Record<DirectorSubAgentId, Depth> {
+  return Object.fromEntries(DIRECTOR_SUB_AGENT_IDS.map(id => [id, D])) as Record<DirectorSubAgentId, Depth>;
+}
+
+const BASE_DEFERRED_DEPTHS = buildDeferredDepthMap();
+
 /**
  * Per-mode depth. Agents 1,2,4,6,7,8,10,11,12 are **deferred in every mode** so default
  * auto-runs still match 3/5/9 token policy; explicit `sub_agent_ids` can request them.
  */
 export const DIRECTOR_MODE_AGENT_DEPTHS: Record<DirectorOperatingMode, Record<DirectorSubAgentId, Depth>> = {
   discovery: {
+    ...BASE_DEFERRED_DEPTHS,
     'cmo.agent_1_market': D,
     'cmo.agent_2_awareness_ladder': D,
     'cmo.agent_3_positioning': 'max',
@@ -42,6 +49,7 @@ export const DIRECTOR_MODE_AGENT_DEPTHS: Record<DirectorOperatingMode, Record<Di
     'cso.compliance_map': D,
   },
   launch: {
+    ...BASE_DEFERRED_DEPTHS,
     'cmo.agent_1_market': D,
     'cmo.agent_2_awareness_ladder': D,
     'cmo.agent_3_positioning': 'standard',
@@ -65,6 +73,7 @@ export const DIRECTOR_MODE_AGENT_DEPTHS: Record<DirectorOperatingMode, Record<Di
     'cso.compliance_map': D,
   },
   growth: {
+    ...BASE_DEFERRED_DEPTHS,
     'cmo.agent_1_market': D,
     'cmo.agent_2_awareness_ladder': D,
     'cmo.agent_3_positioning': 'standard',
@@ -88,6 +97,7 @@ export const DIRECTOR_MODE_AGENT_DEPTHS: Record<DirectorOperatingMode, Record<Di
     'cso.compliance_map': D,
   },
   authority: {
+    ...BASE_DEFERRED_DEPTHS,
     'cmo.agent_1_market': D,
     'cmo.agent_2_awareness_ladder': D,
     'cmo.agent_3_positioning': 'max',
@@ -111,6 +121,7 @@ export const DIRECTOR_MODE_AGENT_DEPTHS: Record<DirectorOperatingMode, Record<Di
     'cso.compliance_map': D,
   },
   defense: {
+    ...BASE_DEFERRED_DEPTHS,
     'cmo.agent_1_market': D,
     'cmo.agent_2_awareness_ladder': D,
     'cmo.agent_3_positioning': 'standard',

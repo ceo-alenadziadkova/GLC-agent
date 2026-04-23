@@ -77,11 +77,13 @@ describe('lintIntelligenceContractV1', () => {
     expect(findings.some(f => f.code === 'INTELLIGENCE_TODO_METADATA_MISSING')).toBe(true);
   });
 
-  it('keeps generic anti-pattern checks as warnings', () => {
-    const findings = lintIntelligenceContractV1();
-    const genericWarnings = findings.filter(f => f.code === 'INTELLIGENCE_ANTIPATTERN_GENERIC');
-    expect(genericWarnings.length).toBeGreaterThan(0);
-    expect(genericWarnings.every(f => f.severity === 'warn')).toBe(true);
+  it('treats generic anti-pattern checks as errors', () => {
+    const findings = lintIntelligenceContractV1({
+      labelOverrides: { f1: 'Anything else we should know?' },
+    });
+    const genericFindings = findings.filter(f => f.code === 'INTELLIGENCE_ANTIPATTERN_GENERIC');
+    expect(genericFindings.length).toBeGreaterThan(0);
+    expect(genericFindings.every(f => f.severity === 'error')).toBe(true);
   });
 
   it('treats leading labels as errors when the heuristic matches', () => {
@@ -115,7 +117,27 @@ describe('lintIntelligenceContractV1', () => {
     );
   });
 
-  it('warns about low-gain whyAsked phrases', () => {
+  it('fails when ownerDomain mismatches decisionImpact target domain', () => {
+    const findings = lintIntelligenceContractV1({
+      contractResolver: questionId => {
+        if (questionId === 'f1') {
+          return {
+            ...getIntakeIntelligenceContract(questionId),
+            stewardship: {
+              ownerDomain: 'seo_digital',
+              reviewByIsoDate: '2026-06-01',
+            },
+          };
+        }
+        return getIntakeIntelligenceContract(questionId);
+      },
+    });
+    expect(findings.some(f => f.code === 'INTELLIGENCE_OWNER_DOMAIN_MISMATCH' && f.severity === 'error')).toBe(
+      true,
+    );
+  });
+
+  it('treats low-gain whyAsked phrases as errors', () => {
     const findings = lintIntelligenceContractV1({
       contractResolver: questionId => {
         if (questionId === 'f1') {
@@ -127,7 +149,7 @@ describe('lintIntelligenceContractV1', () => {
         return getIntakeIntelligenceContract(questionId);
       },
     });
-    expect(findings.some(f => f.code === 'INTELLIGENCE_LOW_GAIN_WHY_ASKED' && f.severity === 'warn')).toBe(
+    expect(findings.some(f => f.code === 'INTELLIGENCE_LOW_GAIN_WHY_ASKED' && f.severity === 'error')).toBe(
       true,
     );
   });

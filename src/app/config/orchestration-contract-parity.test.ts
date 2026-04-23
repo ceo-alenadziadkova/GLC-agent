@@ -103,6 +103,11 @@ describe('orchestration contract parity', () => {
     expect(APP_FEATURE_FLAGS.csoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.csoDeepDiveLlmEnabled);
   });
 
+  it('keeps CTO/SEO deep-dive LLM toggle defaults aligned (server vs SPA static map)', () => {
+    expect(APP_FEATURE_FLAGS.ctoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.ctoDeepDiveLlmEnabled);
+    expect(APP_FEATURE_FLAGS.seoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.seoDeepDiveLlmEnabled);
+  });
+
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
     expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,

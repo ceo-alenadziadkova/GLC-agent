@@ -77,6 +77,7 @@ export function buildIntakeIntelligenceSprint2Tail(args: {
   signalKey: string;
   expectedInfoGainBits: number;
   ownerDomain: IntakeIntelligenceOwnerDomain;
+  ownerAlias?: string;
   reviewByIsoDate: string;
   followupPolicy?: FollowupPolicy;
   stopCondition?: StopCondition;
@@ -98,6 +99,7 @@ export function buildIntakeIntelligenceSprint2Tail(args: {
     stopCondition: args.stopCondition ?? DEFAULT_STOP,
     stewardship: {
       ownerDomain: args.ownerDomain,
+      ownerAlias: args.ownerAlias,
       reviewByIsoDate: args.reviewByIsoDate,
     },
   };
@@ -108,6 +110,7 @@ export function isValidIntakeIntelligenceStewardship(
 ): s is IntakeIntelligenceStewardship {
   if (!s) return false;
   if (!s.ownerDomain || !s.reviewByIsoDate) return false;
+  if (s.ownerAlias !== undefined && s.ownerAlias.trim().length === 0) return false;
   return /^\d{4}-\d{2}-\d{2}$/.test(s.reviewByIsoDate);
 }
 

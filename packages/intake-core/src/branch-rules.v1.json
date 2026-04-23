@@ -102,5 +102,27 @@
       "questionId": "a7",
       "expectValue": "Mature and optimising"
     }
+  },
+  "stageQuestionContent": {
+    "stage_launching": [
+      "PMF signal quality and early customer proof",
+      "Early monetization hypothesis confidence",
+      "Founder bandwidth and execution constraints"
+    ],
+    "stage_growing_fast": [
+      "Unit economics stability under growth pressure",
+      "Hiring bottlenecks limiting throughput",
+      "Operational scaling friction in core workflows"
+    ],
+    "stage_scaling": [
+      "Process maturity and delegation readiness",
+      "Data infrastructure reliability for decisions",
+      "Leadership layer clarity across functions"
+    ],
+    "stage_mature": [
+      "Efficiency optimization opportunities",
+      "New market expansion hypotheses",
+      "Portfolio balancing between core and innovation"
+    ]
   }
 }

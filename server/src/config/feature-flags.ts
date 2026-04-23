@@ -275,6 +275,16 @@ export function isCsoDeepDiveLlmEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_CSO_DEEP_DIVE_LLM, FF.csoDeepDiveLlmEnabled);
 }
 
+/** CTO LLM orchestration for `tech_infrastructure` deep-dive. Env: FEATURE_CTO_DEEP_DIVE_LLM */
+export function isCtoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CTO_DEEP_DIVE_LLM, FF.ctoDeepDiveLlmEnabled);
+}
+
+/** SEO LLM orchestration for `seo_digital` deep-dive. Env: FEATURE_SEO_DEEP_DIVE_LLM */
+export function isSeoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_SEO_DEEP_DIVE_LLM, FF.seoDeepDiveLlmEnabled);
+}
+
 /** CAO deep-dive stub (automation / processes). Env: FEATURE_DIRECTOR_CAO_SUB_AGENTS */
 export function isDirectorCaoSubAgentsEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CAO_SUB_AGENTS, FF.directorCaoSubAgentsEnabled);
@@ -322,4 +332,45 @@ export function isProjectContextEnvelopeEnabled(): boolean {
     process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE,
     FF.projectContextEnvelopeEnabled,
   );
+}
+
+/** NL ingress LLM mapper (intake `/nl-describe`). Env: FEATURE_NL_INGRESS_LLM */
+export function isNlIngressLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_NL_INGRESS_LLM, FF.nlIngressLlmEnabled);
+}
+
+/** Rollout mode for NL ingress LLM mapper. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE */
+export function getNlIngressLlmRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE,
+    FF.nlIngressLlmRolloutMode,
+  );
+}
+
+/** Percent rollout for NL ingress LLM pilot mode. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT */
+export function getNlIngressLlmRolloutPercent(): number {
+  return readPercentEnv(
+    process.env.FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT,
+    FF.nlIngressLlmRolloutPercent,
+  );
+}
+
+/** Internal canary allowlist (token prefixes or full tokens). Env: FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS */
+export function getNlIngressLlmAllowlistTokens(): string[] {
+  const raw = process.env.FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS?.trim();
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** Geo-group allowlist for NL ingress LLM rollout. Env: FEATURE_NL_INGRESS_LLM_GEO_GROUPS */
+export function getNlIngressLlmGeoGroups(): string[] {
+  const raw = process.env.FEATURE_NL_INGRESS_LLM_GEO_GROUPS?.trim() ?? FF.nlIngressLlmGeoGroups;
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
 }

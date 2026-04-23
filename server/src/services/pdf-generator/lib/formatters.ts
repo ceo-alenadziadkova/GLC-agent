@@ -47,7 +47,7 @@ export function fmtOverallScoreFraction(score: number): string {
   return `${score.toFixed(1)} / 5`;
 }
 
-export function sanitizePdfText(value: string, maxChars = REPORT_PDF_MAX_SANITIZED_TEXT_CHARS): string {
+export function sanitizePdfText(value: string, maxChars: number = REPORT_PDF_MAX_SANITIZED_TEXT_CHARS): string {
   // Strip control and bidi direction override chars to prevent visual spoofing in exported PDFs.
   const withoutControl = value
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')

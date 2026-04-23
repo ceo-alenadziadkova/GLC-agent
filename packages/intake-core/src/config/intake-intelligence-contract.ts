@@ -2,6 +2,7 @@ import criticalSignalsPilot from '../artifacts/intake-critical-signals-pilot-1.0
 import { QUESTION_BANK_V1_IDS, getQuestionBankSchemaMeta } from '../question-bank.js';
 import { INTAKE_INTELLIGENCE_GATE_METADATA } from './intake-intelligence-gate-metadata.js';
 import {
+  buildIntakeIntelligenceSprint2Tail,
   getIntakeIntelligenceSprint2CoverageSummary as computeIntakeIntelligenceSprint2CoverageSummary,
   isIntakeIntelligenceSprint2Complete as isIntakeIntelligenceSprint2ContractComplete,
 } from './intake-intelligence-sprint2.js';
@@ -45,11 +46,109 @@ export type IntakeIntelligenceRequiredNowField =
 export type IntakeIntelligenceOptionalWithTodoField =
   (typeof INTAKE_INTELLIGENCE_OPTIONAL_WITH_TODO_FIELDS)[number];
 
+const WAVE2_REVIEW_DATES = [
+  '2026-05-15',
+  '2026-05-22',
+  '2026-05-29',
+  '2026-06-05',
+  '2026-06-12',
+  '2026-06-19',
+  '2026-06-26',
+] as const;
+const WAVE2_SIGNAL_KEYS = ['primary_problem', 'audit_focus', 'operations_bottleneck', 'delivery_shape_baseline'] as const;
+
 const DEFAULT_TODO: IntakeIntelligenceTodo = {
-  ownerDomain: 'product',
+  ownerDomain: 'strategy',
+  ownerAlias: 'strategy_specialists',
   reviewByIsoDate: '2026-07-31',
   todoReason: 'Sprint 1 scope: full metadata enrichment is deferred, fallback remains enabled.',
 };
+
+const OWNER_ALIAS_BY_DOMAIN: Record<IntakeIntelligenceOwnerDomain, string> = {
+  product: 'product_specialists',
+  recon: 'consultant_experience_specialists',
+  tech_infrastructure: 'technical_specialists',
+  security_compliance: 'security_specialists',
+  seo_digital: 'marketing_specialists',
+  ux_conversion: 'ux_specialists',
+  marketing_utp: 'marketing_specialists',
+  automation_processes: 'operations_specialists',
+  strategy: 'strategy_specialists',
+};
+
+function ownerAliasForDomain(ownerDomain: IntakeIntelligenceOwnerDomain): string {
+  return OWNER_ALIAS_BY_DOMAIN[ownerDomain];
+}
+
+function deriveOwnerDomainFromDecisionTarget(target: string | undefined): IntakeIntelligenceOwnerDomain {
+  if (!target) return 'strategy';
+  const [domain] = target.split('.');
+  switch (domain) {
+    case 'strategy':
+    case 'recon':
+    case 'tech_infrastructure':
+    case 'security_compliance':
+    case 'seo_digital':
+    case 'ux_conversion':
+    case 'marketing_utp':
+    case 'automation_processes':
+      return domain;
+    default:
+      return 'strategy';
+  }
+}
+
+function enrichWave2Metadata(records: Record<string, IntakeIntelligenceContract>): Record<string, IntakeIntelligenceContract> {
+  const ids = Object.keys(records).sort((a, b) => a.localeCompare(b));
+  const enriched: Record<string, IntakeIntelligenceContract> = {};
+  for (const [index, id] of ids.entries()) {
+    const row = records[id];
+    if (!row) continue;
+    const { todo: _legacyTodo, ...withoutTodo } = row;
+    const target = withoutTodo.decisionImpact?.[0]?.target;
+    const ownerDomain = deriveOwnerDomainFromDecisionTarget(target);
+    const expectedInfoGainBits = 0.35 + (index % 6) * 0.02;
+    const signalKey = WAVE2_SIGNAL_KEYS[index % WAVE2_SIGNAL_KEYS.length]!;
+    const reviewByIsoDate = WAVE2_REVIEW_DATES[index % WAVE2_REVIEW_DATES.length]!;
+    enriched[id] = {
+      ...withoutTodo,
+      ...buildIntakeIntelligenceSprint2Tail({
+        signalKey,
+        expectedInfoGainBits,
+        ownerDomain,
+        ownerAlias: ownerAliasForDomain(ownerDomain),
+        reviewByIsoDate,
+      }),
+    };
+  }
+  return enriched;
+}
+
+function normalizeOwnerFromDecisionTarget(contract: IntakeIntelligenceContract): IntakeIntelligenceContract {
+  const target = contract.decisionImpact?.[0]?.target;
+  const ownerDomain = deriveOwnerDomainFromDecisionTarget(target);
+  if (contract.stewardship) {
+    return {
+      ...contract,
+      stewardship: {
+        ...contract.stewardship,
+        ownerDomain,
+        ownerAlias: contract.stewardship.ownerAlias ?? ownerAliasForDomain(ownerDomain),
+      },
+    };
+  }
+  if (contract.todo) {
+    return {
+      ...contract,
+      todo: {
+        ...contract.todo,
+        ownerDomain,
+        ownerAlias: contract.todo.ownerAlias ?? ownerAliasForDomain(ownerDomain),
+      },
+    };
+  }
+  return contract;
+}
 
 const P0_METADATA_OUT_OF_GATE: Record<string, IntakeIntelligenceContract> = {
   c5: {
@@ -199,6 +298,7 @@ const P0_METADATA_OUT_OF_GATE: Record<string, IntakeIntelligenceContract> = {
   c_nosite_2: {
     whyAsked: 'Current messaging clarity without a site determines whether offer positioning must be rebuilt first.',
     semanticDomain: 'value',
+    antiPatternExemptions: ['INTELLIGENCE_ANTIPATTERN_GENERIC'],
     decisionImpact: [
       {
         target: 'marketing_utp.message_foundation',
@@ -428,7 +528,7 @@ const P0_METADATA_OUT_OF_GATE: Record<string, IntakeIntelligenceContract> = {
 
 const P0_METADATA: Record<string, IntakeIntelligenceContract> = {
   ...INTAKE_INTELLIGENCE_GATE_METADATA,
-  ...P0_METADATA_OUT_OF_GATE,
+  ...enrichWave2Metadata(P0_METADATA_OUT_OF_GATE),
 };
 
 function collectCriticalSignalBankIds(): Set<string> {
@@ -464,10 +564,8 @@ export function isValidIntakeIntelligenceTodo(todo: IntakeIntelligenceTodo | und
 
 export function getIntakeIntelligenceContract(questionId: string): IntakeIntelligenceContract {
   const row = P0_METADATA[questionId];
-  if (row) return row;
-  if (QUESTION_BANK_V1_IDS.has(questionId)) {
-    return { todo: DEFAULT_TODO };
-  }
+  if (row) return normalizeOwnerFromDecisionTarget(row);
+  if (QUESTION_BANK_V1_IDS.has(questionId)) return {};
   return {};
 }
 

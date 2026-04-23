@@ -23,7 +23,23 @@ export type DirectorSubAgentId =
   | 'cao.throughput'
   | 'cso.case_classifier'
   | 'cso.threat_model'
-  | 'cso.compliance_map';
+  | 'cso.compliance_map'
+  | 'cto.readiness_baseline'
+  | 'cto.architecture_risk_model'
+  | 'cto.reliability_runtime'
+  | 'cto.observability_incident'
+  | 'cto.delivery_release_safety'
+  | 'cto.security_supply_chain'
+  | 'cto.data_platform_resilience'
+  | 'cto.roadmap_tradeoffs'
+  | 'seo.visibility_baseline'
+  | 'seo.technical_indexability'
+  | 'seo.ia_internal_links'
+  | 'seo.content_intent_coverage'
+  | 'seo.serp_ctr_levers'
+  | 'seo.authority_trust'
+  | 'seo.local_international_readiness'
+  | 'seo.measurement_experimentation';
 
 export type DirectorSubAgentOption = {
   id: DirectorSubAgentId;
@@ -158,5 +174,101 @@ export const DIRECTOR_SUB_AGENT_OPTIONS: ReadonlyArray<DirectorSubAgentOption> =
     domainKey: 'security_compliance',
     title: ORCHESTRATION_UI_COPY.subAgent_cso_compliance_map_title,
     description: ORCHESTRATION_UI_COPY.subAgent_cso_compliance_map_description,
+  },
+  {
+    id: 'cto.readiness_baseline',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_readiness_baseline_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_readiness_baseline_description,
+  },
+  {
+    id: 'cto.architecture_risk_model',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_architecture_risk_model_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_architecture_risk_model_description,
+  },
+  {
+    id: 'cto.reliability_runtime',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_reliability_runtime_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_reliability_runtime_description,
+  },
+  {
+    id: 'cto.observability_incident',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_observability_incident_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_observability_incident_description,
+  },
+  {
+    id: 'cto.delivery_release_safety',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_delivery_release_safety_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_delivery_release_safety_description,
+  },
+  {
+    id: 'cto.security_supply_chain',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_security_supply_chain_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_security_supply_chain_description,
+  },
+  {
+    id: 'cto.data_platform_resilience',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_data_platform_resilience_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_data_platform_resilience_description,
+  },
+  {
+    id: 'cto.roadmap_tradeoffs',
+    domainKey: 'tech_infrastructure',
+    title: ORCHESTRATION_UI_COPY.subAgent_cto_roadmap_tradeoffs_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_cto_roadmap_tradeoffs_description,
+  },
+  {
+    id: 'seo.visibility_baseline',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_visibility_baseline_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_visibility_baseline_description,
+  },
+  {
+    id: 'seo.technical_indexability',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_technical_indexability_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_technical_indexability_description,
+  },
+  {
+    id: 'seo.ia_internal_links',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_ia_internal_links_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_ia_internal_links_description,
+  },
+  {
+    id: 'seo.content_intent_coverage',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_content_intent_coverage_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_content_intent_coverage_description,
+  },
+  {
+    id: 'seo.serp_ctr_levers',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_serp_ctr_levers_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_serp_ctr_levers_description,
+  },
+  {
+    id: 'seo.authority_trust',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_authority_trust_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_authority_trust_description,
+  },
+  {
+    id: 'seo.local_international_readiness',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_local_international_readiness_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_local_international_readiness_description,
+  },
+  {
+    id: 'seo.measurement_experimentation',
+    domainKey: 'seo_digital',
+    title: ORCHESTRATION_UI_COPY.subAgent_seo_measurement_experimentation_title,
+    description: ORCHESTRATION_UI_COPY.subAgent_seo_measurement_experimentation_description,
   },
 ] as const;

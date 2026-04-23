@@ -76,7 +76,12 @@ export const APP_FEATURE_FLAGS = {
    * Keep defaults identical to `SYSTEM_DEFAULTS_FEATURE_FLAGS` in `feature-flags-defaults.ts`; `orchestration-contract-parity.test.ts` enforces alignment.
    * `cdoDeepDiveLlmEnabled` / `caoDeepDiveLlmEnabled` / `csoDeepDiveLlmEnabled`: UI gating only; dispatch is **server-authoritative** (`FEATURE_CDO_DEEP_DIVE_LLM`, `FEATURE_CAO_DEEP_DIVE_LLM`, `FEATURE_CSO_DEEP_DIVE_LLM` on Railway).
    */
-  cdoDeepDiveLlmEnabled: false,
-  caoDeepDiveLlmEnabled: false,
-  csoDeepDiveLlmEnabled: false,
+  cdoDeepDiveLlmEnabled: true,
+  caoDeepDiveLlmEnabled: true,
+  csoDeepDiveLlmEnabled: true,
+  /**
+   * CTO / SEO deep-dive mirrors (UI gating only; dispatch remains server-authoritative).
+   */
+  ctoDeepDiveLlmEnabled: true,
+  seoDeepDiveLlmEnabled: true,
 } as const;

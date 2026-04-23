@@ -87,8 +87,12 @@ describe('collectOrchestrationActionInputs', () => {
     const payload = {
       initiatives: [],
       selectedDomains: ['tech_infrastructure'] as const,
-      directorSlicesByDomain: new Map([['tech_infrastructure', directorSlice]]),
-      directorInputStatusByDomain: new Map([['tech_infrastructure', 'valid' as const]]),
+      directorSlicesByDomain: new Map<DomainKey, GlcDirectorOrchestrationSlice | null | undefined>([
+        ['tech_infrastructure', directorSlice],
+      ]),
+      directorInputStatusByDomain: new Map<DomainKey, 'valid' | 'invalid' | 'missing'>([
+        ['tech_infrastructure', 'valid'],
+      ]),
     };
     const first = collectOrchestrationActionInputs(payload);
     const second = collectOrchestrationActionInputs(payload);

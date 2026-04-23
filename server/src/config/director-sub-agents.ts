@@ -1,7 +1,7 @@
 import type { DomainKey } from '@glc/intake-core';
 
 /**
- * Canonical registry of director sub-agents (CMO full stack + MVP CDO / CAO / CSO).
+ * Canonical registry of director sub-agents (CMO full stack + CDO/CAO/CSO MVP + CTO/SEO scaffolding).
  * Checklist for new ids: extend `DirectorSubAgentId` → row below → Zod schema → agent class → prompt file → Vitest + `director-sub-agents-consistency.test.ts`.
  * Product backlog for agents beyond MVP: `docs/adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md` (Continuous work — G4).
  */
@@ -27,7 +27,23 @@ export type DirectorSubAgentId =
   | 'cao.throughput'
   | 'cso.case_classifier'
   | 'cso.threat_model'
-  | 'cso.compliance_map';
+  | 'cso.compliance_map'
+  | 'cto.readiness_baseline'
+  | 'cto.architecture_risk_model'
+  | 'cto.reliability_runtime'
+  | 'cto.observability_incident'
+  | 'cto.delivery_release_safety'
+  | 'cto.security_supply_chain'
+  | 'cto.data_platform_resilience'
+  | 'cto.roadmap_tradeoffs'
+  | 'seo.visibility_baseline'
+  | 'seo.technical_indexability'
+  | 'seo.ia_internal_links'
+  | 'seo.content_intent_coverage'
+  | 'seo.serp_ctr_levers'
+  | 'seo.authority_trust'
+  | 'seo.local_international_readiness'
+  | 'seo.measurement_experimentation';
 
 /**
  * Controlled cross-domain dependency policy.
@@ -262,6 +278,211 @@ export const DIRECTOR_SUB_AGENTS: ReadonlyArray<{
     output_schema_ref: 'schemas/sub-agents/cso/compliance-map',
     prompt_ref: 'server/prompts/sub-agents/cso/compliance-map.md',
     depends_on: ['cso.threat_model'],
+  },
+  {
+    id: 'cto.readiness_baseline',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 1,
+    title_copy_key: 'subAgent.cto.readiness_baseline.title',
+    description_copy_key: 'subAgent.cto.readiness_baseline.description',
+    output_schema_ref: 'schemas/sub-agents/cto/readiness-baseline',
+    prompt_ref: 'server/prompts/sub-agents/cto/readiness-baseline.md',
+    depends_on: [],
+  },
+  {
+    id: 'cto.architecture_risk_model',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 2,
+    title_copy_key: 'subAgent.cto.architecture_risk_model.title',
+    description_copy_key: 'subAgent.cto.architecture_risk_model.description',
+    output_schema_ref: 'schemas/sub-agents/cto/architecture-risk-model',
+    prompt_ref: 'server/prompts/sub-agents/cto/architecture-risk-model.md',
+    depends_on: ['cto.readiness_baseline'],
+  },
+  {
+    id: 'cto.reliability_runtime',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 3,
+    title_copy_key: 'subAgent.cto.reliability_runtime.title',
+    description_copy_key: 'subAgent.cto.reliability_runtime.description',
+    output_schema_ref: 'schemas/sub-agents/cto/reliability-runtime',
+    prompt_ref: 'server/prompts/sub-agents/cto/reliability-runtime.md',
+    depends_on: ['cto.readiness_baseline', 'cto.architecture_risk_model'],
+  },
+  {
+    id: 'cto.observability_incident',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 4,
+    title_copy_key: 'subAgent.cto.observability_incident.title',
+    description_copy_key: 'subAgent.cto.observability_incident.description',
+    output_schema_ref: 'schemas/sub-agents/cto/observability-incident',
+    prompt_ref: 'server/prompts/sub-agents/cto/observability-incident.md',
+    depends_on: ['cto.readiness_baseline', 'cto.reliability_runtime'],
+  },
+  {
+    id: 'cto.delivery_release_safety',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 5,
+    title_copy_key: 'subAgent.cto.delivery_release_safety.title',
+    description_copy_key: 'subAgent.cto.delivery_release_safety.description',
+    output_schema_ref: 'schemas/sub-agents/cto/delivery-release-safety',
+    prompt_ref: 'server/prompts/sub-agents/cto/delivery-release-safety.md',
+    depends_on: [
+      'cto.readiness_baseline',
+      'cto.reliability_runtime',
+      'cto.observability_incident',
+    ],
+  },
+  {
+    id: 'cto.security_supply_chain',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 6,
+    title_copy_key: 'subAgent.cto.security_supply_chain.title',
+    description_copy_key: 'subAgent.cto.security_supply_chain.description',
+    output_schema_ref: 'schemas/sub-agents/cto/security-supply-chain',
+    prompt_ref: 'server/prompts/sub-agents/cto/security-supply-chain.md',
+    depends_on: [
+      'cto.readiness_baseline',
+      'cto.architecture_risk_model',
+      'cto.delivery_release_safety',
+    ],
+  },
+  {
+    id: 'cto.data_platform_resilience',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 7,
+    title_copy_key: 'subAgent.cto.data_platform_resilience.title',
+    description_copy_key: 'subAgent.cto.data_platform_resilience.description',
+    output_schema_ref: 'schemas/sub-agents/cto/data-platform-resilience',
+    prompt_ref: 'server/prompts/sub-agents/cto/data-platform-resilience.md',
+    depends_on: [
+      'cto.readiness_baseline',
+      'cto.architecture_risk_model',
+      'cto.delivery_release_safety',
+    ],
+  },
+  {
+    id: 'cto.roadmap_tradeoffs',
+    director_domain: 'tech_infrastructure',
+    agent_number_in_instructions: 8,
+    title_copy_key: 'subAgent.cto.roadmap_tradeoffs.title',
+    description_copy_key: 'subAgent.cto.roadmap_tradeoffs.description',
+    output_schema_ref: 'schemas/sub-agents/cto/roadmap-tradeoffs',
+    prompt_ref: 'server/prompts/sub-agents/cto/roadmap-tradeoffs.md',
+    depends_on: [
+      'cto.readiness_baseline',
+      'cto.architecture_risk_model',
+      'cto.reliability_runtime',
+      'cto.observability_incident',
+      'cto.delivery_release_safety',
+      'cto.security_supply_chain',
+      'cto.data_platform_resilience',
+    ],
+  },
+  {
+    id: 'seo.visibility_baseline',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 1,
+    title_copy_key: 'subAgent.seo.visibility_baseline.title',
+    description_copy_key: 'subAgent.seo.visibility_baseline.description',
+    output_schema_ref: 'schemas/sub-agents/seo/visibility-baseline',
+    prompt_ref: 'server/prompts/sub-agents/seo/visibility-baseline.md',
+    depends_on: [],
+  },
+  {
+    id: 'seo.technical_indexability',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 2,
+    title_copy_key: 'subAgent.seo.technical_indexability.title',
+    description_copy_key: 'subAgent.seo.technical_indexability.description',
+    output_schema_ref: 'schemas/sub-agents/seo/technical-indexability',
+    prompt_ref: 'server/prompts/sub-agents/seo/technical-indexability.md',
+    depends_on: ['seo.visibility_baseline'],
+  },
+  {
+    id: 'seo.ia_internal_links',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 3,
+    title_copy_key: 'subAgent.seo.ia_internal_links.title',
+    description_copy_key: 'subAgent.seo.ia_internal_links.description',
+    output_schema_ref: 'schemas/sub-agents/seo/ia-internal-links',
+    prompt_ref: 'server/prompts/sub-agents/seo/ia-internal-links.md',
+    depends_on: ['seo.visibility_baseline', 'seo.technical_indexability'],
+  },
+  {
+    id: 'seo.content_intent_coverage',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 4,
+    title_copy_key: 'subAgent.seo.content_intent_coverage.title',
+    description_copy_key: 'subAgent.seo.content_intent_coverage.description',
+    output_schema_ref: 'schemas/sub-agents/seo/content-intent-coverage',
+    prompt_ref: 'server/prompts/sub-agents/seo/content-intent-coverage.md',
+    depends_on: [
+      'seo.visibility_baseline',
+      'seo.technical_indexability',
+      'seo.ia_internal_links',
+    ],
+  },
+  {
+    id: 'seo.serp_ctr_levers',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 5,
+    title_copy_key: 'subAgent.seo.serp_ctr_levers.title',
+    description_copy_key: 'subAgent.seo.serp_ctr_levers.description',
+    output_schema_ref: 'schemas/sub-agents/seo/serp-ctr-levers',
+    prompt_ref: 'server/prompts/sub-agents/seo/serp-ctr-levers.md',
+    depends_on: [
+      'seo.visibility_baseline',
+      'seo.technical_indexability',
+      'seo.content_intent_coverage',
+    ],
+  },
+  {
+    id: 'seo.authority_trust',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 6,
+    title_copy_key: 'subAgent.seo.authority_trust.title',
+    description_copy_key: 'subAgent.seo.authority_trust.description',
+    output_schema_ref: 'schemas/sub-agents/seo/authority-trust',
+    prompt_ref: 'server/prompts/sub-agents/seo/authority-trust.md',
+    depends_on: [
+      'seo.visibility_baseline',
+      'seo.content_intent_coverage',
+      'seo.serp_ctr_levers',
+    ],
+  },
+  {
+    id: 'seo.local_international_readiness',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 7,
+    title_copy_key: 'subAgent.seo.local_international_readiness.title',
+    description_copy_key: 'subAgent.seo.local_international_readiness.description',
+    output_schema_ref: 'schemas/sub-agents/seo/local-international-readiness',
+    prompt_ref: 'server/prompts/sub-agents/seo/local-international-readiness.md',
+    depends_on: [
+      'seo.visibility_baseline',
+      'seo.technical_indexability',
+      'seo.ia_internal_links',
+      'seo.content_intent_coverage',
+    ],
+  },
+  {
+    id: 'seo.measurement_experimentation',
+    director_domain: 'seo_digital',
+    agent_number_in_instructions: 8,
+    title_copy_key: 'subAgent.seo.measurement_experimentation.title',
+    description_copy_key: 'subAgent.seo.measurement_experimentation.description',
+    output_schema_ref: 'schemas/sub-agents/seo/measurement-experimentation',
+    prompt_ref: 'server/prompts/sub-agents/seo/measurement-experimentation.md',
+    depends_on: [
+      'seo.visibility_baseline',
+      'seo.technical_indexability',
+      'seo.ia_internal_links',
+      'seo.content_intent_coverage',
+      'seo.serp_ctr_levers',
+      'seo.authority_trust',
+      'seo.local_international_readiness',
+    ],
   },
 ] as const;
 

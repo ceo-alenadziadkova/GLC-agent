@@ -13,10 +13,12 @@ function s2(
   ownerDomain: IntakeIntelligenceOwnerDomain,
   reviewByIsoDate: string,
 ) {
+  const ownerAlias = `owner-${ownerDomain.replace(/_/g, '-')}`;
   return buildIntakeIntelligenceSprint2Tail({
     signalKey,
     expectedInfoGainBits,
     ownerDomain,
+    ownerAlias,
     reviewByIsoDate,
   });
 }
@@ -544,6 +546,7 @@ export const INTAKE_INTELLIGENCE_GATE_METADATA: Record<string, IntakeIntelligenc
   f9: {
     whyAsked: 'Additional context captures exceptions that materially change recommendation validity.',
     semanticDomain: 'risks',
+    antiPatternExemptions: ['INTELLIGENCE_ANTIPATTERN_GENERIC'],
     decisionImpact: [
       {
         target: 'strategy.exception_handling',

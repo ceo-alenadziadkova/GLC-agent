@@ -13,11 +13,13 @@ import {
 import {
   isCaoDeepDiveLlmEnabled,
   isCdoDeepDiveLlmEnabled,
+  isCtoDeepDiveLlmEnabled,
   isCsoDeepDiveLlmEnabled,
   isDirectorCaoSubAgentsEnabled,
   isDirectorCdoSubAgentsEnabled,
   isDirectorCsoSubAgentsEnabled,
   isDirectorSubAgentsEnabled,
+  isSeoDeepDiveLlmEnabled,
 } from '../../config/feature-flags.js';
 import { DIRECTOR_CMO_ROUTING_POLICY } from '../../config/director-cmo-routing-policy.js';
 import {
@@ -281,6 +283,30 @@ function enforceDirectorDeepDiveTokenBudget(args: {
       : { ok: false };
   }
 
+  if (args.domainKey === 'tech_infrastructure' && isCtoDeepDiveLlmEnabled()) {
+    const ctoIds = DIRECTOR_SUB_AGENTS.filter((a) => a.director_domain === 'tech_infrastructure').map((a) => a.id);
+    const requested = (args.requestedSubAgentIds ?? []).filter((id): id is DirectorSubAgentId =>
+      (ctoIds as readonly string[]).includes(id),
+    );
+    const selected: DirectorSubAgentId[] = requested.length > 0 ? requested : [...ctoIds];
+    const totalTokenBudget = selected.reduce((sum, _id) => sum + SUB_AGENT_TOKEN_BUDGET_BY_DEPTH.standard, 0);
+    return totalTokenBudget <= DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_BY_PACKAGE[args.coveragePackage]
+      ? { ok: true }
+      : { ok: false };
+  }
+
+  if (args.domainKey === 'seo_digital' && isSeoDeepDiveLlmEnabled()) {
+    const seoIds = DIRECTOR_SUB_AGENTS.filter((a) => a.director_domain === 'seo_digital').map((a) => a.id);
+    const requested = (args.requestedSubAgentIds ?? []).filter((id): id is DirectorSubAgentId =>
+      (seoIds as readonly string[]).includes(id),
+    );
+    const selected: DirectorSubAgentId[] = requested.length > 0 ? requested : [...seoIds];
+    const totalTokenBudget = selected.reduce((sum, _id) => sum + SUB_AGENT_TOKEN_BUDGET_BY_DEPTH.standard, 0);
+    return totalTokenBudget <= DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_BY_PACKAGE[args.coveragePackage]
+      ? { ok: true }
+      : { ok: false };
+  }
+
   const mode = args.requestedMode ?? DIRECTOR_CMO_ROUTING_POLICY.defaultMode;
   const requestedSet = new Set(
     (args.requestedSubAgentIds ?? []).filter((id): id is DirectorSubAgentId => {
@@ -448,6 +474,7 @@ async function processDirectorDeepDiveJob(jobId: string, payload: DirectorDeepDi
             domainKey: payload.domainKey,
             goals: payload.goals,
             constraints: payload.constraints,
+            requestedSubAgentIds: (payload.requestedSubAgentIds ?? []).slice(0, MAX_SUB_AGENTS_PER_DEEP_DIVE[payload.coveragePackage]),
           }),
         },
       });
@@ -462,6 +489,7 @@ async function processDirectorDeepDiveJob(jobId: string, payload: DirectorDeepDi
             domainKey: payload.domainKey,
             goals: payload.goals,
             constraints: payload.constraints,
+            requestedSubAgentIds: (payload.requestedSubAgentIds ?? []).slice(0, MAX_SUB_AGENTS_PER_DEEP_DIVE[payload.coveragePackage]),
           }),
         },
       });

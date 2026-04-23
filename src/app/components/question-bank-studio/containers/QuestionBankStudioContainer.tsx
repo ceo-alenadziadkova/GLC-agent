@@ -9,6 +9,7 @@ import {
 
 import type { IntakeBriefCollectionMode, ProductMode } from '../../../data/auditTypes';
 import { useGlcTheme } from '../../../hooks/useGlcTheme';
+import { apiFetch } from '../../../data/api-http';
 import { QUESTION_BANK_STUDIO_COPY_EN } from '../../../config/question-bank-studio-copy.en';
 import {
   LEGEND_FONT_SIZE_PX,
@@ -94,7 +95,43 @@ export function QuestionBankStudioContainer() {
     customSurface,
   });
   const [bankDiffJson, setBankDiffJson] = useState('{\n  "version": "0.0.0",\n  "questions": []\n}\n');
+  const [kpiDashboard, setKpiDashboard] = useState<{
+    sessions: number;
+    questionShown: number;
+    dropOff: number;
+    dropOffRate: number;
+    medianQuestionsToReadiness: number;
+    confidenceMovedRate: number | null;
+    sessionFunnel: {
+      started: number;
+      withQuestionShown: number;
+      droppedOff: number;
+      reachedAuditReady: number;
+    };
+    topDropOffHotspots: Array<{
+      questionId: string;
+      shownCount: number;
+      dropOffCount: number;
+      dropOffRate: number;
+    }>;
+  } | null>(null);
   const { bankDiffSummary, bankDiffError, runBankDiff } = useQuestionBankStudioDiff(bankDiffJson);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await apiFetch<{ ok: true; dashboard: NonNullable<typeof kpiDashboard> }>(
+          '/api/intake/intelligence-kpi/dashboard',
+        );
+        if (!cancelled) setKpiDashboard(result.dashboard);
+      } catch {
+        if (!cancelled) setKpiDashboard(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!tracePlan) setPlanFootprintOnly(false);
@@ -310,6 +347,30 @@ export function QuestionBankStudioContainer() {
           branchFocusSize={branchFocusQuestionIds ? branchFocusQuestionIds.size : null}
           intelligenceMetrics={intelligenceMetrics}
         />
+        {kpiDashboard ? (
+          <div className="rounded-xl border border-[var(--ds-border-subtle)] p-3">
+            <p className="text-xs font-semibold mb-2">KPI Dashboard</p>
+            <p className="text-xs m-0">Sessions: {kpiDashboard.sessions}</p>
+            <p className="text-xs m-0">Question shown: {kpiDashboard.questionShown}</p>
+            <p className="text-xs m-0">Drop-off: {kpiDashboard.dropOff}</p>
+            <p className="text-xs m-0">Drop-off rate: {(kpiDashboard.dropOffRate * 100).toFixed(1)}%</p>
+            <p className="text-xs m-0">
+              Median questions to readiness: {kpiDashboard.medianQuestionsToReadiness.toFixed(1)}
+            </p>
+            <p className="text-xs m-0">
+              Funnel: {kpiDashboard.sessionFunnel.started} started / {kpiDashboard.sessionFunnel.withQuestionShown} shown /{' '}
+              {kpiDashboard.sessionFunnel.reachedAuditReady} ready / {kpiDashboard.sessionFunnel.droppedOff} dropped
+            </p>
+            <p className="text-xs mt-2 mb-1 font-medium">Top hotspots</p>
+            <div className="flex flex-wrap gap-2">
+              {kpiDashboard.topDropOffHotspots.map(item => (
+                <span key={item.questionId} className="text-xs px-2 py-1 rounded-md border">
+                  {item.questionId}: {item.dropOffCount}/{item.shownCount} ({(item.dropOffRate * 100).toFixed(0)}%)
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {viewMode === 'logic' && (
           <StudioLegendSection
             legendStyle={legendStyle}

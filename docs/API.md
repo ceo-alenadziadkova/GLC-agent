@@ -1264,6 +1264,11 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 ### `POST /api/intake/:token/nl-describe`
 
+Notes:
+- Supports staged LLM rollout behind `FEATURE_NL_INGRESS_LLM` (`shadow|internal|pilot|ga`).
+- Optional idempotency header: `x-idempotency-key` (dedupe window: 10 minutes per token).
+- PII redaction is applied before LLM mapping (email/phone patterns).
+
 **Auth:** none. **Availability:** only when **`FEATURE_DIAGNOSTIC_INTAKE_PILOT`** is enabled on the server; otherwise **`404`** (same envelope as unknown token for clients).
 
 **Body:** `{ "text": string }` — non-empty after trim, max **8000** characters. **Privacy:** this stub does **not** persist `text`; it only logs a short operational line (length + token prefix). Structured answers from **`POST .../respond`** remain authoritative (`prefer_explicit_over_inferred: true` in the JSON response).
@@ -1271,6 +1276,14 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 **Response `200`:** `{ "ok": true, "prefer_explicit_over_inferred": true, "graphDraft": null, "message": string }` — `graphDraft` is reserved for a future NL→bank orchestrator (see `docs/adrs/ADR-NL-TO-GRAPH-INGRESS-V1.md`).
 
 ### `POST /api/intake/:token/intelligence-kpi`
+
+### `GET /api/intake/intelligence-kpi/dashboard`
+
+Consultant-only KPI summary for intake intelligence telemetry from `pipeline_events`:
+- session count
+- `question_shown` count
+- `drop_off` count and rate
+- top 5 question hotspots by visibility volume
 
 **Auth:** none. **Availability:** only when **`FEATURE_DIAGNOSTIC_INTAKE_PILOT`** is enabled; otherwise **`404`**.
 

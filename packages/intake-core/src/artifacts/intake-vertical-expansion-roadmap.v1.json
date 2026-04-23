@@ -14,7 +14,7 @@
     {
       "key": "saas_software",
       "label": "SaaS / Software",
-      "status": "planned",
+      "status": "active",
       "diagnosticDepthProbes": [
         "activation_bottleneck",
         "monetization_motion",
@@ -24,7 +24,7 @@
     {
       "key": "retail",
       "label": "Retail",
-      "status": "planned",
+      "status": "active",
       "diagnosticDepthProbes": [
         "online_offline_channel_split",
         "inventory_price_sync_pain",

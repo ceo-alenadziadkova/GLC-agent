@@ -322,10 +322,15 @@ export async function maybeAutoPersistOrchestrationPackAfterStrategy(args: { aud
         auditId: args.auditId,
         governance_reason_codes: flow.plan_governance.reason_codes,
       });
-    } else {
+    } else if (flow.kind === 'persist_failed') {
       logger.error('orchestration.auto_pack_after_strategy_persist_failed', {
         auditId: args.auditId,
         error: flow.error.message,
+      });
+    } else {
+      logger.error('orchestration.auto_pack_after_strategy_persist_failed', {
+        auditId: args.auditId,
+        kind: flow.kind,
       });
     }
     return;

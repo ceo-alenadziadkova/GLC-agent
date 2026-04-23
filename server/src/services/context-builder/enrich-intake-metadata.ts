@@ -8,6 +8,7 @@ import {
   responsesUseQuestionBankV1,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
+import type { IntakeSurface } from '@glc/intake-core';
 import { isProjectContextEnvelopeEnabled } from '../../config/feature-flags.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { resolveIntakeSurfaceForPlan } from '../brief-validator.js';
@@ -44,7 +45,9 @@ export function enrichIntakeMetadata(params: {
     SYSTEM_DEFAULTS.intake.defaultBriefCollectionMode;
   const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
-  const intakeSurface = resolveIntakeSurfaceForPlan(collectionMode, validationPerspective);
+  const intakeSurface = resolveIntakeSurfaceForPlan(collectionMode, validationPerspective) as
+    | IntakeSurface
+    | undefined;
   const storedTuple = brief?.intake_versions as IntakeVersionTuple | null | undefined;
   const intakeTuple =
     storedTuple && isSupportedIntakeArtifactTuple(storedTuple) ? storedTuple : currentIntakeVersionTuple();
@@ -67,12 +70,15 @@ export function enrichIntakeMetadata(params: {
     intakeVersionTuple: intakeTuple,
     enforcementPoint: 'brief_recompute',
   });
+  const criticalMissingKeys = Object.entries(intakePlan.criticalSignals?.confidenceByKey ?? {})
+    .filter(([, confidence]) => confidence === 'unknown')
+    .map(([signalKey]) => signalKey);
   const envelope = isProjectContextEnvelopeEnabled()
     ? buildProjectContextEnvelope({
       responses: allResponses,
       flowReadinessStatus: readiness.flowReadinessStatus,
       auditReadinessStatus: readiness.auditReadinessStatus,
-      criticalMissingKeys: intakePlan.criticalSignals?.missingKeys ?? [],
+      criticalMissingKeys,
       executionPlan: mapProductModeToEnvelopeExecutionPlan(productMode),
     })
     : undefined;
@@ -81,6 +87,6 @@ export function enrichIntakeMetadata(params: {
     intake_ai_readiness_score: bankAiReadiness,
     ...(intakeReportAnchors ? { intake_report_anchors: intakeReportAnchors } : {}),
     ...(intakeMissingReportDomains ? { intake_missing_report_domains: intakeMissingReportDomains } : {}),
-    ...(envelope ? { intake_project_context_envelope: envelope } : {}),
+    ...(envelope ? { intake_project_context_envelope: envelope as unknown as Record<string, unknown> } : {}),
   };
 }

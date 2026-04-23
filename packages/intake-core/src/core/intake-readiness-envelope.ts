@@ -44,6 +44,14 @@ const PILOT_BANK_TO_SIGNAL: Record<string, string> = {
 
 /** Confidence band at which we treat pilot evidence as sufficient to close uncertainty without a second source. */
 const UNCERTAINTY_CLOSED_CONFIDENCE_TARGET: IntakeCriticalSignalConfidence[] = ['high', 'medium'];
+const SOURCE_PRIORITY: Record<string, number> = {
+  recon_confirmed: 5,
+  consultant_prefill: 4,
+  client: 3,
+  imported: 2,
+  inferred: 1,
+  unknown: 0,
+};
 
 function normalizeIntakeAnswerForCrossCheck(value: unknown): string {
   if (value === null || value === undefined) return '';
@@ -134,6 +142,23 @@ function appendProgressiveCertaintyHypothesisTrace(args: {
       });
     }
   }
+}
+
+export function resolveSignalFromSources<T>(sources: Array<{ source: string; value: T }>): {
+  selected: { source: string; value: T } | null;
+  conflict: boolean;
+} {
+  if (sources.length === 0) return { selected: null, conflict: false };
+  const sorted = [...sources].sort(
+    (a, b) => (SOURCE_PRIORITY[b.source] ?? 0) - (SOURCE_PRIORITY[a.source] ?? 0),
+  );
+  const selected = sorted[0] ?? null;
+  if (!selected) return { selected: null, conflict: false };
+  const selectedNormalized = normalizeIntakeAnswerForCrossCheck(selected.value);
+  const conflict = sorted
+    .slice(1)
+    .some(item => normalizeIntakeAnswerForCrossCheck(item.value) !== selectedNormalized);
+  return { selected, conflict };
 }
 
 export type IntakeReadinessCriticalSignalsMode = 'full' | 'sla_only';

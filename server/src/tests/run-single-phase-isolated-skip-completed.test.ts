@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PhaseAgentConstructor } from '../services/pipeline/orchestrator/phase-agent-registry.js';
 
 const runPhaseDomainExecutionMock = vi.hoisted(() => vi.fn());
 const supabaseFromMock = vi.hoisted(() => vi.fn());
@@ -38,7 +39,7 @@ describe('runSinglePhaseWithLifecycle (isolated) skip completed domain', () => {
       mode: 'isolated',
       auditId: 'audit-1',
       phase: 1,
-      agentClass: class MockAgent {},
+      agentClass: class MockAgent {} as unknown as PhaseAgentConstructor,
       emitEvent,
       assertNotCancelled: async () => {},
       updateAuditIfNotCancelled: async () => true,

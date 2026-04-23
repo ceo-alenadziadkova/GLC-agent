@@ -236,7 +236,7 @@ describe('evaluateOrchestrationPlanGovernance', () => {
     const result = evaluateOrchestrationPlanGovernance(
       pack({
         graph: {
-          nodes: [{ id: 'a', title: 'A', lane: 'not_a_valid_lane', domain: 'tech_infrastructure' }],
+          nodes: [{ id: 'a', title: 'A', lane: 'not_a_valid_lane' as never, domain: 'tech_infrastructure' }],
           edges: [],
         },
         lanes: {

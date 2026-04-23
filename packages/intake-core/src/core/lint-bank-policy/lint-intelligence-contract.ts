@@ -21,6 +21,26 @@ const LOW_GAIN_WHY_ASKED_FRAGMENTS = [
   'nice to know',
   'general background',
 ];
+const OUTSIDE_SCOPE_WHY_ASKED_FRAGMENTS = ['anything else', 'general overview', 'catch-all context'];
+const EMBEDDING_DUPLICATE_THRESHOLD = 0.92;
+
+const OWNER_DOMAIN_SET = new Set([
+  'recon',
+  'tech_infrastructure',
+  'security_compliance',
+  'seo_digital',
+  'ux_conversion',
+  'marketing_utp',
+  'automation_processes',
+  'strategy',
+]);
+
+function deriveOwnerDomainFromDecisionTarget(target: string | undefined): string | null {
+  if (!target) return null;
+  const [domain] = target.split('.');
+  if (domain && OWNER_DOMAIN_SET.has(domain)) return domain;
+  return null;
+}
 
 function normalizeIntentText(raw: string): string {
   return raw
@@ -38,6 +58,31 @@ function compactIntentFingerprint(raw: string): string {
   return [...new Set(tokens)].sort().join(' ');
 }
 
+function toTokenVector(raw: string): Map<string, number> {
+  const vec = new Map<string, number>();
+  for (const token of normalizeIntentText(raw).split(' ').filter(Boolean)) {
+    if (token.length <= 2) continue;
+    vec.set(token, (vec.get(token) ?? 0) + 1);
+  }
+  return vec;
+}
+
+function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (const v of a.values()) normA += v * v;
+  for (const v of b.values()) normB += v * v;
+  for (const [token, av] of a.entries()) {
+    const bv = b.get(token) ?? 0;
+    dot += av * bv;
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denom === 0) return 0;
+  return dot / denom;
+}
+
 function warnForAntiPatternHeuristics(questionId: string, label: string): LintFinding[] {
   const findings: LintFinding[] = [];
   const text = label.toLowerCase();
@@ -45,7 +90,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('tell us about your business') || text.includes('anything else')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_GENERIC',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may be too generic; ensure decision impact is explicit.`,
       detail: label,
     });
@@ -81,7 +126,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   ) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_OUTSIDE_SCOPE',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may be outside Core Diagnostic Spine scope.`,
       detail: label,
     });
@@ -89,7 +134,7 @@ function warnForAntiPatternHeuristics(questionId: string, label: string): LintFi
   if (text.includes('any comments') || text.includes('other notes')) {
     findings.push({
       code: 'INTELLIGENCE_ANTIPATTERN_LOW_GAIN',
-      severity: 'warn',
+      severity: 'error',
       message: `question "${questionId}" may have low information gain without explicit decision impact.`,
       detail: label,
     });
@@ -136,12 +181,36 @@ function lintNonP0TodoMetadata(questionId: string, contract: IntakeIntelligenceC
   return findings;
 }
 
+function lintOwnerDomainConsistency(questionId: string, contract: IntakeIntelligenceContract): LintFinding[] {
+  const findings: LintFinding[] = [];
+  const target = contract.decisionImpact?.[0]?.target;
+  const expectedOwnerDomain = deriveOwnerDomainFromDecisionTarget(target);
+  if (!expectedOwnerDomain) return findings;
+  const currentOwnerDomain = contract.stewardship?.ownerDomain ?? contract.todo?.ownerDomain;
+  if (!currentOwnerDomain) return findings;
+  if (currentOwnerDomain !== expectedOwnerDomain) {
+    findings.push({
+      code: 'INTELLIGENCE_OWNER_DOMAIN_MISMATCH',
+      severity: 'error',
+      message:
+        `question "${questionId}" ownerDomain "${currentOwnerDomain}" is inconsistent with decisionImpact target "${target}".` +
+        ` Expected "${expectedOwnerDomain}".`,
+      detail: questionId,
+    });
+  }
+  return findings;
+}
+
+function hasAntiPatternExemption(contract: IntakeIntelligenceContract, code: string): boolean {
+  return Array.isArray(contract.antiPatternExemptions) && contract.antiPatternExemptions.includes(code);
+}
+
 /**
  * Intake Intelligence Contract lint:
  * - P0 questions must include required_now fields (whyAsked + semanticDomain + decisionImpact[0])
  * - semanticDomain must map to Core Diagnostic Spine
  * - Sprint 2 gate ids must satisfy full contract (stewardship, signalContribution, follow-up, no todo)
- * - anti-pattern heuristics: generic/outside-scope/low-gain stay warn; leading/tautological/vanity/double-barreled are errors (Sprint 3)
+ * - anti-pattern heuristics are enforced as errors except duplicate-intent.
  */
 export function lintIntelligenceContractV1(args?: {
   contractResolver?: (questionId: string) => IntakeIntelligenceContract;
@@ -189,6 +258,7 @@ export function lintIntelligenceContractV1(args?: {
         detail: questionId,
       });
     }
+    findings.push(...lintOwnerDomainConsistency(questionId, contract));
 
     if (!isP0) {
       const sprint2Done = isIntakeIntelligenceSprint2Complete(contract, hasIntakeIntelligenceRequiredNow);
@@ -208,7 +278,10 @@ export function lintIntelligenceContractV1(args?: {
 
     const labelForLint = labelOverrides?.[questionId] ?? meta?.label;
     if (labelForLint) {
-      findings.push(...warnForAntiPatternHeuristics(questionId, labelForLint));
+      for (const finding of warnForAntiPatternHeuristics(questionId, labelForLint)) {
+        if (hasAntiPatternExemption(contract, finding.code)) continue;
+        findings.push(finding);
+      }
     }
 
     if (
@@ -219,8 +292,21 @@ export function lintIntelligenceContractV1(args?: {
     ) {
       findings.push({
         code: 'INTELLIGENCE_LOW_GAIN_WHY_ASKED',
-        severity: 'warn',
+        severity: 'error',
         message: `question "${questionId}" whyAsked may be too generic and low-information.`,
+        detail: contract.whyAsked,
+      });
+    }
+    if (
+      typeof contract.whyAsked === 'string' &&
+      OUTSIDE_SCOPE_WHY_ASKED_FRAGMENTS.some(fragment =>
+        normalizeIntentText(contract.whyAsked as string).includes(fragment),
+      )
+    ) {
+      findings.push({
+        code: 'INTELLIGENCE_OUTSIDE_SCOPE_WHY_ASKED',
+        severity: 'error',
+        message: `question "${questionId}" whyAsked appears outside diagnostic scope and must be tightened.`,
         detail: contract.whyAsked,
       });
     }
@@ -231,6 +317,7 @@ export function lintIntelligenceContractV1(args?: {
   }
 
   const seenDuplicateIntentPairs = new Set<string>();
+  const seenEmbeddingPairs = new Set<string>();
   for (let i = 0; i < completeContracts.length; i += 1) {
     const left = completeContracts[i];
     if (!left) continue;
@@ -247,21 +334,34 @@ export function lintIntelligenceContractV1(args?: {
       const rightWhy = right.contract.whyAsked;
       if (!rightTarget || !rightWhy || !right.contract.semanticDomain) continue;
       if (left.contract.semanticDomain !== right.contract.semanticDomain) continue;
-      if (leftTarget !== rightTarget) continue;
       const rightFingerprint = compactIntentFingerprint(rightWhy);
       if (!rightFingerprint) continue;
-      if (leftFingerprint !== rightFingerprint) continue;
       const pair = [left.questionId, right.questionId].sort((a, b) => a.localeCompare(b)).join('::');
-      if (seenDuplicateIntentPairs.has(pair)) continue;
-      seenDuplicateIntentPairs.add(pair);
-      findings.push({
-        code: 'INTELLIGENCE_DUPLICATE_INTENT',
-        severity: 'warn',
-        message:
-          `questions "${left.questionId}" and "${right.questionId}" have indistinguishable intent` +
-          ` for semanticDomain="${left.contract.semanticDomain}" and target="${leftTarget}".`,
-        detail: pair,
-      });
+      if (leftTarget === rightTarget && leftFingerprint === rightFingerprint) {
+        if (!seenDuplicateIntentPairs.has(pair)) {
+          seenDuplicateIntentPairs.add(pair);
+          findings.push({
+            code: 'INTELLIGENCE_DUPLICATE_INTENT',
+            severity: 'warn',
+            message:
+              `questions "${left.questionId}" and "${right.questionId}" have indistinguishable intent` +
+              ` for semanticDomain="${left.contract.semanticDomain}" and target="${leftTarget}".`,
+            detail: pair,
+          });
+        }
+      }
+      const sim = cosineSimilarity(toTokenVector(leftWhy), toTokenVector(rightWhy));
+      if (sim >= EMBEDDING_DUPLICATE_THRESHOLD && leftTarget === rightTarget && !seenEmbeddingPairs.has(pair)) {
+        seenEmbeddingPairs.add(pair);
+        findings.push({
+          code: 'INTELLIGENCE_EMBEDDING_DUPLICATE',
+          severity: 'error',
+          message:
+            `questions "${left.questionId}" and "${right.questionId}" exceed semantic similarity threshold` +
+            ` (${sim.toFixed(2)} >= ${EMBEDDING_DUPLICATE_THRESHOLD}) for target "${leftTarget}".`,
+          detail: pair,
+        });
+      }
     }
   }
 

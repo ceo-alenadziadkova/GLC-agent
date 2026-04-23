@@ -2,11 +2,19 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DIRECTOR_CROSS_DOMAIN_DEPENDENCY_ALLOWLIST, DIRECTOR_SUB_AGENTS } from '../config/director-sub-agents.js';
+import {
+  DIRECTOR_MODE_AGENT_DEPTHS,
+  DIRECTOR_OPERATING_MODES,
+} from '../config/director-operating-modes.js';
 
 describe('director sub-agent registry consistency', () => {
   it('has existing prompt files with source-of-truth header and matching agent references', () => {
     const cmoInstructionsPath = resolve(process.cwd(), '../docs/instructions/CMO-INSTRUCTIONS.md');
     const cmoInstructions = readFileSync(cmoInstructionsPath, 'utf8');
+    const ctoInstructionsPath = resolve(process.cwd(), '../docs/instructions/CTO-INSTRUCTIONS.md');
+    const ctoInstructions = readFileSync(ctoInstructionsPath, 'utf8');
+    const seoInstructionsPath = resolve(process.cwd(), '../docs/instructions/SEO-INSTRUCTIONS.md');
+    const seoInstructions = readFileSync(seoInstructionsPath, 'utf8');
     for (const agent of DIRECTOR_SUB_AGENTS) {
       const fromServerCwd = resolve(process.cwd(), agent.prompt_ref);
       const fromRepoRoot = resolve(process.cwd(), '..', agent.prompt_ref);
@@ -26,6 +34,12 @@ describe('director sub-agent registry consistency', () => {
         expect(content).toContain('docs/instructions/CAO-INSTRUCTIONS.md');
       } else if (agent.id.startsWith('cso.')) {
         expect(content).toContain('docs/instructions/CSO-INSTRUCTIONS.md');
+      } else if (agent.id.startsWith('cto.')) {
+        expect(content).toContain('docs/instructions/CTO-INSTRUCTIONS.md');
+        expect(ctoInstructions).toContain(`AGENT ${agent.agent_number_in_instructions} —`);
+      } else if (agent.id.startsWith('seo.')) {
+        expect(content).toContain('docs/instructions/SEO-INSTRUCTIONS.md');
+        expect(seoInstructions).toContain(`AGENT ${agent.agent_number_in_instructions} —`);
       } else {
         throw new Error(`Unhandled director sub-agent prefix: ${agent.id}`);
       }
@@ -117,6 +131,22 @@ describe('director sub-agent registry consistency', () => {
       'cso.case_classifier': ['case_label', 'scope_notes'],
       'cso.threat_model': ['threat_summary', 'top_threats'],
       'cso.compliance_map': ['compliance_summary', 'control_priorities'],
+      'cto.readiness_baseline': ['readiness_summary', 'fragility_zones', 'top_unknowns'],
+      'cto.architecture_risk_model': ['architecture_risk_summary', 'critical_risks', 'coupling_hotspots'],
+      'cto.reliability_runtime': ['runtime_reliability_summary', 'reliability_gaps', 'guardrails'],
+      'cto.observability_incident': ['observability_summary', 'telemetry_gaps', 'incident_readiness_actions'],
+      'cto.delivery_release_safety': ['release_safety_summary', 'release_risks', 'rollback_controls'],
+      'cto.security_supply_chain': ['supply_chain_summary', 'security_gaps', 'security_controls'],
+      'cto.data_platform_resilience': ['data_resilience_summary', 'resilience_risks', 'recovery_priorities'],
+      'cto.roadmap_tradeoffs': ['tradeoff_summary', 'decision_tradeoffs', 'critical_path_checkpoints'],
+      'seo.visibility_baseline': ['visibility_baseline_summary', 'structural_constraints', 'missing_evidence'],
+      'seo.technical_indexability': ['technical_indexability_summary', 'indexability_blockers', 'remediation_priorities'],
+      'seo.ia_internal_links': ['ia_linking_summary', 'discoverability_gaps', 'linking_actions'],
+      'seo.content_intent_coverage': ['content_intent_summary', 'intent_gaps', 'opportunity_clusters'],
+      'seo.serp_ctr_levers': ['serp_ctr_summary', 'ctr_levers', 'snippet_tests'],
+      'seo.authority_trust': ['authority_trust_summary', 'trust_gaps', 'credibility_actions'],
+      'seo.local_international_readiness': ['local_international_summary', 'readiness_gaps', 'expansion_prerequisites'],
+      'seo.measurement_experimentation': ['measurement_experimentation_summary', 'kpi_tree', 'experiment_backlog'],
     };
     for (const agent of DIRECTOR_SUB_AGENTS) {
       const fromServerCwd = resolve(process.cwd(), agent.prompt_ref);
@@ -142,6 +172,16 @@ describe('director sub-agent registry consistency', () => {
         if (!dep.startsWith(`${domainPrefix}.`)) {
           expect(allowlist.has(`${agent.id}->${dep}`), `"${agent.id}" depends on non-allowlisted cross-domain "${dep}"`).toBe(true);
         }
+      }
+    }
+  });
+
+  it('keeps operating mode depth map synchronized with director sub-agent registry', () => {
+    for (const mode of DIRECTOR_OPERATING_MODES) {
+      const depthByAgentId = DIRECTOR_MODE_AGENT_DEPTHS[mode];
+      expect(depthByAgentId).toBeDefined();
+      for (const agent of DIRECTOR_SUB_AGENTS) {
+        expect(depthByAgentId[agent.id], `missing depth for "${agent.id}" in mode "${mode}"`).toBeDefined();
       }
     }
   });

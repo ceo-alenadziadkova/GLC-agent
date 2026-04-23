@@ -33,12 +33,14 @@ export const buildAppRoute = {
   audit: (auditId: string): string => `/${P.auditById.replace(':id', auditId)}`,
   pipeline: (auditId: string): string => `/${P.pipelineById.replace(':id', auditId)}`,
   timeline: (auditId: string): string => `/${P.timelineById.replace(':id', auditId)}`,
+  roadmap: (auditId: string): string => `/${P.roadmapById.replace(':id', auditId)}`,
   reports: (auditId: string): string => `/${P.reportsById.replace(':id', auditId)}`,
   strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
   portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
   portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
+  portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>
     `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
@@ -53,8 +55,8 @@ export const buildAppRoute = {
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'strategy'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),

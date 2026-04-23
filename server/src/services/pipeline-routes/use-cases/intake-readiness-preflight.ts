@@ -3,8 +3,9 @@ import {
   evaluateIntakeReadinessEnvelope,
   isSupportedIntakeArtifactTuple,
   normalizeIntakeVersionTupleFromStorage,
+  type IntakeSurface,
 } from '@glc/intake-core';
-import type { DomainKey, IntakeVersionTuple } from '../../../types/audit.js';
+import type { DomainKey, IntakeBriefCollectionMode, IntakeVersionTuple } from '../../../types/audit.js';
 import { pipelineRouteErr } from '../domain/pipeline-route.errors.js';
 
 type EnforcementPoint = 'pipeline_start' | 'pipeline_next';
@@ -12,8 +13,8 @@ type EnforcementPoint = 'pipeline_start' | 'pipeline_next';
 export function runIntakeReadinessPreflight(args: {
   responses: Record<string, unknown>;
   slaProductMode: 'full' | 'express';
-  collectionMode: string | null | undefined;
-  surface: string;
+  collectionMode: IntakeBriefCollectionMode | null | undefined;
+  surface: IntakeSurface;
   intakeVersionsRaw: IntakeVersionTuple | Record<string, unknown> | null | undefined;
   enforcementPoint: EnforcementPoint;
   executionCoveragePackage: 'starter' | 'pro' | 'complete';
@@ -31,7 +32,7 @@ export function runIntakeReadinessPreflight(args: {
   const readiness = evaluateIntakeReadinessEnvelope({
     responses: args.responses,
     slaProductMode: args.slaProductMode,
-    collectionMode: args.collectionMode ?? null,
+    collectionMode: args.collectionMode ?? undefined,
     surface: args.surface,
     intakeVersionTuple: intakeTuple,
     enforcementPoint: baselineEnforcementPoint,

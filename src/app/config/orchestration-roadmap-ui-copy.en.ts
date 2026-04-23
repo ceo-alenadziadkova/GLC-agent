@@ -369,6 +369,54 @@ export const ORCHESTRATION_UI_COPY = {
   subAgent_cso_threat_model_description: 'Summarizes top threat vectors with impact context.',
   subAgent_cso_compliance_map_title: 'CSO — Compliance map',
   subAgent_cso_compliance_map_description: 'Prioritizes controls and compliance actions for the selected case.',
+  subAgent_cto_readiness_baseline_title: 'CTO — Readiness baseline',
+  subAgent_cto_readiness_baseline_description:
+    'Summarizes architecture readiness, fragility zones, and top delivery unknowns.',
+  subAgent_cto_architecture_risk_model_title: 'CTO — Architecture risk model',
+  subAgent_cto_architecture_risk_model_description:
+    'Identifies structural coupling, single points of failure, and highest-risk debt.',
+  subAgent_cto_reliability_runtime_title: 'CTO — Reliability and runtime',
+  subAgent_cto_reliability_runtime_description:
+    'Defines resilience gaps and runtime guardrails for stable operation.',
+  subAgent_cto_observability_incident_title: 'CTO — Observability and incidents',
+  subAgent_cto_observability_incident_description:
+    'Audits detect-triage-resolve readiness and minimum telemetry coverage.',
+  subAgent_cto_delivery_release_safety_title: 'CTO — Delivery and release safety',
+  subAgent_cto_delivery_release_safety_description:
+    'Hardens CI/CD, rollback discipline, and deployment risk controls.',
+  subAgent_cto_security_supply_chain_title: 'CTO — Security supply chain',
+  subAgent_cto_security_supply_chain_description:
+    'Surfaces practical supply-chain and environment hygiene controls.',
+  subAgent_cto_data_platform_resilience_title: 'CTO — Data platform resilience',
+  subAgent_cto_data_platform_resilience_description:
+    'Prioritizes durability, recovery, and migration safety improvements.',
+  subAgent_cto_roadmap_tradeoffs_title: 'CTO — Roadmap trade-offs',
+  subAgent_cto_roadmap_tradeoffs_description:
+    'Synthesizes speed/reliability trade-offs into a staged critical path.',
+  subAgent_seo_visibility_baseline_title: 'SEO — Visibility baseline',
+  subAgent_seo_visibility_baseline_description:
+    'Captures current visibility shape, key constraints, and missing evidence.',
+  subAgent_seo_technical_indexability_title: 'SEO — Technical indexability',
+  subAgent_seo_technical_indexability_description:
+    'Prioritizes crawl/index/render fixes with regression guardrails.',
+  subAgent_seo_ia_internal_links_title: 'SEO — IA and internal links',
+  subAgent_seo_ia_internal_links_description:
+    'Improves discoverability via information architecture and link pathways.',
+  subAgent_seo_content_intent_coverage_title: 'SEO — Content intent coverage',
+  subAgent_seo_content_intent_coverage_description:
+    'Maps intent gaps and prioritizes funnel-aligned content opportunities.',
+  subAgent_seo_serp_ctr_levers_title: 'SEO — SERP CTR levers',
+  subAgent_seo_serp_ctr_levers_description:
+    'Finds snippet/title/meta opportunities that improve qualified clicks.',
+  subAgent_seo_authority_trust_title: 'SEO — Authority and trust',
+  subAgent_seo_authority_trust_description:
+    'Strengthens credibility signals required for high-risk intent areas.',
+  subAgent_seo_local_international_readiness_title: 'SEO — Local/international readiness',
+  subAgent_seo_local_international_readiness_description:
+    'Validates location/language architecture before geography scaling.',
+  subAgent_seo_measurement_experimentation_title: 'SEO — Measurement and experimentation',
+  subAgent_seo_measurement_experimentation_description:
+    'Defines KPI tree and SEO experiment backlog with rollout-safe scope.',
   /** Evidence taxonomy (director Layer 1); compact badges on timeline / pack panel (V6). */
   evidenceTaxonomyGroupAriaLabel: 'Evidence taxonomy counts',
   evidenceTaxonomyObservedAbbr: 'O',

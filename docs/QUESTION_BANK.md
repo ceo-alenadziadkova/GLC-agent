@@ -86,8 +86,8 @@ English contract for decision-oriented metadata (see [ADR-DECISION-IMPACT-METADA
 
 - **Canonical modules:** `packages/intake-core/src/config/intake-intelligence-types.ts` (shared types), `packages/intake-core/src/config/intake-intelligence-contract.ts` (resolver + coverage), `packages/intake-core/src/config/intake-intelligence-gate-metadata.ts` (Sprint 2 gate rows), `packages/intake-core/src/config/intake-intelligence-sprint2.ts` (gate id computation + completeness rules).
 - **Core Diagnostic Spine:** `semanticDomain` must be one of `market` \| `value` \| `economics` \| `operations` \| `resources` \| `risks` (validated by `lint-intelligence-contract.ts`).
-- **Sprint 2 gate set:** section **A** ∪ **B** ∪ `{ c1, c2, c3, c4, d2, d_closing_flow, f1–f9, f_idea_1–f_idea_4 }` — currently **47** bank ids. Each must satisfy **full contract**: `required_now` fields, no `todo`, `stewardship` (`ownerDomain` from `IntakeIntelligenceOwnerDomain`, `reviewByIsoDate` `YYYY-MM-DD`), `signalContribution[]` with `signalKey` matching pilot signals and `expectedInfoGainBits` ≥ `MIN_EXPECTED_INFO_GAIN_BITS_SPRINT2` (**0.3**), plus `followupPolicy` / `stopCondition`.
-- **Anti-patterns** (label + `whyAsked` heuristics): generic, leading, tautological, vanity, outside-spine, low info-gain, double-barreled; duplicate-intent fingerprint across completed contracts. **As implemented:** `leading`, `tautological`, `vanity`, and `double-barreled` are **errors** in `lintIntelligenceContractV1`; `generic`, `outside-scope`, `low-gain` heuristics, `INTELLIGENCE_LOW_GAIN_WHY_ASKED`, and `INTELLIGENCE_DUPLICATE_INTENT` remain **warn** (see §16.1).
+- **Sprint 2 gate set:** section **A** ∪ **B** ∪ `{ c1, c2, c3, c4, d2, d_closing_flow, f1–f9, f_idea_1–f_idea_4 }` — currently **47** bank ids. Each must satisfy **full contract**: `required_now` fields, no `todo`, `stewardship` (`ownerDomain` from `IntakeIntelligenceOwnerDomain`, optional `ownerAlias`, `reviewByIsoDate` `YYYY-MM-DD`), `signalContribution[]` with `signalKey` matching pilot signals and `expectedInfoGainBits` ≥ `MIN_EXPECTED_INFO_GAIN_BITS_SPRINT2` (**0.3**), plus `followupPolicy` / `stopCondition`.
+- **Anti-patterns** (label + `whyAsked` heuristics): generic, leading, tautological, vanity, outside-spine, low info-gain, double-barreled; duplicate-intent fingerprint across completed contracts. **As implemented:** all anti-pattern heuristics except duplicate-intent are enforced as **errors** in `lintIntelligenceContractV1`; `INTELLIGENCE_DUPLICATE_INTENT` remains **warn** (see §16.1).
 - **Adding a bank question:** extend `question-bank.v1.json`, then either attach to Sprint 2 gate (expand `computeIntakeIntelligenceSprint2GateIds` + metadata) or keep `{ todo: DEFAULT_TODO }` fallback until product assigns stewardship. Follow [`intake-question-bank-change-protocol.mdc`](../.cursor/rules/intake-question-bank-change-protocol.mdc).
 
 ### 2.2. Секции (клиент видит)
@@ -860,7 +860,8 @@ Lint and fallback behavior:
 - `lintIntelligenceContractV1` blocks CI when a P0 question misses any `required_now` field
 - `semanticDomain` outside Core Spine is a hard error
 - any id in the **Sprint 2 gate set** missing the full Sprint 2 contract shape → **`INTELLIGENCE_SPRINT2_INCOMPLETE`** (**error**)
-- anti-pattern heuristics: **errors** for leading / tautological / vanity / double-barreled labels; **warn** for generic / outside-scope / low-gain and duplicate-intent fingerprint (see §16.1)
+- anti-pattern heuristics: **errors** for leading / tautological / vanity / double-barreled / generic / outside-scope / low-gain labels; duplicate-intent fingerprint remains warn unless embedding-threshold duplicate triggers an error.
+- owner governance: `ownerDomain` is derived from `decisionImpact.target` domain and linted for consistency (`INTELLIGENCE_OWNER_DOMAIN_MISMATCH`).
 - runtime fallback keeps questions visible and emits `intelligence_metadata_incomplete` trace when metadata is incomplete
 - canonical ADR: [`ADR-DECISION-IMPACT-METADATA-V1.md`](./adrs/ADR-DECISION-IMPACT-METADATA-V1.md)
 
@@ -878,7 +879,7 @@ Current enforcement matrix:
 Deterministic baseline snapshot (**must match** `intake-intelligence-contract.test.ts`):
 - `question_count = 78`
 - `P0_question_count = 17` (derived from critical signals ∪ section **F**)
-- `fully_covered_questions = 54` (`required_now` present via `hasIntakeIntelligenceRequiredNow`) ≈ **69.2%**
+- `fully_covered_questions = 78` (`required_now` present via `hasIntakeIntelligenceRequiredNow`) = **100%**
 - `fully_covered_P0_questions = 17` (**100%** of P0)
 - `Sprint_2_gate_question_count = 47`; **`Sprint_2_complete_questions = 47`** (`getIntakeIntelligenceSprint2CoverageSummary`, ratio **1**)
 
@@ -894,14 +895,14 @@ Lint codes in `lint-intelligence-contract.ts` (label-based heuristics unless not
 
 | Category | Lint code (prefix `INTELLIGENCE_ANTIPATTERN_*` where applicable) | Severity |
 | --- | --- | --- |
-| Generic opening | `GENERIC` | warn |
+| Generic opening | `GENERIC` | **error** |
 | Leading framing | `LEADING` | **error** |
 | Tautological | `TAUTOLOGICAL` | **error** |
 | Vanity metrics | `VANITY` | **error** |
-| Outside spine (label shape) | `OUTSIDE_SCOPE` | warn |
-| Low gain (label) | `LOW_GAIN` | warn |
+| Outside spine (label shape) | `OUTSIDE_SCOPE` | **error** |
+| Low gain (label) | `LOW_GAIN` | **error** |
 | Double-barreled | `DOUBLE_BARRELED` | **error** |
-| `whyAsked` contains low-information phrases | `INTELLIGENCE_LOW_GAIN_WHY_ASKED` | warn |
+| `whyAsked` contains low-information phrases | `INTELLIGENCE_LOW_GAIN_WHY_ASKED` | **error** |
 | Duplicate intent fingerprint vs same `semanticDomain` + `decisionImpact[0].target` | `INTELLIGENCE_DUPLICATE_INTENT` | warn |
 
 Editorial guidance for authors is unchanged; only CI severity differs by row.
