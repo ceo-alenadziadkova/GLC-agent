@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useId, useMemo, useState } from 'react';
 import { Copy } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -6,9 +6,15 @@ import { Button } from '../ui/button';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { buildOrchestrationPackDotExport } from '../../lib/build-orchestration-pack-dot-export';
 import { buildOrchestrationPackFlowGraph } from '../../lib/build-orchestration-pack-flow-graph';
-import { PortalPackGraphFlowCanvas, type PortalPackGraphSelection } from './PortalPackGraphFlowCanvas';
+import type { PortalPackGraphSelection } from './PortalPackGraphFlowCanvas';
+import { EvidenceDrilldownPanel } from './EvidenceDrilldownPanel';
+
+const PortalPackGraphFlowCanvasLazy = lazy(() =>
+  import('./PortalPackGraphFlowCanvas').then((m) => ({ default: m.PortalPackGraphFlowCanvas })),
+);
 import {
   OrchestrationEvidenceTaxonomyBadges,
   type OrchestrationEvidenceTaxonomy,
@@ -20,6 +26,7 @@ export function PortalTimelinePackGraphPanel({
   headingTitle,
   headingHint,
   onConsultantSelectNode,
+  graphPresentation = 'default',
 }: {
   pack: GlcOrchestrationPackView;
   /** Overrides portal section title (e.g. Strategy Lab). */
@@ -27,9 +34,12 @@ export function PortalTimelinePackGraphPanel({
   headingHint?: string;
   /** Strategy Lab: keep graph highlight and `?node=` / detail card in sync. */
   onConsultantSelectNode?: (id: string | null) => void;
+  /** `consultant_full` starts expanded and uses expanded node/edge budgets (Strategy Lab V5). */
+  graphPresentation?: 'default' | 'consultant_full';
 }) {
   const headingDomId = useId();
-  const [mapExpanded, setMapExpanded] = useState(false);
+  const consultantFull = graphPresentation === 'consultant_full';
+  const [mapExpanded, setMapExpanded] = useState(consultantFull);
   const [selection, setSelectionState] = useState<PortalPackGraphSelection | null>(null);
 
   const setSelection = useCallback(
@@ -77,20 +87,20 @@ export function PortalTimelinePackGraphPanel({
   const flowModel = useMemo(
     () =>
       buildOrchestrationPackFlowGraph(pack, {
-        maxFlowEdges: mapExpanded
+        maxFlowEdges: consultantFull || mapExpanded
           ? ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphFlowExpandedMaxEdges
           : ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphFlowMaxEdges,
-        maxFlowNodes: mapExpanded
+        maxFlowNodes: consultantFull || mapExpanded
           ? ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphFlowExpandedMaxNodes
           : ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphFlowMaxNodes,
       }),
-    [pack, mapExpanded],
+    [pack, mapExpanded, consultantFull],
   );
 
   const flowLayoutKey = useMemo(
     () =>
-      `${pack.manifest_snapshot_id}-${pack.version}-${pack.graph.edges.length}-${pack.critical_path.join('|')}-${mapExpanded ? 'ex' : 'cmp'}`,
-    [pack.manifest_snapshot_id, pack.version, pack.graph.edges.length, pack.critical_path, mapExpanded],
+      `${pack.manifest_snapshot_id}-${pack.version}-${pack.graph.edges.length}-${pack.critical_path.join('|')}-${consultantFull ? 'cf' : mapExpanded ? 'ex' : 'cmp'}`,
+    [pack.manifest_snapshot_id, pack.version, pack.graph.edges.length, pack.critical_path, mapExpanded, consultantFull],
   );
 
   const listHighlightsNode = useCallback(
@@ -103,7 +113,7 @@ export function PortalTimelinePackGraphPanel({
     [selection],
   );
 
-  const canvasMinHeightPx = mapExpanded
+  const canvasMinHeightPx = consultantFull || mapExpanded
     ? ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphCanvasExpandedMinHeightPx
     : ORCHESTRATION_UI_LIMITS.portalTimelinePackGraphCanvasMinHeightPx;
 
@@ -137,7 +147,7 @@ export function PortalTimelinePackGraphPanel({
         </p>
       ) : null}
 
-      {flowModel.nodes.length > 0 ? (
+      {flowModel.nodes.length > 0 && !consultantFull ? (
         <div className="mt-3 flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -168,16 +178,27 @@ export function PortalTimelinePackGraphPanel({
         </div>
       ) : null}
 
-      <PortalPackGraphFlowCanvas
-        flowLayoutKey={flowLayoutKey}
-        nodes={flowModel.nodes}
-        edges={flowModel.edges}
-        flowEdgesTruncated={flowModel.flowEdgesTruncated}
-        nodesDroppedFromBudget={flowModel.nodesDroppedFromBudget}
-        selection={selection}
-        onSelectionChange={setSelection}
-        canvasMinHeightPx={canvasMinHeightPx}
-      />
+      <Suspense
+        fallback={
+          <div className="text-muted-foreground mt-4 rounded-md border border-dashed px-3 py-6 text-center text-sm">
+            {ORCHESTRATION_UI_COPY.timelinePackGraphCanvasLoading}
+          </div>
+        }
+      >
+        <PortalPackGraphFlowCanvasLazy
+          flowLayoutKey={flowLayoutKey}
+          nodes={flowModel.nodes}
+          edges={flowModel.edges}
+          flowEdgesTruncated={flowModel.flowEdgesTruncated}
+          nodesDroppedFromBudget={flowModel.nodesDroppedFromBudget}
+          selection={selection}
+          onSelectionChange={setSelection}
+          canvasMinHeightPx={canvasMinHeightPx}
+        />
+      </Suspense>
+      {APP_FEATURE_FLAGS.evidenceDrilldownEnabled && selection?.kind === 'node' ? (
+        <EvidenceDrilldownPanel pack={pack} nodeId={selection.id} />
+      ) : null}
 
       <div className="mt-4">
         <div className="mb-1 text-[length:var(--text-xs)] font-medium ds-text-secondary">

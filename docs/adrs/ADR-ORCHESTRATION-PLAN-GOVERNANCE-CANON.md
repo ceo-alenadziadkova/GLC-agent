@@ -49,3 +49,9 @@ We define **plan-level governance** as a first-class canonical layer for orchest
 1. Keep deterministic graph as baseline mode.
 2. Keep synthesis as optional layer behind feature flags.
 3. Monitor warning rates (`accept_with_warnings`) after rollout and tune policy in config, not in services.
+
+## Product MVP (2026-04) — UI / actions vs server canon
+
+- **Server canon** — `decision_hint` and persistence gates remain as in this ADR; evaluation is in `orchestration-plan-governance.service.ts` and build routes.
+- **No `govern_action` query/body** — there is no separate “governance-only” mutation; acceptance is expressed through **existing** flows (refine manifest / Strategy Lab / `POST /api/audits/:id/orchestration/pack` with manifest), not a dedicated `accept_plan` endpoint. See [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md#dod-4-slo-and-dod-6-governance) (DoD-6) for the product decision: **read surfaces** show `decision_hint`; optional one-click CTA is follow-up if product requests it.
+- **Consultant cockpit** — [`ConsultantOrchestrationCockpitPage`](../../src/app/pages/ConsultantOrchestrationCockpitPage.tsx) displays governance + links/rebuild; same contract as client-facing surfaces.

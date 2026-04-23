@@ -56,9 +56,9 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 3. **Monorepo + Docker:** set the service **Root Directory to the repository root** (not `server/`). Use `**railway.json`** at the repo root (`builder: DOCKERFILE`, `dockerfilePath: server/Dockerfile`). The Dockerfile expects build context `**.`** and runs `pnpm install --filter glc-audit-server...` from the workspace lockfile. If Root Directory stays `**server/**` alone, the Docker build cannot see `pnpm-workspace.yaml` / root `pnpm-lock.yaml` and will fail.
 4. **Railpack / Nixpacks:** if you deploy **without** Docker from **repo root**, Nixpacks may treat the project as a **Vite SPA** and start the wrong stack. Prefer the **Dockerfile** flow above. The image runs `**playwright install --with-deps chromium`** after `tsc` for **free snapshot** (see § Free snapshot — Playwright). Builds are slower than a minimal API-only image.
 5. Set environment variables in Railway dashboard:
-  `env UPABASE_URL=https://xxxx.supabase.co UPABASE_SERVICE_KEY=eyJ... NTHROPIC_API_KEY=sk-ant-... ODE_ENV=production NAPSHOT_GUEST_IP_SALT=<long-random-secret> LC_PUBLIC_SITE_URL=https://your-marketing-site.example` 
-  *Do not set `PORT` manually** unless you know what you are doing: Railway injects `**PORT`**; the app must listen on that value (`index`). In Public networking, Target port must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns 502, fix the domain’s target port or remove a conflicting custom `PORT` variable. `**LISTEN_HOST`** (optional) defaults to `**0.0.0.0**` for containers; set `**127.0.0.1**` only for local hardening when you intentionally avoid exposing the API on all interfaces.
-  *Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in `**platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces `**implicit_fallback_active`** when that applies. `**SELF_SERVE_AUDIT_OWNER_USER_ID*`* is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration `**049_profiles_platform_admin.sql`** adds `**profiles.is_platform_admin`**. When at least one consultant has this flag `**true**`, only those users (plus ids in `**platform_settings.legacy_platform_admin_user_ids**`) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
+  `env SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_KEY=eyJ... ANTHROPIC_API_KEY=sk-ant-... NODE_ENV=production SNAPSHOT_GUEST_IP_SALT=<long-random-secret> GLC_PUBLIC_SITE_URL=https://your-marketing-site.example`
+  **Do not set** `PORT` **manually** unless you know what you are doing: Railway injects `PORT`; the app must listen on that TCP port (the Node entrypoint in `server/dist/index.js` reads `process.env.PORT`). In Public networking, Target port must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns 502, fix the domain’s target port or remove a conflicting custom `PORT` variable. `**LISTEN_HOST**` (optional) defaults to `**0.0.0.0**` for containers; set `**127.0.0.1**` only for local hardening when you intentionally avoid exposing the API on all interfaces.
+  **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in `**platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces `**implicit_fallback_active`** when that applies. **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration `**049_profiles_platform_admin.sql`** adds `**profiles.is_platform_admin**`. When at least one consultant has this flag `**true**`, only those users (plus ids in `**platform_settings.legacy_platform_admin_user_ids**`) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
 6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with `**node dist/index.js**` (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
 7. **Watch paths (monorepo):** root `railway.json` sets `**build.watchPatterns`** so pushes that only touch the SPA (`src/`, marketing assets, etc.) do **not** redeploy the API. Patterns include `**server/`****, `**packages/**`**, root `**package.json` / `pnpm-lock.yaml` / `pnpm-workspace.yaml**`, `**railway.json**`, and `**.dockerignore**`.
 8. Railway provides a public URL like `https://glc-api.up.railway.app`
@@ -469,6 +469,31 @@ Example on Railway:
 ---
 
 ## Monitoring
+
+### Orchestration SLO (Product MVP)
+
+Baseline targets (measure in Grafana/Datadog from structured logs + `ORCHESTRATION_TELEMETRY_METRICS`):
+
+- `GET /api/audits/:id/timeline` — **p95 ≤ 500 ms** under normal load (alert on sustained regression vs baseline week).
+- `POST /api/audits/:id/orchestration/pack` — **p95 ≤ 3 s** without conflict synthesis; **≤ 8 s** when synthesis is enabled (watch `kpi_orchestration_synthesis_deterministic_fallback`).
+
+Related keys: `kpi_orchestration_timeline_view`, `kpi_orchestration_timeline_run_failure`, `kpi_orchestration_pack_run_failure`, `kpi_orchestration_synthesis_deterministic_fallback`, `kpi_orchestration_consultant_cockpit_view`.
+
+**Grafana (or Datadog) — minimum Product MVP dashboard rows**
+
+Wire log/metric queries to the labels your platform already indexes (route, `component:audits`, `metric` on structured lines, etc.):
+
+| Row | Query intent | Alert (suggested) |
+| --- | --- | --- |
+| Timeline latency | p95 duration for `GET` `/api/audits/:id/timeline` (or `route` label equivalent) | p95 > 500 ms for 15+ min |
+| Pack POST latency | p95 for `POST` `/api/audits/:id/orchestration/pack`, split by synthesis on/off if tagged | p95 > 3 s (no synthesis) or > 8 s (synthesis) |
+| Error rate | Count `5xx` or `kpi_orchestration_timeline_run_failure` / `kpi_orchestration_pack_run_failure` | > 0.5% of success volume for 10 min |
+| Synthesis fallback | `kpi_orchestration_synthesis_deterministic_fallback` rate | sustained spike vs 7d baseline (e.g. > 2×) |
+| Cockpit usage | `kpi_orchestration_consultant_cockpit_view` (adoption, not SLO) | none unless zero in pilot week |
+
+**DoD-4** is satisfied when the above panels exist and p95/alert rules are active in the chosen observer — not when keys exist only in `orchestration-telemetry-policy.ts`.
+
+CI enforces **DoD-7** (`pnpm run audit:orchestration-telemetry`) and **DoD-8** (`pnpm build && pnpm run audit:bundle-main-budget`).
 
 - **Railway** → built-in logs + metrics (CPU/memory). Set up email alerts for error spikes.
 - **Supabase** → database logs, auth logs, Realtime connection counts.

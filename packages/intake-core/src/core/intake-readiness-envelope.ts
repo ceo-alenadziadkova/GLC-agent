@@ -47,6 +47,8 @@ const UNCERTAINTY_CLOSED_CONFIDENCE_TARGET: IntakeCriticalSignalConfidence[] = [
 const SOURCE_PRIORITY: Record<string, number> = {
   recon_confirmed: 5,
   consultant_prefill: 4,
+  /** Legacy alias; prefer `consultant_prefill` in new payloads. */
+  consultant: 4,
   client: 3,
   imported: 2,
   inferred: 1,

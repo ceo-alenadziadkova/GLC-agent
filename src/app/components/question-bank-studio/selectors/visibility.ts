@@ -53,7 +53,7 @@ export function computeUserStepLanes(
 export type NodeHiddenByIdInput = {
   nodes: readonly Node<StudioAnyNodeData>[];
   edges: readonly Edge[];
-  viewMode: 'user' | 'logic';
+  viewMode: 'user' | 'logic' | 'dependency';
   activeUserStep: number | null;
   userStepLanes: readonly UserStepLane[];
   planFootprintOnly: boolean;

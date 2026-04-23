@@ -7,16 +7,16 @@
 | **Date**            | 2026-04-19                                                                                             |
 | **Scope**           | Automation domain (`automation_processes`) + optional Automation & Processes Director deep audit zones |
 | **Supersedes**      | —                                                                                                      |
-| **Superseded by**   | `ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md`                                           |
+| **Superseded by**   | `../ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md`                                           |
 | **Decision owners** | Product + Consulting + AI Platform                                                                     |
 
 
-> **Note:** This ADR is superseded by `ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md` (process economics, bottleneck taxonomy, automation risk, automation observability, SSOT layer, maturity model, TTFV). Keep this file for historical context only.
+> **Note:** This ADR is superseded by [`ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md`](../ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md) (process economics, bottleneck taxonomy, automation risk, automation observability, SSOT layer, maturity model, TTFV). Keep this file for historical context only.
 
 ### Related decisions
 
-- Cross-domain pattern: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
-- Technical orchestration baseline (dependencies, trade-offs, prioritization): `ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md`
+- Cross-domain pattern: [`ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`](../ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md)
+- Technical orchestration baseline (dependencies, trade-offs, prioritization): [`ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md`](../ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md)
 
 ### ADR lifecycle
 

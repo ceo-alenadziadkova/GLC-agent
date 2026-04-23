@@ -84,4 +84,16 @@ export const APP_FEATURE_FLAGS = {
    */
   ctoDeepDiveLlmEnabled: true,
   seoDeepDiveLlmEnabled: true,
+  /** Full-graph canvas in Strategy Lab dependencies tab (see server `FEATURE_PACK_GRAPH_CONSULTANT_CANVAS`). */
+  packGraphConsultantCanvasEnabled: true,
+  /** Node evidence drill-down side panel (see server `FEATURE_EVIDENCE_DRILLDOWN`). */
+  evidenceDrilldownEnabled: true,
+  /** Rich cross-lane pair copy from pack graph (config-driven; no server flag). */
+  laneCrossNarrativesEnabled: true,
+  /** Confirm dialog when requesting another execution pack for the same initiative (see `FEATURE_EXECUTION_PACK_REPEAT_FLOW`). */
+  executionPackRepeatFlowEnabled: true,
+  /** Consultant `/audit/:id/orchestration` cockpit (see `FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT`). */
+  consultantOrchestrationCockpitEnabled: true,
+  /** Strategy Lab revision history panel (client-only UI). */
+  revisionHistoryPanelEnabled: true,
 } as const;

@@ -20,5 +20,7 @@ export const ORCHESTRATION_TELEMETRY_METRICS = {
   dependencyBreakRate: 'kpi_orchestration_dependency_break_rate',
   /** LLM conflict synthesis failed or was skipped — deterministic pack returned. */
   synthesisDeterministicFallback: 'kpi_orchestration_synthesis_deterministic_fallback',
+  /** Consultant read-only orchestration cockpit pack fetch (adoption / funnel). */
+  consultantCockpitView: 'kpi_orchestration_consultant_cockpit_view',
 } as const;
 

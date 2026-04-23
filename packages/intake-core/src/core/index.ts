@@ -5,7 +5,10 @@ export {
   type EvaluateIntakeReadinessInput,
   type IntakeReadinessCriticalSignalsMode,
 } from './intake-readiness-envelope.js';
-export { evaluateCriticalSignalsPilot } from './evaluate-critical-signals.js';
+export {
+  computePilotCriticalBottleneckRank,
+  evaluateCriticalSignalsPilot,
+} from './evaluate-critical-signals.js';
 export { selectRemediationPilotQueue } from './evaluate-remediation-pilot.js';
 export { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
 export {
@@ -43,6 +46,27 @@ export {
   type QuestionBankLegalBasisV1,
   type QuestionBankLegalMetaRowV1,
 } from '../question-bank-legal-meta.v1.js';
+export {
+  matchCasePatterns,
+  matchesCasePattern,
+  evaluateCaseStopCondition,
+  countAnsweredInSet,
+} from './case-matcher.js';
+export {
+  resolveCaseOverlay,
+  mergeOverlayIntoNextRecommended,
+  pruneNextRecommendedForSatisfiedCaseStops,
+} from './case-overlay-resolver.js';
+export {
+  evaluateFollowupPolicy,
+  pruneNextRecommendedAfterFollowupStops,
+  type FollowupEvaluationOutcome,
+} from './followup-policy-executor.js';
+export type {
+  IntakeCasePatternCatalogV1,
+  IntakeCasePatternV1,
+  CasePatternPrecondition,
+} from './case-pattern-types.js';
 export { buildIntakePlan, buildPlanFromScratch, recomputePlanIncremental } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
@@ -57,6 +81,7 @@ export {
   lintLayoutReferencesUnknownBankIds,
   lintMissingPolicyCoverage,
   lintIntelligenceContractV1,
+  lintCasePatternsV1,
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
   lintPreBriefBankIncludedBranchConflicts,
@@ -109,6 +134,8 @@ export type {
   ExpressModePolicyV1,
   FreeSnapshotModePolicyV1,
   FullModePolicyV1,
+  IntakePolicyFollowupRuleDefinitionV1,
+  IntakePolicyIntelligenceV1,
   IntakePolicyV1,
   PreBriefModePolicyV1,
 } from './policy-types.js';

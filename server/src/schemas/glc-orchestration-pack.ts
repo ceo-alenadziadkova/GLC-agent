@@ -78,6 +78,8 @@ const OrchestrationGraphNodeSchema = z.object({
   target_window_days: z.number().int().positive().optional(),
   priority_score: z.number().positive().optional(),
   evidence_taxonomy: OrchestrationEvidenceTaxonomySchema.optional(),
+  /** Optional typed evidence handles (intake, url, collector, artifact) — may be empty when only counts exist. */
+  evidence_refs: z.array(z.string().min(1)).optional(),
 });
 
 const OrchestrationGraphPayloadSchema = z.object({
@@ -132,10 +134,22 @@ const OrchestrationRoutingProfileSchema = z.object({
 
 const OrchestrationConfidenceMapSchema = z.object({
   node_confidence: z.record(z.string().min(1), z.enum(['high', 'medium', 'low'])),
+  /** ADR v1.1: missing-data / unlock list for gating. */
+  unlock_conditions: z.array(z.string().min(1)).optional(),
 });
 
 const OrchestrationRiskLayerSchema = z.object({
   node_risk: z.record(z.string().min(1), z.number().min(1).max(5)),
+  /** Cross-domain risk edges (in addition to per-node `node_risk`). */
+  cross_domain: z
+    .array(
+      z.object({
+        domains: z.tuple([z.enum(initiativeDomainTuple), z.enum(initiativeDomainTuple)]),
+        risk: z.number().min(1).max(5),
+        note: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 const OrchestrationDomainInfluenceSchema = z.object({
@@ -186,6 +200,16 @@ export const GlcOrchestrationPackSchemaV2 = z.object({
   /** Aggregated data gaps for plan-level governance and UX warnings. */
   data_gaps: OrchestrationDataGapsSchema.optional(),
   top_actions: OrchestrationTopActionsSchema.optional(),
+  /** True when pack build applied execution compression (ADR PHASE 7). */
+  compressed_plan: z.boolean().optional(),
+  /** North-star and measurement scaffolding (optional client surfaces). */
+  metrics_framework: z
+    .object({
+      north_star: z.string().optional(),
+      leading: z.array(z.string().min(1)).optional(),
+      lagging: z.array(z.string().min(1)).optional(),
+    })
+    .optional(),
 });
 
 const GlcOrchestrationPackSchemaV1 = z.object({

@@ -86,6 +86,9 @@ export const intakeTokensApi = {
         | 'optional_details_submitted';
       question_id?: string;
       client_session_id?: string;
+      case_keys?: string[];
+      /** Set when the weakest pilot signal tier increased vs the last `question_shown` in this session. */
+      confidence_moved?: boolean;
     },
   ) {
     try {

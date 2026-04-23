@@ -5,7 +5,7 @@ exports[`no-regression snapshots across intake surfaces > consultant_interview b
   "collectionMode": "interview",
   "counts": {
     "eligible": 48,
-    "nextRecommended": 8,
+    "nextRecommended": 10,
     "remediationQueue": 2,
     "required": 16,
     "visible": 48,
@@ -17,6 +17,7 @@ exports[`no-regression snapshots across intake surfaces > consultant_interview b
   ],
   "surface": "consultant_interview",
   "topRecommended": [
+    "d1",
     "a1",
     "a10",
     "a11",
@@ -25,6 +26,7 @@ exports[`no-regression snapshots across intake surfaces > consultant_interview b
     "a6",
     "a7",
     "b1",
+    "b_health_1",
   ],
   "topRequired": [
     "a1",
@@ -112,7 +114,7 @@ exports[`no-regression snapshots across intake surfaces > public_discovery basel
   "collectionMode": "discovery",
   "counts": {
     "eligible": 36,
-    "nextRecommended": 2,
+    "nextRecommended": 3,
     "remediationQueue": 0,
     "required": 16,
     "visible": 9,
@@ -121,6 +123,7 @@ exports[`no-regression snapshots across intake surfaces > public_discovery basel
   "remediationQueue": [],
   "surface": "public_discovery",
   "topRecommended": [
+    "d1",
     "a1",
     "a7",
   ],
@@ -162,7 +165,7 @@ exports[`no-regression snapshots across intake surfaces > self_serve + client_fo
   "collectionMode": "self_serve",
   "counts": {
     "eligible": 48,
-    "nextRecommended": 8,
+    "nextRecommended": 10,
     "remediationQueue": 2,
     "required": 16,
     "visible": 48,
@@ -174,6 +177,7 @@ exports[`no-regression snapshots across intake surfaces > self_serve + client_fo
   ],
   "surface": "client_form",
   "topRecommended": [
+    "d1",
     "a1",
     "a10",
     "a11",
@@ -182,6 +186,7 @@ exports[`no-regression snapshots across intake surfaces > self_serve + client_fo
     "a6",
     "a7",
     "b1",
+    "b_health_1",
   ],
   "topRequired": [
     "a1",

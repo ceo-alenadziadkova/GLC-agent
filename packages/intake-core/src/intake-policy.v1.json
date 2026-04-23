@@ -1,5 +1,17 @@
 {
   "version": "1.3.0",
+  "intelligence": {
+    "casePatternsEnabled": true,
+    "caseStopPrunesOptionalOverlay": true,
+    "followupStopPrunesSameSignalOptional": true,
+    "followupRuleDefinitions": {
+      "pilot_default": {
+        "stopWhenSignalConfidenceIn": ["medium", "high"],
+        "deeperWhenSignalConfidenceIn": ["unknown", "low"],
+        "treatEmptyOrUnknownResponseAsStop": true
+      }
+    }
+  },
   "modes": {
     "full": {
       "participation": "all_eligible",

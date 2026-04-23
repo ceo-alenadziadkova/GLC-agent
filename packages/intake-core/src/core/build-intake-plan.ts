@@ -23,6 +23,15 @@ import { reorderNextRecommendedForSignalPriorityRespectingTiers } from './reorde
 import { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
 import { INTAKE_RESOLVER_VERSION, currentIntakeVersionTuple } from './versions.js';
+import casePatternCatalog from '../artifacts/intake-case-patterns.v1.json' with { type: 'json' };
+import { matchCasePatterns } from './case-matcher.js';
+import {
+  mergeOverlayIntoNextRecommended,
+  pruneNextRecommendedForSatisfiedCaseStops,
+  resolveCaseOverlay,
+} from './case-overlay-resolver.js';
+import { evaluateFollowupPolicy, pruneNextRecommendedAfterFollowupStops } from './followup-policy-executor.js';
+import type { IntakeCasePatternCatalogV1, IntakeCasePatternV1 } from './case-pattern-types.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
 import type {
@@ -299,12 +308,54 @@ function buildIntakePlanInternal(
 
   const finalVisibleSet = new Set(finalVisible);
   let layoutProjectedRecommended = seqApplied.nextRecommended.filter(id => finalVisibleSet.has(id));
+  let casePatternMatch: import('./types.js').IntakePlan['casePatternMatch'];
+  let lastCriticalForPilot: ReturnType<typeof evaluateCriticalSignalsPilot> | null = null;
+  let casePatternMatchesForPrune: IntakeCasePatternV1[] | null = null;
+
   if (isIntakeNextRecommendedEnabled() && layoutProjectedRecommended.length > 0) {
     const criticalForOrder = evaluateCriticalSignalsPilot({
       responses: r,
       plan: { eligible: sortUniqueIds(eligibleAfterPolicy) },
     });
+    lastCriticalForPilot = criticalForOrder;
     const pilotSkipsRegistry = criticalForOrder.trace.some(t => t.code === 'pilot_signals_skipped');
+    const casePatternsOn = policy.intelligence?.casePatternsEnabled !== false;
+    if (casePatternsOn) {
+      const matches = matchCasePatterns({
+        responses: r,
+        confidenceByKey: criticalForOrder.confidenceByKey,
+        catalog: casePatternCatalog as IntakeCasePatternCatalogV1,
+      });
+      if (matches.length > 0) {
+        casePatternMatchesForPrune = matches;
+        const overlay = resolveCaseOverlay({
+          matches,
+          confidenceByKey: criticalForOrder.confidenceByKey,
+        });
+        const beforeCase = layoutProjectedRecommended.join('\u0000');
+        layoutProjectedRecommended = mergeOverlayIntoNextRecommended({
+          nextRecommended: layoutProjectedRecommended,
+          overlayQuestionIds: overlay.overlayQuestionIds,
+          visibleOrEligible: finalVisibleSet,
+          responses: r,
+        });
+        if (beforeCase !== layoutProjectedRecommended.join('\u0000')) {
+          debugTrace.push({
+            layer: 'resolver',
+            level: 'info',
+            code: 'next_recommended_case_overlay_applied',
+            message: `Case patterns matched: ${overlay.matchedCaseKeys.join(
+              ', ',
+            )}; overlay order applied before signal reorder.`,
+          });
+        }
+        casePatternMatch = {
+          caseKeys: overlay.matchedCaseKeys,
+          activeOverlayQuestionIds: overlay.overlayQuestionIds,
+          stopConditionMetByCase: overlay.stopConditionMetByCase,
+        };
+      }
+    }
     if (!pilotSkipsRegistry) {
       const before = layoutProjectedRecommended.join('\u0000');
       const reordered = reorderNextRecommendedForSignalPriorityRespectingTiers({
@@ -325,17 +376,81 @@ function buildIntakePlanInternal(
         });
       }
     }
-  }
 
-  if (layoutProjectedRecommended.length > 0) {
-    for (const id of layoutProjectedRecommended.slice(0, 5)) {
-      const fp = getIntakeIntelligenceContract(id).followupPolicy;
-      if (fp?.stopIf?.trim() || fp?.deeperIf?.trim()) {
+    const requiredBankIds = new Set(req.ids);
+    const intel = policy.intelligence;
+    const casePruneOn = intel?.caseStopPrunesOptionalOverlay !== false;
+    if (
+      casePruneOn &&
+      casePatternMatchesForPrune &&
+      casePatternMatchesForPrune.length > 0 &&
+      casePatternMatch?.stopConditionMetByCase
+    ) {
+      const pr = pruneNextRecommendedForSatisfiedCaseStops({
+        nextRecommended: layoutProjectedRecommended,
+        matches: casePatternMatchesForPrune,
+        stopConditionMetByCase: casePatternMatch.stopConditionMetByCase,
+        responses: r,
+        requiredBankIds,
+        enabled: true,
+      });
+      if (pr.prunedIds.length > 0) {
+        layoutProjectedRecommended = pr.nextRecommended;
         debugTrace.push({
           layer: 'resolver',
           level: 'info',
-          code: 'followup_policy_considered_for_next_recommended',
-          message: `Follow-up policy for "${id}": stopIf=${fp.stopIf ?? ''}; deeperIf=${fp.deeperIf ?? ''}`,
+          code: 'next_recommended_case_stop_pruned',
+          message: `Optional overlay bank ids pruned after satisfied case stop: ${pr.prunedIds.join(', ')}`,
+        });
+      }
+    }
+    const fuPruneOn = intel?.followupStopPrunesSameSignalOptional !== false;
+    if (fuPruneOn && lastCriticalForPilot) {
+      const pr2 = pruneNextRecommendedAfterFollowupStops({
+        nextRecommended: layoutProjectedRecommended,
+        responses: r,
+        requiredBankIds,
+        confidenceByKey: lastCriticalForPilot.confidenceByKey,
+        ruleDefinitions: intel?.followupRuleDefinitions,
+        enabled: true,
+      });
+      if (pr2.prunedIds.length > 0) {
+        layoutProjectedRecommended = pr2.nextRecommended;
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'next_recommended_followup_stop_pruned',
+          message: `Unanswered same-signal optional ids pruned after follow-up stop: ${pr2.prunedIds.join(
+            ', ',
+          )}`,
+        });
+      }
+    }
+  }
+
+  if (layoutProjectedRecommended.length > 0) {
+    const followupDefs = policy.intelligence?.followupRuleDefinitions;
+    const forFollowup =
+      lastCriticalForPilot ??
+      evaluateCriticalSignalsPilot({
+        responses: r,
+        plan: { eligible: sortUniqueIds(eligibleAfterPolicy) },
+      });
+    for (const id of layoutProjectedRecommended.slice(0, 5)) {
+      const c = getIntakeIntelligenceContract(id);
+      const fp = c.followupPolicy;
+      if (fp?.stopIf?.trim() || fp?.deeperIf?.trim()) {
+        const outcome = evaluateFollowupPolicy({
+          contract: c,
+          lastAnswer: r[id],
+          confidenceByKey: forFollowup.confidenceByKey,
+          ruleDefinitions: followupDefs,
+        });
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'followup_policy_evaluated',
+          message: `Follow-up for "${id}": ref=${fp.followupRuleRef ?? 'pilot_default'} -> ${outcome}; stopIf=${fp.stopIf ?? ''}; deeperIf=${fp.deeperIf ?? ''}`,
         });
       }
     }
@@ -357,6 +472,7 @@ function buildIntakePlanInternal(
     confidence: derived.confidence,
     missingForReport: derived.missingForReport,
     nextRecommended: layoutProjectedRecommended,
+    casePatternMatch,
     runtimeState: {
       responses: r as Record<string, unknown>,
       canon: {

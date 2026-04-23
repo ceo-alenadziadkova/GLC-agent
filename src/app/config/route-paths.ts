@@ -36,6 +36,7 @@ export const buildAppRoute = {
   roadmap: (auditId: string): string => `/${P.roadmapById.replace(':id', auditId)}`,
   reports: (auditId: string): string => `/${P.reportsById.replace(':id', auditId)}`,
   strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
+  auditOrchestration: (auditId: string): string => `/${P.auditOrchestrationById.replace(':id', auditId)}`,
   portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,

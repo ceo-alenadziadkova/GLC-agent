@@ -15,6 +15,7 @@ import { lintSyntheticCollision } from './lint-synthetic-express.js';
 import { lintCriticalSignalRegistry } from './lint-critical-signals-registry.js';
 import { lintIntelligenceContractV1 } from './lint-intelligence-contract.js';
 import { lintSequencingPilotGuardrails } from './lint-sequencing-pilot-guardrails.js';
+import { lintCasePatternsV1 } from './lint-case-patterns.js';
 import type { LintFinding } from './types.js';
 
 /**
@@ -39,6 +40,7 @@ export function lintBankAndPolicyAll(): LintFinding[] {
     ...lintCriticalSignalRegistry(),
     ...lintIntelligenceContractV1(),
     ...lintSequencingPilotGuardrails(),
+    ...lintCasePatternsV1(),
     ...lintDeprecatedStillRequired(),
   ];
 }

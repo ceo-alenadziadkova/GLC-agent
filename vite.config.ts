@@ -43,6 +43,10 @@ export default defineConfig(({ mode }) => ({
         './packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
       ),
       '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
+      '@glc/intake-core/intake-case-patterns.v1.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/artifacts/intake-case-patterns.v1.json',
+      ),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
       '@glc/route-limits': path.resolve(__dirname, './packages/glc-route-limits/src/index.ts'),
       '@glc/api-paths': path.resolve(__dirname, './packages/glc-api-paths/src/index.ts'),

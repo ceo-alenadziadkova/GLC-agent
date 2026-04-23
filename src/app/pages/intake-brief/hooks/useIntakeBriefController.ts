@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildBriefSchemaSnapshot, currentIntakeVersionTuple } from '@glc/intake-core';
+import { buildBriefSchemaSnapshot, computePilotCriticalBottleneckRank, currentIntakeVersionTuple } from '@glc/intake-core';
 import { apiIntakeIntelligenceKpi } from '../../../config/api-paths';
 import { API_URL } from '../../../data/api-http';
 import { api, ApiError } from '../../../data/apiService';
@@ -24,6 +24,7 @@ import {
   buildIntakeContactFooterLines,
 } from '../../../lib/intake-client-copy';
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
+import { computeKpiCaseKeys } from '../../../lib/intake-kpi-case-keys';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import {
   patchBriefQuestionResponse,
@@ -112,6 +113,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const intakeKpiSessionIdRef = useRef(crypto.randomUUID());
   const intakeKpiHadActivityRef = useRef(false);
   const intakeKpiShownQuestionIdsRef = useRef(new Set<string>());
+  const intakeKpiBottleneckRankRef = useRef<number | null>(null);
   const fastPassStartedRef = useRef(false);
   const fastPassCompletedRef = useRef(false);
   const precisionPassStartedRef = useRef(false);
@@ -234,6 +236,8 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     return groupBriefQuestionsBySection(subset);
   }, [questionMode, questionSections, activeQueueItem, visibleQuestions]);
 
+  const answered = countPreBriefSatisfied(responses);
+
   const readinessPanel = useMemo(() => {
     const readiness = intakeSchemaSnapshot?.readiness;
     const state = answered === 0
@@ -344,7 +348,6 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     setResponses(prev => coerceA11ForNoWebsitePresence(prev));
   }, [websitePresenceKey]);
 
-  const answered = countPreBriefSatisfied(responses);
   const total = getPreBriefSubmitSlotIds(responses).length;
   const formComplete = answered === total;
   const isCurrentStepSatisfied = useMemo(() => {
@@ -461,9 +464,14 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     });
   }, []);
 
+  const kpiVisibleBankIds = useMemo(
+    () => questionSections.flatMap(block => block.questions.map(q => q.id)),
+    [questionSections],
+  );
+
   useEffect(() => {
     if (loading || !token || phase !== 'form') return;
-    const ids = questionSections.flatMap(block => block.questions.map(q => q.id));
+    const ids = kpiVisibleBankIds;
     if (ids.length === 0) return;
 
     const io = new IntersectionObserver(
@@ -474,10 +482,22 @@ export function useIntakeBriefController(rawToken: string | undefined) {
           const bankId = el.id?.replace(/^intake-q-/, '') ?? '';
           if (!bankId || intakeKpiShownQuestionIdsRef.current.has(bankId)) continue;
           intakeKpiShownQuestionIdsRef.current.add(bankId);
+          const asMap = briefResponsesToIntakeMap(responses) as Record<string, unknown>;
+          const bottleneck = computePilotCriticalBottleneckRank({
+            responses: asMap,
+            plan: { eligible: kpiVisibleBankIds },
+          });
+          const prev = intakeKpiBottleneckRankRef.current;
+          const confidenceMoved = bottleneck != null && prev != null && bottleneck > prev;
+          if (bottleneck != null) {
+            intakeKpiBottleneckRankRef.current = bottleneck;
+          }
           void api.reportIntelligenceKpi(token, {
             event: 'question_shown',
             question_id: bankId,
             client_session_id: intakeKpiSessionIdRef.current,
+            case_keys: computeKpiCaseKeys(asMap, kpiVisibleBankIds),
+            ...(confidenceMoved ? { confidence_moved: true } : {}),
           });
         }
       },
@@ -495,7 +515,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       window.cancelAnimationFrame(handle);
       io.disconnect();
     };
-  }, [loading, token, phase, questionSections]);
+  }, [loading, token, phase, kpiVisibleBankIds, responses]);
   useEffect(() => {
     if (!token || phase !== 'form') return;
     if (!fastPassStartedRef.current && journeyStage === 'fast_pass') {

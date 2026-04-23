@@ -27,6 +27,8 @@ export const ORCHESTRATION_UI_LIMITS = {
   maxRevisionDiffLaneChangesDisplayed: 12,
   /** Max revision entries loaded for version diff history selector. */
   maxRevisionDiffHistoryItems: 10,
+  /** V7: lane-pair cross narratives from pack graph (portal timeline). */
+  maxCrossLaneNarrativePairs: 2,
   /** Max manifest snapshots loaded for history selector. */
   maxManifestSnapshotHistoryItems: 12,
   /** Strategy Lab orchestrator tab: dependency rows. */

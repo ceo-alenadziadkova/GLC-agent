@@ -5,6 +5,7 @@ type KpiRowData = {
   kind?: 'question_shown' | 'drop_off';
   question_id?: string | null;
   client_session_id?: string | null;
+  case_keys?: string[] | null;
 };
 
 type SessionStats = {
@@ -85,6 +86,34 @@ export async function fetchIntakeIntelligenceKpiDashboard() {
     droppedOff: [...sessionStats.values()].filter(item => item.droppedOff).length,
     reachedAuditReady: sessionsWithShown.filter(item => !item.droppedOff).length,
   };
+  const caseKeyHits = new Map<string, number>();
+  const sessionsWithCaseKeyTelemetry = new Set<string>();
+  const sessionsWithConfidenceMoved = new Set<string>();
+  for (const row of rows) {
+    const payload = row.data ?? {};
+    const sessionId = payload.client_session_id ?? null;
+    const keys = payload.case_keys;
+    if (Array.isArray(keys) && keys.length > 0 && sessionId) {
+      sessionsWithCaseKeyTelemetry.add(sessionId);
+    }
+    if (payload.kind === 'question_shown' && sessionId && payload.confidence_moved === true) {
+      sessionsWithConfidenceMoved.add(sessionId);
+    }
+    if (!Array.isArray(keys)) continue;
+    for (const k of keys) {
+      if (typeof k !== 'string' || k.length === 0) continue;
+      caseKeyHits.set(k, (caseKeyHits.get(k) ?? 0) + 1);
+    }
+  }
+  const caseKeyCoverageRate =
+    sessionsWithShown.length > 0
+      ? sessionsWithCaseKeyTelemetry.size / sessionsWithShown.length
+      : 0;
+  const caseKeyDistribution = [...caseKeyHits.entries()]
+    .map(([caseKey, count]) => ({ caseKey, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+
   const topDropOffHotspots = [...shownByQuestion.entries()]
     .map(([questionId, shownCount]) => {
       const dropOffCount = dropOffByQuestion.get(questionId) ?? 0;
@@ -104,7 +133,15 @@ export async function fetchIntakeIntelligenceKpiDashboard() {
     dropOffRate: questionShown > 0 ? dropOff / questionShown : 0,
     medianQuestionsToReadiness,
     sessionFunnel,
-    confidenceMovedRate: null,
+    /**
+     * Share of sessions (with at least one `question_shown` KPI) that recorded `confidence_moved: true` on a beacon
+     * after a rise in the weakest pilot critical-signal tier.
+     */
+    confidenceMovedRate:
+      sessionsWithShown.length > 0 ? sessionsWithConfidenceMoved.size / sessionsWithShown.length : 0,
+    /** Telemetry coverage: sessions that sent at least one non-empty `case_keys` on KPI. */
+    caseKeyCoverageRate,
     topDropOffHotspots,
+    caseKeyDistribution,
   };
 }

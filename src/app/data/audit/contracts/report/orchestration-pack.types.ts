@@ -40,6 +40,7 @@ export interface GlcOrchestrationPackView {
         assumed: number;
         missing: number;
       };
+      evidence_refs?: string[];
     }>;
     edges: Array<{ from: string; to: string; relation?: OrchestrationDependencyRelation; weight?: number }>;
     meta?: unknown;
@@ -67,9 +68,15 @@ export interface GlcOrchestrationPackView {
   execution_mode?: 'deterministic' | 'hybrid' | 'synthesis';
   confidence_map?: {
     node_confidence: Record<string, 'high' | 'medium' | 'low'>;
+    unlock_conditions?: string[];
   };
   risk_layer?: {
     node_risk: Record<string, number>;
+    cross_domain?: Array<{
+      domains: [DomainKey, DomainKey];
+      risk: number;
+      note?: string;
+    }>;
   };
   domain_influence?: {
     domain_weights: Record<string, number>;
@@ -94,6 +101,12 @@ export interface GlcOrchestrationPackView {
     dangling_dependencies: number;
     missing_confidence: number;
     missing_risk: number;
+  };
+  compressed_plan?: boolean;
+  metrics_framework?: {
+    north_star?: string;
+    leading?: string[];
+    lagging?: string[];
   };
 }
 

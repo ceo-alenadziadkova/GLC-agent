@@ -5,14 +5,14 @@
 | **Status** | Accepted |
 | **Date** | 2026-04-19 |
 | **Scope** | Security & compliance domain (`security_compliance`) + optional CSO Director deep audit (Stage 2) |
-| **Supersedes** | `ADR-CSO-DIRECTOR-TWO-STAGE.md` |
+| **Supersedes** | [`superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md) |
 | **Superseded by** | — |
 | **Decision owners** | Product + Consulting + AI Platform |
 
 ### Related decisions
 
 - Cross-domain pattern: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
-- Superseded baseline CSO Director ADR: `ADR-CSO-DIRECTOR-TWO-STAGE.md`
+- Superseded baseline CSO Director ADR: [`superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md)
 
 ### ADR lifecycle
 
@@ -22,7 +22,7 @@ This ADR is immutable as a decision record. If the CSO Director contract changes
 
 ## Context
 
-`ADR-CSO-DIRECTOR-TWO-STAGE.md` established the two-stage pattern and a Compliance-vs-Ops zone taxonomy. That was directionally correct, but insufficient for a **security program decision engine** because it lacked explicit:
+[`superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md) established the two-stage pattern and a Compliance-vs-Ops zone taxonomy. That was directionally correct, but insufficient for a **security program decision engine** because it lacked explicit:
 
 1. Threat modeling (assets, actors, vectors, impacts)
 2. Attack surface mapping (what is reachable and how)
@@ -134,7 +134,7 @@ And cross-link to dependency graph: structural items must declare prerequisites.
 
 ## Zone taxonomy (unchanged intent, stronger linkage)
 
-The Compliance-vs-Ops split from `ADR-CSO-DIRECTOR-TWO-STAGE.md` remains, but every zone output MUST connect to:
+The Compliance-vs-Ops split from [`superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md) remains, but every zone output MUST connect to:
 
 - threat model assets,
 - attack surface entries,
@@ -148,7 +148,7 @@ The Compliance-vs-Ops split from `ADR-CSO-DIRECTOR-TWO-STAGE.md` remains, but ev
 
 ## API / persistence (unchanged from v1.0)
 
-The endpoint shapes in `ADR-CSO-DIRECTOR-TWO-STAGE.md` remain valid:
+The endpoint shapes in [`superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-CSO-DIRECTOR-TWO-STAGE.md) remain valid:
 
 - `POST /api/audits/:id/security/director/preview`
 - `POST /api/audits/:id/security/director/run`

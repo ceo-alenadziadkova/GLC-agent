@@ -127,14 +127,16 @@ Additional agent families (competitors, vendor discovery, etc.) appear as **opti
 
 ### Current UX gaps to close
 
-The following items are required to reach the intended client decision UX for roadmap selection:
+**How this section relates to “Product MVP” and DoD:** the **north-star** client experience still includes the four enhancements below. For **engineering closure** of the orchestration/roadmap track (V-rows, CI DoD, consultant/client parity), use the living sync: [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md) — it records which V5–V8/V10/V11 work is **Partial vs Done in repo** and explicitly **de-scopes** the four **§5-style** gap closers (board view, what-if, set-level evaluation/confidence) from the *minimal* Product MVP **label** until product promotes them as epics. That avoids treating this bullet list as an empty “done” checklist while the ADR’s strategic intent stays visible.
+
+Gaps (strategic backlog — not all are ship-blockers for the minimal MVP resync above):
 
 - No **board-view by periods** (`Now / Next / Later`) with initiative cards as the primary interaction surface.
 - No **what-if comparison scenario** (for example: “if you select these 3 initiatives, how the plan changes”).
 - No explicit **selection package evaluation** at set level (total effort range, expected impact, key risks).
 - Insufficient **decision confidence at set level** (confidence is mostly shown per initiative, not for the selected bundle).
 
-These are tracked as mandatory follow-up UX scope for the timeline/lab contract and must be delivered without breaking:
+**Non-negotiables** for any shipped roadmap client path (already contractually required elsewhere in this ADR) remain:
 - manifest-first confirmation flow,
 - versioned roadmap regeneration (`vN -> vN+1`),
 - orchestrator graph as the ordering source of truth.

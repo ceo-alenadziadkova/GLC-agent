@@ -111,6 +111,7 @@ describe('postIntakeNlDescribeController', () => {
           plan: expect.any(Object),
           text: expect.any(String),
         }),
+        case_keys: expect.any(Array),
       }),
     );
     expect(fetchTokenMocks.updateIntakeTokenResponsesDraft).toHaveBeenCalled();

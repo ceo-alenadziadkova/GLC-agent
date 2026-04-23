@@ -146,6 +146,7 @@ export const ORCHESTRATION_UI_COPY = {
   timelinePackGraphSectionTitle: 'Plan dependency map',
   timelinePackGraphSectionHint:
     'From the saved orchestration pack: interactive map (pan and zoom), ordered critical path, then cross-lane links (prioritized). Copy Graphviz DOT to export.',
+  timelinePackGraphCanvasLoading: 'Loading graph…',
   timelinePackGraphInteractiveTitle: 'Interactive map',
   timelinePackGraphInteractiveHint:
     'Drag the background to pan, use controls to zoom. Pick a step below or a node on the map to focus it — the view recenters on that initiative. Critical path links are highlighted; other links show cross-initiative dependencies.',
@@ -222,6 +223,11 @@ export const ORCHESTRATION_UI_COPY = {
   executionPackFromTimelineErrorNotFound: 'This audit was not found or you no longer have access.',
   executionPackFromTimelineErrorFailedGeneric: 'Could not generate the detail pack.',
   executionPackFromTimelineErrorRateLimited: 'Too many AI requests right now. Wait a moment and try again.',
+  executionPackRepeatDialogTitle: 'Request another detail pack?',
+  executionPackRepeatDialogBody:
+    'A detail pack for this initiative may already exist. A new request runs another on-demand AI pass and adds another row in your list.',
+  executionPackRepeatDialogConfirm: 'Request new pack',
+  executionPackRepeatDialogCancel: 'Cancel',
   /** Portal timeline — sync markers (V7): short cross-lane narrative when blocking cross-lane deps exist. */
   timelineCrossLaneNarrativeTitle: 'Aligning lanes before you commit dates',
   timelineCrossLaneNarrativeBody:
@@ -274,6 +280,16 @@ export const ORCHESTRATION_UI_COPY = {
   governanceReasonHintTitle: 'What to fix before next run',
   governanceScoresLabel: 'Integrity / confidence / risk',
   governanceCriticalPathCoverageLabel: 'Critical path coverage',
+  /** Consultant orchestration cockpit — rebuild pack from last committed manifest (POST /orchestration/pack). */
+  consultantCockpitRegeneratePackCta: 'Rebuild plan from latest manifest',
+  consultantCockpitRegeneratePackBusy: 'Rebuilding…',
+  consultantCockpitRegeneratePackSuccess: 'Plan rebuilt from the latest manifest.',
+  consultantCockpitRegeneratePackError: 'Could not rebuild the plan.',
+  consultantCockpitNoManifest:
+    'No committed manifest snapshot yet. Open the roadmap manifest flow, then return here.',
+  consultantCockpitRefineCta: 'Open manifest & Strategy Lab',
+  consultantCockpitGovernanceHint:
+    'Server-side governance runs when the pack is built. Rebuild to refresh scores, or change inputs in the manifest wizard / Strategy Lab.',
   nodeBadgeBaseline: 'Baseline',
   nodeBadgeDeep: 'Deep',
   nodeBadgeDirector: 'Director',
@@ -496,6 +512,12 @@ export const ORCHESTRATION_UI_COPY = {
   evidenceTaxonomyDerivedTitle: 'Derived — inferred from other evidence',
   evidenceTaxonomyAssumedTitle: 'Assumed — working hypothesis without direct proof',
   evidenceTaxonomyMissingTitle: 'Missing — explicit gap called out',
+  evidenceDrilldownTitle: 'Evidence drill-down',
+  evidenceRefsLabel: 'References',
+  evidenceRefsEmpty: 'No typed evidence references on this node yet (counts may still be populated).',
+  clientCockpitEvidenceBreakdownTitle: 'Evidence mix (plan scope)',
+  clientCockpitEvidenceBreakdownBody:
+    'Aggregated observed / derived / assumed / missing counts across initiatives in your current orchestration pack.',
   /** Placeholder for empty season/lane/top lists */
   timelineEmptyListMarker: '—',
   timelineManifestStateLabel: 'Manifest state:',

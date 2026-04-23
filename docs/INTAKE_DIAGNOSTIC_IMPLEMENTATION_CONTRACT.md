@@ -2,6 +2,8 @@
 
 This page is the **engineering contract** for the ADR Diagnostic Adaptive Intake pilot. Normative product intent stays in [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-SYSTEM.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-SYSTEM.md). API field names and examples are summarized in [API.md](./API.md) (`GET /api/audits/:id/brief/schema`, `PUT /api/audits/:id/brief`, pipeline start, discover convert).
 
+**Repository sync (gaps, sprints, G1–G13):** [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md). **Case patterns artifact:** `packages/intake-core/src/artifacts/intake-case-patterns.v1.json` (see Sprint B in that doc).
+
 ## Baseline freeze note (Phase 0)
 
 ### Baseline report (frozen start point)

@@ -16,7 +16,7 @@ import {
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
 } from '../../config/api-paths';
-import { apiFetch } from '../api-http';
+import { apiFetch, apiGetJsonOrNotModified } from '../api-http';
 import type {
   GlcOrchestrationPackRevisionDiffView,
   GlcOrchestrationPackView,
@@ -198,6 +198,20 @@ export type DirectorDeepDiveRequestBody = {
   sub_agent_ids?: string[];
 };
 
+export type OrchestrationPackGetBody = {
+  pack: GlcOrchestrationPackView | null;
+  orchestration_pack_version: number;
+  roadmap_version: number;
+  last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+  last_revision_diff_summary?: string | null;
+  revision_history?: OrchestrationPackRevisionHistoryItemDto[];
+  plan_governance: OrchestrationPlanGovernanceDto | null;
+};
+
+export type OrchestrationPackConditionalGetResult =
+  | { kind: 'ok'; data: OrchestrationPackGetBody }
+  | { kind: 'not_modified' };
+
 export const auditsOrchestrationApi = {
   async postRoadmapManifestPreview(auditId: string, body: RoadmapManifestRequestBody) {
     return apiFetch<{ preview: RoadmapManifestPreviewDto }>(apiAuditsRoadmapManifestPreview(auditId), {
@@ -227,16 +241,29 @@ export const auditsOrchestrationApi = {
     });
   },
 
+  /** `GET /api/audits/:id/orchestration/pack` — matches server JSON (governance, revision, optional revision_history). */
   async getOrchestrationPack(auditId: string) {
-    return apiFetch<{
-      pack: GlcOrchestrationPackView | null;
-      orchestration_pack_version: number;
-      roadmap_version: number;
-      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
-      last_revision_diff_summary?: string | null;
-      revision_history?: OrchestrationPackRevisionHistoryItemDto[];
-      plan_governance: OrchestrationPlanGovernanceDto | null;
-    }>(apiAuditsOrchestrationPack(auditId), { method: 'GET' });
+    return apiFetch<OrchestrationPackGetBody>(apiAuditsOrchestrationPack(auditId), { method: 'GET' });
+  },
+
+  /**
+   * Same resource as `getOrchestrationPack` with optional `If-None-Match` (server ETag: `"orchestration-pack-v{version}"`).
+   * On 304, returns `kind: 'not_modified'` — use cached React Query data.
+   */
+  async getOrchestrationPackConditional(
+    auditId: string,
+    ifNoneMatch: string | undefined,
+  ): Promise<OrchestrationPackConditionalGetResult> {
+    const path = apiAuditsOrchestrationPack(auditId);
+    if (!ifNoneMatch) {
+      const data = await apiFetch<OrchestrationPackGetBody>(path, { method: 'GET' });
+      return { kind: 'ok' as const, data };
+    }
+    const r = await apiGetJsonOrNotModified<OrchestrationPackGetBody>(path, { ifNoneMatch });
+    if (r.kind === 'not_modified') {
+      return { kind: 'not_modified' as const };
+    }
+    return { kind: 'ok' as const, data: r.data };
   },
 
   async postOrchestrationPack(auditId: string, body: { manifest_snapshot_id: string; selected_action_ids?: string[] }) {

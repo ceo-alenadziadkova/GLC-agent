@@ -65,6 +65,7 @@ export function isIntakeIntelligenceSprint2GateQuestion(questionId: string): boo
 const DEFAULT_FOLLOWUP: FollowupPolicy = {
   deeperIf: 'Pilot signal remains ambiguous after the first structured response.',
   stopIf: 'Mapped pilot signal reaches high confidence or the respondent selects unknown.',
+  followupRuleRef: 'pilot_default',
 };
 
 const DEFAULT_STOP: StopCondition = {

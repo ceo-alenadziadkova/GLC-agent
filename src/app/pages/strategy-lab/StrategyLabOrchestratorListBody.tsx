@@ -2,6 +2,8 @@ import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report
 import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
+import { PackGraphConsultantCanvas } from '../../features/strategy-lab/PackGraphConsultantCanvas';
 import { PortalTimelinePackGraphPanel } from '../../components/glc/PortalTimelinePackGraphPanel';
 import { cn } from '../../components/ui/utils';
 import {
@@ -99,12 +101,22 @@ export function StrategyLabOrchestratorListBody({
     return (
       <div className="space-y-4">
         {showPackGraph ? (
-          <PortalTimelinePackGraphPanel
-            pack={pack}
-            headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
-            headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
-            onConsultantSelectNode={onSelectNode}
-          />
+          APP_FEATURE_FLAGS.packGraphConsultantCanvasEnabled ? (
+            <PackGraphConsultantCanvas
+              pack={pack}
+              headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
+              headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
+              onConsultantSelectNode={onSelectNode}
+            />
+          ) : (
+            <PortalTimelinePackGraphPanel
+              pack={pack}
+              graphPresentation="default"
+              headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
+              headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
+              onConsultantSelectNode={onSelectNode}
+            />
+          )
         ) : null}
         {allEdges.length === 0 ? (
           <div className="text-muted-foreground rounded-lg border border-dashed py-10 text-center text-sm">

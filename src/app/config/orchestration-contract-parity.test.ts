@@ -108,6 +108,19 @@ describe('orchestration contract parity', () => {
     expect(APP_FEATURE_FLAGS.seoDeepDiveLlmEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.seoDeepDiveLlmEnabled);
   });
 
+  it('keeps orchestration Product MVP client flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.packGraphConsultantCanvasEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.packGraphConsultantCanvasEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.evidenceDrilldownEnabled).toBe(SYSTEM_DEFAULTS_FEATURE_FLAGS.evidenceDrilldownEnabled);
+    expect(APP_FEATURE_FLAGS.executionPackRepeatFlowEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.executionPackRepeatFlowEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled,
+    );
+  });
+
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
     expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,

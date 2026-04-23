@@ -7,6 +7,7 @@ export const QUESTION_BANK_STUDIO_COPY_EN = {
   viewModeButtons: {
     flowSimulator: 'Flow simulator',
     fullMap: 'Full map',
+    dependencyGraph: 'Dependency graph',
   },
   toolbar: {
     layoutSurface: 'Layout surface',

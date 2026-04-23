@@ -219,6 +219,8 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
       surface,
     });
 
+    const caseKeys = planTrace.plan.casePatternMatch?.caseKeys ?? [];
+
     const responsePayload = {
       ok: true,
       prefer_explicit_over_inferred: true,
@@ -242,6 +244,7 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
         plan: planTrace.plan,
         text: planTrace.text,
       },
+      case_keys: caseKeys,
       message: 'NL ingress produced authoritative merged responses and plan trace with confidence/evidence gating.',
     };
     if (idempotencyKey) {

@@ -18,32 +18,41 @@
 - `ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md`
 - `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`
 
+### Product vs engineering naming (authoritative)
+
+| Term | Meaning |
+| --- | --- |
+| **Orchestration foundation** | **Phases 0–7** in this ADR: manifest → pack → timeline, director merge, flags, tests. This stack is **~100% complete** in repo (see **Progress snapshot**). This ADR previously called this scope “MVP”; **product** now reserves **MVP** for the row below. |
+| **Product MVP** | The **north-star** client experience: `ADR-CLIENT-UNIFIED-ROADMAP` (including *Current UX gaps*), plus prioritized **V1–V12** and meta-phases **P / Q / R** in this file. |
+
+**Git / tickets:** history may still say “MVP” for Phases 0–7 — interpret as **Orchestration foundation** unless the issue explicitly targets **Product MVP**.
+
 ---
 
 ## Map — product/architecture themes → this plan
 
-Use this table to connect **north-star discussions** (orchestrator, client timeline, quality gates, manifest-first UX) to **concrete work** already tracked below. It does not replace Phase 0–7 or the V1–V12 backlog; it routes readers to the right row.
+Use this table to connect **north-star discussions** (orchestrator, client timeline, quality gates, manifest-first UX) to **concrete work** already tracked below. It does not replace **Foundation** (Phase 0–7) or the **Product MVP** (V1–V12) backlog; it routes readers to the right row.
 
 
 | Theme                                                                                                            | Product / architecture anchor                                                    | Where it lands here                                                                                                                                        |
 | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Meta-orchestrator: single plan, weighted graph, conflict matrix, critical path                                   | `ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md`                                     | **MVP:** pack build + merge + graph (`server/src/services/orchestration/`*). **Post-MVP depth:** backlog **V3** (full ADR field parity in persisted pack). |
+| Meta-orchestrator: single plan, weighted graph, conflict matrix, critical path                                   | `ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md`                                     | **Foundation:** pack build + merge + graph (`server/src/services/orchestration/`*). **Product MVP depth:** backlog **V3** (full ADR field parity in persisted pack). |
 | Orchestrator **complements** FactChecker + `CONTROL_OBJECT` + Decision Layer (per-domain), does not replace them | `ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md` (relationship section)              | No duplicate domain CO; optional future **plan-level** gate → backlog **V4** only after `ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md` Accepted.             |
-| Client: seasons, multi-lane timeline, marketing ∥ delivery sync, lab vs timeline                                 | `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`                           | **Phases 2–4** (manifest flow, lane fidelity, Lab IA). **Post-MVP:** **V1** (calendar horizon), **V5–V8**, **V7** (cross-lane narrative).                  |
+| Client: seasons, multi-lane timeline, marketing ∥ delivery sync, lab vs timeline                                 | `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`                           | **Phases 2–4** (manifest flow, lane fidelity, Lab IA). **Product MVP track:** **V1** (calendar horizon), **V5–V8**, **V7** (cross-lane narrative).                  |
 | User **commits manifest** (coverage + change scenario + horizon) **before** roadmap; versions vN / vN+1          | Same + `ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md`                            | **Phase 2** + backlog **V2** (wizard), **V11** (revision story).                                                                                           |
 | Director two-stage + machine-readable slice merged into pack                                                     | `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`, `director-orchestration-policy.ts` | **Phase 5** + services `director-orchestration-persistence.service.ts`, `map-domain-director-bundle-to-action-nodes.ts`.                                   |
 | Flags, caps, copy — **no** inline business literals in services/UI                                               | `docs/ARCHITECTURE.md`, `.cursor/rules/no-hardcode.mdc`                          | **Phase 0–1** + header **No-hardcode** list above; any new limit → config module.                                                                          |
 
 
-**How to read the rest of this ADR:** execute **Phased rollout** Phase 0–7 in order for operational closure; use **Post-MVP** meta-phases **P / Q / R** and rows **V1–V12** for remaining vision work. Implementation traceability: `server/src/services/orchestration/README.md` (DoD matrix, **no** duplicated % tables).
+**How to read the rest of this ADR:** execute **Phased rollout** Phase 0–7 in order to close **Orchestration foundation**; use meta-phases **P / Q / R** and rows **V1–V12** for **Product MVP** (north star). Implementation traceability: `server/src/services/orchestration/README.md` (DoD matrix, **no** duplicated % tables).
 
 ---
 
 ## Progress snapshot (evidence-based)
 
-**MVP (Phases 0–7 in this ADR): ~100% complete in repo** as of 2026-04-20 — phased checklists below are **closed**; evidence: `server/src/services/orchestration/README.md` (DoD matrix), migrations `069`–`071`, Vitest (see **Verification log** below), E2E `e2e/orchestration-*.spec.ts` when `E2E_ORCHESTRATION_`* is set.
+**Orchestration foundation (Phases 0–7 in this ADR): ~100% complete in repo** as of 2026-04-20 — phased checklists below are **closed**; evidence: `server/src/services/orchestration/README.md` (DoD matrix), migrations `069`–`071`, Vitest (see **Verification log** below), E2E `e2e/orchestration-*.spec.ts` when `E2E_ORCHESTRATION_`* is set.
 
-**Toward the full “north star” vision** (ideal backlog V1–V12 below): track separately from MVP %; remaining work is **post-MVP** (meta-phases P / Q / R).
+**Product MVP (north star):** track via **V1–V12**, meta-phases **P / Q / R**, and *Current UX gaps* in `ADR-CLIENT-UNIFIED-ROADMAP` — **not** the Foundation % above; that percentage measures engineering delivery of Phases 0–7 only.
 
 ### Verification log (rolling)
 
@@ -78,6 +87,8 @@ Re-run and append a row when orchestration, timeline, manifest, graph, or govern
 | 2026-04-23 | v7.1 execute — CTO/SEO deterministic multi-agent runtime wiring | Refactored `director-cto-orchestrator.service.ts` and `director-seo-orchestrator.service.ts` to execute registered CTO/SEO sub-agents through wave/dependency order (`sub-agent-wave-executor`) with deterministic fallback per sub-agent; wired requested sub-agent filtering into deep-dive worker path and added token-budget guard branches for `tech_infrastructure` and `seo_digital` keyed to `FEATURE_CTO_DEEP_DIVE_LLM` / `FEATURE_SEO_DEEP_DIVE_LLM`. Validation: `pnpm --filter glc-audit-server test -- src/tests/director-sub-agents-consistency.test.ts src/tests/director-cto-seo-ssot-instructions.test.ts` and `pnpm --filter glc-audit-server typecheck` passed. |
 | 2026-04-23 | v7.2 execute — regression alignment for CTO/SEO wave ids + deployment matrix sync | Updated `director-cto-seo-orchestrator.test.ts` to assert current wave ids (`cto.readiness_baseline`, `seo.visibility_baseline`) instead of legacy single-agent ids; re-ran server orchestration test matrix (`director-domain-deep-dive-dispatch`, `director-sub-agents-consistency`, `director-cdo/cao/cso/cto/seo-orchestrator`, `director-cto-seo-ssot-instructions`) and app parity test (`orchestration-contract-parity`) + intake contracts. Synced `DEPLOYMENT.md` ADR matrix and SPA mirror note to include `FEATURE_CTO_DEEP_DIVE_LLM` / `FEATURE_SEO_DEEP_DIVE_LLM` and `ctoDeepDiveLlmEnabled` / `seoDeepDiveLlmEnabled`. |
 | 2026-04-23 | v7.3 execute — R3-only expansion for CDO/CAO/CSO registry and waves | Expanded non-CMO sub-agent coverage beyond MVP with new CDO/CAO/CSO registry entries, schemas, agent classes, prompt contracts, routing depth matrices, and orchestrator runtime maps (dependency-preserving run order + deterministic fallbacks). Synced SPA sub-agent options/UI copy and deep-dive prompt refs, refreshed per-director orchestrator regressions, and validated anti-drift consistency. Verification: `pnpm --filter glc-audit-server test -- src/tests/director-cdo-orchestrator.test.ts src/tests/director-cao-orchestrator.test.ts src/tests/director-cso-orchestrator.test.ts src/tests/director-sub-agents-consistency.test.ts` — **4** files, **19** tests, all **passed**. |
+| 2026-04-23 | Product MVP roadmap sync (v8) — docs + V3 Zod/ADR test + read-model + cockpit rebuild | Added [`ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md`](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md) (code vs plan). Server: `glc-orchestration-pack-adr-v1-1-parity.test.ts` (ADR v1.1 top-level pack keys ⊆ Zod v2). SPA: `useOrchestrationReadModel` uses `glcKeys.orchestrationPack.detail` + `getOrchestrationPackConditional` (ETag); portal timeline uses shared hook with `includePack: false`. Consultant cockpit: rebuild via `POST /orchestration/pack` from latest manifest. `docs/DEPLOYMENT.md` Grafana row checklist for DoD-4. Re-run: `pnpm verify:orchestration-contract`, `pnpm vitest run src/app/pages/__tests__/PortalTimelinePage.test.tsx` (if touched). |
+| 2026-04-23 | v8 critical review → doc + code alignment | Extended sync ADR (Φ1/V5.4/Φ6 reality check, V8 row, `useOrchestrationReadModel` rationale). `ADR-ORCHESTRATION-PLAN-GOVERNANCE-CANON.md` § Product MVP: no `govern_action` endpoint, link to DoD-6. `PRODUCT.md` pointer: §5 gap closers not blocking MVP. Strategy Lab: `StrategyLabOrchestratorListBody` uses `PackGraphConsultantCanvas` when `packGraphConsultantCanvasEnabled` (DRY; lazy xyflow unchanged). |
 
 
 **Note:** Later migrations (e.g. `072_`*) may exist for unrelated product concerns; they do not replace the orchestration baseline above unless they alter pack/manifest schema — then update this ADR and `server/src/services/orchestration/README.md` in the same change.
@@ -96,13 +107,13 @@ Orchestrators for CDO / CAO / CSO already ship in `server/src/services/orchestra
 
 ### Continuous work (G4 / G6 / G7 — does not block LLM rollout)
 
-- **G4:** Additional sub-agents beyond MVP-3 per director: follow the existing checklist (registry in `director-sub-agents.ts` → Zod schema → `DirectorSubAgentBase` class → `server/prompts/sub-agents/*` → Vitest + `director-sub-agents-consistency.test.ts`).
+- **G4:** Additional sub-agents beyond the per-director initial trio (registry baseline): follow the existing checklist (registry in `director-sub-agents.ts` → Zod schema → `DirectorSubAgentBase` class → `server/prompts/sub-agents/*` → Vitest + `director-sub-agents-consistency.test.ts`).
 - **G6:** Intake P0 `whyAsked` / `semanticDomain` / `decisionImpact` coverage for remaining bank ids — extend `intake-intelligence-gate-metadata.ts` / `P0_METADATA_OUT_OF_GATE` in `intake-intelligence-contract.ts`; update `intake-intelligence-contract.test.ts` baseline counts when coverage changes.
 - **G7:** Prompt files under `server/prompts/sub-agents/` — keep anti-drift headers aligned with `docs/instructions/*-INSTRUCTIONS.md` § references in the same PR as instruction edits.
 
 ### v7 execution policy status (2026-04-23)
 
-- **R3 freeze policy:** keep beyond-MVP expansion deferred until the first promoted non-CMO LLM director completes at least one production week without incidents; add new sub-agents only via per-agent PRs (no batch expansion).
+- **R3 freeze policy:** keep beyond-Foundation (registry) expansion deferred until the first promoted non-CMO LLM director completes at least one production week without incidents; add new sub-agents only via per-agent PRs (no batch expansion).
 - **R4 blocked policy:** keep CTO/SEO orchestrators on current single-agent fallback until full source-of-truth instruction docs are approved; do not ship speculative multi-agent orchestration logic before SSOT sign-off.
 
 ### Already implemented (non-exhaustive, verify in tree)
@@ -120,20 +131,22 @@ Orchestrators for CDO / CAO / CSO already ship in `server/src/services/orchestra
 | **Tests / E2E**                | `server/src/tests/orchestration/*.test.ts` (**22** files) + `glc-orchestration-pack.test.ts`; recommended gate: `pnpm vitest run src/tests/orchestration src/tests/glc-orchestration-pack.test.ts` — see **Verification log**; `e2e/orchestration-*.spec.ts` (**4** files)                                                                                                                                                                                                              |
 
 
-### Gaps vs final vision (post-MVP product backlog)
+### Gaps vs Product MVP (north star)
+
+Remaining **Product MVP** work — preset polish, *ADR-CLIENT* *Current UX gaps*, and rows **V1–V12** not yet **Done** — is tracked here and in the backlog table below, not in the **Foundation** phase %.
 
 - **Seasonal UX**: preset-driven partitions and optional `plan_horizon` are in policy + read model; **quarter-only anchors** or **explicit TZ display rules** for client copy remain optional follow-ups.
 - **Manifest-first wizard**: **standalone portal route ships** (`PortalRoadmapManifestWizardPage.tsx`, cockpit + timeline CTAs); optional polish (stepper UX, richer empty states) remains product-dependent.
-- **Lab vs timeline**: MVP IA is flag-driven; **incremental copy polish** in Lab sections may continue.
+- **Lab vs timeline**: Foundation ship uses flag-driven IA; **incremental copy polish** in Lab sections may continue toward **Product MVP**.
 - **Director coverage**: persistence exists; **uniform deep bundles** across all domains and pipeline hooks are product-dependent.
 - **Optional LLM conflict synthesis**: gated by flags/policies — completeness depends on product activation.
-- **Plan-level CONTROL_OBJECT** (separate from domain CO): **not** required for MVP; future ADR if introduced.
+- **Plan-level CONTROL_OBJECT** (separate from domain CO): **not** required to close **Foundation**; future ADR if introduced for **Product MVP**-level governance.
 
 ---
 
 ## Phased rollout (execution order)
 
-Each phase ends with a **cumulative % toward final vision** (same definition as above: both ADRs + production-hardened UX).
+Each phase ends with a **cumulative % toward Product MVP (final client vision)** — **Foundation** (Phases 0–7) is the engineering staircase; 100% here means the shipped stack, not the full *ADR-CLIENT* north star.
 
 ### Phase 0 — Baseline & flags (complete when safe defaults documented)
 
@@ -209,15 +222,15 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 
 ---
 
-## Post-MVP ideal backlog (V1–V12) and meta-phases P / Q / R
+## Product MVP backlog (north star) (V1–V12) and meta-phases P / Q / R
 
-Track **vision** work here; do **not** merge into Phase 0–7 % above. Full row definitions stay concise; expand in product planning when needed.
+Previously titled *Post-MVP ideal backlog*. **Product** now calls this scope **MVP** (north star). Track it here; do **not** merge into **Foundation** (Phase 0–7) % above. Full row definitions stay concise; expand in product planning when needed.
 
 
 | #   | Theme                                                                                           | Status (rolling)                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V1  | Calendar-native `plan_horizon` on manifest + timeline partition                                 | **Done (MVP calendar)**                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| V2  | Manifest-first wizard (portal): coverage → scenario → horizon → preview → snapshot → build pack | **Done (portal MVP)** — `PortalRoadmapManifestWizardPage.tsx`, `portal-manifest-wizard-copy.en.ts`                                                                                                                                                                                                                                                                                                                                                                               |
+| V1  | Calendar-native `plan_horizon` on manifest + timeline partition                                 | **Done (Foundation — calendar horizon on manifest + timeline partition)**                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| V2  | Manifest-first wizard (portal): coverage → scenario → horizon → preview → snapshot → build pack | **Done (Foundation — portal manifest wizard)** — `PortalRoadmapManifestWizardPage.tsx`, `portal-manifest-wizard-copy.en.ts`                                                                                                                                                                                                                                                                                                                                                                               |
 | V3  | Full orchestrator ADR v1.1 formula parity in pack fields                                        | Partial                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | V4  | Plan-level governance / `CONTROL_OBJECT`                                                        | Backlog — gate: [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](./ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md)                                                                                                                                                                                                                                                                                                                                                                       |
 | V5  | Client-grade dependency graph UX                                                                | Partial — portal timeline **Plan dependency map** (`PortalTimelinePackGraphPanel`: critical path + dependency list **sync with map** — node or **edge** focus, **fitView** on edge endpoint pair, canvas **edge click**; `PortalPackGraphFlowCanvas.tsx` + `ORCHESTRATION_PACK_GRAPH_FLOW_VIEWPORT` min/max zoom + fit padding; **expanded map** budgets, **fit-to-view** control, `@xyflow/react` + Dagre, DOT export; `build-orchestration-pack-flow-graph.ts`; caps in `orchestration-ui-limits.ts` / `orchestration-pack-graph-flow.config.ts`); deeper canvas polish / consultant parity / full-graph modes still backlog |
@@ -244,7 +257,7 @@ Track **vision** work here; do **not** merge into Phase 0–7 % above. Full row 
 
 **Current engineering default (until product says otherwise):** continue **V5** — consultant **parity** for the dependency map / full-graph modes, and any remaining canvas polish (panel already supports node+edge selection sync, viewport policy in `ORCHESTRATION_PACK_GRAPH_FLOW_VIEWPORT`). **Alternates:** richer **V7** (lane-by-lane cross-lane stories; copy/policy only in config modules) or **V8** (execution-pack lists, repeat flows, shared error formatters / API error codes). Reprioritize by editing this paragraph in the **same commit** as the code.
 
-**Post-MVP PR ritual:** (1) ship code + Vitest (`pnpm vitest run src/tests/orchestration src/tests/glc-orchestration-pack.test.ts`; app `orchestration-contract-parity.test.ts` when the contract moves; optional `e2e/orchestration-*.spec.ts` with `E2E_ORCHESTRATION`_* when warranted); (2) update the **Status** cell for the touched **V1–V12** row in the table above; (3) if sprint focus changes, update this **Recommended next engineering slice** section; (4) if orchestration/timeline/manifest/graph/evidence behavior changed, update the DoD matrix in `server/src/services/orchestration/README.md` and append **Verification log**; (5) do **not** add a parallel rollout doc — progress stays here and in that README only. **Rollout phase % and MVP history** stay only in this ADR; the README does not duplicate phase percentages ([see “How to update”](#how-to-update-this-adr)).
+**Product MVP PR ritual:** (1) ship code + Vitest (`pnpm vitest run src/tests/orchestration src/tests/glc-orchestration-pack.test.ts`; app `orchestration-contract-parity.test.ts` when the contract moves; optional `e2e/orchestration-*.spec.ts` with `E2E_ORCHESTRATION`_* when warranted); (2) update the **Status** cell for the touched **V1–V12** row in the table above; (3) if sprint focus changes, update this **Recommended next engineering slice** section; (4) if orchestration/timeline/manifest/graph/evidence behavior changed, update the DoD matrix in `server/src/services/orchestration/README.md` and append **Verification log**; (5) do **not** add a parallel rollout doc — progress stays here and in that README only. **Foundation** phase % and history stay only in this ADR; the README does not duplicate phase percentages ([see “How to update”](#how-to-update-this-adr)).
 
 ---
 
@@ -284,5 +297,5 @@ When a phase completes, adjust **Progress snapshot** percentages and tick milest
 
 ### Documentation split (single source of truth)
 
-- **Rollout progress** — MVP phase %, cumulative table, post-MVP V1–V12 status: **this ADR only**.
+- **Rollout progress** — **Foundation** phase %, cumulative table, **Product MVP** (V1–V12) status: **this ADR only**.
 - **Implementation map / DoD traceability** — module pointers, flags, telemetry: `server/src/services/orchestration/README.md` (update when shipped behavior changes; **do not** paste rollout % tables there).

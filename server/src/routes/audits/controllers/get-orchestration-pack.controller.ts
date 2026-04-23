@@ -8,8 +8,10 @@ import {
 } from '../../../config/api-error-codes.js';
 import {
   getOrchestrationPlanGovernanceRolloutMode,
+  isConsultantOrchestrationCockpitEnabled,
   isOrchestrationPackApiEnabled,
 } from '../../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../../config/orchestration-telemetry-policy.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
@@ -61,6 +63,20 @@ export async function getOrchestrationPackController(req: AuthRequest, res: Resp
         })
       : null;
     const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(result.last_revision_diff);
+    const etag = `"orchestration-pack-v${result.orchestration_pack_version}"`;
+    const inm = req.headers?.['if-none-match'];
+    if (inm === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.setHeader('ETag', etag);
+    if (req.userRole === 'consultant' && isConsultantOrchestrationCockpitEnabled()) {
+      logger.info('route.orchestration_consultant_cockpit_view', {
+        component: 'audits',
+        audit_id: auditId,
+        metric: ORCHESTRATION_TELEMETRY_METRICS.consultantCockpitView,
+      });
+    }
     res.json({
       pack: result.pack,
       orchestration_pack_version: result.orchestration_pack_version,

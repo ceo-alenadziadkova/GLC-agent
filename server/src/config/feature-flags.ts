@@ -374,3 +374,26 @@ export function getNlIngressLlmGeoGroups(): string[] {
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
 }
+
+/** Client pack graph consultant canvas (mirrors SPA `packGraphConsultantCanvasEnabled`). Env: FEATURE_PACK_GRAPH_CONSULTANT_CANVAS */
+export function isPackGraphConsultantCanvasEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PACK_GRAPH_CONSULTANT_CANVAS, FF.packGraphConsultantCanvasEnabled);
+}
+
+/** Evidence taxonomy drill-down surfaces. Env: FEATURE_EVIDENCE_DRILLDOWN */
+export function isEvidenceDrilldownEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_EVIDENCE_DRILLDOWN, FF.evidenceDrilldownEnabled);
+}
+
+/** Portal execution-pack repeat-flow dialog. Env: FEATURE_EXECUTION_PACK_REPEAT_FLOW */
+export function isExecutionPackRepeatFlowEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_EXECUTION_PACK_REPEAT_FLOW, FF.executionPackRepeatFlowEnabled);
+}
+
+/** Consultant `/audit/:id/orchestration` cockpit + pack view metric. Env: FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT */
+export function isConsultantOrchestrationCockpitEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT,
+    FF.consultantOrchestrationCockpitEnabled,
+  );
+}

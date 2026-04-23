@@ -40,6 +40,8 @@ export const APP_ROUTE_SEGMENTS = {
   roadmapById: 'roadmap/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
+  /** Consultant-only orchestration cockpit (read model + governance). */
+  auditOrchestrationById: 'audit/:id/orchestration',
   settings: 'settings',
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',

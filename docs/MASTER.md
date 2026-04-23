@@ -53,6 +53,9 @@ Selected ADR quick links:
 | Topic | Doc |
 | --- | --- |
 | Unified question bank, IntakePlan, Question Bank Studio | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
+| Diagnostic adaptive intake — roadmap vs repository (G1–G13, sprints) | [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md) |
+| Intake follow-up policy — prune vs trace semantics | [ADR-INTAKE-FOLLOWUP-POLICY-RUNTIME-V1.md](adrs/ADR-INTAKE-FOLLOWUP-POLICY-RUNTIME-V1.md) |
+| NL ingress LLM — rollout, consent, DPA hand-offs (ops) | [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](adrs/ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md) |
 | Free snapshot scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Intake wording lifecycle + trace IA | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Frontend i18n | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
@@ -81,13 +84,13 @@ Current implementation note: persisted `glc_orchestration_pack` uses schema v2 (
 
 **Why it matters:** Defines scope of engineering work and what clients receive, and clarifies competitive differentiation versus agencies/consulting, DIY AI workflows, and fragmented in-house tool stacks.
 
-**Where it is implemented:** Product behaviour is encoded in `audit`, `pipeline`, UI pages under ``.
+**Where it is implemented:** Product behaviour is encoded in `audit` and `pipeline` services, and in the UI under `src/app/` (see [FRONTEND.md](./FRONTEND.md)).
 
 **Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes proposition, competitive landscape, stage-based goals, Intake Experience layers, readiness contract, and mode thresholds)
 
 **Owner:** Product / Tech Lead (TBD)
 
-**Status:** Implemented (MVP)
+**Status:** **Orchestration foundation** (Phases 0–7) implemented in code; **Product MVP** (north-star client roadmap UX, backlog V1–V12) tracked in [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) and [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) (*Current UX gaps*). **Code/reality sync (DoD, paths, OQ):** [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](adrs/ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md).
 
 ---
 
@@ -369,13 +372,15 @@ docs/
  archive/
  README.md # Policy for obsolete doc stubs only
  adrs/
+ superseded/
+ README.md
+ ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md
+ ADR-CSO-DIRECTOR-TWO-STAGE.md
  ADR-AUTO-LOOP-RULE-ENGINE.md
  ADR-AUTO-REMEDIATION.md
- ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md
  ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md
  ADR-CDO-DIRECTOR-TWO-STAGE.md
  ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md
- ADR-CSO-DIRECTOR-TWO-STAGE.md
  ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md
  ADR-CAUSAL-DAG.md
  ADR-CONTROL-OBJECT-V1.md
@@ -410,6 +415,13 @@ docs/
  ADR-TRUTH-REGISTRY-ASSUMPTIONS.md
  GAP-ANALYSIS-PHASE0.md
 ```
+
+### Consolidation (2026-04-23) — superseded ADR subfolder
+
+| Action | Item |
+| --- | --- |
+| ADR layout | Retired, fully superseded two-stage director ADRs moved under [`docs/adrs/superseded/`](./adrs/superseded/README.md) (CSO and Automation & Processes baselines); canonical contracts remain [`ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md`](./adrs/ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md) and [`ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md`](./adrs/ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md). |
+| Control object | [`ADR-CONTROL-OBJECT-V1.md`](./adrs/ADR-CONTROL-OBJECT-V1.md) **Superseded by** field aligned with v2 full-schema ADR. |
 
 ### Consolidation (2026-04)
 

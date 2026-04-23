@@ -56,9 +56,9 @@ export async function getOrchestrationPackDiffHistoryController(req: AuthRequest
       sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
       return;
     }
-    logger.info('route.orchestration_pack_diff_history_success', {
+    logger.info('orchestration_revision.history_view', {
       component: 'audits',
-      metric: 'orchestration_pack_diff_history.success',
+      event: 'orchestration_revision.history_view',
       count: result.items.length,
       limit,
     });

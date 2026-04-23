@@ -1,6 +1,22 @@
 {
   "version": "1.0.0",
-  "pilotIndustryLabels": ["Healthcare"],
+  "pilotIndustryLabels": [
+    "E-commerce",
+    "Education",
+    "Finance",
+    "Food & Beverage",
+    "Healthcare",
+    "Hospitality",
+    "Manufacturing",
+    "Marine",
+    "Media & Entertainment",
+    "Non-profit",
+    "Professional Services",
+    "Real Estate",
+    "Retail",
+    "SaaS / Software",
+    "Other"
+  ],
   "unknownBlocksAuditReady": true,
   "signals": {
     "industry": {

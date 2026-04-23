@@ -21,6 +21,10 @@ export const glcKeys = {
   timeline: {
     detail: (id: string) => ['glc', 'timeline', 'detail', id] as const,
   },
+  /** `GET /api/audits/:id/orchestration/pack` — shared with portal, consultant cockpit, Strategy Lab. */
+  orchestrationPack: {
+    detail: (id: string) => ['glc', 'orchestration-pack', 'detail', id] as const,
+  },
   strategyExecutionPacks: {
     list: (auditId: string) => ['glc', 'strategy-execution-packs', 'list', auditId] as const,
   },

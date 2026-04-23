@@ -141,6 +141,11 @@ export interface SignalContribution {
 export interface FollowupPolicy {
   deeperIf?: string;
   stopIf?: string;
+  /**
+   * Executable layer: key in `intake-policy.v1.json` → `intelligence.followupRuleDefinitions`.
+   * Human strings remain for documentation and Sprint-2 gate lint.
+   */
+  followupRuleRef?: string;
 }
 
 export interface StopCondition {

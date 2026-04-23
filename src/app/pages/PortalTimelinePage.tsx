@@ -1,4 +1,14 @@
 import { Link, useParams } from 'react-router';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { ArrowsClockwise, FileText, Flask } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
@@ -49,6 +59,7 @@ import type { AuditTimelineDto } from '../data/api/audits-orchestration';
 
 type TimelineLaneItem = AuditTimelineDto['lanes'][number]['items'][number];
 import { glcKeys } from '../lib/glc-keys';
+import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { formatAppMediumDateTime } from '../lib/date-format';
 import {
   OrchestrationEvidenceTaxonomyBadges,
@@ -58,6 +69,10 @@ import {
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { buildOrchestrationRevisionStorySummary } from '../lib/orchestration-revision-story';
 import { formatExecutionPackTimelineRequestError } from '../lib/format-execution-pack-timeline-request-error';
+import {
+  formatLanePairHeadline,
+  selectTopCrossLaneBlockingEdges,
+} from '../lib/orchestration-lane-pair-narratives';
 import type { OrchestrationTimelineStatus } from '../config/orchestration-contract';
 
 function formatTimelineLoadError(err: unknown): string | null {
@@ -315,10 +330,9 @@ export function PortalTimelinePage() {
   const auditIdForQuery = id ?? '';
   const timelineQueryEnabled = Boolean(id) && !loading && !error && Boolean(audit);
 
-  const timelineQuery = useQuery({
-    queryKey: glcKeys.timeline.detail(auditIdForQuery),
-    queryFn: () => api.getAuditTimeline(id as string),
+  const { timelineQuery } = useOrchestrationReadModel(auditIdForQuery, {
     enabled: timelineQueryEnabled,
+    includePack: false,
   });
 
   const timeline = timelineQuery.data?.timeline ?? null;
@@ -340,6 +354,26 @@ export function PortalTimelinePage() {
     const items = executionPacksQuery.data?.items ?? [];
     return items.slice(0, ORCHESTRATION_UI_LIMITS.maxExecutionPackListItemsClient);
   }, [executionPacksQuery.data?.items]);
+
+  const hasPackForInitiative = useCallback(
+    (nodeId: string) => executionPackRows.some((row) => row.initiative_ids.includes(nodeId)),
+    [executionPackRows],
+  );
+
+  const [executionPackConfirmNodeId, setExecutionPackConfirmNodeId] = useState<string | null>(null);
+
+  const packForCrossLaneNarrative = useMemo(() => {
+    const raw = audit?.strategy?.glc_orchestration_pack;
+    return isGlcOrchestrationPackView(raw) ? raw : null;
+  }, [audit?.strategy?.glc_orchestration_pack]);
+
+  const packCrossLaneNarratives = useMemo(() => {
+    if (!APP_FEATURE_FLAGS.laneCrossNarrativesEnabled || !packForCrossLaneNarrative) return [];
+    return selectTopCrossLaneBlockingEdges(
+      packForCrossLaneNarrative,
+      ORCHESTRATION_UI_LIMITS.maxCrossLaneNarrativePairs,
+    );
+  }, [packForCrossLaneNarrative]);
 
   const laneByNodeId = useMemo(() => {
     const m = new Map<string, OrchestrationLaneId>();
@@ -442,6 +476,17 @@ export function PortalTimelinePage() {
     [id, queryClient],
   );
 
+  const queueExecutionPackFromTimeline = useCallback(
+    (nodeId: string) => {
+      if (APP_FEATURE_FLAGS.executionPackRepeatFlowEnabled && hasPackForInitiative(nodeId)) {
+        setExecutionPackConfirmNodeId(nodeId);
+        return;
+      }
+      void requestExecutionPackFromTimeline(nodeId);
+    },
+    [hasPackForInitiative, requestExecutionPackFromTimeline],
+  );
+
   const requestMarkAsNextInitiative = useCallback(
     async (actionId: string) => {
       if (!id) return;
@@ -455,6 +500,7 @@ export function PortalTimelinePage() {
         await api.postSelectedInitiative(id, { action_id: actionId });
         setLastMarkedNextStepId(actionId);
         await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(id) });
+        await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(id) });
         await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(id) });
         toast.success(ORCHESTRATION_UI_COPY.initiativeMarkNextStepSuccess);
       } catch {
@@ -695,7 +741,7 @@ export function PortalTimelinePage() {
                     evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
                     clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
                     executionPackPendingNodeId={executionPackPendingNodeId}
-                    onRequestExecutionPack={requestExecutionPackFromTimeline}
+                    onRequestExecutionPack={queueExecutionPackFromTimeline}
                     canMarkInitiative={canClientMarkInitiative}
                     initiativeMarkPendingId={initiativeMarkPendingId}
                     onMarkInitiative={requestMarkAsNextInitiative}
@@ -725,7 +771,7 @@ export function PortalTimelinePage() {
                         evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
                         clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
                         executionPackPendingNodeId={executionPackPendingNodeId}
-                        onRequestExecutionPack={requestExecutionPackFromTimeline}
+                        onRequestExecutionPack={queueExecutionPackFromTimeline}
                         canMarkInitiative={canClientMarkInitiative}
                         initiativeMarkPendingId={initiativeMarkPendingId}
                         onMarkInitiative={requestMarkAsNextInitiative}
@@ -750,7 +796,7 @@ export function PortalTimelinePage() {
                         evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
                         clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
                         executionPackPendingNodeId={executionPackPendingNodeId}
-                        onRequestExecutionPack={requestExecutionPackFromTimeline}
+                        onRequestExecutionPack={queueExecutionPackFromTimeline}
                         canMarkInitiative={canClientMarkInitiative}
                         initiativeMarkPendingId={initiativeMarkPendingId}
                         onMarkInitiative={requestMarkAsNextInitiative}
@@ -781,7 +827,7 @@ export function PortalTimelinePage() {
                   evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
                   clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
                   executionPackPendingNodeId={executionPackPendingNodeId}
-                  onRequestExecutionPack={requestExecutionPackFromTimeline}
+                  onRequestExecutionPack={queueExecutionPackFromTimeline}
                   canMarkInitiative={canClientMarkInitiative}
                   initiativeMarkPendingId={initiativeMarkPendingId}
                   onMarkInitiative={requestMarkAsNextInitiative}
@@ -806,7 +852,7 @@ export function PortalTimelinePage() {
                   evidenceTaxonomyByNodeId={evidenceTaxonomyByNodeId}
                   clientTimelinePackOneClickCta={clientTimelinePackOneClickCta}
                   executionPackPendingNodeId={executionPackPendingNodeId}
-                  onRequestExecutionPack={requestExecutionPackFromTimeline}
+                  onRequestExecutionPack={queueExecutionPackFromTimeline}
                   canMarkInitiative={canClientMarkInitiative}
                   initiativeMarkPendingId={initiativeMarkPendingId}
                   onMarkInitiative={requestMarkAsNextInitiative}
@@ -1284,6 +1330,19 @@ export function PortalTimelinePage() {
                       <p className="mt-2 text-sm leading-relaxed ds-text-secondary">{ORCHESTRATION_UI_COPY.timelineCrossLaneNarrativeBody}</p>
                     </div>
                   ) : null}
+                  {packForCrossLaneNarrative && packCrossLaneNarratives.length > 0
+                    ? packCrossLaneNarratives.map((row, idx) => (
+                        <div
+                          key={`pair-${row.from}-${row.to}-${idx}`}
+                          className="mb-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-base)] px-4 py-3"
+                        >
+                          <div className="text-xs font-semibold uppercase tracking-wide ds-text-tertiary">
+                            {formatLanePairHeadline(packForCrossLaneNarrative, row.from, row.to)}
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed ds-text-secondary">{row.line}</p>
+                        </div>
+                      ))
+                    : null}
                   {isDependencyCardMode ? (
                     <div className="space-y-2">
                       {crossLaneBlocking.length === 0 ? (
@@ -1367,6 +1426,32 @@ export function PortalTimelinePage() {
                 subAgentsEnabledOverride={effectiveDirectorSubAgents}
               />
             ) : null}
+            <AlertDialog
+              open={executionPackConfirmNodeId !== null}
+              onOpenChange={(open) => {
+                if (!open) setExecutionPackConfirmNodeId(null);
+              }}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{ORCHESTRATION_UI_COPY.executionPackRepeatDialogTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{ORCHESTRATION_UI_COPY.executionPackRepeatDialogBody}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">{ORCHESTRATION_UI_COPY.executionPackRepeatDialogCancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    onClick={() => {
+                      const nid = executionPackConfirmNodeId;
+                      setExecutionPackConfirmNodeId(null);
+                      if (nid) void requestExecutionPackFromTimeline(nid);
+                    }}
+                  >
+                    {ORCHESTRATION_UI_COPY.executionPackRepeatDialogConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
       </div>

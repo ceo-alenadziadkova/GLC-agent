@@ -34,7 +34,7 @@ export const INTAKE_QUESTION_QUALITY_BASELINE_V1: IntakeQuestionQualityBaseline 
   fullyCoveredQuestions: 78,
   fullyCoveredP0Questions: 17,
   errorCount: 0,
-  warningCount: 2,
+  warningCount: 0,
 };
 
 function toDelta(

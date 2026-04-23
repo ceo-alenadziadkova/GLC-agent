@@ -52,6 +52,7 @@ import { StudioLegendSection } from '../sections/StudioLegendSection';
 import { StudioDiffSection } from '../sections/StudioDiffSection';
 import { StudioToolbarSection } from '../sections/StudioToolbarSection';
 import { StudioModeSummarySection } from '../sections/StudioModeSummarySection';
+import { StudioDependencyGraphSection } from '../sections/StudioDependencyGraphSection';
 import { StudioLogicMetaSection } from '../sections/StudioLogicMetaSection';
 import {
   STUDIO_CARD_MIN_HEIGHT_PX,
@@ -101,7 +102,10 @@ export function QuestionBankStudioContainer() {
     dropOff: number;
     dropOffRate: number;
     medianQuestionsToReadiness: number;
+    /** Sessions with ≥1 `confidence_moved` beacon (pilot signal tier up). */
     confidenceMovedRate: number | null;
+    /** Sessions with any non-empty `case_keys` on KPI. */
+    caseKeyCoverageRate?: number;
     sessionFunnel: {
       started: number;
       withQuestionShown: number;
@@ -114,6 +118,7 @@ export function QuestionBankStudioContainer() {
       dropOffCount: number;
       dropOffRate: number;
     }>;
+    caseKeyDistribution?: Array<{ caseKey: string; count: number }>;
   } | null>(null);
   const { bankDiffSummary, bankDiffError, runBankDiff } = useQuestionBankStudioDiff(bankDiffJson);
   useEffect(() => {
@@ -347,7 +352,7 @@ export function QuestionBankStudioContainer() {
           branchFocusSize={branchFocusQuestionIds ? branchFocusQuestionIds.size : null}
           intelligenceMetrics={intelligenceMetrics}
         />
-        {kpiDashboard ? (
+        {kpiDashboard && viewMode !== 'dependency' ? (
           <div className="rounded-xl border border-[var(--ds-border-subtle)] p-3">
             <p className="text-xs font-semibold mb-2">KPI Dashboard</p>
             <p className="text-xs m-0">Sessions: {kpiDashboard.sessions}</p>
@@ -370,110 +375,140 @@ export function QuestionBankStudioContainer() {
               ))}
             </div>
           </div>
+        ) : kpiDashboard && viewMode === 'dependency' ? (
+          <div className="rounded-xl border border-[var(--ds-border-subtle)] p-3 text-xs">
+            <p className="m-0 font-semibold mb-1">KPI (summary)</p>
+            <p className="m-0">Sessions: {kpiDashboard.sessions} · Shown: {kpiDashboard.questionShown} · Median to readiness: {kpiDashboard.medianQuestionsToReadiness.toFixed(1)}</p>
+            <p className="m-0 mt-1 ds-text-tertiary">
+              Signal tier improved (per session):{' '}
+              {kpiDashboard.confidenceMovedRate === null
+                ? 'n/a'
+                : `${(kpiDashboard.confidenceMovedRate * 100).toFixed(1)}%`}
+            </p>
+            {kpiDashboard.caseKeyCoverageRate != null ? (
+              <p className="m-0 mt-0.5 ds-text-tertiary">
+                Case-key telemetry reach: {(kpiDashboard.caseKeyCoverageRate * 100).toFixed(1)}%
+              </p>
+            ) : null}
+            {kpiDashboard.caseKeyDistribution && kpiDashboard.caseKeyDistribution.length > 0 ? (
+              <p className="m-0 mt-2">Case keys: {kpiDashboard.caseKeyDistribution.map(c => `${c.caseKey}(${c.count})`).join(', ')}</p>
+            ) : null}
+          </div>
         ) : null}
-        {viewMode === 'logic' && (
-          <StudioLegendSection
-            legendStyle={legendStyle}
-            markerSizePx={STUDIO_LEGEND_MARKER_SIZE_PX}
-            domainBorderColor={STUDIO_LEGEND_DOMAIN_BORDER_COLOR}
-            layoutBorderColor={STUDIO_LEGEND_LAYOUT_BORDER_COLOR}
-            planFootprintSize={planFootprintOnly && planIdSet ? planIdSet.size : null}
-          />
-        )}
-        {viewMode === 'logic' && !overviewUi ? (
-          <StudioDiffSection
-            bankDiffJson={bankDiffJson}
-            bankDiffError={bankDiffError}
-            bankDiffSummary={bankDiffSummary}
-            onBankDiffJsonChange={setBankDiffJson}
-            onRunBankDiff={runBankDiff}
-          />
+        {viewMode === 'dependency' ? <StudioDependencyGraphSection /> : null}
+        {viewMode !== 'dependency' ? (
+          <>
+            {viewMode === 'logic' && (
+              <StudioLegendSection
+                legendStyle={legendStyle}
+                markerSizePx={STUDIO_LEGEND_MARKER_SIZE_PX}
+                domainBorderColor={STUDIO_LEGEND_DOMAIN_BORDER_COLOR}
+                layoutBorderColor={STUDIO_LEGEND_LAYOUT_BORDER_COLOR}
+                planFootprintSize={planFootprintOnly && planIdSet ? planIdSet.size : null}
+              />
+            )}
+            {viewMode === 'logic' && !overviewUi ? (
+              <StudioDiffSection
+                bankDiffJson={bankDiffJson}
+                bankDiffError={bankDiffError}
+                bankDiffSummary={bankDiffSummary}
+                onBankDiffJsonChange={setBankDiffJson}
+                onRunBankDiff={runBankDiff}
+              />
+            ) : null}
+            {viewMode === 'logic' && (
+              <StudioLogicMetaSection
+                sectionKeys={sectionKeys}
+                collapsedSections={collapsedSections}
+                stats={stats}
+                search={search}
+                debouncedSearch={debouncedSearch}
+                centerOnNodeId={centerOnNodeId}
+                onToggleSection={toggleSectionCollapse}
+                onSearchChange={setSearch}
+              />
+            )}
+            {viewMode === 'user' && (
+              <StudioUserFlowSection
+                breadcrumbs={breadcrumbs}
+                pathHistory={pathHistory}
+                nextIdsCount={simulation.nextIds.length}
+                userStepLanes={userStepLanes}
+                activeUserStep={activeUserStep}
+                onBack={() => {
+                  if (pathHistory.length < 2) return;
+                  const next = pathHistory.slice(0, -1);
+                  setPathHistory(next);
+                  setSelectedId(next[next.length - 1] ?? null);
+                }}
+                onNextPreview={() => {
+                  if (simulation.nextIds.length === 0) return;
+                  const nextQuestionId = simulation.nextIds[0];
+                  const node = layoutGraph.nodes.find(
+                    n => n.type === 'studioQuestion' && n.data.kind === 'question' && n.data.questionId === nextQuestionId,
+                  );
+                  if (!node) return;
+                  setSelectedId(node.id);
+                  setPathHistory(prev => (prev[prev.length - 1] === node.id ? prev : [...prev, node.id]));
+                }}
+                onResetPath={() => {
+                  setPathHistory([]);
+                  setSelectedId(null);
+                }}
+                onSetActiveStep={setActiveUserStep}
+              />
+            )}
+            <div
+              className={
+                viewMode === 'user'
+                  ? 'grid gap-3 items-start lg:grid-cols-[280px_1fr_320px]'
+                  : 'flex flex-wrap gap-3 items-start'
+              }
+            >
+              {viewMode === 'user' ? (
+                <ContextInputsPanel
+                  customProductMode={customProductMode}
+                  onCustomProductModeChange={next => setCustomProductMode(next)}
+                  customCollectionMode={customCollectionMode}
+                  onCustomCollectionModeChange={next => setCustomCollectionMode(next)}
+                  customSurface={customSurface}
+                  onCustomSurfaceChange={next => setCustomSurface(next)}
+                  customResponsesText={customResponsesText}
+                  onCustomResponsesTextChange={next => setCustomResponsesText(next)}
+                  policyMode={policyMode}
+                  effectiveLayoutSurface={effectiveLayoutSurface}
+                  onShowAllSteps={() => setActiveUserStep(null)}
+                />
+              ) : null}
+              <StudioCanvasSection
+                userStepLanes={userStepLanes}
+                activeUserStep={activeUserStep}
+                selectedQuestionId={selectedQuestionId}
+                questionNodeIdByQuestionId={questionNodeIdByQuestionId}
+                traceStatusByQuestionId={traceStatusByQuestionId}
+                layoutGraphNodes={layoutGraph.nodes}
+                onSelectNode={nodeId => {
+                  setSelectedId(nodeId);
+                  setPathHistory(prev => (prev[prev.length - 1] === nodeId ? prev : [...prev, nodeId]));
+                }}
+              />
+              <InspectorPanel
+                viewMode={viewMode}
+                selectedQuestionRole={selectedQuestionRole}
+                selectedDependencies={selectedDependencies}
+                selectedWhy={selectedWhy}
+                simulation={simulation}
+                tracePlan={tracePlan}
+                traceError={traceError}
+                allQuestionsForReview={allQuestionsForReview}
+                inspectorBody={inspectorBody}
+                layoutGraphNodes={layoutGraph.nodes}
+                setSelectedId={setSelectedId}
+                setPathHistory={setPathHistory}
+              />
+            </div>
+          </>
         ) : null}
-        {viewMode === 'logic' && (
-          <StudioLogicMetaSection
-            sectionKeys={sectionKeys}
-            collapsedSections={collapsedSections}
-            stats={stats}
-            search={search}
-            debouncedSearch={debouncedSearch}
-            centerOnNodeId={centerOnNodeId}
-            onToggleSection={toggleSectionCollapse}
-            onSearchChange={setSearch}
-          />
-        )}
-        {viewMode === 'user' && (
-          <StudioUserFlowSection
-            breadcrumbs={breadcrumbs}
-            pathHistory={pathHistory}
-            nextIdsCount={simulation.nextIds.length}
-            userStepLanes={userStepLanes}
-            activeUserStep={activeUserStep}
-            onBack={() => {
-              if (pathHistory.length < 2) return;
-              const next = pathHistory.slice(0, -1);
-              setPathHistory(next);
-              setSelectedId(next[next.length - 1] ?? null);
-            }}
-            onNextPreview={() => {
-              if (simulation.nextIds.length === 0) return;
-              const nextQuestionId = simulation.nextIds[0];
-              const node = layoutGraph.nodes.find(
-                n => n.type === 'studioQuestion' && n.data.kind === 'question' && n.data.questionId === nextQuestionId,
-              );
-              if (!node) return;
-              setSelectedId(node.id);
-              setPathHistory(prev => (prev[prev.length - 1] === node.id ? prev : [...prev, node.id]));
-            }}
-            onResetPath={() => {
-              setPathHistory([]);
-              setSelectedId(null);
-            }}
-            onSetActiveStep={setActiveUserStep}
-          />
-        )}
-        <div className={viewMode === 'user' ? 'grid gap-3 items-start lg:grid-cols-[280px_1fr_320px]' : 'flex flex-wrap gap-3 items-start'}>
-          {viewMode === 'user' ? (
-            <ContextInputsPanel
-              customProductMode={customProductMode}
-              onCustomProductModeChange={next => setCustomProductMode(next)}
-              customCollectionMode={customCollectionMode}
-              onCustomCollectionModeChange={next => setCustomCollectionMode(next)}
-              customSurface={customSurface}
-              onCustomSurfaceChange={next => setCustomSurface(next)}
-              customResponsesText={customResponsesText}
-              onCustomResponsesTextChange={next => setCustomResponsesText(next)}
-              policyMode={policyMode}
-              effectiveLayoutSurface={effectiveLayoutSurface}
-              onShowAllSteps={() => setActiveUserStep(null)}
-            />
-          ) : null}
-          <StudioCanvasSection
-            userStepLanes={userStepLanes}
-            activeUserStep={activeUserStep}
-            selectedQuestionId={selectedQuestionId}
-            questionNodeIdByQuestionId={questionNodeIdByQuestionId}
-            traceStatusByQuestionId={traceStatusByQuestionId}
-            layoutGraphNodes={layoutGraph.nodes}
-            onSelectNode={nodeId => {
-              setSelectedId(nodeId);
-              setPathHistory(prev => (prev[prev.length - 1] === nodeId ? prev : [...prev, nodeId]));
-            }}
-          />
-          <InspectorPanel
-            viewMode={viewMode}
-            selectedQuestionRole={selectedQuestionRole}
-            selectedDependencies={selectedDependencies}
-            selectedWhy={selectedWhy}
-            simulation={simulation}
-            tracePlan={tracePlan}
-            traceError={traceError}
-            allQuestionsForReview={allQuestionsForReview}
-            inspectorBody={inspectorBody}
-            layoutGraphNodes={layoutGraph.nodes}
-            setSelectedId={setSelectedId}
-            setPathHistory={setPathHistory}
-          />
-        </div>
       </div>
     </div>
   );

@@ -181,4 +181,10 @@ export interface IntakePlan {
     queue: string[];
     trace: IntakeReadinessTraceEntry[];
   };
+  /** Adaptive case pattern overlay (Diagnostic Adaptive Intake) — when policy intelligence is enabled. */
+  casePatternMatch?: {
+    caseKeys: string[];
+    activeOverlayQuestionIds: string[];
+    stopConditionMetByCase: Record<string, boolean>;
+  };
 }

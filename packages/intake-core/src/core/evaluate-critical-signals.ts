@@ -9,6 +9,13 @@ import {
 import type { IntakePlan } from './types.js';
 import { getResponseString, isIntakeAnswered } from '../unwrap.js';
 
+const CRITICAL_CONFIDENCE_RANK: Record<IntakeCriticalSignalConfidence, number> = {
+  unknown: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
 export interface CriticalSignalDefinitionV1 {
   bankIds: string[];
   normalizerRef: string;
@@ -189,4 +196,23 @@ export function evaluateCriticalSignalsPilot(args: {
   }
 
   return { satisfied, trace, confidenceByKey };
+}
+
+/**
+ * Returns the **weakest** pilot critical-signal tier (0 = unknown … 3 = high) for KPI “confidence moved” heuristics.
+ * `null` when the pilot industry gate skips `confidenceByKey` (empty).
+ */
+export function computePilotCriticalBottleneckRank(args: {
+  responses: Record<string, unknown>;
+  plan: Pick<IntakePlan, 'eligible'>;
+}): number | null {
+  const { confidenceByKey } = evaluateCriticalSignalsPilot(args);
+  const keys = Object.values(confidenceByKey);
+  if (keys.length === 0) return null;
+  let minR = 3;
+  for (const c of keys) {
+    const r = CRITICAL_CONFIDENCE_RANK[c] ?? 0;
+    if (r < minR) minR = r;
+  }
+  return minR;
 }

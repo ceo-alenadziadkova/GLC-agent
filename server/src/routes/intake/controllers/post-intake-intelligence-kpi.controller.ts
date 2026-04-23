@@ -31,7 +31,13 @@ const KPI_KINDS = [
 
 type KpiKind = (typeof KPI_KINDS)[number];
 
-function parseKpiBody(body: unknown): { kind: KpiKind; questionId?: string; clientSessionId?: string } | null {
+function parseKpiBody(body: unknown): {
+  kind: KpiKind;
+  questionId?: string;
+  clientSessionId?: string;
+  caseKeys?: string[];
+  confidenceMoved?: boolean;
+} | null {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
   const rec = body as Record<string, unknown>;
   const kind = rec.event ?? rec.kind;
@@ -39,10 +45,18 @@ function parseKpiBody(body: unknown): { kind: KpiKind; questionId?: string; clie
   const questionId = typeof rec.question_id === 'string' ? rec.question_id.trim() : undefined;
   const clientSessionId =
     typeof rec.client_session_id === 'string' ? rec.client_session_id.trim().slice(0, 128) : undefined;
+  const rawCaseKeys = rec.case_keys;
+  let caseKeys: string[] | undefined;
+  if (Array.isArray(rawCaseKeys)) {
+    const parsed = rawCaseKeys.filter((k): k is string => typeof k === 'string' && k.length > 0).slice(0, 20);
+    if (parsed.length > 0) caseKeys = parsed;
+  }
+  const rawMoved = rec.confidence_moved;
+  const confidenceMoved = rawMoved === true ? true : undefined;
   if ((kind === 'question_shown' || kind === 'optional_details_opened' || kind === 'optional_details_submitted') && (!questionId || questionId.length === 0)) {
     return null;
   }
-  return { kind: kind as KpiKind, questionId, clientSessionId };
+  return { kind: kind as KpiKind, questionId, clientSessionId, caseKeys, confidenceMoved };
 }
 
 export async function postIntakeIntelligenceKpiController(req: Request, res: Response) {
@@ -89,6 +103,8 @@ export async function postIntakeIntelligenceKpiController(req: Request, res: Res
       kind: parsed.kind,
       questionId: parsed.questionId,
       clientSessionId: parsed.clientSessionId,
+      caseKeys: parsed.caseKeys,
+      confidenceMoved: parsed.confidenceMoved,
     });
 
     res.status(200).json({ ok: true, persisted: result.persisted });

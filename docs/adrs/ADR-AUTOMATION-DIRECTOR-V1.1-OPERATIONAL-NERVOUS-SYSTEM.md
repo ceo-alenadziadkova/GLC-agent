@@ -5,7 +5,7 @@
 | **Status** | Accepted |
 | **Date** | 2026-04-19 |
 | **Scope** | Automation domain (`automation_processes`) + optional Automation & Processes Director deep audit (Stage 2) |
-| **Supersedes** | `ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md` |
+| **Supersedes** | [`superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md) |
 | **Superseded by** | — |
 | **Decision owners** | Product + Consulting + AI Platform |
 
@@ -13,7 +13,7 @@
 
 - Cross-domain pattern: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
 - Technical orchestration baseline (dependencies, trade-offs, prioritization): `ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md`
-- Superseded baseline automation ADR: `ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md`
+- Superseded baseline automation ADR: [`superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md)
 
 ### ADR lifecycle
 
@@ -23,7 +23,7 @@ This ADR is immutable as a decision record. If the Automation Director contract 
 
 ## Context
 
-`ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md` established the two-stage pattern and a useful split between **process governance** and **automation operations**.
+[`superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md) established the two-stage pattern and a useful split between **process governance** and **automation operations**.
 
 However, it was insufficient as an **operational nervous system** because it lacked explicit:
 
@@ -138,7 +138,7 @@ TTFV MUST influence prioritization alongside impact/effort.
 
 ## Zone taxonomy (v1.0 remains, but outputs must attach economics + taxonomy)
 
-The Process Governance vs Automation Ops split from `ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md` remains.
+The Process Governance vs Automation Ops split from [`superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md`](./superseded/ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md) remains.
 
 Every zone output MUST connect to:
 

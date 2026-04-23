@@ -7,15 +7,15 @@
 | **Date**            | 2026-04-19                                                                                    |
 | **Scope**           | Security & compliance domain (`security_compliance`) + optional CSO Director deep audit zones |
 | **Supersedes**      | —                                                                                             |
-| **Superseded by**   | `ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md`                                                     |
+| **Superseded by**   | `../ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md`                                                     |
 | **Decision owners** | Product + Consulting + AI Platform                                                            |
 
 
-> **Note:** This ADR is superseded by `ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md` (threat model, attack surface, risk scoring, exploitability/exposure, expanded KPIs, cost layer, quick wins vs structural). Keep this file for historical context only.
+> **Note:** This ADR is superseded by [`ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md`](../ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md) (threat model, attack surface, risk scoring, exploitability/exposure, expanded KPIs, cost layer, quick wins vs structural). Keep this file for historical context only.
 
 ### Related decisions
 
-- Cross-domain pattern: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
+- Cross-domain pattern: [`ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`](../ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md)
 
 ### ADR lifecycle
 

@@ -62,7 +62,7 @@ Returns current authenticated user profile metadata.
 }
 ```
 
-- `can_manage_platform_settings` — **`true`** only when **`role`** is **`consultant`** and the caller passes **`canManagePlatformSettings`** (`server/src/lib/platform-admin.ts`: open mode vs `profiles.is_platform_admin` / legacy UUID list). **`false`** for **`client`** / **`guest`**.
+- `can_manage_platform_settings` — **`true`** only when **`role`** is **`consultant`** and the server evaluates `canManagePlatformSettings(userId)` ([`server/src/routes/profile.ts`](../server/src/routes/profile.ts); logic in [`server/src/lib/platform-admin.ts`](../server/src/lib/platform-admin.ts): open mode vs `profiles.is_platform_admin` / legacy UUID list). The client does not pass this flag; it is derived per request. **`false`** for **`client`** / **`guest`**.
 
 ### `PATCH /api/profile`
 
@@ -830,6 +830,8 @@ Notes for consumers:
 
 `trace` intentionally excludes `semanticCause` and verbose internals; full diagnostics remain in server logs / schema snapshot APIs.
 
+**G11 (readiness trace projection):** each PUT **`trace`** entry is the same **`{ code, questionId? }`** shape as the corresponding slice of **`readiness.trace`** on **`GET /api/audits/:id/brief`** (and **`GET …/brief/schema`**) for the post-save brief — a stable, public-safe mirror so clients can diff or badge without re-fetching the full readiness envelope.
+
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
 - **`intake_versions` present** — must include all **five** keys (`sequencingVersion` included), **or** the legacy **four** keys (`questionBankVersion`, `policyVersion`, `layoutVersion`, `resolverVersion`) only — in the four-key case the server treats **`sequencingVersion`** as the current pilot default on parse. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
 
@@ -1283,7 +1285,8 @@ Notes:
 - `llm_rollout` (`enabled`, `mode`, `geo_group`, `geo_eligible`, `llm_primary`, `llm_failed`, `fallback_used`)
 - `graphDraft` (selected mapper output)
 - `authoritative` (`merged_responses`, `applied_hints`, `skipped_hints`, `persisted`)
-- `plan_trace` (`plan`, `text`)
+- `plan_trace` (`plan`, `text`) — `plan` includes optional **`casePatternMatch`** (adaptive case overlay) when policy intelligence is enabled, same as `buildIntakePlan` elsewhere
+- **`case_keys`**: `string[]` — convenience copy of `plan_trace.plan.casePatternMatch.caseKeys` (empty when no match), aligned with the optional **`case_keys`** field on **`POST /api/intake/:token/intelligence-kpi`**
 - `message`
 
 ### `POST /api/intake/:token/intelligence-kpi`
@@ -1295,10 +1298,13 @@ Consultant-only KPI summary for intake intelligence telemetry from `pipeline_eve
 - `question_shown` count
 - `drop_off` count and rate
 - top 5 question hotspots by visibility volume
+- optional **`case_key_distribution`** (counts per adaptive case key from telemetry)
+- **`confidence_moved_rate`**: share of sessions (with at least one `question_shown` KPI) that sent **`confidence_moved: true`** on a beacon (weakest **pilot critical-signal** tier increased vs the previous `question_shown` in the same `client_session_id`)
+- **`case_key_coverage_rate`**: share of those sessions with at least one non-empty `case_keys` on KPI
 
 **Auth:** consultant JWT (`requireAuth` + `attachProfile` + `requireRole('consultant')`).
 
-**Body:** JSON with **`event`** or **`kind`**: `question_shown` | `drop_off`. For `question_shown`, **`question_id`** (bank id) is required. Optional **`client_session_id`** (short string) correlates browser beacons with fetch calls.
+**Body:** JSON with **`event`** or **`kind`**: `question_shown` | `drop_off`. For `question_shown`, **`question_id`** (bank id) is required. Optional **`client_session_id`** (short string) correlates browser beacons with fetch calls. Optional **`case_keys`**: string[] (up to 20) — adaptive case pattern keys resolved on the client for analytics (see `intake-case-patterns.v1.json`). Optional **`confidence_moved`**: `true` when the client saw an increase in the **weakest** pilot critical-signal tier (0 = unknown … 3 = high) since the previous `question_shown` in the same session; omit when false.
 
 **Response `200`:** `{ "ok": true, "persisted": boolean }` — when the intake token has no linked **`audit_id`**, the server accepts the request but skips `pipeline_events` insert (`persisted: false`). **`sendBeacon`** from the public page uses the same path and JSON body.
 

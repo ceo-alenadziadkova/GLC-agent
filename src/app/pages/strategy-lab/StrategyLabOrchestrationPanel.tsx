@@ -47,6 +47,7 @@ import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-proj
 import { formatAppMediumDateTime } from '../../lib/date-format';
 import { useProfile } from '../../hooks/useProfile';
 import { buildAppRoute } from '../../config/route-paths';
+import { RevisionHistoryPanel } from '../../features/strategy-lab/RevisionHistoryPanel';
 
 type ExecutionPlan = NonNullable<AuditMeta['execution_plan']>;
 
@@ -898,6 +899,10 @@ export function StrategyLabOrchestrationPanel({
           )}
         </div>
       )}
+
+      {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
+        <RevisionHistoryPanel items={revisionHistory} />
+      ) : null}
 
       {selectedRevisionDiff && roadmapVersionToShow > 1 && (
         <div className="bg-background space-y-3 rounded-lg border p-3">

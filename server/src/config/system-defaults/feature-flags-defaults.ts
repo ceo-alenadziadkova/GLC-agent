@@ -145,4 +145,12 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_NL_INGRESS_LLM_GEO_GROUPS
    */
   nlIngressLlmGeoGroups: '',
+  /** Strategy Lab / portal: full-graph dependency canvas (client). Env: FEATURE_PACK_GRAPH_CONSULTANT_CANVAS */
+  packGraphConsultantCanvasEnabled: true,
+  /** Evidence drill-down side panel on graph nodes (client). Env: FEATURE_EVIDENCE_DRILLDOWN */
+  evidenceDrilldownEnabled: true,
+  /** Execution pack repeat-request dialog on portal timeline (client). Env: FEATURE_EXECUTION_PACK_REPEAT_FLOW */
+  executionPackRepeatFlowEnabled: true,
+  /** Consultant orchestration cockpit route + telemetry (client + server log gate). Env: FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT */
+  consultantOrchestrationCockpitEnabled: true,
 } as const;

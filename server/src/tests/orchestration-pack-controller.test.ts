@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../config/orchestration-telemetry-policy.js';
 import { RoadmapManifestMismatchError } from '../services/orchestration/roadmap-manifest.service.js';
 
 const flagMocks = vi.hoisted(() => ({
@@ -218,7 +219,7 @@ describe('postOrchestrationPackController', () => {
       expect.objectContaining({
         component: 'route.orchestration_pack',
         auditId: 'audit-1',
-        metric: 'kpi_orchestration_plan_gate_reject',
+        metric: ORCHESTRATION_TELEMETRY_METRICS.planGateReject,
         metric_legacy: 'orchestration_pack_run.refine_required',
         governance_reason_codes: expect.any(Array),
         director_input_coverage_ratio: expect.any(Number),

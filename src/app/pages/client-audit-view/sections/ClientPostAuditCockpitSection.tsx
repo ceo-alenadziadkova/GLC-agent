@@ -23,6 +23,7 @@ import { buildAppRoute } from '../../../config/route-paths';
 import { api } from '../../../data/apiService';
 import { glcKeys } from '../../../lib/glc-keys';
 import { buildOrchestrationRevisionStorySummary } from '../../../lib/orchestration-revision-story';
+import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
 
 function previewExecutiveSummary(text: string, maxChars: number): string {
   const t = text.trim();
@@ -86,6 +87,25 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const revisionStorySummary = buildOrchestrationRevisionStorySummary(roadmapDiff);
   const diffNodesChanged = roadmapDiff ? roadmapDiff.nodes_added.length + roadmapDiff.nodes_removed.length : 0;
   const diffDependenciesChanged = roadmapDiff ? roadmapDiff.edges_added.length + roadmapDiff.edges_removed.length : 0;
+
+  const evidenceTaxonomyTotals = useMemo(() => {
+    const raw = strategy?.glc_orchestration_pack;
+    if (!raw || !isGlcOrchestrationPackView(raw) || !APP_FEATURE_FLAGS.evidenceDrilldownEnabled) return null;
+    let observed = 0;
+    let derived = 0;
+    let assumed = 0;
+    let missing = 0;
+    for (const n of raw.graph.nodes) {
+      const t = n.evidence_taxonomy;
+      if (!t) continue;
+      observed += t.observed;
+      derived += t.derived;
+      assumed += t.assumed;
+      missing += t.missing;
+    }
+    if (observed + derived + assumed + missing === 0) return null;
+    return { observed, derived, assumed, missing };
+  }, [strategy?.glc_orchestration_pack]);
 
   const reportHref = buildAppRoute.portalReports(auditId);
   const timelineHref = buildAppRoute.portalTimeline(auditId);
@@ -219,6 +239,31 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
               <dd className="font-medium text-[var(--text-primary)]">{labelConstraintTeam(ec.team_scale)}</dd>
             </div>
           </dl>
+        </div>
+      ) : null}
+
+      {evidenceTaxonomyTotals ? (
+        <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+          <h3 className="text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+            {ORCHESTRATION_UI_COPY.clientCockpitEvidenceBreakdownTitle}
+          </h3>
+          <p className="mt-2 text-[length:var(--text-xs)] leading-relaxed text-[var(--text-secondary)]">
+            {ORCHESTRATION_UI_COPY.clientCockpitEvidenceBreakdownBody}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-3 text-[length:var(--text-2xs)] text-[var(--text-secondary)]">
+            <li>
+              {ORCHESTRATION_UI_COPY.evidenceTaxonomyObservedAbbr} {evidenceTaxonomyTotals.observed}
+            </li>
+            <li>
+              {ORCHESTRATION_UI_COPY.evidenceTaxonomyDerivedAbbr} {evidenceTaxonomyTotals.derived}
+            </li>
+            <li>
+              {ORCHESTRATION_UI_COPY.evidenceTaxonomyAssumedAbbr} {evidenceTaxonomyTotals.assumed}
+            </li>
+            <li>
+              {ORCHESTRATION_UI_COPY.evidenceTaxonomyMissingAbbr} {evidenceTaxonomyTotals.missing}
+            </li>
+          </ul>
         </div>
       ) : null}
 

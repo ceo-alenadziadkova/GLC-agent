@@ -31,6 +31,9 @@ import { getOrchestrationPackController } from '../routes/audits/controllers/get
 function createRes() {
   return {
     json: vi.fn(),
+    setHeader: vi.fn(),
+    status: vi.fn().mockReturnThis(),
+    end: vi.fn(),
   } as unknown as import('express').Response;
 }
 

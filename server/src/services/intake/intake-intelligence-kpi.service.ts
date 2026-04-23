@@ -22,6 +22,9 @@ export async function recordIntakeIntelligenceKpiEvent(params: {
   kind: IntakeIntelligenceKpiKind;
   questionId?: string;
   clientSessionId?: string;
+  caseKeys?: string[];
+  /** True when the client saw an improvement in the weakest pilot critical-signal tier since the last `question_shown` in the same session. */
+  confidenceMoved?: boolean;
 }): Promise<{ persisted: boolean }> {
   const eventType = params.auditId
     ? params.kind === 'drop_off'
@@ -49,6 +52,8 @@ export async function recordIntakeIntelligenceKpiEvent(params: {
       intake_token_id: params.intakeTokenId ?? null,
       consultant_id: params.consultantId ?? null,
       pre_audit: !params.auditId,
+      case_keys: params.caseKeys?.length ? params.caseKeys : null,
+      ...(params.confidenceMoved === true ? { confidence_moved: true } : {}),
     },
   });
   if (error) {

@@ -21,6 +21,7 @@ import { ClientAuditView }  from './pages/ClientAuditView';
 import { PortalTimelinePage } from './pages/PortalTimelinePage';
 import { PortalRoadmapGanttPage } from './pages/PortalRoadmapGanttPage';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
+import { ConsultantOrchestrationCockpitPage } from './pages/ConsultantOrchestrationCockpitPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
 import { SnapshotPage }     from './pages/SnapshotPage';
@@ -147,6 +148,7 @@ export const router = createBrowserRouter([
       { path: P.roadmapById, element: <Consultant><PortalRoadmapGanttPage /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
+      { path: P.auditOrchestrationById, element: <Consultant><ConsultantOrchestrationCockpitPage /></Consultant> },
       { path: P.settings, element: <PNoGuest><SettingsPage /></PNoGuest> },
 
       // ── Client portal (literal routes before :id) ───────────────────────────
