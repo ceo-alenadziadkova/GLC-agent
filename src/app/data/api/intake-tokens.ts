@@ -108,16 +108,22 @@ export const intakeTokensApi = {
     }
   },
 
-  /** Sprint 5 NL ingress stub — no graph merge; 404 when diagnostic pilot is disabled on the server. */
+  /**
+   * NL describe — merges `authoritative.merged_responses` into the intake draft on the server;
+   * client should also merge into local `responses` when `authoritative` is present.
+   */
   async submitIntakeNlDescribe(token: string, text: string, idempotencyKey?: string) {
-    return publicApiFetch<{ ok: boolean; prefer_explicit_over_inferred: boolean; graphDraft: unknown; message: string }>(
-      apiIntakeNlDescribe(token),
-      {
-        method: 'POST',
-        headers: idempotencyKey ? { 'x-idempotency-key': idempotencyKey } : undefined,
-        body: JSON.stringify({ text }),
-      },
-    );
+    return publicApiFetch<{
+      ok: boolean;
+      prefer_explicit_over_inferred: boolean;
+      graphDraft: unknown;
+      message: string;
+      authoritative?: { merged_responses: Record<string, unknown>; persisted: boolean };
+    }>(apiIntakeNlDescribe(token), {
+      method: 'POST',
+      headers: idempotencyKey ? { 'x-idempotency-key': idempotencyKey } : undefined,
+      body: JSON.stringify({ text }),
+    });
   },
 
   /**

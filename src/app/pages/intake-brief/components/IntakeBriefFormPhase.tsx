@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight } from '@phosphor-icons/react';
+import { ArrowRight, ListBullets, Microphone } from '@phosphor-icons/react';
 import { Link } from 'react-router';
+import { Textarea } from '../../../components/ui/textarea';
 import { BriefField } from '../../../components/BriefField';
 import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
 import { briefResponseTrimmedString } from '../../../data/briefQuestions';
@@ -66,6 +67,11 @@ export function IntakeBriefFormPhase(props: {
   intakeToken: string | null;
   displayedQuestionSections: SectionBlock[];
   responses: BriefResponses;
+  /** When set, user chooses guided form vs free text / dictation before the NL block is shown. */
+  intakePathChoice?: {
+    mode: 'form' | 'dictation';
+    onChange: (mode: 'form' | 'dictation') => void;
+  };
   nlIngress?: {
     text: string;
     onTextChange: (v: string) => void;
@@ -120,6 +126,7 @@ export function IntakeBriefFormPhase(props: {
     intakeToken,
     displayedQuestionSections,
     responses,
+    intakePathChoice,
     nlIngress,
     readinessPanel,
     intelligenceByQuestionId,
@@ -267,16 +274,61 @@ export function IntakeBriefFormPhase(props: {
         </div>
       )}
 
+      {intakePathChoice ? (
+        <div
+          className="w-full max-w-2xl mx-auto space-y-2"
+          role="group"
+          aria-label={copy.intakePathChoiceTitle}
+        >
+          <p className="text-sm font-medium text-center ds-text-primary m-0">{copy.intakePathChoiceTitle}</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => intakePathChoice.onChange('form')}
+              aria-pressed={intakePathChoice.mode === 'form'}
+              className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-focus-ring,currentColor)] ${
+                intakePathChoice.mode === 'form'
+                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color,rgba(99,102,241,0.4))]'
+                  : 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-default)]'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold ds-text-primary">
+                <ListBullets className="h-4 w-4 shrink-0" weight="duotone" aria-hidden />
+                {copy.intakePathFormLabel}
+              </span>
+              <span className="text-xs leading-relaxed ds-text-secondary">{copy.intakePathFormDescription}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => intakePathChoice.onChange('dictation')}
+              aria-pressed={intakePathChoice.mode === 'dictation'}
+              className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-focus-ring,currentColor)] ${
+                intakePathChoice.mode === 'dictation'
+                  ? 'border-[var(--ds-border-default)] bg-[var(--ds-surface-raised)] ring-2 ring-[var(--primitive-focus-ring-color,rgba(99,102,241,0.4))]'
+                  : 'border-[var(--ds-border-subtle)] bg-[var(--ds-surface-default)]'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold ds-text-primary">
+                <Microphone className="h-4 w-4 shrink-0" weight="duotone" aria-hidden />
+                {copy.intakePathDictationLabel}
+              </span>
+              <span className="text-xs leading-relaxed ds-text-secondary">{copy.intakePathDictationDescription}</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {nlIngress ? (
         <div className="rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-raised)] p-4 space-y-2 max-w-2xl mx-auto w-full">
           <p className="text-sm font-semibold m-0 ds-text-primary">{copy.nlIngressTitle}</p>
           <p className="text-xs m-0 ds-text-secondary">{copy.nlIngressHelper}</p>
-          <textarea
-            className="w-full min-h-[88px] rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-surface-default)] px-3 py-2 text-sm ds-text-primary"
+          <Textarea
+            className="w-full min-h-[88px] rounded-lg border-[var(--ds-border-default)] bg-[var(--ds-surface-default)] text-sm ds-text-primary"
             value={nlIngress.text}
             onChange={e => nlIngress.onTextChange(e.target.value)}
             placeholder={copy.nlIngressPlaceholder}
             aria-label={copy.nlIngressTitle}
+            voiceInput
           />
           <p className="text-xs m-0 ds-text-quaternary">{copy.nlIngressPrivacy}</p>
           <label className="flex flex-wrap items-start gap-2 text-xs ds-text-secondary">

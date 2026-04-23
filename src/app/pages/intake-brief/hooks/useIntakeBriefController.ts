@@ -42,6 +42,17 @@ type IntakeQuestionMode = 'progressive' | 'all_questions';
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 const NL_INGRESS_CONSENT_KEY = 'glc:intake:nl-consent-v1';
 const INTAKE_PROGRESSIVE_STATE_KEY_PREFIX = 'glc:intake:progressive-state:';
+const INTAKE_ENTRY_MODE_KEY_PREFIX = 'glc:intake:entry-mode:';
+
+function readIntakeEntryModeFromStorage(token: string): 'form' | 'dictation' {
+  if (typeof window === 'undefined') return 'form';
+  try {
+    const v = window.localStorage.getItem(`${INTAKE_ENTRY_MODE_KEY_PREFIX}${token}`);
+    return v === 'dictation' ? 'dictation' : 'form';
+  } catch {
+    return 'form';
+  }
+}
 
 function intakeProgressiveStateKey(token: string): string {
   return `${INTAKE_PROGRESSIVE_STATE_KEY_PREFIX}${token}`;
@@ -104,6 +115,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const [nlIngressText, setNlIngressText] = useState('');
   const [nlIngressStatus, setNlIngressStatus] = useState<'idle' | 'sending' | 'ok' | 'error' | 'hidden'>('idle');
   const [nlIngressConsentAccepted, setNlIngressConsentAccepted] = useState(false);
+  const [intakeEntryMode, setIntakeEntryMode] = useState<'form' | 'dictation'>('form');
   const [journeyStage, setJourneyStage] = useState<IntakeJourneyStage>('fast_pass');
   const [questionMode, setQuestionMode] = useState<IntakeQuestionMode>('progressive');
   const [progressiveStepIndex, setProgressiveStepIndex] = useState(0);
@@ -342,6 +354,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
         if (typeof window !== 'undefined') {
           setNlIngressConsentAccepted(window.localStorage.getItem(NL_INGRESS_CONSENT_KEY) === 'true');
         }
+        setIntakeEntryMode(readIntakeEntryModeFromStorage(token));
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && (e.code === 'INTAKE_LINK_EXPIRED' || e.status === 410)) {
@@ -608,11 +621,40 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [token, phase]);
 
+  const onIntakeEntryModeChange = useCallback(
+    (mode: 'form' | 'dictation') => {
+      setIntakeEntryMode(mode);
+      try {
+        if (token) {
+          window.localStorage.setItem(`${INTAKE_ENTRY_MODE_KEY_PREFIX}${token}`, mode);
+        }
+      } catch {
+        // ignore storage quota
+      }
+    },
+    [token],
+  );
+
   const submitNlIngress = useCallback(async () => {
     if (!token || !nlIngressText.trim() || !nlIngressConsentAccepted) return;
     setNlIngressStatus('sending');
     try {
-      await api.submitIntakeNlDescribe(token, nlIngressText.trim(), crypto.randomUUID());
+      const res = await api.submitIntakeNlDescribe(token, nlIngressText.trim(), crypto.randomUUID());
+      const merged = res.authoritative?.merged_responses;
+      if (merged && typeof merged === 'object') {
+        setResponses(prev => {
+          const raw = merged as Record<string, unknown>;
+          const next = { ...prev };
+          for (const [k, v] of Object.entries(raw)) {
+            if (v != null && typeof v === 'object' && !Array.isArray(v) && 'value' in (v as Record<string, unknown>)) {
+              next[k] = v as (typeof prev)[string];
+            } else {
+              next[k] = { value: v as never, source: 'client' as const };
+            }
+          }
+          return next;
+        });
+      }
       setNlIngressStatus('ok');
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
@@ -722,8 +764,15 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     confirmSubmit,
     /** F1 plan-head from server (requires both diagnostic + next-question client flags; else stays idle). */
     intakeF1,
+    /** Shown when NL describe is available; user picks form vs free text/dictation. */
+    intakePathChoice:
+      APP_FEATURE_FLAGS.intakePublicNlDescribeEnabled && nlIngressStatus !== 'hidden'
+        ? { mode: intakeEntryMode, onChange: onIntakeEntryModeChange }
+        : undefined,
     nlIngress:
-      !APP_FEATURE_FLAGS.intakePublicNlDescribeEnabled || nlIngressStatus === 'hidden'
+      !APP_FEATURE_FLAGS.intakePublicNlDescribeEnabled ||
+      nlIngressStatus === 'hidden' ||
+      intakeEntryMode !== 'dictation'
         ? undefined
         : {
             text: nlIngressText,

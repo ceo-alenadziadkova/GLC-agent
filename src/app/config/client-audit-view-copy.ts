@@ -17,6 +17,9 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     requiredLabel: 'required',
     helpTailoringPrefix: 'These answers help specialists tailor your audit. Complete',
     helpTailoringSuffix: 'questions before the audit starts.',
+    /** Grounds expectations: roadmap depth follows audit + brief, not ad-hoc text alone. */
+    auditFirstContextNote:
+      'Optional free text or dictation in intake is an assist; scored findings and a dependable roadmap come from this brief plus a full audit run.',
     improveQualityPrefix: 'Want a stronger report? Answer',
     improveQualitySuffix: 'more recommended question(s).',
     saving: 'Saving...',

@@ -50,6 +50,7 @@ export function IntakeBrief() {
                 intakeToken={c.token}
                 displayedQuestionSections={c.displayedQuestionSections}
                 responses={c.responses}
+                intakePathChoice={c.intakePathChoice}
                 nlIngress={c.nlIngress}
                 readinessPanel={c.readinessPanel}
                 intelligenceByQuestionId={c.intelligenceByQuestionId}

@@ -107,7 +107,7 @@ export const APP_FEATURE_FLAGS = {
    */
   intakeNextQuestionClientEnabled: true,
   /**
-   * Public `/intake/:token` — show optional NL “Describe your business” + Send to `/nl-describe`.
+   * Public `/intake/:token` — show optional NL “Describe your business” + Send to `/nl-describe` (non-authoritative assist; audit-first contract unchanged).
    * Client-only; turn on when the NL→brief product flow is ready. Default off.
    */
   intakePublicNlDescribeEnabled: false,

@@ -16,5 +16,5 @@ export const INTAKE_DIAGNOSTIC_PILOT_COPY_EN = {
   schemaLoadError: 'Could not refresh execution readiness from the server. You can continue editing the brief.',
   /** Public pre-brief NL ingress — product note (UI strings live in `WORKSPACE_PAGE_COPY.intakePublicPrebrief`). */
   nlIngressPreferExplicitNote:
-    'Diagnostic pilot: natural language is advisory only until the NL→graph orchestrator ships — structured answers stay authoritative.',
+    'Diagnostic pilot: natural language is non-authoritative — it suggests field values; explicit answers and the site-based audit stay primary for a scored roadmap.',
 } as const;

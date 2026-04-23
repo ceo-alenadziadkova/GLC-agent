@@ -202,6 +202,9 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualityPrefix} {missingRecommendedCount}{' '}
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualitySuffix}
             </p>
+            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+              {CLIENT_AUDIT_VIEW_COPY.brief.auditFirstContextNote}
+            </p>
             <div className="overflow-y-auto pr-1 -mr-1" style={{ maxHeight: CLIENT_AUDIT_VIEW_UI.brief.formMaxHeight }}>
               <IntakeBankWizard
                 responses={responses}
