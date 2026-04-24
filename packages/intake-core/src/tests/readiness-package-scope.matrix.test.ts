@@ -1,0 +1,36 @@
+import { describe, expect, it } from 'vitest';
+
+import { evaluateExecutionPlanScopeReadiness } from '../core/diagnostic-intake/phase-bc-stubs.js';
+
+const scopeAwarePolicy = {
+  starter: 'scope_aware',
+  pro: 'scope_aware',
+  complete: 'scope_aware',
+} as const;
+
+describe('execution-plan-aware readiness', () => {
+  it('does not block starter package because of out-of-scope gaps', () => {
+    const res = evaluateExecutionPlanScopeReadiness({
+      packageName: 'starter',
+      baselineReady: true,
+      outOfScopeMissingSignals: ['marketing_specific_signal'],
+      inScopeMissingSignals: [],
+      policy: scopeAwarePolicy,
+    });
+    expect(res.ready).toBe(true);
+    expect(res.blockedBy).toBeNull();
+  });
+
+  it('blocks when in-scope gaps exist under scope-aware policy', () => {
+    const res = evaluateExecutionPlanScopeReadiness({
+      packageName: 'pro',
+      baselineReady: true,
+      outOfScopeMissingSignals: ['out_of_scope'],
+      inScopeMissingSignals: ['automation_process_shape'],
+      policy: scopeAwarePolicy,
+    });
+    expect(res.ready).toBe(false);
+    expect(res.blockedBy).toBe('in_scope_gaps');
+  });
+});
+

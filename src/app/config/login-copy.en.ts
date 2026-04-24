@@ -56,8 +56,6 @@ export const LOGIN_PAGE_COPY_EN = {
   creating: 'Creating…',
   submitSignIn: 'Sign in',
   submitCreateAccount: 'Create account',
-  footerTerms: 'By continuing you accept the terms of use.',
-  footerFaq: 'FAQ',
   asideIntroPrefix: 'New to GLC? Start with ',
   asideSnapshotLinkLabel: 'Snapshot',
   asideIntroMiddle: ' or ',
@@ -66,4 +64,6 @@ export const LOGIN_PAGE_COPY_EN = {
   errorPasswordMinLength: 'Password must be at least 8 characters.',
   errorPasswordsMismatch: 'Passwords do not match.',
   errorInvalidEmail: 'Enter a valid email address.',
+  legalConsentsUpdateRequired:
+    'Our legal policies were updated. Please review and accept them in Settings to continue.',
 } as const;

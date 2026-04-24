@@ -38,6 +38,7 @@
     "./ui-copy-registry.v1.json": "./src/ui-copy-registry.v1.json",
     "./discovery-glue-copy.v1.json": "./src/discovery-glue-copy.v1.json",
     "./intake-policy.v1.json": "./src/intake-policy.v1.json",
+    "./intake-case-patterns.v1.json": "./src/artifacts/intake-case-patterns.v1.json",
     "./artifacts/layout-rules-1.1.0.json": "./src/artifacts/layout-rules-1.1.0.json",
     "./lint-node": {
       "types": "./dist/lint-node.d.ts",

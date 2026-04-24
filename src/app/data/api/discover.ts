@@ -137,4 +137,11 @@ export const discoverApi = {
       method: 'POST',
     });
   },
+
+  /** Consultant: delete a discovery session from admin queue. */
+  async deleteDiscoverySession(token: string) {
+    return apiFetch<{ deleted: boolean }>(`${API_PATHS.discover}/${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+    });
+  },
 };

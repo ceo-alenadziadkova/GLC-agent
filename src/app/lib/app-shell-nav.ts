@@ -5,16 +5,44 @@ import {
   Pulse,
   FileText,
   Flask,
+  Path,
   MagnifyingGlass,
   Lightning,
   HouseSimple,
   Eye,
   Tray,
   PlusCircle,
-  Palette,
 } from '@phosphor-icons/react';
+import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
+
+type NavTimelinePrimaryOpts = {
+  /** When omitted, uses `APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled`. */
+  timelinePrimaryUx?: boolean;
+  /**
+   * When omitted, uses `APP_FEATURE_FLAGS.clientTimelineEnabled`.
+   * (Tests may override without mutating module state.)
+   */
+  clientTimelineEnabled?: boolean;
+  /**
+   * When omitted, uses `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`.
+   * Hides consultant execution-timeline nav when roadmap/orchestration UI is off.
+   */
+  orchestrationRoadmapUiEnabled?: boolean;
+};
+
+function resolveTimelinePrimaryUx(opts?: NavTimelinePrimaryOpts): boolean {
+  return opts?.timelinePrimaryUx ?? APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled;
+}
+
+function resolveClientTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
+  return opts?.clientTimelineEnabled ?? APP_FEATURE_FLAGS.clientTimelineEnabled;
+}
+
+function resolveConsultantTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
+  return opts?.orchestrationRoadmapUiEnabled ?? APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
+}
 
 export type AppShellNavItem = {
   to: string | null;
@@ -23,29 +51,83 @@ export type AppShellNavItem = {
   badge: string | null;
 };
 
-export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
+export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePrimaryOpts): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.consultant;
+  const timelineFirst = resolveTimelinePrimaryUx(opts);
+  const consultantTimelineEnabled = resolveConsultantTimelineEnabled(opts);
+  const timelineItem: AppShellNavItem = {
+    to: auditId && consultantTimelineEnabled ? buildAppRoute.timeline(auditId) : null,
+    icon: Path,
+    label: n.timeline,
+    badge: null,
+  };
+  const pipelineItem: AppShellNavItem = {
+    to: auditId ? buildAppRoute.pipeline(auditId) : null,
+    icon: Pulse,
+    label: n.pipeline,
+    badge: null,
+  };
+  const sequencingPair = consultantTimelineEnabled
+    ? timelineFirst
+      ? [timelineItem, pipelineItem]
+      : [pipelineItem, timelineItem]
+    : [pipelineItem];
   return [
     { to: APP_ROUTE_PATHS.dashboard,                           icon: SquaresFour,    label: n.dashboard,       badge: null },
+    { to: APP_ROUTE_PATHS.adminAudits,                        icon: Briefcase,      label: n.allAudits,      badge: null },
     { to: APP_ROUTE_PATHS.adminRequests,                      icon: Tray,           label: n.requestQueue,   badge: null },
     { to: APP_ROUTE_PATHS.adminSnapshots,                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
     { to: APP_ROUTE_PATHS.adminDiscovery,                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
-    { to: APP_ROUTE_PATHS.adminDesignSystem,                 icon: Palette,        label: n.designSystem,   badge: null },
     // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
     { to: auditId ? buildAppRoute.audit(auditId) : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
-    { to: auditId ? buildAppRoute.pipeline(auditId) : null,icon: Pulse,          label: n.pipeline,        badge: null },
+    ...sequencingPair,
     { to: auditId ? buildAppRoute.reports(auditId) : null, icon: FileText,       label: n.reports,         badge: null },
-    { to: auditId ? buildAppRoute.strategy(auditId) : null,icon: Flask,          label: n.strategyLab,    badge: null },
+    {
+      to: auditId ? buildAppRoute.strategy(auditId) : null,
+      icon: Flask,
+      label: timelineFirst ? n.strategyLabDetailLayer : n.strategyLab,
+      badge: null,
+    },
   ];
 }
 
-export function buildClientNav(auditId: string | null, showPipelineInNav: boolean): AppShellNavItem[] {
+export function buildClientNav(
+  auditId: string | null,
+  showPipelineInNav: boolean,
+  opts?: NavTimelinePrimaryOpts,
+): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.client;
+  const timelineFirst = resolveTimelinePrimaryUx(opts);
+  const clientTimelineEnabled = resolveClientTimelineEnabled(opts);
+  const timelineItem: AppShellNavItem = {
+    to: auditId && clientTimelineEnabled ? buildAppRoute.portalTimeline(auditId) : null,
+    icon: Path,
+    label: n.timeline,
+    badge: null,
+  };
+  const pipelineItem: AppShellNavItem = {
+    to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,
+    icon: Pulse,
+    label: n.pipeline,
+    badge: null,
+  };
+  const sequencingPair = clientTimelineEnabled
+    ? timelineFirst
+      ? [timelineItem, pipelineItem]
+      : [pipelineItem, timelineItem]
+    : [pipelineItem];
   return [
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
-    { to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,   icon: Pulse,         label: n.pipeline,     badge: null },
+    ...sequencingPair,
+    { to: auditId ? buildAppRoute.portalReports(auditId) : null, icon: FileText, label: n.reports, badge: null },
+    {
+      to: auditId ? buildAppRoute.portalStrategy(auditId) : null,
+      icon: Flask,
+      label: timelineFirst ? n.strategyLabDetailLayer : n.strategyLab,
+      badge: null,
+    },
   ];
 }
 

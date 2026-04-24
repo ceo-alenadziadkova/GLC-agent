@@ -8,6 +8,10 @@ export const UI_POLICY = {
   },
   pipeline: {
     maxEventsInMemory: 100,
+    defaultEventDetailLevel: 'default',
+    debugEventDetailLevel: 'debug',
+    defaultEventPageSize: 100,
+    debugEventPageSize: 250,
   },
   snapshotLanding: {
     maxDetectedTechPills: 12,

@@ -3,32 +3,42 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     title: 'Pre-Audit Brief',
     changeLayout: 'Change layout',
     requiredAnsweredSuffix: 'required answered',
-    defaultLayoutPrefix: 'Set your default brief layout anytime in',
+    reviewAnsweredRequired: 'Show answered required questions',
+    answeredTableQuestionCol: 'Question',
+    answeredTableAnswerCol: 'Answer',
+    answeredValueUnknown: 'Marked as unknown',
+    answeredValueYes: 'Yes',
+    answeredValueNo: 'No',
+    answeredValueEmpty: '—',
+    defaultLayoutPrefix: 'Set your preferred question layout anytime in',
     settingsLink: 'Settings',
-    defaultLayoutSuffix: '. Per-audit layout below overrides that default.',
-    readinessPrefix: 'Audit readiness:',
+    defaultLayoutSuffix: '. The layout you choose below applies only to this audit.',
+    readinessPrefix: 'Progress:',
     requiredLabel: 'required',
-    helpTailoringPrefix: 'These answers help the GLC team tailor the audit. Fill',
+    helpTailoringPrefix: 'These answers help specialists tailor your audit. Complete',
     helpTailoringSuffix: 'questions before the audit starts.',
-    improveQualityPrefix: 'Want to improve audit quality? Answer',
+    /** Grounds expectations: roadmap depth follows audit + brief, not ad-hoc text alone. */
+    auditFirstContextNote:
+      'Optional free text or dictation in intake is an assist; scored findings and a dependable roadmap come from this brief plus a full audit run.',
+    improveQualityPrefix: 'Want a stronger report? Answer',
     improveQualitySuffix: 'more recommended question(s).',
     saving: 'Saving...',
     saved: 'Saved!',
-    save: 'Save Brief',
+    save: 'Save brief',
   },
   shell: {
     fallbackTitle: 'Your audit',
     backToPortal: 'Back to Portal',
     runAuditTitle: 'Run the audit',
     runAuditBody:
-      'When required brief fields are complete, you can start the pipeline. Some phases may pause for a review step before continuing; you can follow progress here in the portal.',
+      'When the required questions are complete, you can start your audit. It may pause briefly for a review step; you can follow status here in the portal.',
     starting: 'Starting...',
     startAudit: 'Start audit',
   },
   help: {
     title: 'Request help with the brief',
     body:
-      'Optional. You can request help to clarify questions or improve wording. This does not block starting the audit whenever you are ready.',
+      'Optional. Ask for help to clarify a question or improve wording. This does not block starting the audit when you are ready.',
     placeholder: 'Add context (optional)',
     success: 'We notified the team. You can still edit the brief or start the audit.',
     sending: 'Sending…',
@@ -36,91 +46,155 @@ export const CLIENT_AUDIT_VIEW_COPY = {
   },
   snapshot: {
     subtitleLimitedSample:
-      'Your quick scan is saved. robots.txt blocked the homepage, but we sampled other allowed pages — see the note below. Starter, Pro, or Complete can still use your brief and anything you add.',
+      'Your quick scan is saved. Access rules blocked the homepage, but we sampled other allowed pages — see the note below. Starter, Pro, or Complete can still use your brief and anything you add.',
     subtitleLimitedFetch:
-      'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Starter, Pro, or Complete can still proceed from your brief and materials you add.',
+      'Your quick scan is saved, but we could not read the live site automatically (access rules or a connection issue). Details are below — you can still continue with Starter, Pro, or Complete using your brief and materials you add.',
     subtitleSaved:
       'Your quick scan is saved here — same results as on the snapshot page. Continue below when you want a full Starter, Pro, or Complete audit.',
     subtitleDefault: 'Complete your brief, then start the audit when you are ready',
     limitedTitle: 'Quick scan saved — automatic read was limited',
     normalTitle: 'Quick scan in your account',
     limitedBodyPrefix:
-      'Results are kept here after sign-up, but our crawler could not download public HTML for the URL you entered (often robots.txt). Scores below are placeholders. You can',
+      'Results stay here after sign-up, but we could not download public HTML for the URL you entered (often blocked by site rules). Scores below are placeholders. You can',
     rerunLink: 'run another free check',
     limitedBodySuffix:
       'with a different allowed URL, or continue to Starter / Pro / Complete and add context in the brief.',
     normalBody:
-      'The same preview you saw on the free snapshot page, now saved after registration — it will not disappear when you close the tab. This is still an automated quick read, not the scored multi-phase GLC audit you get after the intake brief.',
+      'The same preview you saw on the free snapshot page, now saved after registration — it will not disappear when you close the tab. This is still an automated quick read, not the full scored audit you get after you complete the business brief.',
     missingMirror:
-      'We could not load full snapshot fields for this audit. You can still continue with Starter, Pro, or Complete below.',
+      'We could not load full snapshot details for this audit. You can still continue with Starter, Pro, or Complete below.',
     continuePackage: 'Continue with a package',
-    selectedPackageHint: 'Selected package applies to coverage and pipeline phases for this upgrade.',
+    selectedPackageHint: 'Your selected package sets how much is analyzed in this upgrade.',
     limitedContinueHint:
-      'This scan did not retrieve page HTML, so there is little to pre-fill from the quick check. You can still continue — the brief matters most — or use',
+      'This scan did not retrieve page text, so there is little to copy from the quick check. You can still continue — the brief matters most — or use',
     startFreshStrong: 'Start fresh',
-    limitedContinueHintSuffix: 'if you prefer empty recon placeholders.',
+    limitedContinueHintSuffix: 'if you prefer empty fields.',
     continueLimited: 'Continue with limited scan data',
     continueDetected: 'Continue with detected details',
     prefillEditSuffix: 'You can edit every field before the run.',
     startFresh: 'Start fresh (site URL only)',
     startFreshBodyPrefix:
-      'Clears our quick-scan recon data and brief answers derived from it, and resets placeholders for a',
-    startFreshBodyMiddle: 'audit. Quick scan scores are not carried into the new run.',
+      'Clears quick-scan notes and brief answers based on that scan, and resets placeholders for a',
+    startFreshBodyMiddle: 'new audit. Quick scan scores are not carried into the new run.',
   },
   links: {
+    viewTimeline: 'Open timeline',
     viewReport: 'View your report',
     reportFinished: 'Your audit run has finished',
-    pipelineStatus: 'Pipeline status',
-    pipelineReview: 'Review phases and logs',
+    viewStrategyLab: 'Strategy details',
+    viewRoadmapManifestWizard: 'Roadmap setup',
+    viewRoadmapManifestWizardSubtitle: 'Confirm execution preferences and save a manifest snapshot',
+    pipelineStatus: 'Run status',
+    pipelineReview: 'Review progress and details',
     pipelineFollow: 'Follow live progress',
     pipelineGateHint:
-      'Complete the required intake brief fields and save. After the brief allows starting your run, Pipeline appears here and in the sidebar so you can follow phases and logs.',
+      'Finish and save the required brief questions first. When your audit can start, status links appear here and in the sidebar.',
   },
   page: {
     title: 'Portal',
     missingId: 'Missing id.',
   },
+  cockpit: {
+    title: 'What you have now',
+    subtitle: 'Coverage, headline diagnosis, and clear next steps.',
+    diagnosisTitle: 'Headline diagnosis',
+    noSummaryYet: 'Your consultant can add a short executive summary to this audit.',
+    contextTitle: 'Operating context',
+    stageLabel: 'Company stage',
+    budgetLabel: 'Budget band',
+    teamLabel: 'Team scale',
+    openTimeline: 'Open timeline',
+    openTimelineEmptyPackHint:
+      'If the timeline is empty, your consultant may still be finalizing the plan. It updates when they publish the next version.',
+    noPackCalloutTitle: 'Timeline updating',
+    noPackCalloutBody:
+      'The latest plan version is not shown here yet. Open the timeline for status, or read the full report while your consultant finishes the update.',
+    timelineStaleCalloutTitle: 'Plan updated ahead of this timeline',
+    roadmapVersionLabel: 'Plan version',
+    roadmapDiffHint: 'Latest update',
+    /** Short heading for human-readable vN→vN+1 summary (orchestration revision story). */
+    revisionStoryTitle: 'What changed in your plan',
+    revisionStoryHint: 'Summary of the last roadmap version bump. Your consultant can share more detail in Strategy Lab.',
+    roadmapDiffNodesLabel: 'Initiatives changed',
+    roadmapDiffDependenciesLabel: 'Dependencies changed',
+    openFullReport: 'Full domain report',
+    openLab: 'Strategy details',
+    previewRoadmapInputs: 'Preview plan inputs',
+    implementationDecisionTitle: 'Decide what to implement now',
+    implementationDecisionBody:
+      'Choose your implementation scope first, then prioritize initiatives. Each confirmed choice creates the next roadmap version.',
+    implementationDecisionScopeCta: 'Choose scope and timeline setup',
+    implementationDecisionPrioritiesCta: 'Choose initiative priorities',
+    implementationDecisionReportCta: 'Review evidence before deciding',
+    implementationDecisionNoWizardHint:
+      'Scope selection is currently handled with your consultant. You can still prioritize initiatives in Strategy details.',
+    topActionsSelectionTitle: 'Top actions for the next version',
+    topActionsSelectionBody:
+      'Select the initiatives you want to prioritize for the next roadmap iteration. You can review full details in Strategy Lab before confirming scope changes.',
+    selectForNextRoadmapCta: 'Select for next roadmap version',
+    openDetailsInLabCta: 'Open details in Lab',
+    topActionsSelectionCountLabel: 'Selected actions',
+    topActionsSelectCta: 'Select',
+    topActionsSelectedCta: 'Selected',
+    /** Shown on a decision card after a successful one-click "mark as next step" (orchestration pack reorder). */
+    nextInPlanBadge: 'Next in your plan',
+    topActionsImpactLabel: 'Impact',
+    topActionsEffortLabel: 'Effort',
+    topActionsEtaLabel: 'ETA',
+    topActionsWhyLabel: 'Why this',
+    topActionsHowLabel: 'How to do it',
+    topActionsWhenLabel: 'Target window',
+    selectForNextRoadmapBusyCta: 'Applying selection...',
+    selectionRequiresManifestHint:
+      'Save or refresh roadmap inputs first so your selection can be applied to the next version.',
+    selectionAppliedSuccessPrefix: 'Selection applied.',
+    selectionAppliedSuccessSuffix: 'Open timeline to review the updated roadmap.',
+    selectionAppliedError: 'Could not apply selected actions. Please try again.',
+    adjustScopeTitle: 'Change scope or refresh the plan',
+    adjustScopeBody:
+      'Changing scope or refreshing the plan creates a new version. Use timeline setup to review changes and confirm the next version.',
+  },
   upgrade: {
-    prefillTitle: 'We pre-fill your brief and recon notes from this quick scan:',
+    prefillTitle: 'We copy useful details from your quick scan into your brief:',
     prefillItems: {
       techStack:
-        'Tech stack — tools we detected (CMS, analytics, tags, frameworks) for technical recon and phase context.',
+        'Tech stack — tools we detected (CMS, analytics, tags, frameworks) from public pages.',
       siteProfile:
         'Site profile — short label, industry guess, primary offer, audience (B2B/B2C), and conversion pattern from public pages.',
       homepageCopy:
-        'Homepage copy — title, meta description, or first substantive paragraph we captured.',
+        'Homepage text — title, meta description, or first substantive paragraph we captured.',
       businessActivityDraft:
-        'Business activity draft — paragraph for your primary goal field, combining profile + scan summary when available.',
+        'Goals draft — suggested text for your primary goal field, combining profile and scan summary when available.',
       scoreHint:
-        'Snapshot score hint — overall /100 from the scan stored in recon prefills (the full audit is re-scored from scratch).',
+        'Quick-scan score — overall /100 from the free check (the full audit is scored separately from scratch).',
       analytics:
-        'Analytics — when GA / GTM / gtag signals are present we mark analytics in the brief.',
+        'Analytics — when GA / GTM / gtag signals are present we note that in the brief.',
     },
     packageContextByCoverage: {
       starter:
-        'Starter uses this context for recon plus one selected domain. Strategy is disabled by default.',
+        'Starter uses this context for the initial site review plus one area you choose. Strategy synthesis is off by default.',
       pro:
-        'Pro uses this context for recon plus selected 2-3 domains; strategy inclusion depends on the execution plan.',
+        'Pro uses this context for the initial review plus two or three areas you choose; whether strategy is included depends on your package setup.',
       complete:
-        'Complete uses this context across all six analysis domains and the strategy phase after your brief meets start gates.',
+        'Complete uses this context across all six analysis areas and the final strategy section once your brief is complete enough to start.',
     },
   },
   productModeHelp: {
     starter: {
       label: 'Starter',
-      summary: 'Recon plus one selected domain for a focused first pass.',
+      summary: 'Initial site review plus one selected area for a focused first pass.',
       detail:
-        'Fastest option when you need a single-priority diagnosis first. Strategy phase is disabled.',
+        'Fastest option when you need a single-priority diagnosis first. Strategy synthesis is not included.',
     },
     pro: {
       label: 'Pro',
-      summary: 'Recon plus 2-3 selected domains with balanced depth.',
+      summary: 'Initial review plus 2–3 selected areas with balanced depth.',
       detail:
-        'Best fit for teams with several priorities. Strategy can be included based on execution plan.',
+        'Best fit when you have several priorities. Strategy may be included depending on your package.',
     },
     complete: {
       label: 'Complete',
-      summary: 'Complete six-domain audit plus final strategy synthesis.',
+      summary: 'Full six-area audit plus final strategy synthesis.',
       detail:
         'Maximum coverage across Tech, Security, SEO, UX, Marketing, and Automation with full comparability.',
     },

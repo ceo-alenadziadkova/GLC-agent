@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { Button } from '../../../components/ui/button';
+import { Textarea } from '../../../components/ui/textarea';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
 
 export function ImportWordingDialog(props: {
@@ -29,7 +30,7 @@ export function ImportWordingDialog(props: {
         {importParseError && (
           <p className="text-sm text-red-600 dark:text-red-400" role="alert">{importParseError}</p>
         )}
-        <textarea
+        <Textarea
           className="glc-input ds-intake-wording-textarea-import w-full text-xs font-mono"
           value={importJsonText}
           onChange={e => onImportTextChange(e.target.value)}

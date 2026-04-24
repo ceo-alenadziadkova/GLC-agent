@@ -14,6 +14,7 @@ export function rateLimitSnapshotPublicDailyCapMessage(dailyLimit: number): stri
 
 export const RATE_LIMIT_PIPELINE_MESSAGE = raw.PIPELINE;
 export const RATE_LIMIT_GENERAL_MESSAGE = raw.GENERAL;
+export const RATE_LIMIT_REPORT_PDF_MESSAGE = raw.REPORT_PDF;
 export const RATE_LIMIT_COMPARE_MESSAGE = raw.COMPARE;
 export const RATE_LIMIT_INTAKE_LEGACY_MESSAGE = raw.INTAKE_LEGACY;
 export const RATE_LIMIT_DISCOVER_CREATE_MESSAGE = raw.DISCOVER_CREATE;

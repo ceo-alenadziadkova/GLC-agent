@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from '@react-pdf/renderer';
 
 import { PDF_COPY_EN } from '../../../config/pdf-copy.en.js';
-import { domainName, scoreColor, scoreLabel } from '../lib/formatters.js';
+import { domainName, sanitizePdfText, scoreColor, scoreLabel } from '../lib/formatters.js';
 import type { DomainRow } from '../lib/view-model.js';
 import { pdfStyles as s } from '../styles.js';
 
@@ -38,7 +38,7 @@ export const ScorecardSection: React.FC<{
               {PDF_COPY_EN.scorecard.scoreOutOfSuffix}
             </Text>
             <Text style={[s.tblBadge, { backgroundColor: scoreColor(d.score!) }]}>
-              {d.label ?? scoreLabel(d.score!)}
+              {sanitizePdfText(d.label ?? scoreLabel(d.score!))}
             </Text>
           </View>
         ))}

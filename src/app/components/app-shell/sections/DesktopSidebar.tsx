@@ -110,13 +110,17 @@ export function DesktopSidebar({
         ))}
 
         {!roleUnknown && navItems.map((item) => (
-          <SidebarNavLink
-            key={item.label}
-            item={item}
-            pathname={pathname}
-            itemKey={item.label}
-            onClick={onCloseMobileMenu}
-          />
+          <div key={item.to ?? item.label}>
+            <SidebarNavLink
+              item={item}
+              pathname={pathname}
+              itemKey={item.label}
+              onClick={onCloseMobileMenu}
+            />
+            {item.to === APP_ROUTE_PATHS.adminDiscovery && (
+              <div className="mx-2 my-2 h-px bg-[var(--sidebar-border)]" />
+            )}
+          </div>
         ))}
 
         <div className="mx-2 my-2 h-px bg-[var(--sidebar-border)]" />
@@ -216,7 +220,7 @@ export function DesktopSidebar({
             className="mt-1 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--sidebar-border)] bg-[var(--glc-blue-muted-faint)] px-2.5 py-2"
           >
             <div
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--gradient-brand)] text-xs font-bold text-[var(--glc-ink)] shadow-[var(--glow-blue-sm)]"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--gradient-brand-cta)] text-xs font-bold text-[var(--on-gradient-brand-fg)] shadow-[var(--glow-blue-sm)]"
             >
               {(user.email || (isGuest ? shellCopy.sidebar.guestInitial : shellCopy.sidebar.userInitial))[0].toUpperCase()}
             </div>

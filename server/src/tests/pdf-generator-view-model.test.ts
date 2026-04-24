@@ -15,6 +15,7 @@ import {
   selectOwnerTopRecs,
   type DomainRow,
 } from '../services/pdf-generator/lib/view-model.js';
+import { sanitizePdfText } from '../services/pdf-generator/lib/formatters.js';
 
 function issue(sev: string, title: string): NonNullable<DomainRow['issues']>[number] {
   return {
@@ -91,5 +92,16 @@ describe('pdf-generator view-model', () => {
     const rows = [domain('tech_infrastructure', { issues, recommendations: recs })];
     expect(selectOwnerTopIssues(rows)).toHaveLength(REPORT_PROFILER_OWNER_TOP_ISSUES_MAX);
     expect(selectOwnerTopRecs(rows)).toHaveLength(REPORT_PROFILER_OWNER_TOP_RECS_MAX);
+  });
+
+  it('sanitizePdfText strips control and bidi override characters', () => {
+    const raw = `Good\u202EName\u0000 with\t\tspaces`;
+    expect(sanitizePdfText(raw)).toBe('GoodName with spaces');
+  });
+
+  it('sanitizePdfText truncates text to configured max chars', () => {
+    const long = 'a'.repeat(10_000);
+    const sanitized = sanitizePdfText(long);
+    expect(sanitized.length).toBeLessThanOrEqual(SYSTEM_DEFAULTS.reportPdf.maxSanitizedTextChars);
   });
 });

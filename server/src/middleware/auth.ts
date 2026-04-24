@@ -14,6 +14,7 @@ import {
   apiErrorJson,
   authRoleRequiredMessage,
 } from '../config/api-error-codes.js';
+import { AUTH_GET_USER_TIMEOUT_MS } from '../config/auth-network.js';
 import { supabase } from '../services/supabase.js';
 import { updateContext } from '../services/observability-context.js';
 import { logger } from '../services/logger.js';
@@ -32,6 +33,47 @@ export interface AuthRequest extends Request {
   /** True when Supabase session is anonymous (snapshot flow until linkIdentity / full sign-up). */
   userIsAnonymous?: boolean;
   userRole?: UserRole;
+}
+
+type SupabaseAuthTransportError = Error & {
+  code?: string;
+  cause?: {
+    code?: string;
+  };
+};
+
+function isAuthTransportFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const authErr = error as SupabaseAuthTransportError;
+  const directCode = authErr.code;
+  const causeCode = authErr.cause?.code;
+  return (
+    directCode === 'UND_ERR_INFO' ||
+    causeCode === 'UND_ERR_INFO' ||
+    causeCode === 'EADDRNOTAVAIL' ||
+    causeCode === 'ECONNRESET' ||
+    error.name === 'AbortError'
+  );
+}
+
+async function getSupabaseUserWithTimeout(token: string) {
+  if (typeof AbortSignal.timeout !== 'function') {
+    return supabase.auth.getUser(token);
+  }
+
+  return Promise.race([
+    supabase.auth.getUser(token),
+    new Promise<never>((_, reject) => {
+      const signal = AbortSignal.timeout(AUTH_GET_USER_TIMEOUT_MS);
+      signal.addEventListener(
+        'abort',
+        () => {
+          reject(new DOMException('TimeoutError', 'AbortError'));
+        },
+        { once: true },
+      );
+    }),
+  ]);
 }
 
 function isGuestRoleConstraintError(err: unknown): boolean {
@@ -67,7 +109,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   const token = authHeader.slice(7);
 
   try {
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data, error } = await getSupabaseUserWithTimeout(token);
 
     if (error || !data.user) {
       res.status(401).json(apiErrorJson(API_ERROR_CODES.AUTH_INVALID_TOKEN, AUTH_INVALID_TOKEN_MESSAGE));
@@ -80,12 +122,14 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     updateContext({ userId: data.user.id });
     next();
   } catch (err) {
+    const transportFailure = isAuthTransportFailure(err);
     logger.warn('requireAuth: token verification failed', {
       error: err instanceof Error ? err.message : String(err),
+      transport_failure: transportFailure,
     });
-    res
-      .status(401)
-      .json(apiErrorJson(API_ERROR_CODES.AUTH_AUTHENTICATION_FAILED, AUTH_AUTHENTICATION_FAILED_MESSAGE));
+    res.status(transportFailure ? 503 : 401).json(
+      apiErrorJson(API_ERROR_CODES.AUTH_AUTHENTICATION_FAILED, AUTH_AUTHENTICATION_FAILED_MESSAGE),
+    );
   }
 }
 
@@ -98,7 +142,7 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     try {
-      const { data } = await supabase.auth.getUser(token);
+      const { data } = await getSupabaseUserWithTimeout(token);
       if (data.user) {
         req.userId = data.user.id;
         req.userEmail = data.user.email ?? undefined;

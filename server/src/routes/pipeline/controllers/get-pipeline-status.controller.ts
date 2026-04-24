@@ -8,7 +8,7 @@ import {
   apiErrorJson,
 } from '../../../config/api-error-codes.js';
 import { loadPipelineStatus } from '../../../services/pipeline-routes/pipeline-route.service.js';
-import { pipelineAuditIdParamsSchema } from '../validators/pipeline-route-input.validator.js';
+import { pipelineAuditIdParamsSchema, pipelineStatusQuerySchema } from '../validators/pipeline-route-input.validator.js';
 
 export async function getPipelineStatusController(req: AuthRequest, res: Response) {
   try {
@@ -18,7 +18,12 @@ export async function getPipelineStatusController(req: AuthRequest, res: Respons
       return;
     }
 
-    const result = await loadPipelineStatus({ auditId: idParse.data.id, userId: req.userId! });
+    const result = await loadPipelineStatus({
+      auditId: idParse.data.id,
+      userId: req.userId!,
+      viewerRole: req.userRole,
+      query: pipelineStatusQuerySchema.parse(req.query),
+    });
     if (!result.ok) {
       res.status(result.error.status).json(result.error.body);
       return;

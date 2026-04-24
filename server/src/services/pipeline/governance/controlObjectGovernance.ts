@@ -3,15 +3,17 @@ import { decisionLayer } from '../../decision-layer.js';
 import { applyAutoRemediation } from '../../remediation.js';
 import { invalidateDownstreamDependents } from '../../audit-claim-graph.js';
 import { isCausalDagEnabled } from '../../../config/feature-flags.js';
+import { SYSTEM_DEFAULTS } from '../../../config/system-defaults.js';
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import { attachBenchmarkReferenceToControlObject } from '../../benchmark-snapshot.js';
 import { recordEvaluationDatasetIfEnabled } from '../../evaluation-dataset-writer.js';
+import { formatDecisionFallbackReasoning } from '../../../config/decision-layer-messages.en.js';
 import type { ControlObjectV1, PhaseId } from '../../../schemas/control-object/index.js';
-import type { DomainKey, DomainResult } from '../../../types/audit.js';
+import type { DomainResult } from '../../../types/audit.js';
 import type { DecisionResult } from '../../decision-layer.js';
 
 export type EvaluationCapture = {
-  phaseId: DomainKey;
+  phaseId: PhaseId;
   rawAgentOutput: Record<string, unknown> | null;
   cleanedOutput: DomainResult;
 };
@@ -46,15 +48,32 @@ export async function publishControlObjectGovernanceCore(
   } = deps;
 
   let decision: DecisionResult | undefined;
+  let decisionFallbackMeta: { applied: true; reasonCode: string; originalError: string } | null = null;
   try {
-    decision = decisionLayer.decide(controlObject);
+    decision = decisionLayer.decideForControlObject(controlObject);
     controlObject.decision_hint = decision.hint;
   } catch (dlErr) {
+    const fallbackHint = SYSTEM_DEFAULTS.decisionLayer.onErrorFallback.hint;
+    const reasonCode = SYSTEM_DEFAULTS.decisionLayer.onErrorFallback.reasonCode;
+    const errorMessage = dlErr instanceof Error ? dlErr.message : String(dlErr);
+    decision = {
+      hint: fallbackHint,
+      reasoning: formatDecisionFallbackReasoning({ fallbackHint, errorMessage }),
+      active_error_types: [reasonCode],
+    };
+    controlObject.decision_hint = decision.hint;
+    decisionFallbackMeta = {
+      applied: true,
+      reasonCode,
+      originalError: errorMessage,
+    };
     logger.warn('pipeline.decision_layer_failed', {
       component: 'pipeline',
       audit_id: auditId,
       phase,
-      error: dlErr instanceof Error ? dlErr.message : String(dlErr),
+      fallback_hint: fallbackHint,
+      reason_code: reasonCode,
+      error: errorMessage,
     });
   }
 
@@ -87,7 +106,7 @@ export async function publishControlObjectGovernanceCore(
     });
     if (remediated > 0) {
       try {
-        const postRem = decisionLayer.decide(controlObject);
+        const postRem = decisionLayer.decideForControlObject(controlObject);
         controlObject.decision_hint = postRem.hint;
       } catch (reDecideErr) {
         logger.warn('pipeline.remediation_redecide_failed', {
@@ -124,7 +143,16 @@ export async function publishControlObjectGovernanceCore(
   void recordBanditArmAsync(controlObject);
 
   try {
-    await emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', { control_object: controlObject });
+    await emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', {
+      control_object: controlObject,
+      ...(decisionFallbackMeta
+        ? {
+            decision_fallback_applied: true,
+            decision_fallback_reason_code: decisionFallbackMeta.reasonCode,
+            decision_fallback_error: decisionFallbackMeta.originalError,
+          }
+        : {}),
+    });
   } catch (emitErr) {
     logger.warn('pipeline.control_object_emit_failed', {
       component: 'pipeline',

@@ -1,5 +1,24 @@
 {
-  "version": "1.2.2",
+  "version": "1.4.0",
+  "intelligence": {
+    "casePatternsEnabled": true,
+    "caseStopPrunesOptionalOverlay": true,
+    "followupStopPrunesSameSignalOptional": true,
+    "followupRuleDefinitions": {
+      "pilot_default": {
+        "stopWhenSignalConfidenceIn": ["medium", "high"],
+        "deeperWhenSignalConfidenceIn": ["unknown", "low"],
+        "treatEmptyOrUnknownResponseAsStop": true
+      }
+    },
+    "minimumSufficientContext": {
+      "enabled": true,
+      "requirePilotCriticalSatisfied": false,
+      "requireMatchedCaseStops": false,
+      "requireConfidenceFloor": false,
+      "confidenceTarget": "medium"
+    }
+  },
   "modes": {
     "full": {
       "participation": "all_eligible",
@@ -38,6 +57,10 @@
         "c_nosite_4",
         "d2",
         "f1",
+        "f_idea_1",
+        "f_idea_2",
+        "f_idea_3",
+        "f_idea_4",
         "f9"
       ],
       "included": [
@@ -89,6 +112,10 @@
         "d5",
         "d6",
         "f1",
+        "f_idea_1",
+        "f_idea_2",
+        "f_idea_3",
+        "f_idea_4",
         "f2",
         "f4",
         "f9",

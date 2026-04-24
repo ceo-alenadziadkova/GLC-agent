@@ -12,8 +12,16 @@ import layout_1_1_0 from '../artifacts/layout-rules-1.1.0.json' with { type: 'js
 import { intakeStubsFromBankRaw, QUESTION_BANK_V1_STUBS, QUESTION_BANK_VERSION } from '../question-bank.js';
 import { LAYOUT_RULES_V1 } from './load-layout.js';
 import { INTAKE_POLICY_V1 } from './load-policy.js';
-import { currentIntakeVersionTuple } from './versions.js';
+import { INTAKE_SEQUENCING_VERSION, currentIntakeVersionTuple } from './versions.js';
 import { intakeTupleArtifactKey, tuplesEqual } from './intake-version-tuple.js';
+
+function withCoercedSequencing(t: IntakeVersionTuple): IntakeVersionTuple {
+  return {
+    ...t,
+    sequencingVersion:
+      t.sequencingVersion && t.sequencingVersion.length > 0 ? t.sequencingVersion : INTAKE_SEQUENCING_VERSION,
+  };
+}
 
 export interface ResolvedIntakeArtifacts {
   policy: IntakePolicyV1;
@@ -27,7 +35,7 @@ export interface ResolvedIntakeArtifacts {
 
 /** Registry keys = full `IntakeVersionTuple` join. Extend when shipping new frozen bundles. */
 const FROZEN_ARTIFACT_REGISTRY: Record<string, () => Omit<ResolvedIntakeArtifacts, 'layoutRules' | 'questionBankVersion' | 'layoutVersion'> & { layoutRules: LayoutRulesV1; questionBankVersion: string; layoutVersion: string }> = {
-  '1.0.0|1.0.0|1.1.0|1.0.0': () => ({
+  '1.0.0|1.0.0|1.1.0|1.0.0|1.0.0': () => ({
     policy: policy_1_0_0 as IntakePolicyV1,
     stubs: intakeStubsFromBankRaw(bank_1_0_0),
     layoutRules: layout_1_1_0 as LayoutRulesV1,
@@ -42,11 +50,12 @@ export function listSupportedFrozenArtifactKeys(): string[] {
 }
 
 export function isFrozenArtifactTuple(t: IntakeVersionTuple): boolean {
-  return intakeTupleArtifactKey(t) in FROZEN_ARTIFACT_REGISTRY;
+  return intakeTupleArtifactKey(withCoercedSequencing(t)) in FROZEN_ARTIFACT_REGISTRY;
 }
 
 export function isSupportedIntakeArtifactTuple(t: IntakeVersionTuple): boolean {
-  return tuplesEqual(t, currentIntakeVersionTuple()) || isFrozenArtifactTuple(t);
+  const c = withCoercedSequencing(t);
+  return tuplesEqual(c, currentIntakeVersionTuple()) || isFrozenArtifactTuple(c);
 }
 
 /**
@@ -55,7 +64,8 @@ export function isSupportedIntakeArtifactTuple(t: IntakeVersionTuple): boolean {
  */
 export function resolveIntakeArtifacts(intakeVersionTuple?: IntakeVersionTuple | null): ResolvedIntakeArtifacts {
   const cur = currentIntakeVersionTuple();
-  if (!intakeVersionTuple || tuplesEqual(intakeVersionTuple, cur)) {
+  const normalizedTuple = intakeVersionTuple ? withCoercedSequencing(intakeVersionTuple) : null;
+  if (!normalizedTuple || tuplesEqual(normalizedTuple, cur)) {
     return {
       policy: INTAKE_POLICY_V1,
       stubs: QUESTION_BANK_V1_STUBS,
@@ -66,10 +76,10 @@ export function resolveIntakeArtifacts(intakeVersionTuple?: IntakeVersionTuple |
     };
   }
 
-  const key = intakeTupleArtifactKey(intakeVersionTuple);
+  const key = intakeTupleArtifactKey(normalizedTuple);
   const loader = FROZEN_ARTIFACT_REGISTRY[key];
   if (!loader) {
-    throw new UnsupportedIntakeArtifactTupleError(intakeVersionTuple);
+    throw new UnsupportedIntakeArtifactTupleError(normalizedTuple);
   }
   return loader();
 }

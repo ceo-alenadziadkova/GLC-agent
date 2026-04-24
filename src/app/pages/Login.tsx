@@ -1,9 +1,8 @@
-import { Link } from 'react-router';
 import { motion, useReducedMotion } from 'motion/react';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { LOGIN_PAGE_COPY_EN as LC } from '../config/login-copy.en';
+import { SyncPathLoader } from '../components/SyncPathLoader';
 import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
-import { APP_ROUTE_PATHS } from '../config/route-paths';
+import { useGlcTempLightThemeLock } from '../hooks/useGlcTempLightThemeLock';
 import { useLoginController } from './login/hooks/useLoginController';
 import { LoginBrandSection } from './login/sections/LoginBrandSection';
 import { LoginAuthCardSection } from './login/sections/LoginAuthCardSection';
@@ -11,13 +10,19 @@ import { LoginAsideSection } from './login/sections/LoginAsideSection';
 
 export function Login() {
   const reduceMotion = useReducedMotion();
+  const isLightThemeTempDisabled = useGlcTempLightThemeLock();
   const controller = useLoginController();
+  if (controller.isOAuthCallbackProcessing) {
+    return <SyncPathLoader variant="indeterminate" loadingText="Signing you in..." />;
+  }
 
   return (
     <main className="glc-login-main relative ds-marketing-layout-canvas">
-      <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
-        <ThemeToggle />
-      </div>
+      {!isLightThemeTempDisabled && (
+        <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
+          <ThemeToggle />
+        </div>
+      )}
 
       <div className="glc-login-bg-mesh absolute inset-0 pointer-events-none ds-login-mesh-backdrop" />
 
@@ -89,14 +94,10 @@ export function Login() {
             errorIds={controller.errorIds}
             minPasswordLength={controller.minPasswordLength}
             motionPolicy={controller.motionPolicy}
+            signupLegal={controller.signupLegal}
+            onSignupLegalChange={controller.onSignupLegalChange}
           />
 
-          <p className="mt-5 w-full text-center text-xs lg:text-left ds-text-tertiary" >
-            {LC.footerTerms}{' '}
-            <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline ds-text-brand" >
-              {LC.footerFaq}
-            </Link>
-          </p>
           </div>
         </motion.div>
 

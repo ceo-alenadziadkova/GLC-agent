@@ -1,7 +1,6 @@
 import type { AuditExecutionPlan, IntakeBriefCollectionMode, IntakeVersionTuple } from '../../types/audit.js';
 import {
   buildBriefSchemaSnapshot,
-  buildIntakePlan,
   currentIntakeVersionTuple,
   isSupportedIntakeArtifactTuple,
   parseIntakeVersionsBody,
@@ -14,8 +13,12 @@ import {
   validateBriefResponses,
   validationPerspectiveForBriefAccess,
 } from '../brief-validator.js';
+import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
+import { isDiagnosticIntakePilotEnabled } from '../../config/feature-flags.js';
 import { intakeBriefGateModeFromPartialPlan } from '../../lib/audit-coverage-bridge.js';
 import { getBriefQuestionsByIds } from '../../schemas/intake-brief.js';
+import { supabase } from '../supabase.js';
+import { logger } from '../logger.js';
 import { BRIEF_COLLECTION_MODES } from '../../routes/audits/config/audits-route-policy.js';
 import {
   makeIncompleteIntakeVersionsError,
@@ -89,7 +92,7 @@ export function buildBriefReadPayload(args: {
     context.surface,
     context.intakeTuple,
   );
-  const plan = buildIntakePlan({
+  const snapshot = buildBriefSchemaSnapshot({
     responses: context.responses,
     productMode: context.briefMode,
     collectionMode: context.collectionMode,
@@ -97,10 +100,15 @@ export function buildBriefReadPayload(args: {
     intakeVersionTuple: context.intakeTuple,
   });
   return {
-    questions: getBriefQuestionsByIds(plan.visible),
+    questions: getBriefQuestionsByIds(snapshot.visible),
     validation,
     gates,
     intakeProgress: gates.intakeProgress,
+    readiness: snapshot.readiness,
+    critical_signals: snapshot.critical_signals,
+    remediation_queue: snapshot.remediation_queue,
+    /** Same ordering as `GET …/brief/schema` after pilot sequencing (server authority). */
+    next_recommended: [...snapshot.next_recommended],
   };
 }
 
@@ -160,5 +168,27 @@ export async function saveBriefWithValidation(args: {
     surface: context.surface,
     intakeVersionTuple: context.intakeTuple,
   });
+
+  if (isDiagnosticIntakePilotEnabled()) {
+    const keys = Object.keys((args.responses ?? {}) as Record<string, unknown>);
+    void supabase
+      .from('pipeline_events')
+      .insert({
+        audit_id: args.auditId,
+        phase: 0,
+        event_type: PIPELINE_EVENT_TYPES.intakeIntelligenceAnswerChangedSignal,
+        message: 'Brief responses saved (intelligence KPI)',
+        data: { intake_intelligence_kpi: true, response_keys: keys, actor_user_id: args.actorUserId },
+      })
+      .then(({ error }) => {
+        if (error) {
+          logger.warn('audits_brief.intake_intelligence_kpi_insert_failed', {
+            auditId: args.auditId,
+            message: error.message,
+          });
+        }
+      });
+  }
+
   return { brief, gates, validation };
 }

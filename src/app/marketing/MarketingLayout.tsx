@@ -35,7 +35,7 @@ export function MarketingLayout({
         <MarketingHeader mobileNavOpen={mobileNavOpen} onMobileNavOpenChange={setMobileNavOpen} />
         <div
           className="relative z-10 flex flex-1 flex-col"
-          {...(mobileNavOpen ? { inert: true } : {})}
+          {...(mobileNavOpen ? { inert: '' } : {})}
         >
           <main
             id="main-content"

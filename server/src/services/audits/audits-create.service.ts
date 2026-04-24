@@ -1,6 +1,7 @@
 import {
   DEFAULT_AUDIT_COVERAGE_PACKAGE,
   type AuditExecutionPlan,
+  type AuditOrigin,
   type ProductMode,
 } from '../../types/audit.js';
 import { normalizeExecutionPlan } from '../execution-plan.js';
@@ -73,6 +74,7 @@ export async function createAuditEntity(input: {
   mode: ProductMode;
   executionPlan: AuditExecutionPlan;
   noPublicWebsite: boolean;
+  origin: AuditOrigin;
 }) {
   return createAuditWithChildren({
     ownerUserId: input.ownerUserId,
@@ -81,6 +83,7 @@ export async function createAuditEntity(input: {
     company_name: typeof input.companyName === 'string' && input.companyName.trim() ? input.companyName.trim() : null,
     industry: typeof input.industry === 'string' && input.industry.trim() ? input.industry.trim() : null,
     mode: input.mode,
+    origin: input.origin,
     execution_plan: input.executionPlan,
     no_public_website: input.noPublicWebsite,
   });

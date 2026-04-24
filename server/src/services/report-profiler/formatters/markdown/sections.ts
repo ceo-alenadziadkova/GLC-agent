@@ -3,6 +3,7 @@ import { REPORT_PROFILER_CONFIG } from '../../config.js';
 import type {
   AuditRow,
   DomainRow,
+  IdeaStageReadinessView,
   MarkdownReportCoverage,
   ReconRow,
   StrategyRow,
@@ -42,7 +43,23 @@ export function addCoverage(lines: string[], coverage: MarkdownReportCoverage): 
   if (coverage.coverage_adjusted_score !== null) {
     lines.push(`- Coverage-adjusted score: ${coverage.coverage_adjusted_score}/5`);
   }
+  lines.push(`- Confidence level: ${coverage.confidence_level}`);
+  lines.push(`- Confidence note: ${coverage.confidence_note}`);
   lines.push(`- Comparability note: ${coverage.comparability_note}`);
+  lines.push('');
+  addDivider(lines);
+}
+
+export function addIdeaStageReadiness(lines: string[], idea: IdeaStageReadinessView | undefined): void {
+  if (!idea) return;
+  lines.push('## Idea-stage readiness');
+  lines.push('');
+  lines.push(`- Enabled: ${idea.enabled ? 'yes' : 'no'}`);
+  lines.push(`- Validation signal: ${idea.validation_signal}`);
+  lines.push(`- ICP clarity: ${idea.icp_clarity}`);
+  lines.push(`- GTM tests ready: ${idea.gtm_test_ready ? 'yes' : 'no'}`);
+  if (idea.launch_constraint) lines.push(`- Main launch constraint: ${idea.launch_constraint}`);
+  lines.push(`- Note: ${idea.note}`);
   lines.push('');
   addDivider(lines);
 }

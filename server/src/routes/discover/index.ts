@@ -6,6 +6,7 @@
  * GET  /api/discover/:token        — public — load a session by token
  * PATCH /api/discover/:token/contact — public — add/update contact info
  * POST /api/discover/:token/convert — consultant — new full audit + intake_brief seeded from discovery answers
+ * DELETE /api/discover/:token      — consultant — delete session from queue
  */
 import { Router } from 'express';
 
@@ -19,6 +20,7 @@ import {
 import { getDiscoverSessionByTokenController } from './controllers/get-discover-session-by-token.controller.js';
 import { getDiscoverSessionsController } from './controllers/get-discover-sessions.controller.js';
 import { getDiscoverUiFragmentController } from './controllers/get-discover-ui-fragment.controller.js';
+import { deleteDiscoverSessionController } from './controllers/delete-discover-session.controller.js';
 import { patchDiscoverContactController } from './controllers/patch-discover-contact.controller.js';
 import { postDiscoverAnalyticsEventsController } from './controllers/post-discover-analytics-events.controller.js';
 import { postDiscoverConvertController } from './controllers/post-discover-convert.controller.js';
@@ -52,4 +54,12 @@ discoverRouter.post(
   attachProfile,
   requireRole('consultant'),
   postDiscoverConvertController,
+);
+
+discoverRouter.delete(
+  '/:token',
+  requireAuth,
+  attachProfile,
+  requireRole('consultant'),
+  deleteDiscoverSessionController,
 );

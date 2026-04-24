@@ -2,12 +2,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { NewAudit } from '../NewAudit';
+import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
+import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../../config/new-audit-coverage-policy';
 
 const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
   searchParamsState: { value: '' },
   mockDraft: {
     v: 1 as const,
-    step: 1 as 0 | 1 | 2,
+    step: 1 as 0 | 1 | 2 | 3,
     url: '',
     noPublicWebsite: true,
     name: 'Seed Co',
@@ -18,6 +20,8 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     briefLayoutChoice: 'wizard' as const,
     draftAuditId: null as string | null,
     draftIntakeVersions: null,
+    coveragePackage: 'complete' as const,
+    selectedDomains: [] as string[],
   },
   apiMock: {
     createAudit: vi.fn(),
@@ -25,7 +29,16 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     startPipeline: vi.fn(),
     linkIntakeTokenToAudit: vi.fn(),
     getBrief: vi.fn(),
+    postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
     getDiscoverySession: vi.fn(),
+    postIntakeNextQuestion: vi.fn().mockResolvedValue({
+      ok: true,
+      action: 'ask' as const,
+      questionId: 'a2',
+      reason: 'test',
+      source: 'deterministic',
+      caseKeys: [] as string[],
+    }),
   },
 }));
 
@@ -137,11 +150,39 @@ describe('NewAudit wizard state wiring', () => {
     mockDraft.industrySpecify = '';
     mockDraft.responses = { old_key: { value: 'legacy', source: 'client' } };
     mockDraft.draftAuditId = null;
+    mockDraft.coveragePackage = 'complete';
+    mockDraft.selectedDomains = [...NEW_AUDIT_ALL_COVERAGE_DOMAINS];
     apiMock.createAudit.mockResolvedValue({ id: 'audit-1' });
     apiMock.saveBrief.mockResolvedValue({ brief: { intake_versions: null } });
     apiMock.startPipeline.mockResolvedValue({});
     apiMock.linkIntakeTokenToAudit.mockResolvedValue({});
-    apiMock.getBrief.mockResolvedValue({ brief: { responses: {}, intake_versions: null } });
+    apiMock.getBrief.mockResolvedValue({
+      brief: { responses: {}, intake_versions: null },
+      questions: [],
+      validation: {
+        passed: true,
+        sla_met: true,
+        answered_required: 1,
+        total_required: 1,
+        answered_recommended: 0,
+        total_recommended: 0,
+        missing_required: [],
+      },
+      gates: {
+        canStartSnapshot: true,
+        canStartExpress: true,
+        canStartFull: true,
+        canStartPipeline: true,
+        missingRequiredIds: [],
+        recommendedToImproveIds: [],
+        intakeProgress: { progressPct: 50, readinessBadge: 'medium', nextBestAction: 'none' },
+      },
+      intakeProgress: { progressPct: 50, readinessBadge: 'medium', nextBestAction: 'none' },
+      readiness: { flowReadinessStatus: 'flow_ready', auditReadinessStatus: 'audit_ready', trace: [] },
+      critical_signals: { by_key: {}, summary: { satisfied: true } },
+      remediation_queue: [],
+      next_recommended: [],
+    });
     apiMock.getDiscoverySession.mockResolvedValue({ answers: {} });
   });
 
@@ -162,7 +203,7 @@ describe('NewAudit wizard state wiring', () => {
   });
 
   it('keeps basics values in save payload when launching from restored client draft', async () => {
-    mockDraft.step = 2;
+    mockDraft.step = 3;
     mockDraft.url = 'example.com';
     mockDraft.noPublicWebsite = false;
     mockDraft.name = 'Acme Corp';
@@ -185,7 +226,7 @@ describe('NewAudit wizard state wiring', () => {
   });
 
   it('surfaces launch error when pipeline start fails', async () => {
-    mockDraft.step = 2;
+    mockDraft.step = 3;
     mockDraft.url = 'example.com';
     mockDraft.noPublicWebsite = false;
     mockDraft.name = 'Acme Corp';
@@ -223,7 +264,9 @@ describe('NewAudit wizard state wiring', () => {
     });
     expect(localStorage.getItem('glc_discovery_token')).toBeNull();
     await vi.waitFor(() => {
-      expect(screen.getByText(/discovery answers are pre-filled/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText),
+      ).toBeInTheDocument();
     });
   });
 });

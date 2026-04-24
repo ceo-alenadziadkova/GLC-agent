@@ -55,11 +55,140 @@ export interface BriefResponseEntry {
   source: BriefResponseSource;
 }
 
+/**
+ * ADR Diagnostic Adaptive Intake — canonical readiness tokens (snake_case API contract).
+ * Do not merge with pipeline phase `analysisConfidence` / CONTROL_OBJECT confidence (ADR §3.2).
+ */
+export type FlowReadinessStatus = 'flow_ready' | 'blocked';
+
+export type AuditReadinessStatus = 'audit_ready' | 'blocked' | 'ready_with_caveats';
+export type IntakeReadinessCaveatClass =
+  | 'full_scope_required_gaps'
+  | 'unknown_source_signal_evidence'
+  | 'surface_limited_context'
+  | 'execution_scope_missing_signals'
+  | 'critical_signal_low_confidence'
+  | 'bridge_dependency_pending';
+
+export interface IntakeReadinessCaveatDetail {
+  code: IntakeReadinessCaveatClass;
+  owner: 'product' | 'engineering' | 'ops';
+  severity: 'info' | 'warning' | 'blocking';
+  rolloutPhase: 'phase_1' | 'phase_bc';
+  semanticIntent: string;
+}
+
+/**
+ * Pilot critical-signal confidence (ADR §3.2) — orthogonal to UX `IntakePlan.confidence.overall`
+ * and phase-level analysis confidence.
+ */
+export type IntakeCriticalSignalConfidence = 'high' | 'medium' | 'low' | 'unknown';
+
+/** Compact explainability for sequencing / readiness / remediation (ADR §8, §13). */
+export interface IntakeReadinessTraceEntry {
+  code: string;
+  /** Human-semantic cause for tests and support (not only bank question ids). */
+  semanticCause: string;
+  questionId?: string;
+  signalKey?: string;
+  detail?: Record<string, unknown>;
+}
+
+/** Progressive certainty vocabulary emitted by `intake-readiness-envelope` (extend with tests). */
+export const INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES = [
+  'hypothesis_formed',
+  'hypothesis_confirmed',
+  'hypothesis_disconfirmed',
+  'uncertainty_closed',
+] as const;
+
+export type IntakeReadinessProgressiveCertaintyTraceCode =
+  (typeof INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES)[number];
+
+/**
+ * Decision-intelligence metadata (Sprint 1): immutable semantic spine used by adaptive intake.
+ * Keep categories broad and stable; question-level metadata maps into one of these buckets.
+ */
+export type DiagnosticSpineCategory =
+  | 'market'
+  | 'value'
+  | 'economics'
+  | 'operations'
+  | 'resources'
+  | 'risks';
+
+export const DIAGNOSTIC_SPINE_CATEGORIES: DiagnosticSpineCategory[] = [
+  'market',
+  'value',
+  'economics',
+  'operations',
+  'resources',
+  'risks',
+];
+
+export interface DecisionImpact {
+  target: string;
+  weight: 'low' | 'medium' | 'high';
+  effectDescription: string;
+}
+
+export interface SignalContribution {
+  signalKey: string;
+  expectedInfoGainBits?: number;
+  confidenceLift?: 'low' | 'medium' | 'high';
+}
+
+export interface FollowupPolicy {
+  deeperIf?: string;
+  stopIf?: string;
+  /**
+   * Executable layer: key in `intake-policy.v1.json` → `intelligence.followupRuleDefinitions`.
+   * Human strings remain for documentation and Sprint-2 gate lint.
+   */
+  followupRuleRef?: string;
+}
+
+export interface StopCondition {
+  when: string;
+  reason?: string;
+}
+
+export type IntakeSignalPriorityLevel = 'P0' | 'P1' | 'P2';
+export type IntakeSignalSkipPolicy = 'ask_now' | 'defer' | 'skip';
+
+export interface IntakeSignalPriorityState {
+  currentPriority: IntakeSignalPriorityLevel;
+  skipPolicy: IntakeSignalSkipPolicy;
+  reason: string;
+}
+
+export interface IntakeReadinessEnvelope {
+  flowReadinessStatus: FlowReadinessStatus;
+  auditReadinessStatus: AuditReadinessStatus;
+  /**
+   * Optional caveats for `ready_with_caveats` (Phase-1 cap: max 3 classes).
+   * Keep compact and policy-driven; never emit free-form UI copy here.
+   */
+  caveats?: IntakeReadinessCaveatClass[];
+  caveatDetails?: IntakeReadinessCaveatDetail[];
+  /**
+   * Sprint 3 (Phase 2): runtime signal prioritization for adaptive sequencing.
+   * Additive-only contract; callers may ignore when unavailable.
+   */
+  signalPrioritization?: {
+    bySignalKey: Record<string, IntakeSignalPriorityState>;
+    nextSignalKeys: string[];
+  };
+  trace: IntakeReadinessTraceEntry[];
+}
+
 export interface IntakeVersionTuple {
   questionBankVersion: string;
   policyVersion: string;
   layoutVersion: string;
   resolverVersion: string;
+  /** Dedicated sequencing artifact version (ADR §4.2); not implied by resolver semver. */
+  sequencingVersion: string;
 }
 
 export interface IntakeVersionMigration {

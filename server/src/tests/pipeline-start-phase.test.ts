@@ -168,6 +168,47 @@ vi.mock('../services/consistency-checker.js', () => ({
   consistencyChecker: { run: vi.fn().mockResolvedValue({ passed: true, flags: [] }) },
 }));
 
+vi.mock('../services/orchestration/extract-glc-director-slice-from-agent-output.js', () => {
+  const minimalSlice = {
+    schema_version: 1,
+    baseline: {
+      actions: [
+        {
+          id: 'test-dir-action',
+          title: 'Test director action',
+          impact: 3,
+          effort: 2,
+          risk: 2,
+          urgency: 3,
+          confidence: 'medium',
+          dependencies: [],
+        },
+      ],
+    },
+  };
+  return {
+    extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed: () => ({
+      slice: minimalSlice,
+      mode: 'canonical',
+    }),
+    extractGlcDirectorOrchestrationSliceFromAgentOutput: () => minimalSlice,
+  };
+});
+
+vi.mock('../services/orchestration/director-orchestration-persistence.service.js', () => ({
+  persistGlcDirectorOrchestrationSliceForAuditOwner: vi.fn().mockResolvedValue({ error: null }),
+}));
+
+vi.mock('../services/orchestration/orchestration-pack-persist-run.service.js', async () => {
+  const actual = await vi.importActual<
+    typeof import('../services/orchestration/orchestration-pack-persist-run.service.js')
+  >('../services/orchestration/orchestration-pack-persist-run.service.js');
+  return {
+    ...actual,
+    maybeAutoPersistOrchestrationPackAfterStrategy: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 // ─── Import under test ────────────────────────────────────────────────────────
 
 import { PipelineOrchestrator } from '../services/pipeline.js';
@@ -182,6 +223,10 @@ function getDomainUpdates() {
   return getUpdateCalls().filter(c => c.table === 'audit_domains');
 }
 
+function getReviewPointUpdates() {
+  return getUpdateCalls().filter(c => c.table === 'review_points');
+}
+
 function getPipelineInserts() {
   return getInsertCalls().filter(c => c.table === 'pipeline_events');
 }
@@ -189,6 +234,7 @@ function getPipelineInserts() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT = 'true';
   clearCalls();
   setProductMode('full');
   (mockAssertBriefReady as Mock).mockReset().mockResolvedValue(undefined);
@@ -203,6 +249,15 @@ describe('PipelineOrchestrator.startPhase() — unknown phase', () => {
   it('throws for an unregistered phase number', async () => {
     const orch = new PipelineOrchestrator(AUDIT_ID);
     await expect(orch.startPhase(99)).rejects.toThrow('Unknown phase');
+  });
+});
+
+describe('PipelineOrchestrator.retryDomainPhase()', () => {
+  it('rejects phases outside 1–6 (recon/strategy use startPhase)', async () => {
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await expect(orch.retryDomainPhase(0)).rejects.toThrow(/expects integer phase 1–6/i);
+    await expect(orch.retryDomainPhase(7)).rejects.toThrow(/expects integer phase 1–6/i);
+    await expect(orch.retryDomainPhase(1.5 as unknown as number)).rejects.toThrow(/expects integer phase 1–6/i);
   });
 });
 
@@ -402,5 +457,17 @@ describe('PipelineOrchestrator.startPhase(7) — Strategy phase', () => {
     await orch.startPhase(7);
     const events = getPipelineInserts().map(e => (e.payload as Record<string, unknown>).event_type);
     expect(events).toContain('review_needed');
+  });
+
+  it('reopens the review_points row to pending before review_needed (enables Strategy reruns)', async () => {
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await orch.startPhase(7);
+    const reopen = getReviewPointUpdates().find(
+      u =>
+        u.filters.audit_id === AUDIT_ID &&
+        Number(u.filters.after_phase) === 7 &&
+        u.payload.status === 'pending',
+    );
+    expect(reopen).toBeDefined();
   });
 });

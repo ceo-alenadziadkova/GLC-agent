@@ -11,7 +11,12 @@ export type DiscoveryAnalyticsEventType =
   | 'question_answered'
   | 'question_skipped'
   | 'wizard_completed'
-  | 'results_viewed';
+  | 'results_viewed'
+  | 'signal_confidence_changed'
+  | 'readiness_blocked'
+  | 'remediation_asked'
+  | 'sequencing_transition_taken'
+  | 'guard_question_triggered';
 export type DiscoveryAnalyticsExperimentVariant = 'A' | 'B';
 
 const SESSION_KEY = 'glc_discover_analytics_v1';
@@ -21,6 +26,13 @@ type QueuedEvent = {
   question_id?: string;
   step_index?: number;
   client_ts: string;
+  signal_key?: string;
+  transition_rule_ref?: string;
+  audit_readiness_status?: 'audit_ready' | 'blocked' | 'ready_with_caveats';
+  flow_readiness_status?: 'flow_ready' | 'blocked';
+  trace_codes?: string[];
+  remediation_bank_ids?: string[];
+  next_recommended?: string[];
 };
 
 export function getOrCreateDiscoveryClientSessionId(): string {
@@ -85,6 +97,15 @@ export function createDiscoveryAnalyticsSink(deps: {
         ...(e.question_id != null ? { question_id: e.question_id } : {}),
         ...(e.step_index != null ? { step_index: e.step_index } : {}),
         ...(e.client_ts ? { client_ts: e.client_ts } : {}),
+        ...(e.signal_key != null ? { signal_key: e.signal_key } : {}),
+        ...(e.transition_rule_ref != null ? { transition_rule_ref: e.transition_rule_ref } : {}),
+        ...(e.audit_readiness_status != null ? { audit_readiness_status: e.audit_readiness_status } : {}),
+        ...(e.flow_readiness_status != null ? { flow_readiness_status: e.flow_readiness_status } : {}),
+        ...(e.trace_codes != null && e.trace_codes.length > 0 ? { trace_codes: e.trace_codes } : {}),
+        ...(e.remediation_bank_ids != null && e.remediation_bank_ids.length > 0
+          ? { remediation_bank_ids: e.remediation_bank_ids }
+          : {}),
+        ...(e.next_recommended != null && e.next_recommended.length > 0 ? { next_recommended: e.next_recommended } : {}),
       })),
     };
     try {

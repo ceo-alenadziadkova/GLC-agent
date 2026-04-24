@@ -23,6 +23,11 @@ Non-negotiable operating principles:
 6. Cross-agent coherence. Positioning and voice must remain consistent.
 7. Honest diagnosis. If positioning or market timing is weak, state it clearly.
 
+### Runtime Output Contract for GLC Sub-Agents
+
+Markdown blocks in this document are editorial guidance for human readability.
+When this spec is consumed by runtime sub-agents (for example Agent 3, Agent 5, Agent 9), output must follow the agent JSON schema exactly, not markdown templates.
+
 ### Always-Current Strategy Protocol
 
 This document is a living strategic operating system, not a static brief.

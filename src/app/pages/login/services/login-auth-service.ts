@@ -1,8 +1,11 @@
+import type { Session } from '@supabase/supabase-js';
+
 type AuthResult = { error: { message?: string } | null };
+type SignUpAuthResult = AuthResult & { session: Session | null };
 
 type AuthActions = {
   signInWithPassword: (email: string, password: string) => Promise<AuthResult>;
-  signUpWithPassword: (email: string, password: string) => Promise<AuthResult>;
+  signUpWithPassword: (email: string, password: string) => Promise<SignUpAuthResult>;
   requestPasswordReset: (email: string) => Promise<AuthResult>;
   completePasswordRecovery: (password: string) => Promise<AuthResult>;
   signInWithGoogle: (options: { preserveGuestSession: boolean }) => Promise<AuthResult>;

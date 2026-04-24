@@ -12,6 +12,7 @@ import {
   buildOnePagerReport,
   buildOwnerReport,
 } from './formatters/markdown/builders.js';
+import { buildIdeaStageReadiness } from './domain/idea-stage-readiness.js';
 import type { MarkdownReport, ReportInput } from './types.js';
 
 export type { ReportProfile } from './types.js';
@@ -24,8 +25,9 @@ export class ReportProfiler {
     const generated_at = new Date().toISOString();
     const filteredDomains = filterDomainsByProfile(input.domains, profile);
     const coverage = buildCoverage(input);
+    const ideaStageReadiness = buildIdeaStageReadiness(input);
 
-    const markdown = this.buildMarkdownByProfile(input, profile, company, filteredDomains, coverage);
+    const markdown = this.buildMarkdownByProfile(input, profile, company, filteredDomains, coverage, ideaStageReadiness);
 
     return {
       profile,
@@ -34,6 +36,7 @@ export class ReportProfiler {
       generated_at,
       markdown,
       coverage,
+      ...(ideaStageReadiness ? { idea_stage_readiness: ideaStageReadiness } : {}),
     };
   }
 
@@ -47,18 +50,19 @@ export class ReportProfiler {
     company: string,
     filteredDomains: ReportInput['domains'],
     coverage: MarkdownReport['coverage'],
+    ideaStageReadiness?: MarkdownReport['idea_stage_readiness'],
   ): string {
     switch (profile) {
       case 'onepager':
-        return buildOnePagerReport(input, filteredDomains, company, coverage);
+        return buildOnePagerReport(input, filteredDomains, company, coverage, ideaStageReadiness);
       case 'owner':
-        return buildOwnerReport(input, company, coverage);
+        return buildOwnerReport(input, company, coverage, ideaStageReadiness);
       case 'tech':
-        return buildFocusedByProfile(input, filteredDomains, company, coverage, 'tech');
+        return buildFocusedByProfile(input, filteredDomains, company, coverage, 'tech', ideaStageReadiness);
       case 'marketing':
-        return buildFocusedByProfile(input, filteredDomains, company, coverage, 'marketing');
+        return buildFocusedByProfile(input, filteredDomains, company, coverage, 'marketing', ideaStageReadiness);
       default:
-        return buildFullReport(input, input.domains, company, coverage);
+        return buildFullReport(input, input.domains, company, coverage, ideaStageReadiness);
     }
   }
 }

@@ -97,6 +97,8 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 **Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
 
+**Failure safety note**: if `DecisionLayer.decide(...)` throws, pipeline execution remains non-fatal and the orchestrator applies a **configured safe fallback** from `SYSTEM_DEFAULTS.decisionLayer.onErrorFallback` (currently `accept_with_warnings`). The emitted `control_object` event includes fallback metadata (`decision_fallback_applied`, `decision_fallback_reason_code`, `decision_fallback_error`) so downstream consumers can distinguish fallback decisions from normal routing.
+
 **Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `GLC_DEPLOYMENT_PROFILE` (see `getAutoLoopExecutionProfile()` in `feature-flags.ts`) is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from `rule-engine.ts` (via `dynamic-adjustment.ts`). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
 
 ### CONTROL_OBJECT contract (v1.0 through v2.0)
@@ -158,11 +160,28 @@ When a gate is reached:
 
 ---
 
+## Pipeline Monitor — terminal activity panel (deliberate product UX)
+
+The **phase activity log** in the pipeline monitor (`PipelineMonitorPage` → `PhaseDetailPanel`) is intentionally styled as a **terminal**: dark console surface, monospace lines, and window-style header chrome. That look is a **deliberate system feature** — it communicates *live operational progress* and a credible “engine room” feel for both **consultants** (`/pipeline/:id`) and **portal clients** (`/portal/pipeline/:id`). Do not replace it with a generic card or timeline without an explicit product decision.
+
+- **Consultants** see **raw** messages from `pipeline_events` in the log (plus token usage rows where applicable).
+- **Portal clients** keep the **same terminal chrome**; individual lines are rewritten to **plain-language** copy via `clientPortal.activityLog` in `src/app/data/pipeline-monitor-copy.en.json` and `mapPhaseEventsToClientPortalLogEntries`. Event types such as `token_usage` and `control_object` are omitted from the client-facing list.
+
+Code: `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`, mappers under `src/app/pages/pipeline-monitor/mappers/`.
+
+- **Portal sidebar:** step groups can be collapsed even when they contain `current_phase`; when collapsed, copy from `clientPortal.sidebar.currentStepCollapsedHint` explains that the live step is inside (`PhaseSidebar` → `ClientPortalPhaseSection`).
+- **Portal completed:** a prominent **View report** (primary) and **Strategy roadmap** (secondary) block appears in the detail panel when `audits.status === completed` (`clientPortal.completed` in `pipeline-monitor-copy.en.json`).
+
+*Future backlog (product only):* optional non-terminal “simple” activity presentation for a subset of portal users — only with an explicit spec; default remains the terminal panel above.
+
+---
+
 ## Retry & Recovery
 
 - **Phase-level retry**: A failed phase can be re-run without re-running previous phases
 - Cached `collected_data` is reused on retry — only the Claude call is repeated
 - **Exponential retry with jitter**: up to 3 retries on Claude API errors (429, 500, timeout), based on `SYSTEM_DEFAULTS.claudeHttp` (`retryBaseMs=1500`, doubling per attempt, plus jitter).
+- **Per-call HTTP timeout** (`AbortController`): default `timeoutMs` applies to domain/recon calls; **strategy (phase 7)** uses `timeoutMsStrategy` (larger — see `SYSTEM_DEFAULTS_CLAUDE_HTTP`). If the ceiling is hit, the Anthropic SDK often reports `Request was aborted.`
 - If all retries fail, phase status → `failed`, audit status → `failed`, error logged in `pipeline_events`
 - Frontend shows "Retry Phase" button for failed phases
 
@@ -241,3 +260,38 @@ See [AGENTS.md#industry-weights](./AGENTS.md#industry-weights) for weight tables
 - `server/src/config/feature-flags.ts`
 - `server/src/config/rule-engine.ts`
 - `server/src/services/dynamic-adjustment.ts`
+
+## Orchestrator Status Matrix
+
+Current implementation baseline for GLC Orchestrator runtime:
+
+- `FULL` manifest-first contract (`selected_domains` must match `execution_plan`) and snapshot persistence.
+- `FULL` deterministic pack build (graph, lanes, critical path, structural conflict handling) with optional synthesis behind feature flags.
+- `FULL` pack versioning and revision diff APIs.
+- `PARTIAL` timeline-first migration (legacy initiative buckets still available as fallback/deep-dive paths).
+- `PARTIAL` business-scenario test depth (scenario/regeneration coverage is improved but still integration-focused, not full browser E2E).
+
+## Domain vs Plan Gate Matrix
+
+To avoid mixing responsibilities, quality routing is split into two explicit gates:
+
+| Layer | Input object | Outcomes | Scope |
+|---|---|---|---|
+| Domain quality gate | CONTROL_OBJECT (`FactChecker` + `DecisionLayer`) | `accept` / `accept_with_warnings` / `refine` | Per-domain phase output quality |
+| Plan governance gate | Orchestration plan governance (`evaluateOrchestrationPlanGovernance`) | `accept_plan` / `accept_with_warnings` / `refine_plan` + `plan_gate_outcome` (`accept` / `accept_with_warnings` / `refine`) | Cross-domain roadmap graph quality |
+
+Bridge rule:
+
+- Orchestrator input quality is explicit in `pack.input_quality` (`input_gate_status`, coverage ratios, fallback reason).
+- Domain phases can still persist advisory refine states, but orchestration governance evaluates plan-level integrity independently.
+- Degraded input is never silent: it emits reason codes and telemetry (`input_gate_degraded`, `director_input_coverage_below_floor`).
+
+## Orchestration program (timeline-first)
+
+- **SSOT contract literals:** timeline status + manifest state unions live in `server/src/config/orchestration-client-contract.ts`; the SPA mirrors them with `src/app/config/orchestration-contract-parity.test.ts`.
+- **Legacy HTTP:** `/api/audits/:id/orchestrator/*` aliases delegate to canonical `/orchestration/*` / manifest routes (deprecation headers via `orchestrator-legacy-alias.ts`).
+- **Normalization:** merged director/strategy nodes pass through `applyOrchestrationActionNodeNormalizationPipeline` before graph build; cross-domain tension rules are declared in `orchestration-domain-conflict-policy.ts`.
+- **KPI logs:** timeline responses may emit `route.audit_timeline_served` when `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX` is enabled (defaults in `system-defaults/feature-flags-defaults.ts`); metric keys in `orchestration-telemetry-policy.ts`.
+- **UX:** consultants open manifest flow from Timeline via `?focus=roadmap` on Strategy Lab (`ORCHESTRATION_LAB_FOCUS_*` in `orchestration-ui-limits.ts`).
+- **Happy path (consultant):** ensure `audit_roadmap_manifest_snapshots` has a **latest** row aligned with `execution_plan.selected_domains` → `POST /api/audits/:id/orchestration/pack` with that snapshot id → Strategy Lab / `GET` pack / timeline read model update. Optional: `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` runs the same persist path after phase 7 when a latest snapshot exists (failures are logged; pipeline completion is not blocked).
+- **Shared persist path:** `orchestration-pack-persist-run.service.ts` centralizes governance + `persistGlcOrchestrationPack` for POST pack, commercial-offer rebuild, and the optional auto-pack hook.

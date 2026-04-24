@@ -4,7 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import { LOGIN_PAGE_COPY_EN as LC } from '../../../config/login-copy.en';
 import { isAnonymousUser } from '../../../hooks/useAuth';
 import { useAuthTabsA11y } from '../hooks/useAuthTabsA11y';
-import type { AuthMode, FieldErrors } from '../types';
+import type { AuthMode, FieldErrors, SignupLegalFieldState } from '../types';
 import { AuthTabs } from '../components/AuthTabs';
 import { AuthErrorBanner } from '../components/AuthErrorBanner';
 import { RecoveryForm } from '../components/forms/RecoveryForm';
@@ -45,6 +45,8 @@ type LoginAuthCardSectionProps = {
     buttonHoverScale: number;
     buttonTapScale: number;
   };
+  signupLegal: SignupLegalFieldState;
+  onSignupLegalChange: (patch: Partial<SignupLegalFieldState>) => void;
 };
 
 export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
@@ -79,6 +81,8 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
     errorIds,
     minPasswordLength,
     motionPolicy,
+    signupLegal,
+    onSignupLegalChange,
   } = props;
 
   const { signInTabRef, signUpTabRef, handleAuthTabsKeyDown } = useAuthTabsA11y({ mode, activateMode });
@@ -178,6 +182,8 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
               setFieldErrors(prev => ({ ...prev, password: null }));
             }}
             onTogglePassword={() => setShowPassword(prev => !prev)}
+            signupLegal={signupLegal}
+            onSignupLegalChange={onSignupLegalChange}
           />
         )}
       </motion.div>

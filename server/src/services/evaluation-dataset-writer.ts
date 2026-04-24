@@ -1,12 +1,18 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import { isEvaluationDatasetsInsertEnabled } from '../config/feature-flags.js';
+import { getLatestAcceptedForKey } from './legal-consent.service.js';
+import {
+  isEvaluationDatasetsExplicitInternalConsentRequired,
+  isEvaluationDatasetsInsertEnabled,
+} from '../config/feature-flags.js';
 import { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
-import type { ControlObjectV1 } from '../schemas/control-object/index.js';
-import type { DomainKey } from '../types/audit.js';
+import type { ControlObjectV1, PhaseId } from '../schemas/control-object/index.js';
 import type { DomainResult } from '../types/audit.js';
 import type { RetentionPolicy } from '../types/evaluation-dataset.js';
-import { EVALUATION_DATASET_RETENTION_DEFAULT } from '../config/evaluation-dataset-retention.js';
+import {
+  EVALUATION_DATASET_RETENTION_DEFAULT,
+  EVALUATION_DATASET_RETENTION_TTL_DAYS,
+} from '../config/evaluation-dataset-retention.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 export { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
@@ -40,7 +46,7 @@ async function nextRunNumber(auditId: string, phaseId: string): Promise<number> 
 
 export interface RecordEvaluationDatasetArgs {
   auditId: string;
-  phaseId: DomainKey;
+  phaseId: PhaseId;
   controlObject: ControlObjectV1;
   rawAgentOutput: Record<string, unknown> | null;
   cleanedOutput: DomainResult;
@@ -53,6 +59,33 @@ export interface RecordEvaluationDatasetArgs {
  */
 export async function recordEvaluationDatasetIfEnabled(args: RecordEvaluationDatasetArgs): Promise<void> {
   if (!isEvaluationDatasetsInsertEnabled()) return;
+
+  if (isEvaluationDatasetsExplicitInternalConsentRequired()) {
+    const { data: auditOwner, error: ownerErr } = await supabase
+      .from('audits')
+      .select('user_id')
+      .eq('id', args.auditId)
+      .maybeSingle();
+
+    if (ownerErr || !auditOwner?.user_id) {
+      logger.warn('evaluation_datasets.owner_lookup_failed', {
+        component: 'evaluation_dataset_writer',
+        audit_id: args.auditId,
+        message: ownerErr?.message ?? 'missing_user_id',
+      });
+      return;
+    }
+
+    const evalConsent = await getLatestAcceptedForKey(auditOwner.user_id, 'evaluation_internal');
+    if (evalConsent !== true) {
+      logger.info('evaluation_datasets.skipped_no_evaluation_consent', {
+        component: 'evaluation_dataset_writer',
+        audit_id: args.auditId,
+        user_id: auditOwner.user_id,
+      });
+      return;
+    }
+  }
 
   const {
     auditId,
@@ -72,6 +105,9 @@ export async function recordEvaluationDatasetIfEnabled(args: RecordEvaluationDat
 
     const decisionApplied = controlObject.decision_hint;
     const agentVariantId = controlObject.context.selected_variant_id ?? null;
+    const createdAt = new Date();
+    const ttlDays = EVALUATION_DATASET_RETENTION_TTL_DAYS[retentionPolicy];
+    const expiresAt = new Date(createdAt.getTime() + ttlDays * 86_400_000);
 
     let inserted: { id?: string } | null = null;
     for (let attempt = 1; attempt <= EVALUATION_DATASET_INSERT_MAX_RETRIES; attempt++) {
@@ -90,6 +126,8 @@ export async function recordEvaluationDatasetIfEnabled(args: RecordEvaluationDat
           agent_variant_id: agentVariantId,
           retention_policy: retentionPolicy,
           pii_sanitized: true,
+          created_at: createdAt.toISOString(),
+          expires_at: expiresAt.toISOString(),
         })
         .select('id')
         .maybeSingle();

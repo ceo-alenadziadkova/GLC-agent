@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router';
 import { BrowserTranslateGuard } from './components/BrowserTranslateGuard';
 import { GlcToaster } from './components/GlcToaster';
+import { AuthProvider } from './hooks/useAuth';
 import { getGlcQueryClient } from './lib/glc-query-client';
 import { router } from './routes';
 
@@ -10,8 +11,10 @@ export default function App() {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <BrowserTranslateGuard />
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <BrowserTranslateGuard />
+          <RouterProvider router={router} />
+        </AuthProvider>
       </QueryClientProvider>
       <GlcToaster />
     </>

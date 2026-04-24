@@ -49,6 +49,6 @@ describe('client audit view-model', () => {
       true,
       { showCallout: true, robotsLimitedSample: true },
     );
-    expect(subtitle).toContain('robots.txt blocked the homepage');
+    expect(subtitle).toContain('Access rules blocked the homepage');
   });
 });

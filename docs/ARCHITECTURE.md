@@ -358,6 +358,46 @@ ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAY
 
 ---
 
+## GLC Orchestrator pack (cross-domain synthesis)
+
+**Purpose:** merge finalized strategy initiatives into a single dependency-aware **`glc_orchestration_pack`** (graph, lanes, critical path) for client roadmap projection. This layer is **not** a substitute for per-domain **FactChecker / CONTROL_OBJECT / DecisionLayer** (phases 1–6). It does not verify site facts; it sequences and groups already-accepted structured outputs.
+
+`glc_orchestration_pack` schema v2 adds deterministic orchestration metadata:
+- `phase_diagnostic` (`dominant_constraint`, `constraint_chain`) for PHASE 0 visibility.
+- `routing_profile.domain_weights` for PHASE 1 domain routing transparency.
+- `graph.edges[].relation` + `weight` for weighted dependency semantics in PHASE 3.
+
+**Persistence:**
+
+- `audit_strategy.glc_orchestration_pack` (JSONB) + `orchestration_pack_version` (monotonic counter when a new pack is saved) + optional `glc_orchestration_last_revision_diff` (JSONB diff from the prior pack when version ≥ 2).
+- `audit_roadmap_manifest_snapshots` — immutable manifest rows (`payload` JSON); `glc_orchestration_pack.manifest_snapshot_id` references the confirming snapshot.
+- `audits.execution_plan` stays the canonical **coverage** contract only ([partial audit ADR](./adrs/ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md)); manifest `selected_domains` must match `execution_plan.selected_domains` (same set).
+
+**Code:** `server/src/services/orchestration/` (see README there), schema `server/src/schemas/glc-orchestration-pack.ts`, feature flag `isOrchestrationConflictSynthesisEnabled()` (`FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS`, default off) for an optional single Claude tool call (`orchestration-pack-synthesis-claude.ts`) that appends `conflicts_resolved` rows (`synthesis_applied` / `synthesis_pending`) after the deterministic graph build, without changing per-domain FactChecker semantics. Persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` with bounded retries from config.
+
+**Checklist:** Orchestrator services must not import FactChecker for orchestration output; domain-phase CO semantics remain unchanged.
+
+ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md).
+
+### Director deep-dive two-stage
+
+- On-demand deep-dive uses dedicated API routes under `/api/audits/:id/directors/:domain/deep-dive`.
+- Runtime lifecycle reuses `job_runs` (`queued`/`running`/`completed`/`failed`/`dead_letter`) with queue name `director_deep_dive` and a dedicated BullMQ worker started at server bootstrap.
+- Portal deep-dive dialog tracks status through Supabase Realtime updates on `job_runs` row (`queue_job_id` filter) with a bounded API polling fallback (`GET .../deep-dive/:jobId`) to avoid stale state when realtime delivery is delayed.
+- Quotas and package-tier gates are read from `director-orchestration-policy` (`execution_plan.coverage_package` remains SSOT).
+- Token-budget enforcement for deep-dive is policy-driven (`DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_BY_PACKAGE` + `SUB_AGENT_TOKEN_BUDGET_BY_DEPTH`) and returns stable API error code when exceeded.
+- CMO sub-agent MVP runs through config-driven registry/modes/router/orchestrator and is fully feature-flagged.
+- Sub-agent domain activation is policy-driven (`DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS`) to avoid runtime hardcoded domain literals in services.
+- Deep-dive request schema validates `sub_agent_ids` against registry ids (no free-form strings).
+- Orchestrator metadata persists prompt references as stable file paths (`prompt_ref`) to keep auditability deterministic across runs.
+- CMO deep-dive output is materialized back into `audit_domains.raw_data.glc_director_execution.deep` and then merged through the existing pack pipeline (`buildOrchestrationPackForAudit` path) so timeline nodes can carry `source: sub_agent:*`.
+- Deep-dive completion stores `qa_block` metadata in `job_runs`; portal dialog renders this summary after status becomes `completed`.
+- Rollout stage telemetry is carried through feature-flag facades (`getDirectorDeepDiveRolloutMode`, `getDirectorSubAgentsRolloutMode`, client mirrors in `APP_FEATURE_FLAGS`) for shadow/internal/pilot/ga release progression.
+- Staged “internal / pilot / GA” unlock for **authenticated users** is enforced in parallel on the **server** via `orchestration-rollout-gates.ts` (allowlist + rollout mode, aligned with the SPA’s `orchestration-client-feature-gates.ts`); CMO sub-agent work items carry `subAgentsEntitled` on the job payload when the user qualifies under rollout but the global `FEATURE_DIRECTOR_SUB_AGENTS` env is still off.
+- Non-CMO domains route through `director-domain-deep-dive-dispatch.ts`: `cdo_stub` for CDO/UX+related domains (including `ux_conversion`), `cao_stub` for `automation_processes`, `cso_stub` for `security_compliance`, and `single_fallback` elsewhere until dedicated sub-agent stacks ship.
+
+---
+
 ## ADR — TypeScript-first (v1)
 
 
@@ -448,5 +488,7 @@ There is no single `audit_state.json` file in production. Persistent state is no
 **Intake contract:** progressive layers, collection modes, and field semantics are defined in product terms in [PRODUCT.md](./PRODUCT.md#intake-experience-progressive-model) (`intake_brief` table plus derived readiness fields — see [DATABASE.md](./DATABASE.md)).
 
 **Unified intake resolver (ADR):** Runtime entry point `buildIntakePlan()` ships in the workspace package `**@glc/intake-core`** (`[packages/intake-core](../packages/intake-core/src/index.ts)`). Canon rules: `[branch-rules.ts](../packages/intake-core/src/branch-rules.ts)` + `[question-bank.v1.json](../packages/intake-core/src/question-bank.v1.json)`. Policy artifact: `[intake-policy.v1.json](../packages/intake-core/src/intake-policy.v1.json)`. Layout artifact: `[layout-rules.v1.json](../packages/intake-core/src/layout-rules.v1.json)`. The SPA imports `**@glc/intake-core**` (e.g. `[src/app/hooks/useIntakeWizard.ts](../src/app/hooks/useIntakeWizard.ts)`, `[src/app/lib/discovery-flow.ts](../src/app/lib/discovery-flow.ts)`). Server build compiles the package to `packages/intake-core/dist` before `tsc`. Full decision record: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
+
+**Decision-Intelligence Sprint 1 gate:** `lintIntelligenceContractV1` enforces hard errors for P0 `required_now` metadata and invalid `semanticDomain`; anti-pattern checks are warning-only in this phase. Runtime path (`buildIntakePlan`) remains fail-open for incomplete non-P0 metadata and emits `intelligence_metadata_incomplete` diagnostics instead of breaking plan construction.
 
 **Classic consultant brief catalog:** Rows for the “all sections” / interview UI are built in `**intake-brief-catalog-meta.ts`** from policy `**modes.classic_brief.main**` (export `**BRIEF_QUESTIONS**`). `**GET /api/audits/:id/brief**` returns `**getBriefQuestionsByIds(plan.visible)**` — only ids present in `**plan.visible**`, not the whole catalog. **Pre-brief public link** (`GET /api/intake/:token`) prepends `**INTAKE_IDENTITY_BRIEF_QUESTIONS`** (`**modes.pre_brief.identityFieldIds**` as bank stems + conditional `**intake_industry_specify**`) before the same `**plan.visible**` slice. Details: [QUESTION_BANK.md](./QUESTION_BANK.md), [API.md](./API.md).

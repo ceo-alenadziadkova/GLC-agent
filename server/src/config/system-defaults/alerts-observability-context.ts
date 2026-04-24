@@ -10,6 +10,8 @@ export const SYSTEM_DEFAULTS_ALERTS = {
   tokenBurn15mThreshold: 300_000,
   cooldownMs: 900_000,
   lockTtlMs: 55_000,
+  /** Min interval between Telegram notifications for the same user + support ref (`spa_ui_incident`). */
+  spaUiIncidentTelegramCooldownMs: 300_000,
 } as const;
 
 export const SYSTEM_DEFAULTS_OBSERVABILITY = {

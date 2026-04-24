@@ -7,23 +7,23 @@ export const PORTAL_AUDIT_CARD_COPY = {
     created: {
       label: 'Brief & setup',
       hint:
-        'Complete the intake brief on the next screen, then start your audit when you are ready.',
+        'Complete the business brief on the next screen, then start your audit when you are ready.',
     },
     recon: {
       label: 'Scanning your site',
-      hint: 'We are collecting public information about your website.',
+      hint: 'We are gathering public information about your website.',
     },
     auto: {
       label: 'Analysis running',
-      hint: 'Automated phases are in progress. Open the audit to follow the pipeline.',
+      hint: 'Automated analysis is in progress. Open the audit to follow status.',
     },
     analytic: {
       label: 'Analysis running',
-      hint: 'Automated phases are in progress. Open the audit to follow the pipeline.',
+      hint: 'Automated analysis is in progress. Open the audit to follow status.',
     },
     review: {
       label: 'Review pause',
-      hint: 'Waiting at a review step before the run continues.',
+      hint: 'Paused for a short review before the run continues.',
     },
     completed: {
       label: 'Completed',
@@ -40,7 +40,7 @@ export const PORTAL_AUDIT_CARD_COPY = {
     },
     cancelled: {
       label: 'Cancelled',
-      hint: 'This audit was stopped and can be resumed only with a new pipeline start.',
+      hint: 'This audit was stopped. Your GLC contact can reopen it if needed; otherwise start a new audit.',
     },
     defaultUnknownHint: 'Open this audit for details.',
   },

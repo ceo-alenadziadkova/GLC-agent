@@ -22,6 +22,7 @@ export type {
   AuditCoveragePackage,
   AuditDepth,
   AuditMeta,
+  AuditOrigin,
   AuditRequest,
   AuditRequestStatus,
   CrawledPage,

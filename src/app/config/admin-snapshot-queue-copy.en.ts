@@ -1,6 +1,12 @@
 export const ADMIN_SNAPSHOT_QUEUE_COPY = {
   title: 'Snapshot queue',
   subtitle: 'All free snapshot submissions and their current results',
+  statusFilters: {
+    all: 'All',
+    running: 'Running',
+    completed: 'Completed',
+    failed: 'Failed',
+  },
   refresh: 'Refresh',
   loadFailed: 'Failed to load snapshot queue.',
   emptyState: 'No snapshots in this view',
@@ -9,4 +15,11 @@ export const ADMIN_SNAPSHOT_QUEUE_COPY = {
   clientPrefix: 'client',
   snapshotResultPrefix: 'Snapshot result:',
   openAudit: 'Open audit',
+  deleteSnapshot: 'Delete',
+  deleting: 'Deleting…',
+  deleteDialogTitle: 'Delete snapshot entry?',
+  deleteDialogDescription: 'This action removes the snapshot entry permanently.',
+  deleteDialogCancel: 'Cancel',
+  deleteDialogConfirm: 'Delete',
+  deleteFailed: 'Failed to delete snapshot.',
 } as const;

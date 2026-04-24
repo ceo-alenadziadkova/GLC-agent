@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, CheckCircle, Globe, Lightning } from '@phosphor-icons/react';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { Callout } from '../../../components/ui/callout';
+import { Input } from '../../../../design-system/ui';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../config/snapshot-landing-copy.en';
 import { marketingHeroBillboardMotion } from '../../../config/marketing-motion-variants';
 import { SnapshotIdlePreviewCards } from '..';
@@ -116,7 +117,7 @@ export function SnapshotLandingHeroForm(props: {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="relative">
                   <Globe className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)] mobile:left-3" />
-                  <input
+                  <Input
                     type="text"
                     value={url}
                     onChange={e => setUrl(e.target.value)}
@@ -126,7 +127,7 @@ export function SnapshotLandingHeroForm(props: {
                     inputMode="url"
                     autoCapitalize="none"
                     autoCorrect="off"
-                    className="glc-field-control glc-light-snapshot-input w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
+                    className="glc-field-control glc-light-snapshot-input h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
                   />
                 </div>
 

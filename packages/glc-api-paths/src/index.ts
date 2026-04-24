@@ -28,11 +28,20 @@ export const API_HTTP_PATH_PREFIX = {
 
 export type ApiHttpPathPrefixKey = keyof typeof API_HTTP_PATH_PREFIX;
 
+export {
+  LEGAL_DOCUMENT_BUNDLE_VERSION,
+  LEGAL_DOCUMENT_SPA_ROUTES,
+  LEGAL_DOCUMENT_VERSIONS,
+  type LegalDocumentSpaRouteKey,
+} from './legal-documents.js';
+
 export const API_PATHS = {
   publicBrand: `${API_HTTP_PATH_PREFIX.public}/brand`,
+  publicLegalDocuments: `${API_HTTP_PATH_PREFIX.public}/legal-documents`,
   analyticsDashboard: `${API_HTTP_PATH_PREFIX.analytics}/dashboard`,
   auditRequests: API_HTTP_PATH_PREFIX.auditRequests,
   audits: API_HTTP_PATH_PREFIX.audits,
+  auditsTokenUsageSummary: `${API_HTTP_PATH_PREFIX.audits}/token-usage-summary`,
   benchmarks: API_HTTP_PATH_PREFIX.benchmarks,
   benchmarksRecompute: `${API_HTTP_PATH_PREFIX.benchmarks}/recompute`,
   platformBenchmarksRecompute: `${API_HTTP_PATH_PREFIX.platform}/benchmarks/recompute`,
@@ -57,6 +66,7 @@ export const API_PATHS = {
   notificationsReadAll: `${API_HTTP_PATH_PREFIX.notifications}/read-all`,
   platformSelfServeOwner: `${API_HTTP_PATH_PREFIX.platform}/self-serve-owner`,
   profile: API_HTTP_PATH_PREFIX.profile,
+  profileLegalConsents: `${API_HTTP_PATH_PREFIX.profile}/legal-consents`,
   snapshot: API_HTTP_PATH_PREFIX.snapshot,
   snapshotQuota: `${API_HTTP_PATH_PREFIX.snapshot}/quota`,
   snapshotClaim: `${API_HTTP_PATH_PREFIX.snapshot}/claim`,
@@ -106,6 +116,145 @@ export function apiAuditsPipelineStatus(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/status`;
 }
 
+export function apiAuditsStrategyExecutionPack(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/execution-pack`;
+}
+
+export function apiAuditsStrategyExecutionPacks(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/execution-packs`;
+}
+
+export function apiAuditsStrategyLabContext(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/lab-context`;
+}
+
+export function apiAuditsRoadmapManifestPreview(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest-preview`;
+}
+
+export function apiAuditsRoadmapManifestSnapshots(
+  auditId: string,
+  query?: { limit?: number },
+): string {
+  const base = `${apiAuditsPath(auditId)}/roadmap/manifest-snapshots`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsRoadmapManifestSnapshotsLatest(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest-snapshots/latest`;
+}
+
+export function idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsRoadmapManifestSnapshots(auditId));
+}
+
+export function apiAuditsOrchestrationPack(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/pack`;
+}
+
+export function apiAuditsOrchestrationSelectedInitiative(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/selected-initiative`;
+}
+
+export function apiAuditsOrchestrationSprintExport(
+  auditId: string,
+  query?: { format?: 'json' | 'csv'; execution_pack?: '0' | '1' },
+): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/sprint-export`;
+  if (!query) return base;
+  const sp = new URLSearchParams();
+  if (query.format) sp.set('format', query.format);
+  if (query.execution_pack != null) sp.set('execution_pack', query.execution_pack);
+  const qs = sp.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export function apiAuditsOrchestrationPackRegenerate(auditId: string): string {
+  return `${apiAuditsOrchestrationPack(auditId)}/regenerate`;
+}
+
+export function idempotencyPostAuditsOrchestrationPackKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationPack(auditId));
+}
+
+export function idempotencyPostAuditsOrchestrationPackRegenerateKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationPackRegenerate(auditId));
+}
+
+export function idempotencyPostAuditsOrchestrationSelectedInitiativeKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationSelectedInitiative(auditId));
+}
+
+export function apiAuditsOrchestrationPackDiffHistory(
+  auditId: string,
+  query?: { limit?: number },
+): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/pack-diff-history`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsOrchestrationPackDiff(auditId: string, query: { from_version: number; to_version: number }): string {
+  const base = `${apiAuditsPath(auditId)}/orchestration/pack-diff`;
+  const qs = new URLSearchParams({
+    from_version: String(query.from_version),
+    to_version: String(query.to_version),
+  });
+  return `${base}?${qs.toString()}`;
+}
+
+export function apiAuditsOrchestrationCommercialOffer(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/commercial-offer`;
+}
+
+/**
+ * @deprecated Use `apiAuditsOrchestration*` routes.
+ * Legacy aliases kept for backward compatibility during deprecation window.
+ */
+export function apiAuditsOrchestratorPreview(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/preview`;
+}
+
+/** @deprecated Use `apiAuditsOrchestrationPack`. */
+export function apiAuditsOrchestratorRun(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/run`;
+}
+
+/** @deprecated Use `apiAuditsOrchestrationPack`. */
+export function apiAuditsOrchestratorLatest(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/latest`;
+}
+
+export function idempotencyPostAuditsOrchestratorRunKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestratorRun(auditId));
+}
+
+export function apiAuditsTimeline(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/timeline`;
+}
+
+export function apiAuditsDirectorDeepDive(auditId: string, domainKey: string): string {
+  return `${apiAuditsPath(auditId)}/directors/${encodeURIComponent(domainKey)}/deep-dive`;
+}
+
+export function apiAuditsDirectorDeepDiveStatus(auditId: string, domainKey: string, jobId: string): string {
+  return `${apiAuditsDirectorDeepDive(auditId, domainKey)}/${encodeURIComponent(jobId)}`;
+}
+
+export function apiAuditsDirectorDeepDiveQuota(auditId: string, domainKey: string): string {
+  return `${apiAuditsDirectorDeepDive(auditId, domainKey)}/quota`;
+}
+
+/** Platform admin: clear `cancelled` so the audit owner can retry or continue. */
+export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string {
+  return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;
+}
+
 export function apiAuditsBriefHelpRequest(auditId: string): string {
   return `${apiAuditsPath(auditId)}/brief/help-request`;
 }
@@ -133,6 +282,18 @@ export function apiIntakeToken(token: string): string {
 
 export function apiIntakeRespond(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/respond`;
+}
+
+export function apiIntakeNlDescribe(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/nl-describe`;
+}
+
+export function apiIntakeIntelligenceKpi(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/intelligence-kpi`;
+}
+
+export function apiIntakeNextQuestion(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/next-question`;
 }
 
 export function apiBriefPublicSession(token: string): string {

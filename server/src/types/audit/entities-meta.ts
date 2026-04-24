@@ -1,6 +1,7 @@
 import type { ProductMode } from '@glc/intake-core';
 
 import type { AuditExecutionPlan } from './execution-plan.js';
+import type { AuditOrigin } from './origin.js';
 import type { AuditStatus } from './phase-status.js';
 
 export interface AuditMeta {
@@ -17,6 +18,7 @@ export interface AuditMeta {
   token_budget: number;
   tokens_used: number;
   product_mode: ProductMode;
+  origin: AuditOrigin;
   execution_plan?: AuditExecutionPlan | null;
   snapshot_token: string | null;
   created_at: string;

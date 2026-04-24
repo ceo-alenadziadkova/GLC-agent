@@ -12,10 +12,16 @@ type StudioModeSummarySectionProps = {
   tracePlan: { visible: string[]; required: string[] } | null;
   traceError: string | null;
   branchFocusSize: number | null;
+  intelligenceMetrics?: {
+    fullyCoveredQuestions: number;
+    totalQuestions: number;
+    sprint2Complete: number;
+    sprint2GateTotal: number;
+  } | null;
 };
 
 export function StudioModeSummarySection(props: StudioModeSummarySectionProps) {
-  const { policyMode, policyBannerStats, tracePlan, traceError, branchFocusSize } = props;
+  const { policyMode, policyBannerStats, tracePlan, traceError, branchFocusSize, intelligenceMetrics } = props;
 
   return (
     <div className="rounded-lg px-3 py-2 space-y-1 text-xs leading-snug ds-panel-canvas" >
@@ -50,6 +56,16 @@ export function StudioModeSummarySection(props: StudioModeSummarySectionProps) {
         )}
         {branchFocusSize !== null ? <> · Branch focus: <strong>{branchFocusSize}</strong> ids</> : null}
       </p>
+      {intelligenceMetrics ? (
+        <p className="m-0 ds-type-2xs-quaternary">
+          {QUESTION_BANK_STUDIO_COPY_EN.panels.intelligenceContract}:{' '}
+          {QUESTION_BANK_STUDIO_COPY_EN.panels.bankCoverageLabel}{' '}
+          <strong>{intelligenceMetrics.fullyCoveredQuestions}</strong> / {intelligenceMetrics.totalQuestions}
+          {' · '}
+          {QUESTION_BANK_STUDIO_COPY_EN.panels.sprint2GateLabel}{' '}
+          <strong>{intelligenceMetrics.sprint2Complete}</strong> / {intelligenceMetrics.sprint2GateTotal}
+        </p>
+      ) : null}
     </div>
   );
 }

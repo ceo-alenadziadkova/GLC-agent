@@ -1,10 +1,44 @@
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, Eye, EyeSlash, Lock } from '@phosphor-icons/react';
 import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
-import type { AuthMode, FieldErrors } from '../../types';
+import { LEGAL_SIGNUP_COPY_EN } from '../../../../config/legal-signup-copy.en';
+import { APP_ROUTE_PATHS } from '../../../../config/route-paths';
+import type { AuthMode, FieldErrors, SignupLegalFieldState } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
 import { cn } from '../../../../components/ui/utils';
+import { Input } from '../../../../../design-system/ui';
+
+type SignupLegalConsentRowProps = {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  children: ReactNode;
+  'aria-required'?: boolean;
+  'aria-label'?: string;
+};
+
+function SignupLegalConsentRow({
+  checked,
+  onChange,
+  children,
+  'aria-required': ariaRequired,
+  'aria-label': ariaLabel,
+}: SignupLegalConsentRowProps) {
+  return (
+    <label className="ds-pattern-auth-signup-legal-label ds-text-secondary">
+      <input
+        type="checkbox"
+        className="ds-auth-signup-legal-checkbox"
+        checked={checked}
+        onChange={event => onChange(event.target.checked)}
+        {...(ariaRequired ? { 'aria-required': true as const } : {})}
+        {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
 
 type SignInUpFormProps = {
   mode: AuthMode;
@@ -27,6 +61,8 @@ type SignInUpFormProps = {
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onTogglePassword: () => void;
+  signupLegal?: SignupLegalFieldState;
+  onSignupLegalChange?: (patch: Partial<SignupLegalFieldState>) => void;
 };
 
 export function SignInUpForm(props: SignInUpFormProps) {
@@ -51,6 +87,8 @@ export function SignInUpForm(props: SignInUpFormProps) {
     onEmailChange,
     onPasswordChange,
     onTogglePassword,
+    signupLegal,
+    onSignupLegalChange,
   } = props;
   return (
     <>
@@ -82,7 +120,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
         className="space-y-3"
       >
         <FormField label={<span className="sr-only">{LC.labelEmail}</span>} htmlFor="auth-email" error={fieldErrors.email ? <span id={emailErrorId}>{fieldErrors.email}</span> : undefined}>
-          <input
+          <Input
             id="auth-email"
             type="email"
             name="email"
@@ -93,13 +131,13 @@ export function SignInUpForm(props: SignInUpFormProps) {
             autoComplete="email"
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? emailErrorId : undefined}
-            className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
+            className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
           />
         </FormField>
         <FormField label={<span className="sr-only">{LC.labelPassword}</span>} htmlFor="auth-password" error={fieldErrors.password ? <span id={passwordErrorId}>{fieldErrors.password}</span> : undefined}>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
+            <Input
               id="auth-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -110,7 +148,8 @@ export function SignInUpForm(props: SignInUpFormProps) {
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
-              className="glc-auth-input glc-auth-input--field w-full py-3 pl-9 pr-11 outline-none"
+              voiceInput={false}
+              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
@@ -137,6 +176,35 @@ export function SignInUpForm(props: SignInUpFormProps) {
           <p className="text-xs ds-text-tertiary" >
             {LC.signupPasswordHint}
           </p>
+        )}
+        {mode === 'signup' && signupLegal && onSignupLegalChange && (
+          <div className="ds-pattern-auth-signup-legal-panel">
+            <p className="m-0 text-xs leading-snug ds-text-tertiary">{LEGAL_SIGNUP_COPY_EN.requiredIntro}</p>
+            <SignupLegalConsentRow
+              checked={signupLegal.acceptTos}
+              onChange={next => onSignupLegalChange({ acceptTos: next })}
+              aria-required
+              aria-label={LEGAL_SIGNUP_COPY_EN.tosLink}
+            >
+              {LEGAL_SIGNUP_COPY_EN.tosLabelPrefix}
+              <Link to={APP_ROUTE_PATHS.legalTerms} className="ds-marketing-inline-link-accent" target="_blank" rel="noreferrer">
+                {LEGAL_SIGNUP_COPY_EN.tosLink}
+              </Link>
+              {LEGAL_SIGNUP_COPY_EN.tosLabelSuffix}
+            </SignupLegalConsentRow>
+            <SignupLegalConsentRow
+              checked={signupLegal.acceptPrivacy}
+              onChange={next => onSignupLegalChange({ acceptPrivacy: next })}
+              aria-required
+              aria-label={LEGAL_SIGNUP_COPY_EN.privacyLink}
+            >
+              {LEGAL_SIGNUP_COPY_EN.privacyLabelPrefix}
+              <Link to={APP_ROUTE_PATHS.legalPrivacy} className="ds-marketing-inline-link-accent" target="_blank" rel="noreferrer">
+                {LEGAL_SIGNUP_COPY_EN.privacyLink}
+              </Link>
+              {LEGAL_SIGNUP_COPY_EN.privacyLabelSuffix}
+            </SignupLegalConsentRow>
+          </div>
         )}
         <motion.button
           type="submit"

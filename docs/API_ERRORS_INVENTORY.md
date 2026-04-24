@@ -12,13 +12,21 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 |--------|--------------|-------------------|--------|
 | `IDEMPOTENCY_PAYLOAD_MISMATCH` | 409 | `This idempotency key was already used with a different request body.` | `POST /api/audits`, `POST /api/audit-requests/:id/approve` |
 | `AUDIT_INITIALIZATION_FAILED` | 500 | `Failed to create audit` | `POST /api/audits` (child row init rollback), `POST /api/audit-requests/:id/approve` (same) |
+| `AUDITS_DPA_REQUIRED` | 403 | `Accept the Data Processing Agreement before creating this audit.` | `POST /api/audits` (consultant without DPA), `POST /api/audit-requests/:id/approve` (same) |
 | `AUTH_*` | 401 / 403 / 500 | See `api-user-messages.en.json` | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
 | `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same JSON | `discover` |
 | `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`public_http_url`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
 | `INTERNAL_SERVER_ERROR` | 500 | Same JSON | Express global error handler (`index`) — includes optional `request_id` (trace id) when request context exists |
 | `MARKETING_*` | 400 / 500 | Same JSON | `POST /api/marketing/brief` |
 | `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `platform` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
-| `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
+| `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `REPORT_PDF_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
+| `AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID`, `AUDITS_STRATEGY_LAB_CONTEXT_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/strategy/lab-context` |
+| `AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED` | 400 / 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-snapshots` |
+| `AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED` | 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview` |
+| `AUDITS_ROADMAP_MANIFEST_LIST_FAILED` | 500 | Same JSON | `GET /api/audits/:id/roadmap/manifest-snapshots` |
+| `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `AUDITS_ORCHESTRATION_PACK_NOT_READY`, `AUDITS_ORCHESTRATION_PACK_FAILED` | 400 / 409 / 500 | Same JSON | `POST /api/audits/:id/orchestration/pack` |
+| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
+| `AUDITS_NOT_FOUND`, `AUDITS_FETCH_FAILED` | 404 / 500 | Same JSON | `GET /api/audits/:id/orchestration/pack` |
 
 ---
 

@@ -1,11 +1,13 @@
 import type { Response } from 'express';
 import type { AuthRequest, UserRole } from '../../../middleware/auth.js';
+import type { AuditOrigin } from '../../../types/audit.js';
 import {
   API_ERROR_CODES,
   AUDIT_INITIALIZATION_FAILED_MESSAGE,
   AUDITS_COMPANY_URL_INVALID_MESSAGE,
   AUDITS_COMPANY_URL_REQUIRED_MESSAGE,
   AUDITS_CREATE_FAILED_MESSAGE,
+  AUDITS_DPA_REQUIRED_MESSAGE,
   AUDITS_FORBIDDEN_MESSAGE,
   AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE_MESSAGE,
   IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
@@ -25,6 +27,7 @@ import {
   resolveCreateAuditMode,
   resolveCreateAuditOwnership,
 } from '../../../services/audits/audits-create.service.js';
+import { isDpaAcceptanceEffectivelyTrue } from '../../../services/legal-consent.service.js';
 
 export async function createAuditController(req: AuthRequest, res: Response) {
   try {
@@ -32,6 +35,14 @@ export async function createAuditController(req: AuthRequest, res: Response) {
     if (role !== 'consultant' && role !== 'client') {
       sendApiError(res, 403, API_ERROR_CODES.AUDITS_FORBIDDEN, AUDITS_FORBIDDEN_MESSAGE);
       return;
+    }
+
+    if (role === 'consultant') {
+      const dpaOk = await isDpaAcceptanceEffectivelyTrue(req.userId!);
+      if (!dpaOk) {
+        sendApiError(res, 403, API_ERROR_CODES.AUDITS_DPA_REQUIRED, AUDITS_DPA_REQUIRED_MESSAGE);
+        return;
+      }
     }
 
     const { company_url, company_name, industry, execution_plan, no_public_website } = req.body;
@@ -74,6 +85,7 @@ export async function createAuditController(req: AuthRequest, res: Response) {
       return;
     }
 
+    const origin: AuditOrigin = role === 'client' ? 'client_direct' : 'consultant_direct';
     const audit = await createAuditEntity({
       ownerUserId: ownership.ownerUserId,
       clientId: ownership.clientId,
@@ -83,6 +95,7 @@ export async function createAuditController(req: AuthRequest, res: Response) {
       mode: modeResolution.mode,
       executionPlan: modeResolution.executionPlan,
       noPublicWebsite: no_public_website === true,
+      origin,
     });
 
     const payload = { id: audit.id, status: audit.status };

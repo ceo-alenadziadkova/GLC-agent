@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { MARKETING_SURFACE_COMPARISON_SHELL } from '../../config/marketing-surface-tokens';
 import { cn } from '../../components/ui/utils';
 
 /**
@@ -12,13 +11,12 @@ export function MarketingComparisonShell({
 }: {
   children: ReactNode;
   className?: string;
-  /** Inner padding for flush children (e.g. DecisionPath cards). */
+  /** Inner padding for flush children (e.g. DecisionPath home rail / cards). */
   padded?: boolean;
 }) {
   return (
     <div
-      className={cn('overflow-hidden will-change-transform', padded && 'p-4 sm:p-5', className)}
-      style={MARKETING_SURFACE_COMPARISON_SHELL}
+      className={cn('ds-marketing-glass-panel will-change-transform', padded && 'ds-marketing-glass-panel--padded', className)}
     >
       {children}
     </div>

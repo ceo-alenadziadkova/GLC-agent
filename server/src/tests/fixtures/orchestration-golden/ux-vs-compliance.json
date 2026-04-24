@@ -1,0 +1,28 @@
+{
+  "scenario": "ux-vs-compliance",
+  "manifestSnapshotId": "22222222-2222-4222-8222-222222222222",
+  "nodes": [
+    {
+      "id": "ux-onboarding",
+      "title": "UX onboarding refresh",
+      "domain": "ux_conversion",
+      "lane": "product_change",
+      "dependencies": ["compliance-guardrails", "legal-approval"],
+      "weight": 6
+    },
+    {
+      "id": "compliance-guardrails",
+      "title": "Compliance guardrails",
+      "domain": "security_compliance",
+      "lane": "risk_compliance",
+      "dependencies": [],
+      "weight": 9
+    }
+  ],
+  "expected": {
+    "critical_path": ["compliance-guardrails", "ux-onboarding"],
+    "conflict_ids": [
+      "orphan-dep:ux-onboarding:legal-approval"
+    ]
+  }
+}

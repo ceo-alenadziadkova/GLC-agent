@@ -126,12 +126,13 @@ export type RespondIntakeTokenRow = {
   audit_id: string | null;
   consultant_id: string;
   expires_at: string;
+  responses: unknown;
 };
 
 export async function fetchIntakeTokenRowForRespond(token: string): Promise<RespondIntakeTokenRow | null> {
   const { data: row, error: fetchErr } = await supabase
     .from('intake_tokens')
-    .select('id, audit_id, consultant_id, expires_at')
+    .select('id, audit_id, consultant_id, expires_at, responses')
     .eq('token', token)
     .single();
   if (fetchErr || !row) return null;
@@ -152,6 +153,22 @@ export async function updateIntakeTokenResponses(
     .eq('id', id);
   if (upErr) {
     logger.error('intake.respond_update_failed', { component: 'intake', error: upErr.message });
+  }
+  return !upErr;
+}
+
+export async function updateIntakeTokenResponsesDraft(
+  id: string,
+  responses: Record<string, unknown>,
+): Promise<boolean> {
+  const { error: upErr } = await supabase
+    .from('intake_tokens')
+    .update({
+      responses,
+    })
+    .eq('id', id);
+  if (upErr) {
+    logger.error('intake.nl_describe_draft_update_failed', { component: 'intake', error: upErr.message });
   }
   return !upErr;
 }

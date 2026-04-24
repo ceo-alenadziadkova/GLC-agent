@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View } from '@react-pdf/renderer';
 
+import { sanitizePdfText } from '../lib/formatters.js';
 import type { DomainRow } from '../lib/view-model.js';
 import { pdfStyles as s } from '../styles.js';
 
@@ -13,10 +14,10 @@ export const QuickWinRows: React.FC<{ items: Qw[] }> = ({ items }) => (
         <View style={s.qwDot} />
         <View style={s.qwBody}>
           <Text style={s.qwTitle}>
-            {qw.title}
-            {qw.timeframe ? ` (${qw.timeframe})` : ''}
+            {sanitizePdfText(qw.title)}
+            {qw.timeframe ? ` (${sanitizePdfText(qw.timeframe)})` : ''}
           </Text>
-          <Text style={s.qwDesc}>{qw.description}</Text>
+          <Text style={s.qwDesc}>{sanitizePdfText(qw.description)}</Text>
         </View>
       </View>
     ))}

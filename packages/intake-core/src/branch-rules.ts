@@ -43,6 +43,8 @@ type BranchRuleEntry = {
   anyOf?: string[];
   value?: string;
   substrings?: string[];
+  /** Exact match after `unwrapIntakeValue` (single-select / text). */
+  expectValue?: string;
 };
 
 const RULES_RECORD = (branchRulesCanon as BranchRulesFile).rules;
@@ -115,6 +117,11 @@ function evalRuleEntry(entry: BranchRuleEntry, r: IntakeResponsesMap, depth: num
     case 'question_lower_includes_any': {
       const loc = getResponseStringLower(r, entry.questionId!);
       return (entry.substrings as string[]).some(sub => loc.includes(sub));
+    }
+    case 'unwrap_string_eq': {
+      if (!entry.questionId || entry.expectValue === undefined) return false;
+      const raw = unwrapIntakeValue(r[entry.questionId]);
+      return String(raw ?? '').trim() === String(entry.expectValue).trim();
     }
     default:
       return false;

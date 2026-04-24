@@ -135,6 +135,21 @@ describe('ContextBuilder.formatPrompt', () => {
     expect(prompt).toContain('seo_digital');
   });
 
+  it('includes intake project context envelope section when envelope is present', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_project_context_envelope: {
+          readinessContext: { flowReadinessStatus: 'flow_ready', auditReadinessStatus: 'audit_ready' },
+          identityContext: { industry: 'Healthcare' },
+        },
+      }),
+    );
+    expect(prompt).toContain('## Intake Project Context Envelope (normalized)');
+    expect(prompt).toContain('"readinessContext"');
+    expect(prompt).toContain('"auditReadinessStatus": "audit_ready"');
+  });
+
   it('preserves contradictory upstream domain signals in strategy prompt context', () => {
     const builder = new ContextBuilder();
     const { prompt } = builder.formatPrompt(
@@ -166,6 +181,39 @@ describe('ContextBuilder.formatPrompt', () => {
     expect(prompt).toContain('execution risk is high');
     expect(prompt).toContain('ROI evidence remains weak');
     expect(prompt).toContain('Implementation capacity mismatch');
+  });
+
+  it('places human review notes after previous domain blocks so they can override stale summaries', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        slice_domain: 'strategy',
+        previous_domains: [
+          {
+            domain_key: 'ux_conversion',
+            score: 2,
+            summary: 'No contact form detected.',
+            strengths: [],
+            weaknesses: ['Missing lead capture'],
+          },
+        ],
+        review_notes: [
+          {
+            phase: 4,
+            consultant_notes: 'Contact form exists on /contact; automation mis-detected.',
+            interview_notes: null,
+          },
+        ],
+      }),
+    );
+
+    const idxDomains = prompt.indexOf('## Previous Domain Analysis Results');
+    const idxNotes = prompt.indexOf('## Consultant & Interview Notes');
+    expect(idxDomains).toBeGreaterThan(-1);
+    expect(idxNotes).toBeGreaterThan(-1);
+    expect(idxNotes).toBeGreaterThan(idxDomains);
+    expect(prompt).toContain('Contact form exists on /contact');
+    expect(prompt).toContain('Strategy initiatives (quick wins');
   });
 
   it('includes upstream traceability anchors for strategy recommendations', () => {

@@ -47,3 +47,28 @@ export function formatDecisionRefineHallucinationCount(count: number): string {
 export function formatDecisionRefineSummary(refineReasonsJoined: string): string {
   return `Refine recommended — ${refineReasonsJoined}.`;
 }
+
+export function formatDecisionFallbackReasoning(p: { fallbackHint: string; errorMessage: string }): string {
+  return (
+    `Decision Layer failed; applied safe fallback '${p.fallbackHint}'. ` +
+    `Original error: ${p.errorMessage}.`
+  );
+}
+
+export function formatDecisionNarrowAcceptReasoning(p: { overall: number }): string {
+  return `Narrow governance: confidence ${p.overall}/100 — within accept threshold.`;
+}
+
+export function formatDecisionNarrowAcceptWithWarningsReasoning(p: { overall: number; notes: string }): string {
+  return `Narrow governance: confidence ${p.overall}/100. ${p.notes}`;
+}
+
+export function formatDecisionNarrowRefineSummary(p: { reasons: string }): string {
+  return `Narrow governance: refine recommended — ${p.reasons}.`;
+}
+
+/** Narrow `decideNarrow` — invariant branch (structural `governanceIncomplete` or invalid confidence). */
+export const DECISION_NARROW_REASON_GOVERNANCE_INVARIANT_FAILED = 'governance invariant failed' as const;
+
+/** Fallback notes when accept_with_warnings has no specific warning strings assembled. */
+export const DECISION_NARROW_NOTES_ADVISORY_SIGNALS_DEFAULT = 'advisory signals present' as const;

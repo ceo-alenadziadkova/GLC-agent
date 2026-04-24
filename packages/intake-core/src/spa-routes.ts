@@ -28,6 +28,7 @@ export const APP_ROUTE_SEGMENTS = {
   dashboard: 'dashboard',
   portfolio: 'portfolio',
   adminRequests: 'admin/requests',
+  adminAudits: 'admin/audits',
   adminSnapshots: 'admin/snapshots',
   adminDiscovery: 'admin/discovery',
   adminIntakeWording: 'admin/intake-wording',
@@ -35,12 +36,21 @@ export const APP_ROUTE_SEGMENTS = {
   /** Consultant-only: internal design system index (not linked for clients). */
   adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
+  timelineById: 'timeline/:id',
+  roadmapById: 'roadmap/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
+  /** Consultant-only orchestration cockpit (read model + governance). */
+  auditOrchestrationById: 'audit/:id/orchestration',
   settings: 'settings',
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
+  portalTimelineById: 'portal/timeline/:id',
+  portalRoadmapById: 'portal/roadmap/:id',
+  portalStrategyById: 'portal/strategy/:id',
+  /** Client manifest-first wizard (V2): guided roadmap inputs before pack build. */
+  portalRoadmapManifestByAuditId: 'portal/audit/:id/roadmap-manifest',
   portalAuditById: 'portal/audit/:id',
   portal: 'portal',
 } as const;

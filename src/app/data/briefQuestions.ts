@@ -48,6 +48,9 @@ export interface BriefQuestion {
   consultant_hint?: string;
   revenue_signal?: BriefRevenueSignal;
   triggers_followup?: string[];
+  whyAsked?: string;
+  semanticDomain?: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
+  decisionImpact?: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
   type: BriefQuestionType;
   options?: string[];
 }
@@ -58,6 +61,14 @@ export interface BriefResponseEntry {
 }
 
 export type BriefResponses = Record<string, BriefResponseValue | BriefResponseEntry>;
+
+/** User-visible labels for {@link formatBriefResponseCellForDisplay} (copy layer supplies strings). */
+export type BriefResponseDisplayLabels = {
+  unknown: string;
+  yes: string;
+  no: string;
+  empty: string;
+};
 
 export const BRIEF_QUESTIONS = SERVER_BRIEF_QUESTIONS as BriefQuestion[];
 
@@ -185,6 +196,34 @@ export function countAnswered(responses: BriefResponses, ids: string[]): number 
     if (Array.isArray(v)) return v.length > 0;
     return false;
   }).length;
+}
+
+/**
+ * Single-line display for a brief cell (pipeline review tables, confirm step).
+ * Respects explicit unknown source the same way as {@link countAnswered}.
+ */
+export function formatBriefResponseCellForDisplay(
+  raw: BriefResponses[string] | undefined,
+  labels: BriefResponseDisplayLabels,
+): string {
+  if (raw == null) return labels.empty;
+  if (isExplicitUnknown(raw)) return labels.unknown;
+  const v = unwrapResponse(raw);
+  if (v === null || v === undefined) return labels.empty;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    return t.length > 0 ? t : labels.empty;
+  }
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return v ? labels.yes : labels.no;
+  if (Array.isArray(v)) {
+    if (v.length === 0) return labels.empty;
+    return v
+      .map(item => (typeof item === 'string' ? item.trim() : String(item)))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return labels.empty;
 }
 
 /** True when primary industry is Other (shows follow-up specify field on public pre-brief). */

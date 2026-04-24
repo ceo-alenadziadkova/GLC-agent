@@ -19,8 +19,10 @@ import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
 import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
 import { startPipelineWorker } from './services/pipeline-jobs.js';
+import { startDirectorDeepDiveWorker } from './services/orchestration/run-director-deep-dive.service.js';
 import { warnPlatformAdminUserIdsEnvBootstrap } from './lib/platform-admin.js';
 import { warnSelfServeAuditOwnerEnvIfSet } from './lib/self-serve-audit-owner.js';
+import { getEffectiveFeatureFlagsSnapshot } from './config/feature-flags-snapshot.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
@@ -99,10 +101,15 @@ try {
 }
 
 app.listen(PORT, LISTEN_HOST, () => {
+  const featureFlags = getEffectiveFeatureFlagsSnapshot();
   logger.info('Server started', {
     port: PORT,
     host: LISTEN_HOST,
     env: process.env.NODE_ENV ?? 'development',
+  });
+  logger.info('feature_flags.effective_snapshot', {
+    component: 'bootstrap',
+    ...featureFlags,
   });
   void recoverStalledPipelines().then((count) => {
     if (count > 0) {
@@ -110,6 +117,7 @@ app.listen(PORT, LISTEN_HOST, () => {
     }
   });
   startPipelineWorker();
+  startDirectorDeepDiveWorker();
   startAlertsWorker();
 });
 

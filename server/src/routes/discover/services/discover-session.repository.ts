@@ -123,3 +123,20 @@ export async function updateDiscoverySessionContact(
     error: error as { message: string } | null,
   };
 }
+
+export async function deleteDiscoverySessionForConsultant(
+  token: string,
+  consultantId: string,
+): Promise<{ data: { session_token: string } | null; error: { message: string } | null }> {
+  const { data, error } = await supabase
+    .from('discovery_sessions')
+    .delete()
+    .eq('session_token', token)
+    .or(`consultant_id.is.null,consultant_id.eq.${consultantId}`)
+    .select('session_token')
+    .maybeSingle();
+  return {
+    data: data as { session_token: string } | null,
+    error: error as { message: string } | null,
+  };
+}

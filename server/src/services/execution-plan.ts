@@ -46,7 +46,7 @@ export function defaultExecutionPlanForPackage(
       depth: 'standard',
       source: 'system_default',
       coverage_package: 'pro',
-      include_strategy: false,
+      include_strategy: true,
     };
   }
   return {

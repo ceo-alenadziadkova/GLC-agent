@@ -2,6 +2,7 @@ import { CheckCircle, PaperPlaneRight, Spinner } from '@phosphor-icons/react';
 import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
 import { hasAnyContactValue } from '../services';
 import { cn } from '../../../components/ui/utils';
+import { Input } from '../../../../design-system/ui';
 
 type ContactCaptureFormProps = {
   contactName: string;
@@ -76,13 +77,13 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
           { placeholder: discoverResultsUi.copy.contactPlaceholders.phone, value: contactPhone, setter: onContactPhoneChange, type: 'tel' },
           { placeholder: discoverResultsUi.copy.contactPlaceholders.company, value: contactCompany, setter: onContactCompanyChange, type: 'text' },
         ].map(({ placeholder, value, setter, type }) => (
-          <input
+          <Input
             key={placeholder}
-            type={type}
+            type={type as 'text' | 'email' | 'tel'}
             placeholder={placeholder}
             value={value}
             onChange={event => setter(event.target.value)}
-            className="glc-field-control text-foreground w-full rounded-xl border bg-[var(--input-background)] px-4 py-3 text-[length:var(--text-base)] outline-none"
+            className="glc-field-control h-auto w-full min-h-10 rounded-xl border bg-[var(--input-background)] px-4 py-3 text-[length:var(--text-base)] outline-none"
           />
         ))}
       </div>

@@ -9,11 +9,15 @@ import {
   writeClientBriefLayoutDefault,
   writeConsultantBriefLayoutDefault,
 } from '../../../lib/client-brief-layout-preference';
-import { NOTIFY_PREFS_LOCAL_STORAGE_ID } from '../../../config/settings-page-defaults';
+import {
+  NOTIFY_PREFS_CHANGED_WINDOW_EVENT,
+  NOTIFY_PREFS_LOCAL_STORAGE_ID,
+} from '../../../config/settings-page-defaults';
 
 const NOTIFY_PREFS_FALLBACK: NotificationPrefs = {
   auditStatusReminders: true,
   productUpdates: false,
+  showExecutionTracePanels: false,
 };
 
 export function readNotifyPrefs(): NotificationPrefs {
@@ -24,6 +28,8 @@ export function readNotifyPrefs(): NotificationPrefs {
     return {
       auditStatusReminders: parsed.auditStatusReminders ?? NOTIFY_PREFS_FALLBACK.auditStatusReminders,
       productUpdates: parsed.productUpdates ?? NOTIFY_PREFS_FALLBACK.productUpdates,
+      showExecutionTracePanels:
+        parsed.showExecutionTracePanels ?? NOTIFY_PREFS_FALLBACK.showExecutionTracePanels,
     };
   } catch {
     return NOTIFY_PREFS_FALLBACK;
@@ -32,6 +38,22 @@ export function readNotifyPrefs(): NotificationPrefs {
 
 export function writeNotifyPrefs(prefs: NotificationPrefs): void {
   localStorage.setItem(NOTIFY_PREFS_LOCAL_STORAGE_ID, JSON.stringify(prefs));
+  window.dispatchEvent(new Event(NOTIFY_PREFS_CHANGED_WINDOW_EVENT));
+}
+
+export function subscribeNotifyPrefsChanged(listener: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === NOTIFY_PREFS_LOCAL_STORAGE_ID) {
+      listener();
+    }
+  };
+
+  window.addEventListener('storage', onStorage);
+  window.addEventListener(NOTIFY_PREFS_CHANGED_WINDOW_EVENT, listener);
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener(NOTIFY_PREFS_CHANGED_WINDOW_EVENT, listener);
+  };
 }
 
 export function readBriefLayoutPrefs(): {

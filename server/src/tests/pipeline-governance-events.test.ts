@@ -91,6 +91,18 @@ const {
       }
       return Promise.resolve({ data: null, error: null });
     });
+    chain.maybeSingle = vi.fn(() => {
+      if (table === 'audits') {
+        return Promise.resolve({
+          data: { product_mode: productMode, industry: 'saas' },
+          error: null,
+        });
+      }
+      if (table === 'review_points') {
+        return Promise.resolve({ data: null, error: { code: 'PGRST116' } });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     chain.update = vi.fn((payload: Record<string, unknown>) => {
       updatePayload = payload;
       const capturedFilters = { ...filters };
@@ -135,6 +147,10 @@ const {
           r,
         );
       }
+
+      async finalizeStrategyPersistence() {
+        return Promise.resolve();
+      }
     };
   }
 
@@ -172,6 +188,14 @@ vi.mock('../services/observability-context.js', () => ({
   updateContext: vi.fn(),
 }));
 
+vi.mock('../config/director-orchestration-policy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/director-orchestration-policy.js')>();
+  return {
+    ...actual,
+    directorOrchestrationPersistenceModeForPhase: () => 'best_effort' as const,
+  };
+});
+
 vi.mock('../agents/recon.js', () => ({ ReconAgent: govAgentClass(0) }));
 vi.mock('../agents/tech.js', () => ({ TechAgent: govAgentClass(1) }));
 vi.mock('../agents/security.js', () => ({ SecurityAgent: govAgentClass(2) }));
@@ -187,8 +211,23 @@ vi.mock('../services/consistency-checker.js', () => ({
 
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { decisionLayer } from '../services/decision-layer.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { createControlObjectV1, type ControlObjectV1 } from '../schemas/control-object.js';
 import { PHASE_DOMAIN_MAP } from '../types/audit.js';
+
+function mockStrategyNarrowControlObject(auditId: string): Record<string, unknown> {
+  const co = createControlObjectV1(auditId, 'strategy');
+  co.context.governance_profile = 'narrow';
+  co.confidence.overall = 90;
+  co.confidence.factual = 90;
+  co.confidence.strategic = 88;
+  co.confidence.consistency = 90;
+  co.errors.structural = [];
+  co.errors.data_gaps = [];
+  co.errors.fixable = [];
+  co.human_attention_required = { required: false, reasons: [], requirements_met: null };
+  return co as unknown as Record<string, unknown>;
+}
 
 function getPipelineInserts() {
   return getInsertCalls().filter(c => c.table === 'pipeline_events');
@@ -201,7 +240,8 @@ describe('PipelineOrchestrator governance events', () => {
     resetCoImplDefault();
     setCoImpl((phase, auditId) => {
       const dk = PHASE_DOMAIN_MAP[phase];
-      if (dk === 'recon' || dk === 'strategy') return null;
+      if (dk === 'recon') return null;
+      if (dk === 'strategy') return mockStrategyNarrowControlObject(auditId);
       return createControlObjectV1(auditId, dk) as unknown as Record<string, unknown>;
     });
     (mockAssertBriefReady as Mock).mockReset().mockResolvedValue(undefined);
@@ -223,7 +263,7 @@ describe('PipelineOrchestrator governance events', () => {
     vi.restoreAllMocks();
   });
 
-  it('emits control_object for phases 1–6 on full 0–7 run (not recon/strategy)', async () => {
+  it('emits control_object for phases 1–6 and narrow strategy (phase 7) on full 0–7 run', async () => {
     const orch = new PipelineOrchestrator(GOV_AUDIT_ID);
     for (let p = 0; p <= 7; p += 1) {
       await orch.startPhase(p);
@@ -231,8 +271,8 @@ describe('PipelineOrchestrator governance events', () => {
 
     const controlRows = getPipelineInserts().filter(i => i.payload.event_type === 'control_object');
     const phases = controlRows.map(r => r.payload.phase).sort((a, b) => Number(a) - Number(b));
-    expect(phases).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(controlRows).toHaveLength(6);
+    expect(phases).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(controlRows).toHaveLength(7);
 
     for (const row of controlRows) {
       const data = row.payload.data as Record<string, unknown>;
@@ -240,6 +280,11 @@ describe('PipelineOrchestrator governance events', () => {
       const co = data.control_object as ControlObjectV1;
       expect(co.decision_hint).toMatch(/accept|accept_with_warnings|refine/);
     }
+
+    const phase7 = controlRows.find(r => r.payload.phase === 7);
+    expect(phase7).toBeDefined();
+    const co7 = (phase7!.payload.data as Record<string, unknown>).control_object as ControlObjectV1;
+    expect(co7.context.governance_profile).toBe('narrow');
   });
 
   it('emits refine_recommended when control object yields refine (low overall confidence)', async () => {
@@ -262,19 +307,22 @@ describe('PipelineOrchestrator governance events', () => {
     expect(data.control_object).toBeDefined();
   });
 
-  it('completes domain phase and saves result when DecisionLayer.decide throws once', async () => {
-    const decideSpy = vi.spyOn(decisionLayer, 'decide').mockImplementationOnce(() => {
+  it('completes domain phase and saves result when DecisionLayer.decideForControlObject throws once', async () => {
+    const decideSpy = vi.spyOn(decisionLayer, 'decideForControlObject').mockImplementationOnce(() => {
       throw new Error('mock decision layer failure');
     });
 
     const orch = new PipelineOrchestrator(GOV_AUDIT_ID);
-    await expect(orch.startPhase(1)).resolves.toBeUndefined();
+    await expect(orch.startPhase(1)).resolves.toBe('completed');
 
     expect(mockAgentSaveDomainResult).toHaveBeenCalled();
     const controlRows = getPipelineInserts().filter(i => i.payload.event_type === 'control_object');
     expect(controlRows.length).toBeGreaterThanOrEqual(1);
-    const co = (controlRows[0].payload.data as Record<string, unknown>).control_object as ControlObjectV1;
-    expect(co.decision_hint).toBe('accept');
+    const data = controlRows[0].payload.data as Record<string, unknown>;
+    const co = data.control_object as ControlObjectV1;
+    expect(co.decision_hint).toBe(SYSTEM_DEFAULTS.decisionLayer.onErrorFallback.hint);
+    expect(data.decision_fallback_applied).toBe(true);
+    expect(data.decision_fallback_reason_code).toBe(SYSTEM_DEFAULTS.decisionLayer.onErrorFallback.reasonCode);
 
     decideSpy.mockRestore();
   });
@@ -282,7 +330,8 @@ describe('PipelineOrchestrator governance events', () => {
   it('keeps strategy completion when upstream quality is mixed (accept + accept_with_warnings)', async () => {
     setCoImpl((phase, auditId) => {
       const dk = PHASE_DOMAIN_MAP[phase];
-      if (dk === 'recon' || dk === 'strategy') return null;
+      if (dk === 'recon') return null;
+      if (dk === 'strategy') return mockStrategyNarrowControlObject(auditId);
       const co = createControlObjectV1(auditId, dk);
       co.counts.fact = 10;
       co.counts.total_claims = 12;
@@ -327,7 +376,8 @@ describe('PipelineOrchestrator governance events', () => {
   it('is deterministic for final gate behavior across identical runs', async () => {
     const stableCo = (phase: number, auditId: string): Record<string, unknown> | null => {
       const dk = PHASE_DOMAIN_MAP[phase];
-      if (dk === 'recon' || dk === 'strategy') return null;
+      if (dk === 'recon') return null;
+      if (dk === 'strategy') return mockStrategyNarrowControlObject(auditId);
       const co = createControlObjectV1(auditId, dk);
       co.counts.fact = 10;
       co.counts.total_claims = 12;

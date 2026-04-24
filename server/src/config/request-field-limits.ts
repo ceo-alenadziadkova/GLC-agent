@@ -31,6 +31,18 @@ export const REQUEST_FIELD_LIMITS = {
   /** Intake analytics `step_index` upper bound */
   intakeAnalyticsStepIndexMax: 500,
 
+  /** Intake analytics — diagnostic pilot `signal_key` on events */
+  intakeAnalyticsSignalKeyMax: 48,
+
+  /** Intake analytics — `transition_rule_ref` (pilot sequencing / rule id) */
+  intakeAnalyticsTransitionRuleRefMax: 120,
+
+  /** Intake analytics — max `trace_codes` entries per event */
+  intakeAnalyticsTraceCodesMax: 12,
+
+  /** Intake analytics — max bank ids in `next_recommended` snapshot on an event */
+  intakeAnalyticsNextRecommendedMaxIds: 80,
+
   /**
    * Intake trace tool: max wording draft keys per PUT and max `question_ids` per publish/rollback batch.
    */

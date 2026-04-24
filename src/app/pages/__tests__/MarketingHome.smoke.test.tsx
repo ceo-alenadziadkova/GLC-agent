@@ -38,7 +38,7 @@ describe('MarketingHome smoke', () => {
     const howItWorksCta = screen.getByTestId('hero-cta-how-it-works');
     expect(howItWorksCta).toHaveAttribute('href', '/#how-it-works');
 
-    const faqCta = screen.getByRole('link', { name: 'All questions and answers' });
+    const faqCta = screen.getByRole('link', { name: 'See all answers' });
     expect(faqCta).toHaveAttribute('href', '/faq');
   });
 });

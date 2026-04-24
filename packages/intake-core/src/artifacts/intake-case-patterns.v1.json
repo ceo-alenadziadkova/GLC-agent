@@ -1,0 +1,100 @@
+{
+  "version": "1.0.0",
+  "cases": [
+    {
+      "caseKey": "launching_service_solo_founder",
+      "title": "Launching · professional services · solo",
+      "preconditions": [
+        { "kind": "bank", "bankId": "a7", "equals": "Launching" },
+        { "kind": "bank", "bankId": "a4", "equals": "Just me" },
+        { "kind": "bank", "bankId": "a2", "equals": "Professional Services" }
+      ],
+      "overlayQuestionIds": ["b1", "b2", "b3"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "medium", "keys": ["primary_problem", "audit_focus"] } },
+      "ownerDomain": "strategy",
+      "reviewByIsoDate": "2026-10-01"
+    },
+    {
+      "caseKey": "scaling_ecommerce_ops_bottleneck",
+      "title": "Scaling · e-commerce · operations",
+      "preconditions": [
+        { "kind": "bank", "bankId": "a2", "equals": "E-commerce" },
+        { "kind": "bank", "bankId": "a7", "inSet": ["Scaling", "Growing fast"] }
+      ],
+      "overlayQuestionIds": ["a8", "d2", "b7"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["operations_bottleneck"] } },
+      "ownerDomain": "automation_processes",
+      "reviewByIsoDate": "2026-10-15"
+    },
+    {
+      "caseKey": "growing_saas_pmf_uncertainty",
+      "title": "Growing fast · SaaS / Software",
+      "preconditions": [
+        { "kind": "bank", "bankId": "a2", "equals": "SaaS / Software" },
+        { "kind": "bank", "bankId": "a7", "inSet": ["Growing fast", "Launching"] }
+      ],
+      "overlayQuestionIds": ["b3", "e3", "c3"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["primary_problem"] } },
+      "ownerDomain": "tech_infrastructure",
+      "reviewByIsoDate": "2026-10-20"
+    },
+    {
+      "caseKey": "mature_retail_channel_optimization",
+      "title": "Mature · retail",
+      "preconditions": [
+        { "kind": "bank", "bankId": "a2", "equals": "Retail" },
+        { "kind": "bank", "bankId": "a7", "inSet": ["Mature and optimising", "Stabilising"] }
+      ],
+      "overlayQuestionIds": ["b7", "c2", "a11"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["audit_focus"] } },
+      "ownerDomain": "marketing_utp",
+      "reviewByIsoDate": "2026-10-25"
+    },
+    {
+      "caseKey": "growing_hospitality_seasonality",
+      "title": "Hospitality · seasonality and ops",
+      "preconditions": [{ "kind": "bank", "bankId": "a2", "equals": "Hospitality" }],
+      "overlayQuestionIds": ["b_hotel_1", "b_hotel_2", "d_hotel_1"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["delivery_shape_baseline"] } },
+      "ownerDomain": "ux_conversion",
+      "reviewByIsoDate": "2026-11-01"
+    },
+    {
+      "caseKey": "healthcare_compliance_driven",
+      "title": "Healthcare",
+      "preconditions": [{ "kind": "bank", "bankId": "a2", "equals": "Healthcare" }],
+      "overlayQuestionIds": ["b_health_1", "c8", "d1"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["audit_focus"] } },
+      "ownerDomain": "security_compliance",
+      "reviewByIsoDate": "2026-11-08"
+    },
+    {
+      "caseKey": "any_stage_security_compliance_driven",
+      "title": "Security incident posture (answered)",
+      "preconditions": [{ "kind": "bank", "bankId": "e4", "isAnswered": true }],
+      "overlayQuestionIds": ["e2", "e4", "d6"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["primary_problem"] } },
+      "ownerDomain": "security_compliance",
+      "reviewByIsoDate": "2026-11-15"
+    },
+    {
+      "caseKey": "early_validation_idea_stage",
+      "title": "Launching · early validation",
+      "preconditions": [
+        { "kind": "bank", "bankId": "a7", "equals": "Launching" }
+      ],
+      "overlayQuestionIds": ["f_idea_1", "f_idea_2", "f_idea_3"],
+      "minOverlayAnswered": 1,
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["primary_problem"] } },
+      "ownerDomain": "strategy",
+      "reviewByIsoDate": "2026-11-20"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import {
   AUDIT_REQUEST_APPROVE_SEED_FAILED_MESSAGE,
   AUDIT_REQUEST_NOT_FOUND_MESSAGE,
   AUDIT_REQUEST_SUBMIT_WRONG_STATUS_MESSAGE,
+  AUDITS_DPA_REQUIRED_MESSAGE,
 } from '../../config/api-error-codes.js';
 import {
   getStoredIdempotentResponse,
@@ -24,6 +25,7 @@ import { isApprovableAuditRequestStatus } from '../domain/audit-request-status-p
 import { coveragePackageFromAuditRequestProductMode, persistedProductModeForExecutionPlan } from '../../lib/audit-coverage-bridge.js';
 import { defaultExecutionPlanForPackage } from '../../services/execution-plan.js';
 import { createAuditWithChildren } from '../../services/audit-initialization.js';
+import { isDpaAcceptanceEffectivelyTrue } from '../../services/legal-consent.service.js';
 import { isNoPublicWebsiteUrl } from '../../config/no-public-website.js';
 import { isAuditChildRowsInitRollbackError } from '../../lib/audit-init-error.js';
 import { logger } from '../../services/logger.js';
@@ -41,6 +43,11 @@ export async function approveAuditRequestCommand(req: AuthRequest, id: string, c
   const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditRequestApproveKey(id), req.body);
   if (idempotent.replay) {
     return { replay: idempotent.replay };
+  }
+
+  const dpaOk = await isDpaAcceptanceEffectivelyTrue(req.userId!);
+  if (!dpaOk) {
+    throw new AuditRequestHttpError(403, API_ERROR_CODES.AUDITS_DPA_REQUIRED, AUDITS_DPA_REQUIRED_MESSAGE);
   }
 
   const { data: requestRow, error: fetchError } = await getAuditRequestById(id);
@@ -87,6 +94,7 @@ export async function approveAuditRequestCommand(req: AuthRequest, id: string, c
       company_name: null,
       industry: requestRow.industry ?? null,
       mode: persistedMode,
+      origin: 'request_queue',
       execution_plan: executionPlan,
       no_public_website: isNoPublicWebsiteUrl(String(requestRow.url ?? '')),
     });

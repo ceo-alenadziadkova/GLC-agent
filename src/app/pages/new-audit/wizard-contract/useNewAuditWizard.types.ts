@@ -8,6 +8,7 @@ import type {
   IntakeReadinessBadge,
   IntakeVersionTuple,
 } from '../../../data/auditTypes';
+import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import type { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
 
@@ -18,13 +19,15 @@ export type NewAuditWizardContract = {
   isClientSelfServe: boolean;
   intakeTokenFromUrl: string;
   fromDiscovery: string;
-  step: 0 | 1 | 2;
-  setStep: Dispatch<SetStateAction<0 | 1 | 2>>;
+  step: 0 | 1 | 2 | 3;
+  setStep: Dispatch<SetStateAction<0 | 1 | 2 | 3>>;
   loading: boolean;
   setLoading: Dispatch<SetStateAction<boolean>>;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   step0Valid: boolean;
+  /** Step 0: package + domain count within allowed range. */
+  coverageValid: boolean;
   briefProductMode: 'express' | 'full';
   url: string;
   setUrl: Dispatch<SetStateAction<string>>;
@@ -36,8 +39,8 @@ export type NewAuditWizardContract = {
   setIndustry: Dispatch<SetStateAction<string>>;
   industrySpecify: string;
   setIndustrySpecify: Dispatch<SetStateAction<string>>;
-  coveragePackage: AuditCoveragePackage;
-  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage>>;
+  coveragePackage: AuditCoveragePackage | null;
+  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage | null>>;
   selectedDomains: DomainKey[];
   setSelectedDomains: Dispatch<SetStateAction<DomainKey[]>>;
   toggleDomainSelection: (domain: DomainKey) => void;
@@ -48,10 +51,23 @@ export type NewAuditWizardContract = {
   discoveryPrefilled: boolean;
   answeredRequired: number;
   pipelineRequiredTotal: number;
+  /** Bank question ids for required pipeline gates that currently have an answer (for Step 2 review list). */
+  answeredPipelineRequiredIds: string[];
+  /** Merged brief (Step 0 + cells) used for pipeline gates; drives answer column in Step 2 review table. */
+  pipelineGateBriefResponses: BriefResponses;
   step2Complete: boolean;
   progressPct: number;
   readinessBadge: IntakeReadinessBadge;
   nextBestAction: IntakeNextBestAction;
+  /** Server `GET …/brief/schema` diagnostic slice for step 1 (null when unavailable). */
+  briefExecutionDiagnostic: Pick<
+    BriefSchemaSnapshot,
+    'readiness' | 'critical_signals' | 'remediation_queue'
+  > | null;
+  briefExecutionDiagnosticLoading: boolean;
+  briefExecutionDiagnosticError: boolean;
+  /** Resolver-visible question order from GET …/brief (wizard sequencing). */
+  briefWizardServerVisibleQuestionIds: string[] | undefined;
   bankMetrics: ReturnType<typeof useIntakeBankMetrics>;
   briefLayoutChoice: BriefLayoutChoice;
   setBriefLayoutChoice: Dispatch<SetStateAction<BriefLayoutChoice>>;
@@ -83,6 +99,12 @@ export type NewAuditWizardContract = {
   setDraftRestoredVisible: Dispatch<SetStateAction<boolean>>;
   handleSaveClientDraft: () => Promise<void>;
   handleLaunch: (e: FormEvent) => Promise<void>;
+
+  consultantDpaLoading: boolean;
+  consultantDpaOnFile: boolean;
+  consultantDpaChecked: boolean;
+  setConsultantDpaChecked: Dispatch<SetStateAction<boolean>>;
+
   preBriefOpen: boolean;
   setPreBriefOpen: Dispatch<SetStateAction<boolean>>;
   preBriefCompany: string;

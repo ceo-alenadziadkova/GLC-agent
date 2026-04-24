@@ -1,26 +1,28 @@
 import { motion } from 'motion/react';
-import { Globe, ArrowRight } from '@phosphor-icons/react';
-import type { Dispatch, SetStateAction, ReactNode } from 'react';
+import { Globe, ArrowRight, CaretDown } from '@phosphor-icons/react';
+import { useEffect, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 
 import { SectionLabel } from '../../../components/glc/SectionLabel';
 import { Callout } from '../../../components/ui/callout';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
 import { FormField } from '../../../components/ui/form-field';
-import { DOMAIN_PILLS } from '..';
+import { NEW_AUDIT_COVERAGE_DOMAIN_PILLS } from '../new-audit-coverage-pills';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { INDUSTRY_OPTIONS, type IndustryOption } from '../../../data/industry-options';
 import { AUDIT_COVERAGE_PACKAGES, type AuditCoveragePackage, type DomainKey, type BriefResponseSource } from '../../../data/auditTypes';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import {
-  NEW_AUDIT_ALL_COVERAGE_DOMAINS,
   NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT,
   NEW_AUDIT_COVERAGE_DOMAIN_LABELS,
   NEW_AUDIT_COVERAGE_SELECTION_LIMITS,
 } from '../../../config/new-audit-coverage-policy';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { cn } from '../../../components/ui/utils';
+import { Input } from '../../../../design-system/ui';
 
 export type Step0BasicsProps = {
   step0Valid: boolean;
+  coverageValid: boolean;
   isClientSelfServe: boolean;
 
   // Step 0 basics
@@ -37,8 +39,8 @@ export type Step0BasicsProps = {
   setResponses: Dispatch<SetStateAction<BriefResponses>>;
 
   // Coverage selection
-  coveragePackage: AuditCoveragePackage;
-  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage>>;
+  coveragePackage: AuditCoveragePackage | null;
+  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage | null>>;
   selectedDomains: DomainKey[];
   toggleDomainSelection: (domain: DomainKey) => void;
   recommendedDomains: DomainKey[];
@@ -55,6 +57,7 @@ export type Step0BasicsProps = {
 
 export function Step0Basics({
   step0Valid,
+  coverageValid,
   isClientSelfServe,
 
   url,
@@ -73,7 +76,7 @@ export function Step0Basics({
   setCoveragePackage,
   selectedDomains,
   toggleDomainSelection,
-  recommendedDomains,
+  recommendedDomains: _recommendedDomains,
 
   onContinue,
   clientDraftSaveSection,
@@ -82,6 +85,27 @@ export function Step0Basics({
   setInterviewMode,
   onOpenPreBrief,
 }: Step0BasicsProps) {
+  const [coverageOpen, setCoverageOpen] = useState(() => isClientSelfServe);
+
+  useEffect(() => {
+    if (!coverageValid) {
+      setCoverageOpen(true);
+    }
+  }, [coverageValid]);
+
+  const domainWord =
+    selectedDomains.length === 1
+      ? WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureDomainWordOne
+      : WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureDomainWordMany;
+  const coverageSummaryLine =
+    coveragePackage == null
+      ? WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureSummaryPendingClient
+      : `${coveragePackageLabel(coveragePackage)}${WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureSummarySeparator}${selectedDomains.length} ${domainWord}`;
+  const disclosureHint =
+    isClientSelfServe && coveragePackage == null
+      ? WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureCollapsedHintClient
+      : WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureCollapsedHint;
+
   return (
     <motion.div
       key="step0"
@@ -90,240 +114,249 @@ export function Step0Basics({
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.28 }}
     >
-      {/* Header */}
-      <div className="text-center mb-6 mobile:mb-5 sm:mb-8">
+      <div className="ds-new-audit-step0-page-header">
         <SectionLabel accent>{WORKSPACE_PAGE_COPY.newAudit.step0.sectionLabel}</SectionLabel>
-        <h1 className="text-foreground mt-2 text-2xl font-bold tracking-tight sm:text-[length:var(--text-3xl)]">
+        <h1 className="ds-new-audit-step0-title text-foreground mt-2 font-bold tracking-tight">
           {WORKSPACE_PAGE_COPY.newAudit.newAuditTitle}
         </h1>
-        <p className="text-muted-foreground mt-2.5 px-1 text-sm leading-relaxed">
-          {WORKSPACE_PAGE_COPY.newAudit.newAuditIntro}
-        </p>
       </div>
 
-      {/* Domain pills */}
-      <motion.div
-        className="flex flex-wrap gap-1.5 justify-center mb-7"
-        initial="hidden"
-        animate="visible"
-        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.045 } } }}
-      >
-        {DOMAIN_PILLS.map(({ icon: I, label }) => (
-          <motion.span
-            key={label}
-            variants={{
-              hidden: { opacity: 0, scale: 0.85 },
-              visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
-            }}
-            className="text-muted-foreground bg-card inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
-          >
-            <I className="h-3 w-3 text-current" />
-            {label}
-          </motion.span>
-        ))}
-      </motion.div>
-
-      {/* Form */}
       <form
         onSubmit={e => {
           e.preventDefault();
           if (step0Valid) onContinue();
         }}
-        className="glc-card space-y-5 rounded-2xl p-4 shadow-lg mobile:p-5 sm:p-6"
+        className="glc-card ds-new-audit-step0-form"
       >
-        {/* URL */}
-        <FormField
-          htmlFor="url"
-          label={WORKSPACE_PAGE_COPY.newAudit.step0.companyWebsiteLabel}
-          requiredMark={!noPublicWebsite}
-          optionalHint={
-            noPublicWebsite ? WORKSPACE_PAGE_COPY.newAudit.step0.skippedLabel : undefined
-          }
-        >
-          <div
-            className={cn(
-              'bg-card rounded-lg border transition-colors',
-              noPublicWebsite ? 'border-border opacity-65' : url ? 'border-info shadow-[var(--shadow-blue)]' : 'border-border',
-            )}
+        <div className="ds-new-audit-step0-basics-stack">
+          {/* URL */}
+          <FormField
+            htmlFor="url"
+            label={WORKSPACE_PAGE_COPY.newAudit.step0.companyWebsiteLabel}
+            requiredMark={!noPublicWebsite}
+            optionalHint={
+              noPublicWebsite ? WORKSPACE_PAGE_COPY.newAudit.step0.skippedLabel : undefined
+            }
           >
             <div
-              className="bg-muted flex min-w-11 flex-shrink-0 items-center self-stretch justify-center border-r px-3"
+              className="ds-new-audit-step0-url-field"
+              data-url-state={noPublicWebsite ? 'disabled' : url.trim() ? 'filled' : 'default'}
             >
-              <Globe className="text-muted-foreground h-4 w-4" />
-            </div>
-            <input
-              id="url"
-              type="text"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              value={url}
-              onChange={e => {
-                setNoPublicWebsite(false);
-                setUrl(e.target.value);
-              }}
-              placeholder="company.com"
-              required={!noPublicWebsite}
-              disabled={noPublicWebsite}
-              autoFocus
-              className="text-foreground flex-1 bg-transparent px-4 py-3 text-sm outline-none disabled:cursor-not-allowed"
-            />
-          </div>
-          <label className="text-muted-foreground flex cursor-pointer select-none items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={noPublicWebsite}
-              onChange={e => {
-                const on = e.target.checked;
-                setNoPublicWebsite(on);
-                if (on) setUrl('');
-              }}
-              className="accent-info rounded"
-            />
-            {WORKSPACE_PAGE_COPY.newAudit.step0.noPublicWebsiteLabel}
-          </label>
-        </FormField>
-
-        {/* Name */}
-        <FormField
-          htmlFor="cname"
-          label={WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}
-          optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.optionalLabel}
-        >
-          <input
-            id="cname"
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyNamePlaceholder}
-            className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
-          />
-        </FormField>
-
-        {/* Industry */}
-        <FormField
-          htmlFor="industry"
-          label={WORKSPACE_PAGE_COPY.newAudit.step0.industryLabel}
-          optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.industryTailorsRecommendations}
-        >
-          <select
-            id="industry"
-            value={industry}
-            onChange={e => {
-              const v = e.target.value;
-              setIndustry(v);
-              if (v !== 'Other') {
-                setIndustrySpecify('');
-                setResponses(prev => {
-                  const next = { ...prev };
-                  delete next.intake_industry_specify;
-                  return next;
-                });
-              }
-            }}
-            className={cn(
-              'glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none',
-              industry ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            <option value="">{WORKSPACE_PAGE_COPY.newAudit.step0.industrySelectPlaceholder}</option>
-            {INDUSTRY_OPTIONS.map((i: IndustryOption) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
-            ))}
-          </select>
-          {industry === 'Other' && (
-            <div className="space-y-1 pt-1">
-              <FormField
-                htmlFor="industry-specify"
-                label={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherLabel}
-                requiredMark
-              >
-              <input
-                id="industry-specify"
+              <div className="ds-new-audit-step0-url-addon" aria-hidden>
+                <Globe className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <Input
+                id="url"
                 type="text"
-                value={industrySpecify}
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={url}
                 onChange={e => {
-                  const t = e.target.value;
-                  setIndustrySpecify(t);
+                  setNoPublicWebsite(false);
+                  setUrl(e.target.value);
+                }}
+                placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyWebsitePlaceholder}
+                required={!noPublicWebsite}
+                disabled={noPublicWebsite}
+                autoFocus
+                className="ds-new-audit-step0-url-input h-auto min-h-9 border-0 bg-transparent shadow-none"
+              />
+            </div>
+            <label className="ds-new-audit-step0-no-site-row">
+              <input
+                type="checkbox"
+                checked={noPublicWebsite}
+                onChange={e => {
+                  const on = e.target.checked;
+                  setNoPublicWebsite(on);
+                  if (on) setUrl('');
+                }}
+                className="accent-info rounded"
+              />
+              {WORKSPACE_PAGE_COPY.newAudit.step0.noPublicWebsiteLabel}
+            </label>
+          </FormField>
+
+          {/* Name */}
+          <FormField
+            htmlFor="cname"
+            label={WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}
+            requiredMark
+          >
+            <Input
+              id="cname"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyNamePlaceholder}
+              required
+              className="glc-field-control h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
+            />
+          </FormField>
+
+          {/* Industry */}
+          <FormField
+            htmlFor="industry"
+            label={WORKSPACE_PAGE_COPY.newAudit.step0.industryLabel}
+            requiredMark
+          >
+            <select
+              id="industry"
+              value={industry}
+              onChange={e => {
+                const v = e.target.value;
+                setIndustry(v);
+                if (v !== 'Other') {
+                  setIndustrySpecify('');
                   setResponses(prev => {
                     const next = { ...prev };
-                    const trimmed = t.trim();
-                    if (trimmed) {
-                      next.intake_industry_specify = { value: t, source: 'client' as BriefResponseSource };
-                    } else {
-                      delete next.intake_industry_specify;
-                    }
+                    delete next.intake_industry_specify;
                     return next;
                   });
-                }}
-                placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherPlaceholder}
-                className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
-              />
-              <p className="text-muted-foreground m-0 text-xs">
-                {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherRequiredNote}
-              </p>
-              </FormField>
-            </div>
-          )}
-        </FormField>
-
-        {/* Coverage selection */}
-        <div className="space-y-2">
-          <label className="text-foreground block text-sm font-medium">
-            {WORKSPACE_PAGE_COPY.newAudit.step0.coveragePackageLabel}
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {AUDIT_COVERAGE_PACKAGES.map(pkg => {
-              const sel = coveragePackage === pkg;
-              return (
-                <button
-                  key={pkg}
-                  type="button"
-                  onClick={() => setCoveragePackage(pkg)}
-                  className={cn(
-                    'rounded-lg border px-3 py-2.5 text-left text-xs transition-all',
-                    sel ? 'border-info/50 bg-info/10' : 'bg-muted border-border',
-                  )}
+                }
+              }}
+              className={cn(
+                'glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none',
+                industry ? 'text-foreground' : 'text-muted-foreground',
+              )}
+              required
+            >
+              <option value="">{WORKSPACE_PAGE_COPY.newAudit.step0.industrySelectPlaceholder}</option>
+              {INDUSTRY_OPTIONS.map((i: IndustryOption) => (
+                <option key={i} value={i}>
+                  {i}
+                </option>
+              ))}
+            </select>
+            {industry === 'Other' && (
+              <div className="ds-new-audit-step0-industry-other-nested">
+                <FormField
+                  htmlFor="industry-specify"
+                  label={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherLabel}
+                  requiredMark
                 >
-                  <div className={cn('font-semibold', sel ? 'text-info' : 'text-foreground')}>
-                    {coveragePackageLabel(pkg)}
-                  </div>
-                  <div className="text-muted-foreground mt-0.5">{NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT[pkg]}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-            {NEW_AUDIT_ALL_COVERAGE_DOMAINS.map(domain => {
-              const checked = selectedDomains.includes(domain);
-              const disabled =
-                coveragePackage === 'complete' ||
-                (coveragePackage === 'starter' && checked && selectedDomains.length === NEW_AUDIT_COVERAGE_SELECTION_LIMITS.starter.min) ||
-                (coveragePackage === 'pro' && !checked && selectedDomains.length >= NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max);
-              return (
-                <label
-                  key={domain}
-                  className="bg-muted flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={disabled}
-                    onChange={() => toggleDomainSelection(domain)}
-                    className="accent-info"
+                  <Input
+                    id="industry-specify"
+                    type="text"
+                    value={industrySpecify}
+                    onChange={e => {
+                      const t = e.target.value;
+                      setIndustrySpecify(t);
+                      setResponses(prev => {
+                        const next = { ...prev };
+                        const trimmed = t.trim();
+                        if (trimmed) {
+                          next.intake_industry_specify = { value: t, source: 'client' as BriefResponseSource };
+                        } else {
+                          delete next.intake_industry_specify;
+                        }
+                        return next;
+                      });
+                    }}
+                    placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherPlaceholder}
+                    className="glc-field-control h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
                   />
-                  <span className="text-foreground text-xs">{NEW_AUDIT_COVERAGE_DOMAIN_LABELS[domain]}</span>
-                </label>
-              );
-            })}
-          </div>
-          <p className="text-muted-foreground mt-1.5 text-xs">
-            {WORKSPACE_PAGE_COPY.newAudit.step0.recommendedFromIntakeContextPrefix}
-            {recommendedDomains.map(d => NEW_AUDIT_COVERAGE_DOMAIN_LABELS[d]).join(', ')}
-            {WORKSPACE_PAGE_COPY.newAudit.step0.recommendedFromIntakeContextSuffix}
-          </p>
+                  <p className="text-muted-foreground m-0 text-xs">
+                    {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherRequiredNote}
+                  </p>
+                </FormField>
+              </div>
+            )}
+          </FormField>
+        </div>
+
+        {/* Coverage — progressive disclosure (defaults stay valid while collapsed) */}
+        <div className="ds-new-audit-step0-coverage-region">
+          <Collapsible open={coverageOpen} onOpenChange={setCoverageOpen}>
+            <CollapsibleTrigger
+              type="button"
+              className="ds-new-audit-coverage-disclosure-trigger"
+            >
+              <div className="ds-new-audit-coverage-disclosure-trigger-text">
+                <span className="ds-new-audit-coverage-disclosure-title">
+                  {WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureTitle}
+                </span>
+                <span className="ds-new-audit-coverage-disclosure-summary">
+                  {coverageSummaryLine}
+                </span>
+                <span className="ds-new-audit-coverage-disclosure-hint">
+                  {disclosureHint}
+                </span>
+              </div>
+              <CaretDown className="ds-new-audit-coverage-disclosure-caret" weight="bold" aria-hidden />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="ds-new-audit-coverage-disclosure-content">
+              {isClientSelfServe && coveragePackage == null && (
+                <p className="ds-new-audit-coverage-choose-package-hint">
+                  {WORKSPACE_PAGE_COPY.newAudit.step0.coverageDisclosureChoosePackageHint}
+                </p>
+              )}
+              <div className="ds-new-audit-coverage-package-layer">
+                <p className="ds-new-audit-coverage-package-heading">
+                  {WORKSPACE_PAGE_COPY.newAudit.step0.coveragePackageLabel}
+                </p>
+                <div className="ds-new-audit-coverage-package-grid">
+                  {AUDIT_COVERAGE_PACKAGES.map(pkg => {
+                    const sel = coveragePackage === pkg;
+                    return (
+                      <button
+                        key={pkg}
+                        type="button"
+                        onClick={() => setCoveragePackage(pkg)}
+                        className="ds-new-audit-coverage-package-option"
+                        data-selected={sel ? 'true' : 'false'}
+                      >
+                        <span className="ds-new-audit-coverage-package-option-title">
+                          {coveragePackageLabel(pkg)}
+                        </span>
+                        <span className="ds-new-audit-coverage-package-option-hint">
+                          {NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT[pkg]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {coveragePackage != null && (
+                <div className="ds-new-audit-coverage-domains-layer">
+                  <p className="ds-new-audit-coverage-domains-heading">
+                    {WORKSPACE_PAGE_COPY.newAudit.step0.coverageDomainsSectionLabel}
+                  </p>
+                  <p className="ds-new-audit-coverage-domains-hint">
+                    {WORKSPACE_PAGE_COPY.newAudit.step0.coverageDomainsSectionHint}
+                  </p>
+                  <div
+                    role="group"
+                    aria-label={WORKSPACE_PAGE_COPY.newAudit.step0.coverageDomainsGroupAriaLabel}
+                    className="ds-new-audit-coverage-pill-row"
+                  >
+                    {NEW_AUDIT_COVERAGE_DOMAIN_PILLS.map(({ domain, Icon }) => {
+                      const selected = selectedDomains.includes(domain);
+                      const disabled =
+                        coveragePackage === 'complete' ||
+                        (coveragePackage === 'starter' && selected && selectedDomains.length === NEW_AUDIT_COVERAGE_SELECTION_LIMITS.starter.min) ||
+                        (coveragePackage === 'pro' && !selected && selectedDomains.length >= NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max);
+                      return (
+                        <button
+                          key={domain}
+                          type="button"
+                          disabled={disabled}
+                          aria-pressed={selected}
+                          data-selected={selected ? 'true' : 'false'}
+                          onClick={() => toggleDomainSelection(domain)}
+                          className="ds-new-audit-coverage-pill"
+                        >
+                          <Icon className="ds-new-audit-coverage-pill-icon" aria-hidden />
+                          <span className="ds-new-audit-coverage-pill-label">{NEW_AUDIT_COVERAGE_DOMAIN_LABELS[domain]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         <div className="glc-divider" />
@@ -334,13 +367,14 @@ export function Step0Basics({
           whileHover={step0Valid ? { scale: 1.015 } : {}}
           whileTap={step0Valid ? { scale: 0.985 } : {}}
           className={cn(
-            'w-full rounded-lg py-3 text-sm font-semibold',
+            'inline-flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold',
             step0Valid
-              ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_4px_14px_rgba(28,189,255,0.28)]'
+              ? 'bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--shadow-brand-cta)]'
               : 'bg-muted text-muted-foreground cursor-not-allowed border',
           )}
         >
-          {WORKSPACE_PAGE_COPY.newAudit.step0.continueToBriefButton} <ArrowRight className="w-4 h-4" />
+          <span>{WORKSPACE_PAGE_COPY.newAudit.step0.continueToBriefButton}</span>
+          <ArrowRight className="h-4 w-4 shrink-0" weight="bold" aria-hidden />
         </motion.button>
 
         {clientDraftSaveSection}

@@ -1,0 +1,38 @@
+{
+  "scenario": "normalize-deps",
+  "manifestSnapshotId": "22222222-2222-4222-8222-222222222222",
+  "nodes": [
+    {
+      "id": "alpha",
+      "title": "Alpha",
+      "domain": "tech_infrastructure",
+      "lane": "tech_delivery",
+      "dependencies": [" beta", "beta", "gamma"],
+      "weight": 5,
+      "source": "director",
+      "analysis_depth": "baseline",
+      "confidence": "high",
+      "risk_score": 2,
+      "impact_score": 3,
+      "effort_score": 2
+    },
+    {
+      "id": "gamma",
+      "title": "Gamma",
+      "domain": "tech_infrastructure",
+      "lane": "tech_delivery",
+      "dependencies": [],
+      "weight": 4,
+      "source": "director",
+      "analysis_depth": "baseline",
+      "confidence": "medium",
+      "risk_score": 2,
+      "impact_score": 3,
+      "effort_score": 2
+    }
+  ],
+  "expected": {
+    "normalized_dependencies_alpha": ["beta", "gamma"],
+    "norm_conflict_ids": ["norm-deps:alpha"]
+  }
+}

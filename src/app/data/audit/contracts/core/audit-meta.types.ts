@@ -3,6 +3,14 @@ import type { DomainKey } from '@glc/intake-core';
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
 export type AuditCoveragePackage = 'starter' | 'pro' | 'complete';
 export type AuditDepth = 'light' | 'standard' | 'deep';
+export type AuditOrigin =
+  | 'snapshot'
+  | 'discovery'
+  | 'prebrief'
+  | 'request_queue'
+  | 'client_direct'
+  | 'consultant_direct'
+  | 'unknown';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 
@@ -42,6 +50,7 @@ export interface AuditMeta {
   current_phase: number;
   overall_score: number | null;
   product_mode: ProductMode;
+  origin?: AuditOrigin;
   execution_plan?: {
     selected_domains: DomainKey[];
     depth: AuditDepth;

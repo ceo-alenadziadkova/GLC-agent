@@ -83,6 +83,7 @@ describe('validateIntakeVersionsForBriefWrite', () => {
       policyVersion: '1.0.0',
       layoutVersion: '1.1.0',
       resolverVersion: '1.0.0',
+      sequencingVersion: '1.0.0',
     };
     const r = validateIntakeVersionsForBriefWrite({
       parsedFromBody: cur,
@@ -102,6 +103,7 @@ describe('validateIntakeVersionsForBriefWrite', () => {
       policyVersion: '1.0.0',
       layoutVersion: '1.1.0',
       resolverVersion: '1.0.0',
+      sequencingVersion: '1.0.0',
     };
     const r = validateIntakeVersionsForBriefWrite({
       parsedFromBody: frozen,

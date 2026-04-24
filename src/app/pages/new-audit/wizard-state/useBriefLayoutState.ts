@@ -1,18 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useBriefLayoutPrefsSync } from '../../../hooks/useBriefLayoutPrefsSync';
 import {
-  CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE,
   CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE,
   CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY,
   consultantBriefLayoutStorageKey,
   resolveConsultantBriefLayout,
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
-  resolveClientBriefLayout,
-  writeClientBriefLayout,
-  clearClientBriefLayout,
   CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
-  clientBriefLayoutStorageKey,
 } from '../../../lib/client-brief-layout-preference';
 import {
   BRIEF_LAYOUT_CLASSIC,
@@ -27,11 +22,11 @@ export function useBriefLayoutState(params: {
   seededChoice?: BriefLayoutChoice | null;
 }) {
   const [briefLayoutChoice, setBriefLayoutChoice] = useState<BriefLayoutChoice>(() => {
+    if (params.seededChoice === BRIEF_LAYOUT_CLASSIC || params.seededChoice === BRIEF_LAYOUT_WIZARD) {
+      return params.seededChoice;
+    }
     if (params.isClientSelfServe) {
-      if (params.seededChoice === BRIEF_LAYOUT_CLASSIC || params.seededChoice === BRIEF_LAYOUT_WIZARD) {
-        return params.seededChoice;
-      }
-      return resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? BRIEF_LAYOUT_UNSET;
+      return BRIEF_LAYOUT_WIZARD;
     }
     return resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET;
   });
@@ -39,35 +34,35 @@ export function useBriefLayoutState(params: {
   const briefLayoutSyncKeys = useMemo(
     () =>
       params.isClientSelfServe
-        ? [CLIENT_BRIEF_LAYOUT_DEFAULT_KEY, clientBriefLayoutStorageKey(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE)]
+        ? [CLIENT_BRIEF_LAYOUT_DEFAULT_KEY]
         : [CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY, consultantBriefLayoutStorageKey(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE)],
     [params.isClientSelfServe],
   );
 
   useBriefLayoutPrefsSync(briefLayoutSyncKeys, () => {
-    setBriefLayoutChoice(
-      params.isClientSelfServe
-        ? (resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? BRIEF_LAYOUT_UNSET)
-        : (resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET),
-    );
+    if (params.isClientSelfServe) {
+      setBriefLayoutChoice(BRIEF_LAYOUT_WIZARD);
+      return;
+    }
+    setBriefLayoutChoice(resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET);
   });
 
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
     if (params.isClientSelfServe) {
-      writeClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE, mode);
+      setBriefLayoutChoice(BRIEF_LAYOUT_WIZARD);
     } else {
       writeConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE, mode);
+      setBriefLayoutChoice(mode);
     }
-    setBriefLayoutChoice(mode);
   }
 
   function handleChangeConsultantBriefLayout() {
     if (params.isClientSelfServe) {
-      clearClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE);
+      setBriefLayoutChoice(BRIEF_LAYOUT_WIZARD);
     } else {
       clearConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE);
+      setBriefLayoutChoice(BRIEF_LAYOUT_UNSET);
     }
-    setBriefLayoutChoice(BRIEF_LAYOUT_UNSET);
   }
 
   return {

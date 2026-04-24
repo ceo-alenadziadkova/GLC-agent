@@ -148,6 +148,21 @@ describe('useIntakeWizard', () => {
     expect(result.current.visibleQuestionStubs).not.toBe(prevRef);
   });
 
+  it('exposes analyticsSink when intakeAnalytics is configured', () => {
+    const { result } = renderHook(() =>
+      useIntakeWizard({
+        value: { a2: 'Healthcare' },
+        onChange: () => {},
+        intakeAnalytics: {
+          auditId: 'a1',
+          surface: 'consultant_interview',
+          getIntakeVersions: () => null,
+        },
+      }),
+    );
+    expect(result.current.analyticsSink).not.toBeNull();
+  });
+
   it('setField preserves unrelated keys across sequential updates', () => {
     const { result } = renderHook(() =>
       useIntakeWizard({

@@ -5,7 +5,7 @@ import type { IntakeVersionMigration, IntakeVersionTuple } from '../audit-contra
 
 import { currentIntakeVersionTuple } from './versions.js';
 import { isSupportedIntakeArtifactTuple } from './resolve-intake-artifacts.js';
-import { tuplesEqual } from './intake-version-tuple.js';
+import { normalizeIntakeVersionTupleFromStorage, tuplesEqual } from './intake-version-tuple.js';
 import { INTAKE_VERSION_WRITE_MESSAGES } from './intake-version-write-messages.en.js';
 
 export type IntakeVersionWriteResult =
@@ -23,9 +23,12 @@ export function validateIntakeVersionsForBriefWrite(args: {
   stored: IntakeVersionTuple | null | undefined;
 }): IntakeVersionWriteResult {
   const current = currentIntakeVersionTuple();
+  const storedNorm = args.stored
+    ? (normalizeIntakeVersionTupleFromStorage(args.stored as unknown as Record<string, unknown>) ?? args.stored)
+    : undefined;
 
   if (args.parsedFromBody === undefined) {
-    let effective: IntakeVersionTuple = args.stored ?? current;
+    let effective: IntakeVersionTuple = storedNorm ?? current;
     if (!isSupportedIntakeArtifactTuple(effective)) {
       const migration: IntakeVersionMigration = {
         from: effective,
@@ -52,17 +55,17 @@ export function validateIntakeVersionsForBriefWrite(args: {
     };
   }
 
-  if (args.stored == null) {
+  if (storedNorm == null) {
     return { ok: true, effective: args.parsedFromBody, migration: null };
   }
 
-  if (tuplesEqual(args.stored, args.parsedFromBody)) {
+  if (tuplesEqual(storedNorm, args.parsedFromBody)) {
     return { ok: true, effective: args.parsedFromBody, migration: null };
   }
 
-  if (tuplesEqual(args.parsedFromBody, current) && !tuplesEqual(args.stored, current)) {
+  if (tuplesEqual(args.parsedFromBody, current) && !tuplesEqual(storedNorm, current)) {
     const migration: IntakeVersionMigration = {
-      from: args.stored,
+      from: storedNorm,
       to: current,
       at: new Date().toISOString(),
       reason: 'client_upgrade',
@@ -76,7 +79,7 @@ export function validateIntakeVersionsForBriefWrite(args: {
     body: {
       code: 'INTAKE_VERSION_CONFLICT',
       message: INTAKE_VERSION_WRITE_MESSAGES.versionConflict,
-      stored: args.stored,
+      stored: storedNorm,
       received: args.parsedFromBody,
     },
   };

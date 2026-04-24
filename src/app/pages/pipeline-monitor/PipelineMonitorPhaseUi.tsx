@@ -10,9 +10,23 @@ import {
 import { ScoreBadge } from '../../components/glc/ScoreBadge';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
 import type { PhaseView } from './types';
+import type { PipelineReview } from './types-pipeline-state';
 import { cn } from '../../components/ui/utils';
 
-export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
+export type PipelineRevBannerCopy = typeof PM.revBanner;
+
+export function PhCard({
+  ph,
+  active,
+  onSel,
+  currentHighlightClassName,
+}: {
+  ph: PhaseView;
+  active: boolean;
+  onSel: () => void;
+  /** Portal: subtle ring when this phase matches server `current_phase`. */
+  currentHighlightClassName?: string;
+}) {
   const I = ph.icon;
   const stIcon = {
     completed: <CheckCircle className="text-success h-3.5 w-3.5" />,
@@ -34,7 +48,8 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
       transition={{ duration: 0.15 }}
       className={cn(
         'w-full rounded-xl border p-3 text-left transition-all',
-        active ? 'border-info/40 bg-info/10 ring-2 ring-info/10' : 'bg-card',
+        active ? 'ds-pipeline-phase-card-active' : 'bg-card',
+        !active && currentHighlightClassName,
         ph.status === 'pending' ? 'opacity-50' : ph.status === 'skipped' ? 'opacity-35' : '',
       )}
     >
@@ -43,9 +58,9 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
           className={cn(
             'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md',
             active
-              ? 'bg-gradient-to-br from-sky-400 to-sky-600'
+              ? 'ds-pipeline-phase-icon-active'
               : ph.status === 'completed'
-                ? 'bg-emerald-500/15'
+                ? 'bg-success/10'
                 : 'bg-muted',
           )}
         >
@@ -82,14 +97,19 @@ export function RevBanner({
   onOpenModal,
   hasWarnings,
   canApprove,
+  copy = PM.revBanner,
 }: {
-  review: { status: string };
+  review: PipelineReview;
   label: string;
   onOpenModal: () => void;
   hasWarnings?: boolean;
   canApprove: boolean;
+  copy?: PipelineRevBannerCopy;
 }) {
   const done = review.status === 'approved';
+  const consultantSaved = (review.consultant_notes ?? '').trim();
+  const interviewSaved = (review.interview_notes ?? '').trim();
+  const hasSavedNotes = done && (consultantSaved.length > 0 || interviewSaved.length > 0);
   return (
     <div className={cn('flex items-center gap-2.5 rounded-xl border px-3 py-2.5', done ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10')}>
       <Star className={cn('h-3.5 w-3.5 flex-shrink-0', done ? 'text-success' : 'text-warning')} weight="fill" />
@@ -99,28 +119,54 @@ export function RevBanner({
             {label}
           </span>
           {!done && hasWarnings && (
-            <span title={PM.revBanner.qualityWarningsTitle} className="inline-flex flex-shrink-0">
+            <span title={copy.qualityWarningsTitle} className="inline-flex flex-shrink-0">
               <WarningCircle size={12} weight="fill" className="text-warning flex-shrink-0" />
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mt-0.5 truncate text-xs">
-          {done ? PM.revBanner.approved : hasWarnings ? PM.revBanner.qualityWarningsNotes : PM.revBanner.waitingApproval}
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          {done ? copy.approved : hasWarnings ? copy.qualityWarningsNotes : copy.waitingApproval}
         </p>
+        {hasSavedNotes ? (
+          <div className="border-border/60 mt-2 max-h-28 space-y-2 overflow-y-auto border-t pt-2 text-left">
+            {consultantSaved ? (
+              <div>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.savedConsultantNotes}
+                </p>
+                <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
+                  {consultantSaved}
+                </p>
+              </div>
+            ) : null}
+            {interviewSaved ? (
+              <div>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.savedInterviewNotes}
+                </p>
+                <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
+                  {interviewSaved}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : done ? (
+          <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] leading-snug">{copy.noNotesSaved}</p>
+        ) : null}
       </div>
       {!done && canApprove && (
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={onOpenModal}
-          className="flex flex-shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1.5 text-xs font-bold text-white shadow-[0_2px_8px_rgba(242,79,29,0.28)]"
+          className="ds-pipeline-approve-cta flex flex-shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold"
         >
-          {PM.revBanner.approve} <ArrowRight className="w-3 h-3" />
+          {copy.approve} <ArrowRight className="w-3 h-3" />
         </motion.button>
       )}
       {!done && !canApprove && (
         <span className="text-muted-foreground flex-shrink-0 rounded-md border px-2 py-1 text-[length:var(--text-2xs)] font-medium">
-          {PM.revBanner.consultantApproval}
+          {copy.consultantApproval}
         </span>
       )}
     </div>
@@ -145,9 +191,9 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       </div>
 
       {isRunning && (
-        <div className="bg-info/20 ds-step1-brief-progress-thin overflow-hidden rounded-full">
+        <div className="ds-pipeline-running-track ds-step1-brief-progress-thin overflow-hidden rounded-full">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600"
+            className="ds-pipeline-running-bar h-full rounded-full"
             initial={{ width: '10%' }}
             animate={{ width: '80%' }}
             transition={{ duration: 3.5, ease: 'easeInOut', repeat: Infinity, repeatType: 'mirror' }}
@@ -181,7 +227,16 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
  * Shows a parallel execution overview with mini cards for each wing phase.
  * Displayed when any phase in the wing is currently running.
  */
-export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; wingName: string }) {
+export function ParallelWingBanner({
+  phases,
+  wingName,
+  runningSuffix = PM.parallelWing.runningSuffix,
+}: {
+  phases: PhaseView[];
+  wingName: string;
+  /** Override suffix after wing name (e.g. client portal copy). */
+  runningSuffix?: string;
+}) {
   const anyRunning = phases.some(p => p.status === 'running');
   if (!anyRunning) return null;
 
@@ -191,12 +246,13 @@ export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-info/10 border-info/30 mb-2 rounded-xl border p-4"
+      className="ds-pipeline-info-surface mb-2 rounded-xl border p-4"
     >
       <div className="flex items-center gap-2 mb-3">
         <ArrowsClockwise className="text-info h-3.5 w-3.5 animate-spin" />
         <span className="text-info text-xs font-bold">
-          {wingName}{PM.parallelWing.runningSuffix}
+          {wingName}
+          {runningSuffix}
         </span>
       </div>
       <div className="flex gap-2">

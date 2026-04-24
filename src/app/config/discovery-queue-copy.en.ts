@@ -3,9 +3,22 @@
  */
 
 export const DISCOVERY_QUEUE_COPY = {
+  title: 'Discovery Queue',
+  filters: {
+    all: 'All',
+    new: 'New',
+    converted: 'Converted',
+  },
   loadError: 'Failed to load discovery sessions',
   convertAlreadyConverted: 'This session was already converted to an audit.',
   convertGenericFailure: 'Failed to create audit — please try again.',
+  deleteGenericFailure: 'Failed to delete session — please try again.',
+  deleteDialogTitle: 'Delete discovery session?',
+  deleteDialogDescription: 'This action removes the session permanently.',
+  deleteDialogCancel: 'Cancel',
+  deleteDialogConfirm: 'Delete',
+  deleting: 'Deleting…',
+  deleteSession: 'Delete',
   subtitleAwaiting: (n: number) => `Mode C submissions · ${n} awaiting conversion`,
   subtitleDefault: 'Mode C submissions from the public discovery questionnaire',
   copyLink: 'Copy discover link',

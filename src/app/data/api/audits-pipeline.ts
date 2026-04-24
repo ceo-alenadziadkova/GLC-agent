@@ -63,7 +63,23 @@ export const auditsPipelineApi = {
     return payload;
   },
 
-  async getPipelineStatus(id: string) {
+  async getPipelineStatus(
+    id: string,
+    query?: {
+      limit?: number;
+      before?: string;
+      phase?: number;
+      event_type?: string;
+      detail_level?: 'default' | 'debug';
+    },
+  ) {
+    const search = new URLSearchParams();
+    if (query?.limit) search.set('limit', String(query.limit));
+    if (query?.before) search.set('before', query.before);
+    if (query?.phase !== undefined) search.set('phase', String(query.phase));
+    if (query?.event_type) search.set('event_type', query.event_type);
+    if (query?.detail_level) search.set('detail_level', query.detail_level);
+    const url = search.size > 0 ? `${apiAuditsPipelineStatus(id)}?${search.toString()}` : apiAuditsPipelineStatus(id);
     const payload = await apiFetch<{
       status: string;
       current_phase: number;
@@ -86,7 +102,8 @@ export const auditsPipelineApi = {
         created_at: string;
       }>;
       reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
-    }>(apiAuditsPipelineStatus(id));
+      event_page?: { limit: number; next_before: string | null; detail_level: 'default' | 'debug' };
+    }>(url);
     assertPipelineStatusShape(payload);
     return payload;
   },

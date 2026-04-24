@@ -55,7 +55,22 @@ async function loadProfileRowForSession(session: Session): Promise<{
     }
   }
 
-  return { profile: data as Profile, error: null };
+  let canManagePlatform = false;
+  if (data.role === 'consultant') {
+    try {
+      const apiProfile = await apiFetch<{ can_manage_platform_settings?: boolean }>(API_PATHS.profile, {
+        method: 'GET',
+      });
+      canManagePlatform = apiProfile.can_manage_platform_settings === true;
+    } catch {
+      canManagePlatform = false;
+    }
+  }
+
+  return {
+    profile: { ...(data as Profile), can_manage_platform_settings: canManagePlatform },
+    error: null,
+  };
 }
 
 interface Profile {
@@ -63,6 +78,8 @@ interface Profile {
   role: UserRole;
   full_name: string | null;
   created_at: string;
+  /** From GET /api/profile when `role === 'consultant'`. */
+  can_manage_platform_settings?: boolean;
 }
 
 interface UseProfileResult {
@@ -73,6 +90,8 @@ interface UseProfileResult {
   isConsultant: boolean;
   /** Same as isConsultant — GLC internal staff (DB role `consultant`). */
   isAdmin: boolean;
+  /** Platform settings ACL (open mode: any consultant; restricted: `is_platform_admin` / legacy list). */
+  canManagePlatformSettings: boolean;
   isClient: boolean;
   /** Anonymous / snapshot-only session — full client portal blocked until registration. */
   isGuest: boolean;
@@ -183,6 +202,7 @@ export function useProfile(): UseProfileResult {
 
   const isConsultant = profile?.role === 'consultant';
   const isGuest = profile?.role === 'guest';
+  const canManagePlatformSettings = profile?.can_manage_platform_settings === true;
   return {
     profile,
     role: profile?.role ?? null,
@@ -191,6 +211,7 @@ export function useProfile(): UseProfileResult {
       : null,
     isConsultant,
     isAdmin: isConsultant,
+    canManagePlatformSettings,
     isClient: profile?.role === 'client',
     isGuest,
     loading,

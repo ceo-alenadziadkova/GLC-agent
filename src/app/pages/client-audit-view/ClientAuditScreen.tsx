@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { ArrowLeft, Spinner, Warning } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { AppShell } from '../../components/AppShell';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../config/client-audit-view-copy';
 import { useClientPortalPipeline } from '../../context/ClientPortalPipelineContext';
 import { getGlcQueryClient } from '../../lib/glc-query-client';
@@ -13,6 +14,7 @@ import { AuditHeaderCard } from './sections/AuditHeaderCard';
 import { RunAuditSection } from './sections/RunAuditSection';
 import { BriefHelpSection } from './sections/BriefHelpSection';
 import { SnapshotUpgradeSection } from './sections/SnapshotUpgradeSection';
+import { ClientPostAuditCockpitSection } from './sections/ClientPostAuditCockpitSection';
 import { NavigationLinksSection } from './sections/NavigationLinksSection';
 
 export function ClientAuditScreen({ auditId }: { auditId: string }) {
@@ -91,6 +93,11 @@ export function ClientAuditScreen({ auditId }: { auditId: string }) {
           <div className="space-y-5">
             <AuditHeaderCard domain={domain} meta={meta} statusLabel={statusLabel} />
 
+            {meta.status === 'completed' &&
+              !isFreeSnapshot &&
+              APP_FEATURE_FLAGS.clientPostAuditCockpitEnabled &&
+              auditState && <ClientPostAuditCockpitSection audit={auditState} auditId={auditId} />}
+
             {isCreated && (
               <>
                 <ClientBriefSection
@@ -136,6 +143,7 @@ export function ClientAuditScreen({ auditId }: { auditId: string }) {
               isCreated={isCreated}
               isFreeSnapshot={isFreeSnapshot}
               isCompleted={meta.status === 'completed'}
+              hasStrategy={Boolean(auditState.strategy)}
             />
           </div>
         )}

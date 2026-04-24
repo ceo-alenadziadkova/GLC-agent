@@ -106,6 +106,16 @@ jobs:
         run: pnpm run typecheck
       - name: Lint
         run: pnpm run lint
+      - name: Orchestration telemetry key policy (DoD-7)
+        run: pnpm run audit:orchestration-telemetry
+      - name: Build SPA + main JS gzip budget (DoD-8)
+        run: pnpm build && pnpm run audit:bundle-main-budget
+      - name: Intake readiness vocabulary guard
+        run: pnpm run lint:intake-readiness-vocab
+      - name: Intake diagnostic contract tests
+        run: pnpm run test:intake-diagnostic-contracts
+      - name: Intelligence contract governance
+        run: pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts packages/intake-core/src/tests/lint-intelligence-contract.test.ts packages/intake-core/src/tests/intelligence-review-cadence.test.ts
       - name: Design-system drift budget (§4.1)
         run: pnpm run audit:ds:drift-budget
       - name: Design-system enforcement
@@ -114,3 +124,65 @@ jobs:
         run: pnpm test
       - name: Backend unit tests
         run: pnpm --filter glc-audit-server test
+
+  e2e-orchestration:
+    name: fast-gate / e2e-orchestration
+    runs-on: ubuntu-latest
+    needs: [vitest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Validate orchestration E2E env when secrets are set
+        run: |
+          if [ -n "${E2E_ORCHESTRATION_AUTH_TOKEN:-}" ] && [ -n "${E2E_ORCHESTRATION_AUDIT_ID:-}" ] && [ -z "${E2E_VITE_API_PROXY_TARGET:-}" ]; then
+            echo "When E2E_ORCHESTRATION_AUDIT_ID and E2E_ORCHESTRATION_AUTH_TOKEN are set, E2E_VITE_API_PROXY_TARGET (repo var VITE_API_URL) must be set so the Vite /api proxy reaches a real backend."
+            exit 1
+          fi
+        env:
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
+      - name: Orchestration E2E preflight (redacted)
+        run: node scripts/e2e-orchestration-preflight.mjs
+        env:
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
+          E2E_CONSULTANT_E2E_EMAIL: ${{ secrets.E2E_CONSULTANT_E2E_EMAIL }}
+          E2E_CONSULTANT_E2E_PASSWORD: ${{ secrets.E2E_CONSULTANT_E2E_PASSWORD }}
+          E2E_ORCHESTRATION_UI: '1'
+          E2E_ORCHESTRATION_JSON: '1'
+          E2E_ORCHESTRATION_STRICT: ${{ vars.E2E_ORCHESTRATION_STRICT }}
+      - name: Orchestration E2E (smoke; skipped without E2E_ORCHESTRATION_* — see e2e/README.md)
+        run: pnpm run test:e2e:orchestration
+        env:
+          CI: 'true'
+          E2E_ORCHESTRATION_JSON: '1'
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_ORCHESTRATION_UI: '1'
+          E2E_VITE_API_PROXY_TARGET: ${{ vars.VITE_API_URL }}
+          E2E_CONSULTANT_E2E_EMAIL: ${{ secrets.E2E_CONSULTANT_E2E_EMAIL }}
+          E2E_CONSULTANT_E2E_PASSWORD: ${{ secrets.E2E_CONSULTANT_E2E_PASSWORD }}
+      - name: Orchestration E2E KPI (non-skip %)
+        if: always()
+        run: node scripts/e2e-orchestration-kpi.mjs
+        env:
+          CI: 'true'
+          E2E_ORCHESTRATION_JSON: '1'
+          E2E_ORCHESTRATION_AUDIT_ID: ${{ secrets.E2E_ORCHESTRATION_AUDIT_ID }}
+          E2E_ORCHESTRATION_AUTH_TOKEN: ${{ secrets.E2E_ORCHESTRATION_AUTH_TOKEN }}
+          E2E_ORCHESTRATION_STRICT: ${{ vars.E2E_ORCHESTRATION_STRICT }}

@@ -21,6 +21,10 @@ export async function schedulePipelineExecution(params: {
   const orchestrator = new PipelineOrchestrator(auditId, { disableAutoRemediate });
   if (action === 'next') {
     void orchestrator.runBlock().catch((e) => emitPhaseErrorDurable(auditId, phase, e as Error));
+  } else if (action === 'retry' && Number.isInteger(phase) && phase >= 1 && phase <= 6) {
+    void orchestrator
+      .retryDomainPhase(phase)
+      .catch((e) => emitPhaseErrorDurable(auditId, phase, e as Error));
   } else {
     void orchestrator.startPhase(phase).catch((e) => emitPhaseErrorDurable(auditId, phase, e as Error));
   }

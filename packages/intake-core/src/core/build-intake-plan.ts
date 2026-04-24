@@ -7,14 +7,31 @@ import {
   isIntakeNextRecommendedEnabled,
   isIntakePolicyRichnessEnabled,
 } from '../config/intake-flags.js';
+import {
+  getIntakeIntelligenceContract,
+  projectIntakeIntelligenceRequiredNow,
+} from '../config/intake-intelligence-contract.js';
 
 import { evaluateCanonEligibility, recomputeCanonEligibilityIncremental } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { computeIntakePlanDerived } from './plan-derived.js';
 import { computeNextRecommended } from './plan-next-recommended.js';
+import { evaluateCriticalSignalsPilot } from './evaluate-critical-signals.js';
+import { runSequencingEvaluator } from './intake-plan/resolver-pipeline.js';
+import { reorderNextRecommendedForSignalPriorityRespectingTiers } from './reorder-next-recommended-for-signal-priority.js';
+import { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
-import { INTAKE_RESOLVER_VERSION } from './versions.js';
+import { INTAKE_RESOLVER_VERSION, currentIntakeVersionTuple } from './versions.js';
+import casePatternCatalog from '../artifacts/intake-case-patterns.v1.json' with { type: 'json' };
+import { matchCasePatterns } from './case-matcher.js';
+import {
+  mergeOverlayIntoNextRecommended,
+  pruneNextRecommendedForSatisfiedCaseStops,
+  resolveCaseOverlay,
+} from './case-overlay-resolver.js';
+import { evaluateFollowupPolicy, pruneNextRecommendedAfterFollowupStops } from './followup-policy-executor.js';
+import type { IntakeCasePatternCatalogV1, IntakeCasePatternV1 } from './case-pattern-types.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
 import type {
@@ -250,26 +267,196 @@ function buildIntakePlanInternal(
     stubs,
   });
 
-  // When no layout surface applies, finalVisible is alphabetically sorted.
-  // nextRecommended iterates within priority tiers: bank-canonical order produces
-  // more predictable "fill next" suggestions than alphabetical (ADR §nextRecommended).
-  const visibleForNextRecommended = layoutSurfaceKey
-    ? finalVisible
-    : (() => {
-        const vset = new Set(finalVisible);
-        return stubs.filter(s => vset.has(s.id)).map(s => s.id);
-      })();
+  // Sequencing precedence is evaluated before layout masking:
+  // - sequencing uses policy-visible candidates (participation ceiling after policy),
+  // - layout then projects the visible subset for this surface.
+  const sequencingEligibleVisible = stubs
+    .filter(s => uiPolicyVisibleSet.has(s.id))
+    .map(s => s.id);
 
-  const nextRecommended = isIntakeNextRecommendedEnabled()
+  const nextRecommendedRaw = isIntakeNextRecommendedEnabled()
     ? computeNextRecommended({
-        visibleOrdered: visibleForNextRecommended,
+        visibleOrdered: sequencingEligibleVisible,
         stubs,
         responses: r,
         missingForReport: derived.missingForReport,
       })
     : [];
 
-  return {
+  const versionsObj = {
+    questionBankVersion: artifacts.questionBankVersion,
+    policyVersion: policy.version,
+    layoutVersion: layoutArtifact.version,
+    resolverVersion: INTAKE_RESOLVER_VERSION,
+    sequencingVersion: input.intakeVersionTuple?.sequencingVersion ?? currentIntakeVersionTuple().sequencingVersion,
+  };
+
+  const seqApplied = runSequencingEvaluator({
+    sequencingVersion: versionsObj.sequencingVersion,
+    nextRecommended: nextRecommendedRaw,
+    visible: sequencingEligibleVisible,
+    responses: r,
+  });
+  for (const te of seqApplied.sequencingTrace) {
+    debugTrace.push({
+      layer: 'resolver',
+      level: 'info',
+      code: te.code,
+      message: te.semanticCause,
+    });
+  }
+
+  const finalVisibleSet = new Set(finalVisible);
+  let layoutProjectedRecommended = seqApplied.nextRecommended.filter(id => finalVisibleSet.has(id));
+  let casePatternMatch: import('./types.js').IntakePlan['casePatternMatch'];
+  let lastCriticalForPilot: ReturnType<typeof evaluateCriticalSignalsPilot> | null = null;
+  let casePatternMatchesForPrune: IntakeCasePatternV1[] | null = null;
+
+  if (isIntakeNextRecommendedEnabled() && layoutProjectedRecommended.length > 0) {
+    const criticalForOrder = evaluateCriticalSignalsPilot({
+      responses: r,
+      plan: { eligible: sortUniqueIds(eligibleAfterPolicy) },
+    });
+    lastCriticalForPilot = criticalForOrder;
+    const pilotSkipsRegistry = criticalForOrder.trace.some(t => t.code === 'pilot_signals_skipped');
+    const casePatternsOn = policy.intelligence?.casePatternsEnabled !== false;
+    if (casePatternsOn) {
+      const matches = matchCasePatterns({
+        responses: r,
+        confidenceByKey: criticalForOrder.confidenceByKey,
+        catalog: casePatternCatalog as IntakeCasePatternCatalogV1,
+      });
+      if (matches.length > 0) {
+        casePatternMatchesForPrune = matches;
+        const overlay = resolveCaseOverlay({
+          matches,
+          confidenceByKey: criticalForOrder.confidenceByKey,
+        });
+        const beforeCase = layoutProjectedRecommended.join('\u0000');
+        layoutProjectedRecommended = mergeOverlayIntoNextRecommended({
+          nextRecommended: layoutProjectedRecommended,
+          overlayQuestionIds: overlay.overlayQuestionIds,
+          visibleOrEligible: finalVisibleSet,
+          responses: r,
+        });
+        if (beforeCase !== layoutProjectedRecommended.join('\u0000')) {
+          debugTrace.push({
+            layer: 'resolver',
+            level: 'info',
+            code: 'next_recommended_case_overlay_applied',
+            message: `Case patterns matched: ${overlay.matchedCaseKeys.join(
+              ', ',
+            )}; overlay order applied before signal reorder.`,
+          });
+        }
+        casePatternMatch = {
+          caseKeys: overlay.matchedCaseKeys,
+          activeOverlayQuestionIds: overlay.overlayQuestionIds,
+          stopConditionMetByCase: overlay.stopConditionMetByCase,
+        };
+      }
+    }
+    if (!pilotSkipsRegistry) {
+      const before = layoutProjectedRecommended.join('\u0000');
+      const reordered = reorderNextRecommendedForSignalPriorityRespectingTiers({
+        nextRecommended: layoutProjectedRecommended,
+        responses: r,
+        confidenceByKey: criticalForOrder.confidenceByKey,
+        stubs,
+      });
+      layoutProjectedRecommended = reordered.nextRecommended;
+      if (before !== layoutProjectedRecommended.join('\u0000')) {
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'next_recommended_reordered_by_signal_priority',
+          message: `Reordered nextRecommended using pilot signal priority (nextSignalKeys: ${reordered.nextSignalKeys.join(
+            ', ',
+          )})`,
+        });
+      }
+    }
+
+    const requiredBankIds = new Set(req.ids);
+    const intel = policy.intelligence;
+    const casePruneOn = intel?.caseStopPrunesOptionalOverlay !== false;
+    if (
+      casePruneOn &&
+      casePatternMatchesForPrune &&
+      casePatternMatchesForPrune.length > 0 &&
+      casePatternMatch?.stopConditionMetByCase
+    ) {
+      const pr = pruneNextRecommendedForSatisfiedCaseStops({
+        nextRecommended: layoutProjectedRecommended,
+        matches: casePatternMatchesForPrune,
+        stopConditionMetByCase: casePatternMatch.stopConditionMetByCase,
+        responses: r,
+        requiredBankIds,
+        enabled: true,
+      });
+      if (pr.prunedIds.length > 0) {
+        layoutProjectedRecommended = pr.nextRecommended;
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'next_recommended_case_stop_pruned',
+          message: `Optional overlay bank ids pruned after satisfied case stop: ${pr.prunedIds.join(', ')}`,
+        });
+      }
+    }
+    const fuPruneOn = intel?.followupStopPrunesSameSignalOptional !== false;
+    if (fuPruneOn && lastCriticalForPilot) {
+      const pr2 = pruneNextRecommendedAfterFollowupStops({
+        nextRecommended: layoutProjectedRecommended,
+        responses: r,
+        requiredBankIds,
+        confidenceByKey: lastCriticalForPilot.confidenceByKey,
+        ruleDefinitions: intel?.followupRuleDefinitions,
+        enabled: true,
+      });
+      if (pr2.prunedIds.length > 0) {
+        layoutProjectedRecommended = pr2.nextRecommended;
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'next_recommended_followup_stop_pruned',
+          message: `Unanswered same-signal optional ids pruned after follow-up stop: ${pr2.prunedIds.join(
+            ', ',
+          )}`,
+        });
+      }
+    }
+  }
+
+  if (layoutProjectedRecommended.length > 0) {
+    const followupDefs = policy.intelligence?.followupRuleDefinitions;
+    const forFollowup =
+      lastCriticalForPilot ??
+      evaluateCriticalSignalsPilot({
+        responses: r,
+        plan: { eligible: sortUniqueIds(eligibleAfterPolicy) },
+      });
+    for (const id of layoutProjectedRecommended.slice(0, 5)) {
+      const c = getIntakeIntelligenceContract(id);
+      const fp = c.followupPolicy;
+      if (fp?.stopIf?.trim() || fp?.deeperIf?.trim()) {
+        const outcome = evaluateFollowupPolicy({
+          contract: c,
+          lastAnswer: r[id],
+          confidenceByKey: forFollowup.confidenceByKey,
+          ruleDefinitions: followupDefs,
+        });
+        debugTrace.push({
+          layer: 'resolver',
+          level: 'info',
+          code: 'followup_policy_evaluated',
+          message: `Follow-up for "${id}": ref=${fp.followupRuleRef ?? 'pilot_default'} -> ${outcome}; stopIf=${fp.stopIf ?? ''}; deeperIf=${fp.deeperIf ?? ''}`,
+        });
+      }
+    }
+  }
+
+  const planCore: IntakePlan = {
     eligible: eligibleAfterPolicy,
     visible: finalVisible,
     required: sortUniqueIds(req.ids),
@@ -284,7 +471,8 @@ function buildIntakePlanInternal(
     coverage: derived.coverage,
     confidence: derived.confidence,
     missingForReport: derived.missingForReport,
-    nextRecommended,
+    nextRecommended: layoutProjectedRecommended,
+    casePatternMatch,
     runtimeState: {
       responses: r as Record<string, unknown>,
       canon: {
@@ -292,13 +480,42 @@ function buildIntakePlanInternal(
         passById: canon.passById,
       },
     },
-    versions: {
-      questionBankVersion: artifacts.questionBankVersion,
-      policyVersion: policy.version,
-      layoutVersion: layoutArtifact.version,
-      // Resolver code is always current (ADR); never echo a client-provided frozen version.
-      resolverVersion: INTAKE_RESOLVER_VERSION,
-    },
+    versions: versionsObj,
+  };
+
+  const diagnostics = assembleIntakePlanDiagnostics({
+    plan: planCore,
+    responses: r,
+    collectionMode,
+    surface: input.surface,
+  });
+
+  for (const questionId of finalVisible) {
+    const projected = projectIntakeIntelligenceRequiredNow(getIntakeIntelligenceContract(questionId));
+    if (!projected) {
+      debugTrace.push({
+        layer: 'resolver',
+        level: 'warn',
+        code: 'intelligence_metadata_incomplete',
+        message: `Intelligence metadata is incomplete for "${questionId}"; runtime fallback keeps question visible.`,
+      });
+    }
+  }
+
+  for (const te of diagnostics.remediation.trace) {
+    debugTrace.push({
+      layer: 'resolver',
+      level: 'info',
+      code: te.code,
+      message: te.semanticCause,
+    });
+  }
+
+  return {
+    ...planCore,
+    criticalSignals: diagnostics.criticalSignals,
+    remediation: diagnostics.remediation,
+    debugTrace,
   };
 }
 

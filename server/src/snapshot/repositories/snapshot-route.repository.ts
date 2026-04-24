@@ -55,6 +55,7 @@ export async function insertFreeSnapshotAudit(params: {
       product_mode: FREE_SNAPSHOT_PRODUCT_MODE,
       execution_plan: params.executionPlan,
       snapshot_token: params.snapshotToken,
+      origin: 'snapshot',
       token_budget: params.tokenBudget,
       user_id: params.ownerUserId,
       client_id: null,

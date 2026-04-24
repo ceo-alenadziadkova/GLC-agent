@@ -16,8 +16,7 @@ import { recordEvaluationDatasetIfEnabled } from '../../evaluation-dataset-write
 import { dynamicAdjustmentService } from '../../dynamic-adjustment.js';
 import { PHASE_DOMAIN_MAP } from '../../../types/audit.js';
 import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
-import type { DomainKey, DomainResult } from '../../../types/audit.js';
-import type { DecisionResult } from '../../decision-layer.js';
+import type { DomainKey } from '../../../types/audit.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 

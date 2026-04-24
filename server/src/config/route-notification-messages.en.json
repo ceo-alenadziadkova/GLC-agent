@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "auditRequest": {
     "createdConsultantsTitle": "New client request",
     "createdConsultantsMessage": "A client submitted a new audit request.",
@@ -31,7 +31,8 @@
     "retryStartedMessageTemplate": "Retry was requested for phase {{phase}}.",
     "reviewApprovedTitle": "Review approved",
     "reviewApprovedMessageTemplate": "Review point after phase {{phase}} approved.",
-    "phaseFailedTitle": "Pipeline failure"
+    "phaseFailedTitle": "Pipeline issue",
+    "phaseFailedUserMessage": "Something paused your audit run. Your consultant has been notified and will take care of it. You do not need to do anything right now."
   },
   "registration": {
     "guestRegisteredTitle": "New user registered",

@@ -5,6 +5,22 @@ It is a planning artifact, not a source of runtime truth.
 
 **Engineering debt and audit follow-ups:** [TECH_DEBT.md](./TECH_DEBT.md) (separate from this product backlog).
 
+## Recent shipped improvements (PDF hardening)
+
+The following PDF report improvements are now implemented in runtime code and listed here for release visibility:
+
+- Added PDF security hardening guards:
+ - Render timeout guard (`SYSTEM_DEFAULTS.reportPdf.renderTimeoutMs`)
+ - Max PDF output size guard (`SYSTEM_DEFAULTS.reportPdf.maxOutputBytes`)
+ - Centralized PDF text sanitization with control/bidi stripping and max text caps (`SYSTEM_DEFAULTS.reportPdf.maxSanitizedTextChars`)
+- Added hardened PDF download response headers for `/api/audits/:id/report?format=pdf`:
+ - `Cache-Control: private, no-store, no-cache, must-revalidate`
+ - `Pragma: no-cache`
+ - `X-Content-Type-Options: nosniff`
+- Added configurable section pagination mode for PDF layout:
+ - `SYSTEM_DEFAULTS.reportPdf.sectionPerPage = true` -> each major section starts on a new page
+ - `SYSTEM_DEFAULTS.reportPdf.sectionPerPage = false` -> compact continuous flow with standard wrapping
+
 ## Frontend internationalization (i18n)
 
 **Status:** Planned — no runtime i18n library in the SPA yet; target locales and partial key registry already exist.
@@ -53,37 +69,40 @@ Introduce explicit operating modes with clear UX and responsibilities:
 
 ## Voice input for form fields (lightweight, internal-first)
 
+### Shipped in tree (MVP)
+
+- **Browser dictation** — `DictationProvider` + `useDictationField` (`src/app/components/dictation/dictation-context.tsx`) and `DictationButton` append transcripts via `mergeAppendedText`.
+- **Textarea / Input** — `voiceInput` prop on `Textarea` and `Input` (`src/app/components/ui/textarea.tsx`, `input.tsx`); public intake NL field uses dictation when Web Speech is available (`IntakeBriefFormPhase`).
+
+### Remaining (hardening / revenue architecture)
+
+- Broader field coverage, explicit error toasts, and **analytics** for adoption and drop-off (see below).
+- i18n-friendly default `lang` for recognition where needed.
+- Server-backed STT only if browser quality is insufficient (privacy review first).
+
 ### Problem to solve (revenue architecture)
 
 Typing-heavy intake and brief forms create friction on mobile and for users who prefer dictation.
-The current UX does not provide an optional voice-assisted input path.
+Optional dictation is available on selected fields; coverage and measurement can expand.
 
-### Target behavior (planned, revenue architecture)
+### Target behavior (revenue architecture)
 
-- Add optional voice dictation to selected text input fields.
+- Add optional voice dictation to additional text input fields.
 - Keep manual typing as the default and always available path.
-- Provide clear listening states, permission/error feedback, and explicit start/stop controls.
-- Ensure graceful fallback when browser speech APIs are not supported.
+- Clear listening states, permission/error feedback, and explicit start/stop controls.
+- Graceful fallback when browser speech APIs are not supported.
 
 ### Implementation strategy
 
-1. **MVP (no third-party dependencies)**
- - Use native browser speech APIs (`SpeechRecognition` / `webkitSpeechRecognition`) behind an internal wrapper.
- - Implement a lightweight internal hook/module (for example, `useVoiceInput`) with a stable API:
- - `start()`, `stop()`
- - `isSupported`, `isListening`
- - `transcript`, `error`
- - Integrate first with high-value intake text fields only.
-
+1. **MVP (no third-party dependencies)** — **done** for core hook + UI. Stable field API: `useDictationField` (alias for the “useVoiceInput” pattern in earlier notes). Reuse the same module for new fields; avoid duplicating SpeechRecognition setup.
 2. **Hardening**
- - Normalize behavior and error handling across supported browsers.
- - Add i18n language selection defaults (for example, `en-US`, `ru-RU`) where relevant.
- - Add analytics for adoption, completion impact, and error rates.
- - Add unit tests for hook state transitions and integration tests for UI states.
-
+   - Normalize behavior and error handling across supported browsers.
+   - Add i18n language selection defaults (for example, `en-US`, `ru-RU`) where relevant.
+   - Add analytics for adoption, completion impact, and error rates.
+   - Add unit tests for hook state transitions and integration tests for UI states.
 3. **Fallback for reliability-critical scenarios**
- - If quality/coverage targets are not met with native APIs, add server-backed STT fallback.
- - Evaluate privacy/compliance requirements before storing or transmitting voice data.
+   - If quality/coverage targets are not met with native APIs, add server-backed STT fallback.
+   - Evaluate privacy/compliance requirements before storing or transmitting voice data.
 
 ### Notes
 
@@ -147,6 +166,23 @@ Commercial messaging should map to client stage intent:
 - **Status:** Planned.
 - **Dependencies:** Product packaging, GTM messaging, CRM pipeline design, and reporting analytics instrumentation.
 - **Needs Review:** exact pricing tiers, contract format, and partner program operating model.
+
+## Delivery OS: export, roles, and cross-functional swimlanes (backlog)
+
+**Status:** Planned — extends the **shipped** orchestration model (`glc_orchestration_pack`, timeline read model) toward operational systems (issues, sprints, DRI, RevOps), not a commitment for “idea-only” entry. Related positioning: [PRODUCT.md](./PRODUCT.md), [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md). A hypothetical separate idea-first SKU is **out of scope** until [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md) is superseded by an Accepted ADR.
+
+**Prioritized backlog (for sprint planning when prioritized):**
+
+| Priority | Item | Notes |
+| --- | --- | --- |
+| P0 | **Trust:** keep public copy aligned with audit-first contract (no implied “viral plan from a pitch” guarantee) | Ongoing; marketing and intake surfaces. **Spot-check log:** [operations/readiness-p0-e2e-orchestration-slo.md](./operations/readiness-p0-e2e-orchestration-slo.md) §3. |
+| P0 | **CI meaning:** orchestration E2E non-skip + KPI (`E2E_ORCHESTRATION_*`, `VITE_API_URL`, `E2E_ORCHESTRATION_JSON` / `STRICT`) | **Operator checklist:** [operations/readiness-p0-e2e-orchestration-slo.md](./operations/readiness-p0-e2e-orchestration-slo.md) — also [e2e/README.md](../e2e/README.md), [DEPLOYMENT.md](./DEPLOYMENT.md#intake-orchestration-and-e2e-operator-index). CI job runs redacted preflight + KPI step. |
+| P1 | **Export** `glc_orchestration_pack` to CSV/JSON | **Shipped:** `GET /api/audits/:id/orchestration/sprint-export` (portal timeline CSV) + [operations/sprint-export-import-ops.md](./operations/sprint-export-import-ops.md). **`dri` column:** suggested role labels from `lane` (`server/src/config/sprint-export-lane-dri-hints.ts`). Native Jira/Linear APIs remain a future step. |
+| P1 | **Explicit swimlanes** for RevOps / sales in client timeline | **Partial:** `gtm_sales` lane in server registry; **client_mvp** preset now includes `gtm_sales` when the pack has nodes. Further RevOps copy/UX is product-owned. |
+| P1 | **Runbooks** for orchestration SLO + export | [orchestration-observability-dod4.md](./operations/orchestration-observability-dod4.md) §5b + sprint import doc; org panels still required for DoD-4. |
+| P2 | **Idea-only SKU** (if ever) | Requires Accepted ADR replacing or accepting [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md). |
+
+**Dependencies:** Product ownership for lane semantics, export field mapping, and which tracker integrations justify build vs manual export.
 
 ## Для разработчиков
 

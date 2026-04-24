@@ -21,4 +21,16 @@ export const SYSTEM_DEFAULTS_ROUTE_QUERIES = {
   controlObjectHistoryEventsLimit: 400,
   /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
   auditRequestsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+  /** GET /api/audits/:id/roadmap/manifest-snapshots — newest first. */
+  orchestrationRoadmapManifestSnapshotsList: {
+    defaultLimit: 5,
+    maxLimit: 50,
+    minLimit: 1,
+  },
+  /** GET /api/audits/:id/orchestration/pack-diff-history — newest first. */
+  orchestrationPackDiffHistoryList: {
+    defaultLimit: 5,
+    maxLimit: 50,
+    minLimit: 1,
+  },
 } as const;

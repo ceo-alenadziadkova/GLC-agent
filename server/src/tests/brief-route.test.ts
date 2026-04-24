@@ -111,6 +111,7 @@ const {
       });
     return {
       select: vi.fn(() => chain),
+      insert: vi.fn(() => Promise.resolve({ error: null })),
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           eq: vi.fn(async () => (
@@ -260,6 +261,8 @@ describe('GET /api/audits/:id/brief/schema', () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows[0].answer).toBeDefined();
     expect(typeof (rows[0].answer as Record<string, unknown>).type).toBe('string');
+    expect(body.legal).toBeDefined();
+    expect((body.legal as Record<string, { legal_basis?: string }>).a2?.legal_basis).toBe('contract');
   });
 
   it('includes derived.report_anchors when visible bank answers have reportUse', async () => {
@@ -312,6 +315,10 @@ describe('GET /api/audits/:id/brief', () => {
     expect(body.gates).toBeDefined();
     expect(body.intakeProgress).toBeDefined();
     expect(typeof (body.intakeProgress as Record<string, unknown>).progressPct).toBe('number');
+    expect(body.readiness).toBeDefined();
+    expect(body.critical_signals).toBeDefined();
+    expect(Array.isArray(body.remediation_queue)).toBe(true);
+    expect(Array.isArray(body.next_recommended)).toBe(true);
   });
 
   it('returns 200 with populated brief when row exists', async () => {

@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "pilotIndustryLabels": [
+    "E-commerce",
+    "Education",
+    "Finance",
+    "Food & Beverage",
+    "Healthcare",
+    "Hospitality",
+    "Manufacturing",
+    "Marine",
+    "Media & Entertainment",
+    "Non-profit",
+    "Professional Services",
+    "Real Estate",
+    "Retail",
+    "SaaS / Software",
+    "Other"
+  ],
+  "unknownBlocksAuditReady": true,
+  "signals": {
+    "industry": {
+      "bankIds": ["a2"],
+      "normalizerRef": "unwrap_choice_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    },
+    "website_presence": {
+      "bankIds": ["a5"],
+      "normalizerRef": "unwrap_choice_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    },
+    "primary_problem": {
+      "bankIds": ["f1"],
+      "normalizerRef": "unwrap_multi_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    },
+    "operations_bottleneck": {
+      "bankIds": ["d2"],
+      "normalizerRef": "unwrap_choice_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    },
+    "audit_focus": {
+      "bankIds": ["f2"],
+      "normalizerRef": "unwrap_multi_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    },
+    "delivery_shape_baseline": {
+      "bankIds": ["d_closing_flow"],
+      "normalizerRef": "unwrap_multi_v1",
+      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
+      "evidenceType": "explicit",
+      "conflictResolutionRule": "prefer_explicit_latest",
+      "unknownHandlingRule": "unknown_blocks_audit_ready"
+    }
+  }
+}

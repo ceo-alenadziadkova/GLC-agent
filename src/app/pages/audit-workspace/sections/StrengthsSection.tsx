@@ -9,19 +9,26 @@ export function StrengthsSection({ domainData }: Props) {
   if (domainData.strengths.length === 0) return null;
 
   return (
-    <div className="glc-card rounded-[var(--radius-xl)] p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <CheckCircle className="h-4 w-4 text-[var(--glc-green)]" />
+    <div className="glc-card overflow-hidden rounded-[var(--radius-xl)]">
+      <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-5 py-3">
+        <CheckCircle className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
         <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.strengths}</SectionLabel>
+        <span className="ml-auto rounded-full bg-[var(--ui-audit-strength-pill-bg)] px-2 py-0.5 text-[length:var(--text-2xs)] font-bold text-[var(--glc-green)]">
+          {domainData.strengths.length}
+        </span>
       </div>
-      <ul className="space-y-2">
+      <ul className="divide-y divide-[var(--border-subtle)] list-none m-0 p-0">
         {domainData.strengths.map((strength, index) => (
-          <li
-            key={index}
-            className="flex items-start gap-2.5 text-sm text-[var(--text-secondary)]"
-          >
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--gradient-success)]" />
-            {strength}
+          <li key={index} className="flex gap-3 px-5 py-4">
+            <span
+              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ui-audit-strength-index-bg)] text-[length:var(--text-2xs)] font-bold tabular-nums text-[var(--glc-green)]"
+              aria-hidden
+            >
+              {index + 1}
+            </span>
+            <p className="m-0 min-w-0 flex-1 text-sm leading-relaxed text-[var(--text-secondary)] text-pretty">
+              {strength}
+            </p>
           </li>
         ))}
       </ul>

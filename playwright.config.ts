@@ -17,7 +17,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter:
+    process.env.E2E_ORCHESTRATION_JSON === '1'
+      ? [
+          ['github'],
+          ['json', { outputFile: 'test-results/orchestration-e2e.json' }],
+        ]
+      : process.env.CI
+        ? 'github'
+        : 'list',
   use: {
     baseURL: GLC_DEV_SPA_ORIGIN_E2E,
     trace: 'on-first-retry',

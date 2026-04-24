@@ -39,10 +39,24 @@ export function StudioHeaderSection(props: StudioHeaderSectionProps) {
           >
             {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.fullMap}
           </button>
+          <button
+            type="button"
+            className={`ds-studio-view-mode-btn ds-studio-view-mode-btn--segment${viewMode === 'dependency' ? ' ds-studio-view-mode-btn--active' : ''}`}
+            onClick={() => onViewModeChange('dependency')}
+          >
+            {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.dependencyGraph}
+          </button>
         </div>
       </div>
 
-      {viewMode === 'logic' ? (
+      {viewMode === 'dependency' ? (
+        <div className="rounded-lg px-3 py-2 text-xs ds-panel-canvas">
+          <p className="m-0">
+            <strong className="ds-text-primary">Dependency graph</strong> — signal contributions, decision impact targets, and
+            case-pattern overlays (read-only list from contract JSON + case catalog).
+          </p>
+        </div>
+      ) : viewMode === 'logic' ? (
         overviewUi ? (
           <p className="m-0 text-xs rounded-lg px-3 py-2 ds-studio-logic-overview-hint">{STUDIO_COPY_EN.logicOverviewHint}</p>
         ) : (

@@ -6,12 +6,17 @@ const mocks = vi.hoisted(() => ({
   fetchIntakeBriefForAudit: vi.fn(),
   fetchAuditForNext: vi.fn(),
   fetchPendingReviewAfterPhase: vi.fn(),
+  fetchAnyPendingReviewForAudit: vi.fn(),
   claimPipelineNext: vi.fn(),
-  fetchAuditForRetry: vi.fn(),
+  claimPipelineFinalizeAfterLastGate: vi.fn(),
+  fetchAuditForRetryById: vi.fn(),
   claimPipelineRetry: vi.fn(),
+  claimPipelineResumeFromCancelled: vi.fn(),
+  canManagePlatformSettings: vi.fn(),
   fetchAuditForStop: vi.fn(),
   claimPipelineStop: vi.fn(),
   insertPipelineCancelledEvent: vi.fn(),
+  insertPipelineResumedFromCancelledEvent: vi.fn(),
   fetchConsultantOwnedAudit: vi.fn(),
   fetchLatestQualityGateEventReport: vi.fn(),
   insertReviewApprovedEvent: vi.fn(),
@@ -22,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   fetchReviewPointsForAudit: vi.fn(),
   fetchAuditForAnyAccess: vi.fn(),
   fetchLatestQualityGateEventData: vi.fn(),
+  schedulePipelineExecution: vi.fn(),
 }));
 
 vi.mock('../repository/pipeline-audit.repository.js', () => ({
@@ -29,8 +35,10 @@ vi.mock('../repository/pipeline-audit.repository.js', () => ({
   claimPipelineStart: mocks.claimPipelineStart,
   fetchAuditForNext: mocks.fetchAuditForNext,
   claimPipelineNext: mocks.claimPipelineNext,
-  fetchAuditForRetry: mocks.fetchAuditForRetry,
+  claimPipelineFinalizeAfterLastGate: mocks.claimPipelineFinalizeAfterLastGate,
+  fetchAuditForRetryById: mocks.fetchAuditForRetryById,
   claimPipelineRetry: mocks.claimPipelineRetry,
+  claimPipelineResumeFromCancelled: mocks.claimPipelineResumeFromCancelled,
   fetchAuditForStop: mocks.fetchAuditForStop,
   claimPipelineStop: mocks.claimPipelineStop,
   fetchConsultantOwnedAudit: mocks.fetchConsultantOwnedAudit,
@@ -44,12 +52,14 @@ vi.mock('../repository/pipeline-brief.repository.js', () => ({
 
 vi.mock('../repository/pipeline-review.repository.js', () => ({
   fetchPendingReviewAfterPhase: mocks.fetchPendingReviewAfterPhase,
+  fetchAnyPendingReviewForAudit: mocks.fetchAnyPendingReviewForAudit,
   approvePendingReview: mocks.approvePendingReview,
   fetchReviewPointsForAudit: mocks.fetchReviewPointsForAudit,
 }));
 
 vi.mock('../repository/pipeline-event.repository.js', () => ({
   insertPipelineCancelledEvent: mocks.insertPipelineCancelledEvent,
+  insertPipelineResumedFromCancelledEvent: mocks.insertPipelineResumedFromCancelledEvent,
   fetchLatestQualityGateEventReport: mocks.fetchLatestQualityGateEventReport,
   insertReviewApprovedEvent: mocks.insertReviewApprovedEvent,
   fetchPipelineEventsForAudit: mocks.fetchPipelineEventsForAudit,
@@ -58,6 +68,10 @@ vi.mock('../repository/pipeline-event.repository.js', () => ({
 
 vi.mock('../notifications/pipeline-route.notification.service.js', () => ({
   sendReviewApprovedNotification: mocks.sendReviewApprovedNotification,
+}));
+
+vi.mock('../../../lib/platform-admin.js', () => ({
+  canManagePlatformSettings: mocks.canManagePlatformSettings,
 }));
 
 vi.mock('../../brief-validator.js', () => ({
@@ -87,10 +101,21 @@ vi.mock('../../../lib/audit-coverage-bridge.js', () => ({
   intakeBriefGateModeFromExecutionPlan: vi.fn(() => 'full'),
 }));
 
+vi.mock('../orchestration/schedule-pipeline-execution.js', () => ({
+  schedulePipelineExecution: mocks.schedulePipelineExecution,
+}));
+
+import * as intakeCore from '@glc/intake-core';
+import * as featureFlags from '../../../config/feature-flags.js';
+import { intakeBriefGateModeFromExecutionPlan } from '../../../lib/audit-coverage-bridge.js';
+import * as briefValidator from '../../brief-validator.js';
+
+import { PIPELINE_RETRY_CLAIM_OWNERSHIP } from '../../../config/pipeline-retry-claim.js';
 import { runPipelineStart } from '../use-cases/start-pipeline.use-case.js';
 import { runPipelineNext } from '../use-cases/next-pipeline.use-case.js';
 import { runPipelineRetry } from '../use-cases/retry-pipeline.use-case.js';
 import { runPipelineStop } from '../use-cases/stop-pipeline.use-case.js';
+import { runPipelineResumeFromCancelled } from '../use-cases/resume-pipeline-from-cancelled.use-case.js';
 import { runReviewApprove } from '../use-cases/approve-review.use-case.js';
 import { loadPipelineStatus } from '../use-cases/load-pipeline-status.use-case.js';
 import { loadQualityGateData } from '../use-cases/load-quality-gate.use-case.js';
@@ -98,6 +123,12 @@ import { loadQualityGateData } from '../use-cases/load-quality-gate.use-case.js'
 describe('pipeline route use-cases with mocked repositories', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(featureFlags, 'isDiagnosticIntakePilotEnabled').mockReturnValue(true);
+    vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockReturnValue({
+      flowReadinessStatus: 'flow_ready',
+      auditReadinessStatus: 'audit_ready',
+      trace: [],
+    });
     mocks.fetchAuditForStart.mockResolvedValue({
       id: 'a1',
       status: 'created',
@@ -130,11 +161,15 @@ describe('pipeline route use-cases with mocked repositories', () => {
       execution_plan: null,
     });
     mocks.fetchPendingReviewAfterPhase.mockResolvedValue(null);
+    mocks.fetchAnyPendingReviewForAudit.mockResolvedValue(null);
     mocks.claimPipelineNext.mockResolvedValue(true);
+    mocks.claimPipelineFinalizeAfterLastGate.mockResolvedValue(true);
 
-    mocks.fetchAuditForRetry.mockResolvedValue({
+    mocks.fetchAuditForRetryById.mockResolvedValue({
       id: 'a1',
+      user_id: 'u1',
       status: 'failed',
+      current_phase: 2,
       tokens_used: 10,
       token_budget: 100,
       updated_at: '2026-01-01T00:00:00.000Z',
@@ -142,6 +177,9 @@ describe('pipeline route use-cases with mocked repositories', () => {
       execution_plan: null,
     });
     mocks.claimPipelineRetry.mockResolvedValue(true);
+    mocks.claimPipelineResumeFromCancelled.mockResolvedValue(true);
+    mocks.insertPipelineResumedFromCancelledEvent.mockResolvedValue(undefined);
+    mocks.canManagePlatformSettings.mockResolvedValue(false);
 
     mocks.fetchAuditForStop.mockResolvedValue({
       id: 'a1',
@@ -171,6 +209,111 @@ describe('pipeline route use-cases with mocked repositories', () => {
     mocks.fetchLatestQualityGateEventData.mockResolvedValue({ passed: true, flags: [] });
   });
 
+  it('runPipelineStart returns intake readiness blocked when envelope blocks audit', async () => {
+    vi.mocked(intakeCore.evaluateIntakeReadinessEnvelope).mockReturnValueOnce({
+      flowReadinessStatus: 'blocked',
+      auditReadinessStatus: 'blocked',
+      trace: [{ code: 'test_block', semanticCause: 'Test semantic readiness block' }],
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.status).toBe(400);
+      expect(result.error.body.code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
+      const readiness = (result.error.body as { readiness?: Record<string, unknown> }).readiness;
+      expect(readiness).toBeDefined();
+      expect(['flow_ready', 'blocked']).toContain(readiness?.flowReadinessStatus);
+      expect(['audit_ready', 'blocked', 'ready_with_caveats']).toContain(readiness?.auditReadinessStatus);
+      expect(Array.isArray(readiness?.trace)).toBe(true);
+    }
+  });
+
+  it('runPipelineStart does not apply intake readiness block when diagnostic pilot flag is disabled', async () => {
+    vi.spyOn(featureFlags, 'isDiagnosticIntakePilotEnabled').mockReturnValueOnce(false);
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('runPipelineStart passes slaProductMode from intakeBriefGateModeFromExecutionPlan into readiness envelope', async () => {
+    vi.mocked(intakeBriefGateModeFromExecutionPlan).mockReturnValueOnce('express');
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.slaProductMode).toBe('express');
+      expect(input.enforcementPoint).toBe('pipeline_start');
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
+  });
+
+  it('runPipelineStart sets applyExecutionPlanCoverageScope when pilot and execution-plan coverage flag are both enabled', async () => {
+    vi.spyOn(featureFlags, 'isExecutionPlanCoverageScopeEnabled').mockReturnValue(true);
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.applyExecutionPlanCoverageScope).toBe(true);
+      expect(input.executionIncludeStrategy).toBe(true);
+      expect(input.executionSelectedDomains).toEqual([
+        'tech_infrastructure',
+        'security_compliance',
+        'seo_digital',
+        'ux_conversion',
+        'marketing_utp',
+        'automation_processes',
+      ]);
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
+  });
+
+  it('runPipelineStart keeps applyExecutionPlanCoverageScope false when execution-plan coverage flag is disabled', async () => {
+    vi.spyOn(featureFlags, 'isExecutionPlanCoverageScopeEnabled').mockReturnValue(false);
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.applyExecutionPlanCoverageScope).toBe(false);
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
+  });
+
   it('runPipelineStart returns started payload on success', async () => {
     const result = await runPipelineStart({
       auditId: 'a1',
@@ -185,6 +328,23 @@ describe('pipeline route use-cases with mocked repositories', () => {
       expect(result.response.phase).toBe(0);
     }
     expect(mocks.claimPipelineStart).toHaveBeenCalledOnce();
+  });
+
+  it('runPipelineStart keeps discovery collection mode for idea-only audits', async () => {
+    mocks.fetchIntakeBriefForAudit.mockResolvedValueOnce({
+      responses: { a5: { value: 'No website yet', source: 'client' } },
+      collection_mode: 'discovery',
+      intake_versions: null,
+    });
+    const surfaceSpy = vi.spyOn(briefValidator, 'resolveIntakeSurfaceForPlan');
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(surfaceSpy).toHaveBeenCalledWith('discovery', 'consultant');
   });
 
   it('runPipelineStart returns forbidden for unsupported role', async () => {
@@ -277,10 +437,66 @@ describe('pipeline route use-cases with mocked repositories', () => {
     });
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.outcome === 'running') {
       expect(result.response.status).toBe('running');
       expect(typeof result.nextPhase).toBe('number');
     }
+  });
+
+  it('runPipelineNext returns intake readiness blocked when envelope blocks audit', async () => {
+    vi.mocked(intakeCore.evaluateIntakeReadinessEnvelope).mockReturnValueOnce({
+      flowReadinessStatus: 'blocked',
+      auditReadinessStatus: 'blocked',
+      trace: [{ code: 'next_block', semanticCause: 'Next semantic readiness block' }],
+    });
+    const result = await runPipelineNext({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.status).toBe(400);
+      expect(result.error.body.code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
+      const readiness = (result.error.body as { readiness?: Record<string, unknown> }).readiness;
+      expect(readiness).toBeDefined();
+      expect(['flow_ready', 'blocked']).toContain(readiness?.flowReadinessStatus);
+      expect(['audit_ready', 'blocked', 'ready_with_caveats']).toContain(readiness?.auditReadinessStatus);
+      expect(Array.isArray(readiness?.trace)).toBe(true);
+    }
+  });
+
+  it('runPipelineNext finalizes audit when plan has no further phases and no pending reviews', async () => {
+    mocks.fetchAuditForNext.mockResolvedValue({
+      id: 'a1',
+      status: 'review',
+      current_phase: 7,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'u1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.fetchAnyPendingReviewForAudit.mockResolvedValue(null);
+    mocks.claimPipelineFinalizeAfterLastGate.mockResolvedValue(true);
+
+    const result = await runPipelineNext({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.outcome).toBe('completed');
+      expect(result.response.status).toBe('completed');
+    }
+    expect(mocks.claimPipelineFinalizeAfterLastGate).toHaveBeenCalledOnce();
+    expect(mocks.claimPipelineNext).not.toHaveBeenCalled();
   });
 
   it('runPipelineNext returns forbidden for unsupported role', async () => {
@@ -360,6 +576,72 @@ describe('pipeline route use-cases with mocked repositories', () => {
     }
   });
 
+  it('runPipelineNext retries claim once after refetch when first optimistic lock fails', async () => {
+    mocks.fetchAnyPendingReviewForAudit.mockResolvedValue(null);
+    const row = {
+      id: 'a1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'u1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    };
+    mocks.fetchAuditForNext
+      .mockResolvedValueOnce(row)
+      .mockResolvedValueOnce({ ...row, updated_at: '2026-01-01T00:00:01.000Z' });
+    mocks.claimPipelineNext.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    const result = await runPipelineNext({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.fetchAuditForNext).toHaveBeenCalledTimes(2);
+    expect(mocks.claimPipelineNext).toHaveBeenCalledTimes(2);
+  });
+
+  it('runPipelineNext returns phase in progress when refetch shows another request won the claim', async () => {
+    const row = {
+      id: 'a1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'u1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    };
+    mocks.fetchAuditForNext
+      .mockResolvedValueOnce(row)
+      .mockResolvedValueOnce({
+        ...row,
+        status: 'recon',
+        updated_at: '2026-01-01T00:00:01.000Z',
+      });
+    mocks.claimPipelineNext.mockResolvedValue(false);
+
+    const result = await runPipelineNext({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.body.code).toBe('PIPELINE_PHASE_IN_PROGRESS');
+    }
+    expect(mocks.claimPipelineNext).toHaveBeenCalledTimes(1);
+  });
+
   it('runPipelineRetry returns retrying status for allowed phase', async () => {
     const result = await runPipelineRetry({
       auditId: 'a1',
@@ -372,12 +654,74 @@ describe('pipeline route use-cases with mocked repositories', () => {
       expect(result.response.status).toBe('retrying');
       expect(result.response.phase).toBe(2);
     }
+    expect(mocks.claimPipelineRetry).toHaveBeenCalledWith(
+      'a1',
+      '2026-01-01T00:00:00.000Z',
+      'auto',
+      { kind: PIPELINE_RETRY_CLAIM_OWNERSHIP.owner, actorUserId: 'u1' },
+    );
+  });
+
+  it('runPipelineRetry allows platform operator when not audit owner', async () => {
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'owner-1',
+      status: 'failed',
+      current_phase: 2,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.canManagePlatformSettings.mockResolvedValue(true);
+    const result = await runPipelineRetry({
+      auditId: 'a1',
+      userId: 'admin-1',
+      phase: 2,
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(mocks.claimPipelineRetry).toHaveBeenCalledWith(
+      'a1',
+      '2026-01-01T00:00:00.000Z',
+      'auto',
+      { kind: PIPELINE_RETRY_CLAIM_OWNERSHIP.platformOperator },
+    );
+  });
+
+  it('runPipelineRetry returns not found when actor is neither owner nor platform operator', async () => {
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'owner-1',
+      status: 'failed',
+      current_phase: 2,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.canManagePlatformSettings.mockResolvedValue(false);
+    const result = await runPipelineRetry({
+      auditId: 'a1',
+      userId: 'other-1',
+      phase: 2,
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
+    }
+    expect(mocks.claimPipelineRetry).not.toHaveBeenCalled();
   });
 
   it('runPipelineRetry returns already cancelled when audit is cancelled', async () => {
-    mocks.fetchAuditForRetry.mockResolvedValue({
+    mocks.fetchAuditForRetryById.mockResolvedValue({
       id: 'a1',
+      user_id: 'u1',
       status: 'cancelled',
+      current_phase: 2,
       tokens_used: 10,
       token_budget: 100,
       updated_at: '2026-01-01T00:00:00.000Z',
@@ -411,9 +755,11 @@ describe('pipeline route use-cases with mocked repositories', () => {
   });
 
   it('runPipelineRetry returns token budget exceeded when limit reached', async () => {
-    mocks.fetchAuditForRetry.mockResolvedValue({
+    mocks.fetchAuditForRetryById.mockResolvedValue({
       id: 'a1',
+      user_id: 'u1',
       status: 'failed',
+      current_phase: 2,
       tokens_used: 100,
       token_budget: 100,
       updated_at: '2026-01-01T00:00:00.000Z',
@@ -473,6 +819,171 @@ describe('pipeline route use-cases with mocked repositories', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.body.code).toBe('PIPELINE_STOP_CLAIM_CONFLICT');
+    }
+  });
+
+  it('runPipelineResumeFromCancelled sets review and logs when platform admin', async () => {
+    mocks.canManagePlatformSettings.mockResolvedValue(true);
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'owner-1',
+      status: 'cancelled',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.fetchAuditForNext.mockResolvedValue({
+      id: 'a1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'owner-1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    const result = await runPipelineResumeFromCancelled({ auditId: 'a1', actorUserId: 'admin-1' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.response.status).toBe('running');
+      expect(result.response.current_phase).toBe(1);
+      expect(result.response.resumed).toBe(true);
+      expect(result.response.execution_scheduled).toBe(true);
+    }
+    expect(mocks.claimPipelineResumeFromCancelled).toHaveBeenCalledWith('a1', '2026-01-01T00:00:00.000Z');
+    expect(mocks.insertPipelineResumedFromCancelledEvent).toHaveBeenCalledOnce();
+    expect(mocks.schedulePipelineExecution).toHaveBeenCalledWith({
+      auditId: 'a1',
+      action: 'next',
+      phase: 1,
+      disableAutoRemediate: false,
+    });
+  });
+
+  it('runPipelineResumeFromCancelled does not schedule when owner pipeline/next would block (review pending)', async () => {
+    mocks.canManagePlatformSettings.mockResolvedValue(true);
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'owner-1',
+      status: 'cancelled',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.fetchAuditForNext.mockResolvedValue({
+      id: 'a1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'owner-1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.fetchPendingReviewAfterPhase.mockResolvedValue({
+      audit_id: 'a1',
+      after_phase: 0,
+      status: 'pending',
+    });
+    const result = await runPipelineResumeFromCancelled({ auditId: 'a1', actorUserId: 'admin-1' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.response.status).toBe('review');
+      expect(result.response.execution_scheduled).toBe(false);
+      expect(result.response.current_phase).toBe(0);
+    }
+    expect(mocks.schedulePipelineExecution).not.toHaveBeenCalled();
+  });
+
+  it('runPipelineResumeFromCancelled does not schedule when owner pipeline/next is intake-readiness blocked', async () => {
+    mocks.canManagePlatformSettings.mockResolvedValue(true);
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'owner-1',
+      status: 'cancelled',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    mocks.fetchAuditForNext.mockResolvedValue({
+      id: 'a1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'owner-1',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    vi.mocked(intakeCore.evaluateIntakeReadinessEnvelope).mockReturnValueOnce({
+      flowReadinessStatus: 'blocked',
+      auditReadinessStatus: 'blocked',
+      trace: [{ code: 'resume_next_block', semanticCause: 'Resume-to-next readiness block' }],
+    });
+
+    const result = await runPipelineResumeFromCancelled({ auditId: 'a1', actorUserId: 'admin-1' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.response.status).toBe('review');
+      expect(result.response.execution_scheduled).toBe(false);
+      expect(result.response.current_phase).toBe(0);
+    }
+    expect(mocks.schedulePipelineExecution).not.toHaveBeenCalled();
+  });
+
+  it('runPipelineResumeFromCancelled returns forbidden when not platform admin', async () => {
+    mocks.canManagePlatformSettings.mockResolvedValue(false);
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'u1',
+      status: 'cancelled',
+      current_phase: 1,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    const result = await runPipelineResumeFromCancelled({ auditId: 'a1', actorUserId: 'u1' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.status).toBe(403);
+    }
+    expect(mocks.claimPipelineResumeFromCancelled).not.toHaveBeenCalled();
+  });
+
+  it('runPipelineResumeFromCancelled returns resumeNotCancelled when audit is not cancelled', async () => {
+    mocks.canManagePlatformSettings.mockResolvedValue(true);
+    mocks.fetchAuditForRetryById.mockResolvedValue({
+      id: 'a1',
+      user_id: 'u1',
+      status: 'review',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    const result = await runPipelineResumeFromCancelled({ auditId: 'a1', actorUserId: 'admin-1' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.body.code).toBe('PIPELINE_RESUME_NOT_CANCELLED');
     }
   });
 
@@ -556,7 +1067,7 @@ describe('pipeline route use-cases with mocked repositories', () => {
 
   it('loadPipelineStatus returns not found when audit missing', async () => {
     mocks.fetchAuditForStatus.mockResolvedValue(null);
-    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1' });
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'consultant' });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
@@ -564,12 +1075,36 @@ describe('pipeline route use-cases with mocked repositories', () => {
   });
 
   it('loadPipelineStatus returns payload with events and reviews', async () => {
-    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1' });
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'consultant' });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(Array.isArray(result.payload.events)).toBe(true);
       expect(Array.isArray(result.payload.reviews)).toBe(true);
       expect(result.payload.status).toBe('review');
+    }
+  });
+
+  it('loadPipelineStatus redacts review notes for client viewers', async () => {
+    mocks.fetchPipelineEventsForAudit.mockResolvedValue([
+      {
+        event_type: 'review_approved',
+        phase: 0,
+        message: 'ok',
+        data: { consultant_notes: 'secret', interview_notes: 'also secret' },
+      },
+    ]);
+    mocks.fetchReviewPointsForAudit.mockResolvedValue([
+      { after_phase: 0, status: 'approved', consultant_notes: 'c', interview_notes: 'i' },
+    ]);
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'client' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const rev = result.payload.reviews as Array<{ consultant_notes: string | null; interview_notes: string | null }>;
+      expect(rev[0].consultant_notes).toBeNull();
+      expect(rev[0].interview_notes).toBeNull();
+      const ev = result.payload.events as Array<{ data: Record<string, unknown> }>;
+      expect(ev[0].data.consultant_notes).toBeNull();
+      expect(ev[0].data.interview_notes).toBeNull();
     }
   });
 

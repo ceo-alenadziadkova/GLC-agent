@@ -5,7 +5,7 @@ import { REPORT_PROFILE_LABELS, type ReportProfile } from '@glc/intake-core';
 import { PDF_COPY_EN } from '../../../config/pdf-copy.en.js';
 import { PDF_GLC_LOGO_GEOMETRY } from '../../../config/pdf-brand-geometry.js';
 import { PDF_PAGE_LAYOUT } from '../../../config/pdf-layout.js';
-import { fmtOverallScoreFraction, safeName, scoreColor } from '../lib/formatters.js';
+import { fmtOverallScoreFraction, safeName, sanitizePdfText, scoreColor } from '../lib/formatters.js';
 import { pdfStyles as s } from '../styles.js';
 import { GlcLogo } from './glc-logo.js';
 
@@ -45,7 +45,7 @@ export const CoverPage: React.FC<CoverPageProps> = ({
       </View>
 
       <Text style={s.coverTitle}>{safeName(company)}</Text>
-      <Text style={s.coverUrl}>{url}</Text>
+      <Text style={s.coverUrl}>{sanitizePdfText(url)}</Text>
 
       <View style={s.coverMeta}>
         <View style={s.coverMetaItem}>
@@ -55,7 +55,7 @@ export const CoverPage: React.FC<CoverPageProps> = ({
         {industry && (
           <View style={s.coverMetaItem}>
             <Text style={s.coverMetaLabel}>{PDF_COPY_EN.cover.industryLabel}</Text>
-            <Text style={s.coverMetaValue}>{industry}</Text>
+            <Text style={s.coverMetaValue}>{sanitizePdfText(industry)}</Text>
           </View>
         )}
         {score != null && (
@@ -69,7 +69,7 @@ export const CoverPage: React.FC<CoverPageProps> = ({
 
     <View style={s.coverBar}>
       <Text style={s.coverBarBrand}>{PDF_COPY_EN.brandName}</Text>
-      <Text style={s.coverBarUrl}>{brandSiteHost}</Text>
+      <Text style={s.coverBarUrl}>{sanitizePdfText(brandSiteHost)}</Text>
     </View>
   </Page>
 );

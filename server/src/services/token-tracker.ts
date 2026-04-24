@@ -4,12 +4,24 @@ import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 import { formatTokenUsagePipelineEventMessage } from '../config/token-usage-messages.en.js';
 import { logger } from './logger.js';
+import { getContext, updateContext } from './observability-context.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../config/orchestration-telemetry-policy.js';
 
 interface TokenUsage {
   input_tokens: number;
   output_tokens: number;
   model: string;
 }
+
+type TokenLogMetadata = {
+  latency_ms?: number;
+  attempt?: number;
+  max_attempts?: number;
+  provider_status?: number | null;
+  status?: 'started' | 'completed' | 'failed';
+  call_type?: 'domain_agent' | 'strategy_execution_pack' | 'orchestration_synthesis';
+  detail_level?: 'default' | 'debug';
+};
 
 export interface BudgetStatus {
   within_budget: boolean;
@@ -24,23 +36,43 @@ export class TokenTracker {
   /**
    * Log token usage for a phase and update audit totals.
    */
-  async log(auditId: string, phase: number, usage: TokenUsage): Promise<void> {
+  async log(auditId: string, phase: number, usage: TokenUsage, metadata: TokenLogMetadata = {}): Promise<void> {
     const totalTokens = usage.input_tokens + usage.output_tokens;
     const pricing = getModelPricing(usage.model);
     const costUsd = (usage.input_tokens / 1_000_000) * pricing.input + (usage.output_tokens / 1_000_000) * pricing.output;
+    const roundedCost = roundTokenCostUsd(costUsd);
+    updateContext({ auditId });
+    const context = getContext();
+
+    logger.info('llm_cost.per_call', {
+      audit_id: auditId,
+      component: 'token_tracker',
+      phase,
+      call_type: metadata.call_type ?? 'domain_agent',
+      [ORCHESTRATION_TELEMETRY_METRICS.llmCostPerAuditUsd]: roundedCost,
+    });
 
     // Log event
     await supabase.from('pipeline_events').insert({
       audit_id: auditId,
       phase,
       event_type: PIPELINE_EVENT_TYPES.tokenUsage,
-      message: formatTokenUsagePipelineEventMessage({ phase, totalTokens, costUsd }),
+      message: formatTokenUsagePipelineEventMessage({ phase, totalTokens, costUsd: roundedCost }),
       data: {
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
         total_tokens: totalTokens,
         model: usage.model,
-        cost_usd: roundTokenCostUsd(costUsd),
+        cost_usd: roundedCost,
+        latency_ms: metadata.latency_ms,
+        attempt: metadata.attempt,
+        max_attempts: metadata.max_attempts,
+        provider_status: metadata.provider_status ?? null,
+        status: metadata.status ?? 'completed',
+        call_type: metadata.call_type ?? 'domain_agent',
+        detail_level: metadata.detail_level ?? 'default',
+        trace_id: context?.traceId,
+        operation_id: context?.operationId,
       },
     });
 

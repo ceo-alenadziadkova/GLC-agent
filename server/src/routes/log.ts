@@ -9,7 +9,12 @@ import {
 } from '../middleware/auth.js';
 import { logIngestLimiter, snapshotLogIngestLimiter } from '../middleware/rate-limit.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { formatSpaUiIncidentTelegramMessage } from '../config/telegram-notification-format.en.js';
+import { isTelegramBotConfigured } from '../config/telegram-credentials.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import { tryConsumeSpaUiIncidentTelegramSlot } from '../lib/spa-ui-incident-telegram-cooldown.js';
 import { logger } from '../services/logger.js';
+import { sendTelegramChatMessage } from '../services/telegram-chat.js';
 
 interface LogBody {
   level?: 'debug' | 'info' | 'warn' | 'error';
@@ -17,6 +22,41 @@ interface LogBody {
   message?: string;
   context?: Record<string, unknown>;
   timestamp?: string;
+}
+
+const SPA_UI_INCIDENT_SOURCE = 'spa_ui_incident';
+
+function fanOutSpaUiIncidentToTelegram(req: AuthRequest, body: LogBody, source: string, timestamp: string, message: string): void {
+  if (!req.userId) return;
+  if (source !== SPA_UI_INCIDENT_SOURCE) return;
+  if (!isTelegramBotConfigured()) return;
+  const ctx = body.context;
+  if (!ctx || typeof ctx !== 'object') return;
+  const refRaw = ctx.ref;
+  const ref = typeof refRaw === 'string' ? refRaw.trim() : '';
+  if (!ref) return;
+
+  const cooldownMs = SYSTEM_DEFAULTS.alerts.spaUiIncidentTelegramCooldownMs;
+  if (!tryConsumeSpaUiIncidentTelegramSlot(`${req.userId}:${ref}`, cooldownMs)) {
+    return;
+  }
+
+  const pathRaw = ctx.path;
+  const path = typeof pathRaw === 'string' ? pathRaw : '';
+  const detailRaw = ctx.detail;
+  const detail = typeof detailRaw === 'string' ? detailRaw : undefined;
+
+  const text = formatSpaUiIncidentTelegramMessage({
+    supportRef: ref.slice(0, 256),
+    path: path.slice(0, 512),
+    userId: req.userId,
+    messageKind: message.slice(0, 120),
+    detail,
+    clientEnv: ctx.client_env,
+    timestamp,
+  });
+
+  void sendTelegramChatMessage({ text, parse_mode: 'HTML' });
 }
 
 function ingestFrontendLog(req: AuthRequest, res: Response): void {
@@ -35,6 +75,8 @@ function ingestFrontendLog(req: AuthRequest, res: Response): void {
     user_id: req.userId,
     context: context ?? {},
   });
+
+  fanOutSpaUiIncidentToTelegram(req, body, source, timestamp, message);
 
   res.status(204).end();
 }

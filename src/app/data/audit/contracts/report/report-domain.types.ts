@@ -1,5 +1,7 @@
 import type { DomainKey } from '@glc/intake-core';
 
+import type { GlcOrchestrationPackRevisionDiffView, GlcOrchestrationPackView } from './orchestration-pack.types';
+
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
 
@@ -64,6 +66,12 @@ export interface DomainData {
   raw_data: Record<string, unknown>;
 }
 
+export interface StrategyInitiativeEvidenceSource {
+  domain_key: DomainKey;
+  issue_id?: string;
+  signal?: string;
+}
+
 export interface StrategyInitiative {
   id: string;
   title: string;
@@ -71,6 +79,30 @@ export interface StrategyInitiative {
   impact: 'high' | 'medium' | 'low';
   effort: 'low' | 'medium' | 'high';
   dependencies?: string[];
+  domain?: string;
+  stage?: string;
+  priority?: string;
+  confidence?: number;
+  context?: { signals: string[]; problems?: string[]; risks?: string[] };
+  outcome?: { description: string; timeframe?: string };
+  scope?: { includes: string[]; excludes: string[] };
+  execution_paths?: Array<{
+    type: string;
+    description: string;
+    time_estimate: string;
+    tools?: string[];
+    architecture?: string;
+    steps?: string[];
+    incompatible?: boolean;
+    incompatibility_reason?: string;
+  }>;
+  alternatives?: Array<{ name: string; type?: string; pros?: string[]; cons?: string[] }>;
+  automation?: { level: string; tools?: string[] };
+  constraints?: { budget?: string; team?: string; tech?: string };
+  readiness?: { score: number; blockers?: string[] };
+  decision?: { why_this: string[]; tradeoffs?: string[]; if_skipped?: string[] };
+  evidence?: { sources: StrategyInitiativeEvidenceSource[] };
+  evidence_verified?: boolean;
 }
 
 export interface ScorecardEntry {
@@ -80,6 +112,18 @@ export interface ScorecardEntry {
   weight: number;
   weighted_score: number;
 }
+
+/** Read model: merged brief + Strategy Lab overrides (server-computed on GET audit). */
+export interface StrategyEffectiveConstraints {
+  company_stage: string;
+  budget_band: string;
+  team_scale: string;
+}
+
+/** Persisted Strategy Lab JSON subset exposed on the audit strategy read model. */
+export type StrategyLabContextView = Partial<StrategyEffectiveConstraints> & {
+  director_stage2_domains?: DomainKey[];
+};
 
 export interface StrategyRoadmap {
   id: string;
@@ -91,4 +135,15 @@ export interface StrategyRoadmap {
   medium_term: StrategyInitiative[];
   strategic: StrategyInitiative[];
   scorecard: ScorecardEntry[];
+  schema_version?: number;
+  /** Persisted manual overrides (subset of constraint axes + orchestration intent). */
+  strategy_lab_context?: StrategyLabContextView;
+  effective_constraints?: StrategyEffectiveConstraints;
+  /** GLC Orchestrator cross-domain pack when generated (see docs/ARCHITECTURE.md). */
+  glc_orchestration_pack?: GlcOrchestrationPackView | null;
+  orchestration_pack_version?: number;
+  /** Last vN→vN+1 diff when pack was regenerated (server JSON). */
+  glc_orchestration_last_revision_diff?: GlcOrchestrationPackRevisionDiffView | null;
 }
+
+export type { GlcOrchestrationPackRevisionDiffView, GlcOrchestrationPackView } from './orchestration-pack.types';

@@ -3,6 +3,8 @@ import { auditRequestsApi } from './audit-requests';
 import { auditsCrudApi } from './audits-crud';
 import { auditsPipelineApi } from './audits-pipeline';
 import { auditsReviewsReportsApi } from './audits-reviews-reports';
+import { auditsStrategyLabApi } from './audits-strategy-lab';
+import { auditsOrchestrationApi } from './audits-orchestration';
 import { briefProfilePlatformApi } from './brief-profile-platform';
 import { dashboardNotificationsApi } from './dashboard-notifications';
 import { discoverApi } from './discover';
@@ -17,6 +19,8 @@ export type GlcApi =
   typeof auditsCrudApi &
   typeof auditsPipelineApi &
   typeof auditsReviewsReportsApi &
+  typeof auditsStrategyLabApi &
+  typeof auditsOrchestrationApi &
   typeof briefProfilePlatformApi &
   typeof auditRequestsApi &
   typeof dashboardNotificationsApi &

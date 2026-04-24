@@ -1,4 +1,8 @@
 import { SYSTEM_DEFAULTS } from './system-defaults.js';
+import {
+  ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES,
+  type OrchestrationPlanGovernanceRolloutMode,
+} from './orchestration-plan-governance-rollout-policy.js';
 
 /**
  * Server feature flags — single facade for product toggles.
@@ -7,9 +11,13 @@ import { SYSTEM_DEFAULTS } from './system-defaults.js';
  * Future: swap implementation to FEATURE_FLAGS_JSON / DB / provider without changing call sites.
  *
  * Do not read these env keys from services directly; import from this module only.
+ *
+ * @see [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](../../docs/adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md) — if an idea-only SKU is ever Accepted, new flags belong here (additive; do not replace audit-first flags).
  */
 
 const FF = SYSTEM_DEFAULTS.featureFlags;
+const ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
+export type FeatureRolloutMode = (typeof ROLLOUT_MODES)[number];
 
 /** Env string → boolean; unknown non-empty values fall back to `defaultValue`. */
 function readFeatureFlagEnv(env: string | undefined, defaultValue: boolean): boolean {
@@ -24,6 +32,17 @@ function readFeatureFlagEnv(env: string | undefined, defaultValue: boolean): boo
 /** Per-phase evaluation_datasets inserts. Env: EVALUATION_DATASETS_INSERT=false to disable. */
 export function isEvaluationDatasetsInsertEnabled(): boolean {
   return readFeatureFlagEnv(process.env.EVALUATION_DATASETS_INSERT, FF.evaluationDatasetsInsertEnabled);
+}
+
+/**
+ * When true, inserts into `evaluation_datasets` require audit owner's `evaluation_internal` consent.
+ * Env: EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT=true
+ */
+export function isEvaluationDatasetsExplicitInternalConsentRequired(): boolean {
+  return readFeatureFlagEnv(
+    process.env.EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT,
+    FF.evaluationDatasetsRequireExplicitInternalConsent,
+  );
 }
 
 /** ML bandit variant selection. Env: FEATURE_BANDITS=true */
@@ -86,4 +105,331 @@ export function isAutoRemediationEnabled(): boolean {
 /** Domain benchmarks: API reads, pipeline attaches benchmark_reference_id, recompute endpoints. Env: FEATURE_BENCHMARKS=true */
 export function isBenchmarksEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_BENCHMARKS, FF.benchmarksEnabled);
+}
+
+/** Strategy Lab on-demand execution pack (extra Claude call). Env: FEATURE_STRATEGY_EXECUTION_PACK=false to disable. */
+export function isStrategyExecutionPackEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_STRATEGY_EXECUTION_PACK, FF.strategyExecutionPackEnabled);
+}
+
+/**
+ * Optional orchestration conflict synthesis (LLM). Env: FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS=true
+ * Default off; deterministic graph build does not require this.
+ */
+export function isOrchestrationConflictSynthesisEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS,
+    FF.orchestrationConflictSynthesisEnabled,
+  );
+}
+
+function readPercentEnv(env: string | undefined, defaultValue: number): number {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+/**
+ * Controlled rollout segment for orchestration conflict synthesis.
+ * Env: FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT (0..100)
+ */
+export function getOrchestrationConflictSynthesisRolloutPercent(): number {
+  return readPercentEnv(
+    process.env.FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT,
+    FF.orchestrationConflictSynthesisRolloutPercent,
+  );
+}
+
+/**
+ * Persisted orchestration pack HTTP API. Env: FEATURE_ORCHESTRATION_PACK_API=false to disable.
+ */
+export function isOrchestrationPackApiEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_ORCHESTRATION_PACK_API, FF.orchestrationPackApiEnabled);
+}
+
+/**
+ * Auto-persist orchestration pack at end of strategy phase when latest manifest snapshot exists.
+ * Env: FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY=true
+ */
+export function isOrchestrationPackAutoAfterStrategyEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY,
+    FF.orchestrationPackAutoAfterStrategyEnabled,
+  );
+}
+
+function readEnumFeatureFlag<T extends string>(
+  env: string | undefined,
+  allowed: readonly T[],
+  defaultValue: T,
+): T {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  return (allowed as readonly string[]).includes(raw) ? (raw as T) : defaultValue;
+}
+
+function readFeatureRolloutMode(env: string | undefined, defaultValue: FeatureRolloutMode): FeatureRolloutMode {
+  return readEnumFeatureFlag(env, ROLLOUT_MODES, defaultValue);
+}
+
+/**
+ * Plan-level governance rollout mode for orchestration persistence gate.
+ * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
+ */
+export function getOrchestrationPlanGovernanceRolloutMode(): OrchestrationPlanGovernanceRolloutMode {
+  return readEnumFeatureFlag(
+    process.env.FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE,
+    ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES,
+    FF.orchestrationPlanGovernanceRolloutMode,
+  );
+}
+
+/** Extended runtime debug logs for pipeline/orchestration event streams. Env: FEATURE_PIPELINE_DEBUG_LOGS=true */
+export function isPipelineDebugLogsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PIPELINE_DEBUG_LOGS, FF.pipelineDebugLogsEnabled);
+}
+
+/**
+ * Director orchestration slice generated directly by domain-agent output.
+ * When disabled, strict director phases must fail fast before any LLM call.
+ * Env: FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT=true
+ */
+export function isDirectorOrchestrationAgentOutputEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT,
+    FF.directorOrchestrationAgentOutputEnabled,
+  );
+}
+
+/**
+ * Timeline-first orchestration UX segment (KPI logs / rollout hooks).
+ * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX=false to disable structured timeline metrics logs.
+ */
+export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX,
+    FF.orchestrationTimelinePrimaryUxEnabled,
+  );
+}
+
+/**
+ * When true, roadmap narrative timeline fields are enabled for all users (mirrors SPA `orchestrationRoadmapNarrativeEnabled`).
+ * Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED
+ */
+export function isOrchestrationRoadmapNarrativeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED,
+    FF.orchestrationRoadmapNarrativeEnabled,
+  );
+}
+
+/** Staged rollout mode for client roadmap narrative. Env: FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE */
+export function getOrchestrationRoadmapNarrativeRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE,
+    FF.orchestrationRoadmapNarrativeRolloutMode,
+  );
+}
+
+/** On-demand director deep-dive API/UI flow. Env: FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND */
+export function isDirectorDeepDiveOnDemandEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND,
+    FF.directorDeepDiveOnDemandEnabled,
+  );
+}
+
+/** Staged rollout mode for director deep-dive API/UI flow. Env: FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE */
+export function getDirectorDeepDiveRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE,
+    FF.directorDeepDiveRolloutMode,
+  );
+}
+
+/** Director sub-agent orchestration layer. Env: FEATURE_DIRECTOR_SUB_AGENTS */
+export function isDirectorSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DIRECTOR_SUB_AGENTS,
+    FF.directorSubAgentsEnabled,
+  );
+}
+
+/** CDO deep-dive stub (tech + SEO digital domains). Env: FEATURE_DIRECTOR_CDO_SUB_AGENTS */
+export function isDirectorCdoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CDO_SUB_AGENTS, FF.directorCdoSubAgentsEnabled);
+}
+
+/** CDO LLM orchestration for `ux_conversion` deep-dive (MVP 3 sub-agents). Env: FEATURE_CDO_DEEP_DIVE_LLM */
+export function isCdoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CDO_DEEP_DIVE_LLM, FF.cdoDeepDiveLlmEnabled);
+}
+
+/** CAO LLM orchestration for `automation_processes` deep-dive (MVP 3 sub-agents). Env: FEATURE_CAO_DEEP_DIVE_LLM */
+export function isCaoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CAO_DEEP_DIVE_LLM, FF.caoDeepDiveLlmEnabled);
+}
+
+/** CSO LLM orchestration for `security_compliance` deep-dive (MVP 3 sub-agents). Env: FEATURE_CSO_DEEP_DIVE_LLM */
+export function isCsoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CSO_DEEP_DIVE_LLM, FF.csoDeepDiveLlmEnabled);
+}
+
+/** CTO LLM orchestration for `tech_infrastructure` deep-dive. Env: FEATURE_CTO_DEEP_DIVE_LLM */
+export function isCtoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_CTO_DEEP_DIVE_LLM, FF.ctoDeepDiveLlmEnabled);
+}
+
+/** SEO LLM orchestration for `seo_digital` deep-dive. Env: FEATURE_SEO_DEEP_DIVE_LLM */
+export function isSeoDeepDiveLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_SEO_DEEP_DIVE_LLM, FF.seoDeepDiveLlmEnabled);
+}
+
+/** CAO deep-dive stub (automation / processes). Env: FEATURE_DIRECTOR_CAO_SUB_AGENTS */
+export function isDirectorCaoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CAO_SUB_AGENTS, FF.directorCaoSubAgentsEnabled);
+}
+
+/** CSO deep-dive stub (security / compliance). Env: FEATURE_DIRECTOR_CSO_SUB_AGENTS */
+export function isDirectorCsoSubAgentsEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIRECTOR_CSO_SUB_AGENTS, FF.directorCsoSubAgentsEnabled);
+}
+
+/** Staged rollout mode for sub-agent picker and orchestration. Env: FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE */
+export function getDirectorSubAgentsRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE,
+    FF.directorSubAgentsRolloutMode,
+  );
+}
+
+/**
+ * Diagnostic Adaptive Intake pilot — readiness blocking on pipeline start / discover convert.
+ * Env: FEATURE_DIAGNOSTIC_INTAKE_PILOT=true
+ */
+export function isDiagnosticIntakePilotEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_DIAGNOSTIC_INTAKE_PILOT, FF.diagnosticIntakePilotEnabled);
+}
+
+/**
+ * F1: deterministic next-question / stop API for public intake (no LLM; ADR-INTAKE-NEXT-QUESTION-V1).
+ * Env: FEATURE_INTAKE_NEXT_QUESTION
+ */
+export function isIntakeNextQuestionEndpointEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_INTAKE_NEXT_QUESTION, FF.intakeNextQuestionEndpointEnabled);
+}
+
+/**
+ * Execution-plan coverage scope for intake readiness (selected domains ∩ missingForReport).
+ * Post-KPI expansion; keep off until Product sets `expand` on the KPI gate.
+ * Env: FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true
+ */
+export function isExecutionPlanCoverageScopeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE,
+    FF.executionPlanCoverageScopeEnabled,
+  );
+}
+
+/**
+ * ContextBuilder intake project context envelope (`intake_project_context_envelope`) in agent context payload.
+ * Env: FEATURE_PROJECT_CONTEXT_ENVELOPE=true
+ */
+export function isProjectContextEnvelopeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE,
+    FF.projectContextEnvelopeEnabled,
+  );
+}
+
+/** NL ingress LLM mapper (intake `/nl-describe`). Env: FEATURE_NL_INGRESS_LLM */
+export function isNlIngressLlmEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_NL_INGRESS_LLM, FF.nlIngressLlmEnabled);
+}
+
+/** Rollout mode for NL ingress LLM mapper. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE */
+export function getNlIngressLlmRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE,
+    FF.nlIngressLlmRolloutMode,
+  );
+}
+
+/** Percent rollout for NL ingress LLM pilot mode. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT */
+export function getNlIngressLlmRolloutPercent(): number {
+  return readPercentEnv(
+    process.env.FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT,
+    FF.nlIngressLlmRolloutPercent,
+  );
+}
+
+/** Internal canary allowlist (token prefixes or full tokens). Env: FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS */
+export function getNlIngressLlmAllowlistTokens(): string[] {
+  const raw = process.env.FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS?.trim();
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+/** Geo-group allowlist for NL ingress LLM rollout. Env: FEATURE_NL_INGRESS_LLM_GEO_GROUPS */
+export function getNlIngressLlmGeoGroups(): string[] {
+  const raw = process.env.FEATURE_NL_INGRESS_LLM_GEO_GROUPS?.trim() ?? FF.nlIngressLlmGeoGroups;
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** Client pack graph consultant canvas (mirrors SPA `packGraphConsultantCanvasEnabled`). Env: FEATURE_PACK_GRAPH_CONSULTANT_CANVAS */
+export function isPackGraphConsultantCanvasEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PACK_GRAPH_CONSULTANT_CANVAS, FF.packGraphConsultantCanvasEnabled);
+}
+
+/** Evidence taxonomy drill-down surfaces. Env: FEATURE_EVIDENCE_DRILLDOWN */
+export function isEvidenceDrilldownEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_EVIDENCE_DRILLDOWN, FF.evidenceDrilldownEnabled);
+}
+
+/** Portal execution-pack repeat-flow dialog. Env: FEATURE_EXECUTION_PACK_REPEAT_FLOW */
+export function isExecutionPackRepeatFlowEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_EXECUTION_PACK_REPEAT_FLOW, FF.executionPackRepeatFlowEnabled);
+}
+
+/** Consultant `/audit/:id/orchestration` cockpit + pack view metric. Env: FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT */
+export function isConsultantOrchestrationCockpitEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_CONSULTANT_ORCHESTRATION_COCKPIT,
+    FF.consultantOrchestrationCockpitEnabled,
+  );
+}
+
+/** POST pack `govern_action` (accept / accept with warnings / refine). Env: FEATURE_CONSULTANT_GOVERNANCE_CTAS */
+export function isConsultantGovernanceCtasEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_CONSULTANT_GOVERNANCE_CTAS,
+    FF.consultantGovernanceCtasEnabled,
+  );
+}
+
+/** Dual manifest-preview scenario compare. Env: FEATURE_MANIFEST_SCENARIO_COMPARE */
+export function isManifestScenarioCompareEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_MANIFEST_SCENARIO_COMPARE,
+    FF.manifestScenarioCompareEnabled,
+  );
+}
+
+/** Plan-level control object (V4) in pack. Env: FEATURE_PLAN_CONTROL_OBJECT */
+export function isPlanControlObjectEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PLAN_CONTROL_OBJECT, FF.planControlObjectEnabled);
+}
+
+/** Anthropic prompt cache (ephemeral) on stable prefixes. Env: FEATURE_LLM_PROMPT_CACHE */
+export function isLlmPromptCacheEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_LLM_PROMPT_CACHE, FF.llmPromptCacheEnabled);
 }

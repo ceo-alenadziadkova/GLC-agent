@@ -1,3 +1,4 @@
+import { LEGAL_DOCUMENT_VERSIONS } from '@glc/api-paths';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,6 +7,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../lib/storage-keys';
 import { Login } from '../Login';
 import { useAuth } from '../../hooks/useAuth';
+import { api } from '../../data/apiService';
 
 vi.mock('../../hooks/useAuth', async importOriginal => {
   const actual = await importOriginal<typeof import('../../hooks/useAuth')>();
@@ -22,10 +24,60 @@ vi.mock('../../lib/logger', () => ({
     info: vi.fn(),
     debug: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
+vi.mock('../../data/apiService', () => ({
+  api: {
+    getLegalConsents: vi.fn().mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [
+        {
+          consent_key: 'tos_acceptance',
+          accepted: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+          document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+          tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+          privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+          dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+          source: 'api',
+        },
+        {
+          consent_key: 'privacy_acknowledgment',
+          accepted: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+          document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+          tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+          privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+          dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+          source: 'api',
+        },
+      ],
+    }),
+    postLegalConsents: vi.fn().mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [],
+    }),
   },
 }));
 
 const mockUseAuth = vi.mocked(useAuth);
+const mockApi = vi.mocked(api);
 
 const navigate = vi.fn();
 
@@ -38,7 +90,7 @@ vi.mock('react-router', async importOriginal => {
 });
 
 const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
-const signUpWithPassword = vi.fn().mockResolvedValue({ error: null });
+const signUpWithPassword = vi.fn().mockResolvedValue({ error: null, session: null });
 const signInWithGoogle = vi.fn().mockResolvedValue({ error: null });
 const requestPasswordReset = vi.fn().mockResolvedValue({ error: null });
 const completePasswordRecovery = vi.fn().mockResolvedValue({ error: null });
@@ -66,8 +118,40 @@ function renderLogin(initialPath = '/login') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockApi.getLegalConsents.mockResolvedValue({
+    published: {
+      bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+      terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+      privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+      data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+      legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+      cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+    },
+    effective: [
+      {
+        consent_key: 'tos_acceptance',
+        accepted: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+        tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        source: 'api',
+      },
+      {
+        consent_key: 'privacy_acknowledgment',
+        accepted: true,
+        created_at: '2026-01-01T00:00:00.000Z',
+        document_bundle_version: LEGAL_DOCUMENT_VERSIONS.bundle,
+        tos_version: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_version: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        dpa_version: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        source: 'api',
+      },
+    ],
+  });
   signInWithPassword.mockResolvedValue({ error: null });
-  signUpWithPassword.mockResolvedValue({ error: null });
+  signUpWithPassword.mockResolvedValue({ error: null, session: null });
   signInWithGoogle.mockResolvedValue({ error: null });
   localStorage.clear();
 });
@@ -148,6 +232,32 @@ describe('Login', () => {
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
     });
+  });
+
+  it('redirects authenticated user to settings legal-consents when required consents are missing', async () => {
+    mockApi.getLegalConsents.mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [],
+    });
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'a@a.com', identities: [{ provider: 'email' }] } as User,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/settings#legal-consents', { replace: true });
+    });
+    expect(navigate).not.toHaveBeenCalledWith('/portfolio', { replace: true });
   });
 
   it('does not navigate away for anonymous user (upgrade path)', async () => {
@@ -244,6 +354,22 @@ describe('Login', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows OAuth callback loader while auth session is still resolving', () => {
+    stubLocation('?code=oauth-code');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      loading: true,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin('/login?code=oauth-code');
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText(/Signing you in\.\.\./i)).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
   it('submits sign-in with trimmed email and password', async () => {
     const user = userEvent.setup();
     stubLocation('');
@@ -277,6 +403,8 @@ describe('Login', () => {
     await user.click(createTab);
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'secret12');
+    await user.click(screen.getByRole('checkbox', { name: /^terms of service$/i }));
+    await user.click(screen.getByRole('checkbox', { name: /^privacy policy$/i }));
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).toHaveBeenCalledWith('new@example.com', 'secret12');
@@ -296,6 +424,8 @@ describe('Login', () => {
     await user.click(screen.getByRole('tab', { name: /^create account$/i }));
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'short7');
+    await user.click(screen.getByRole('checkbox', { name: /^terms of service$/i }));
+    await user.click(screen.getByRole('checkbox', { name: /^privacy policy$/i }));
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).not.toHaveBeenCalled();

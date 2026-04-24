@@ -43,8 +43,6 @@ export async function runReviewApprove(params: {
     auditId,
     phase: afterPhase,
     message,
-    consultantNotes,
-    interviewNotes,
   });
   await sendReviewApprovedNotification({ auditId, phase: afterPhase, message });
 

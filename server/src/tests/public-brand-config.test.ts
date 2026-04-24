@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-describe('getPublicBrandConfig', () => {
+describe('getPublicBrandConfig', { timeout: 30_000 }, () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();

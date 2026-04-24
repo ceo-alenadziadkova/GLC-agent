@@ -43,18 +43,25 @@
     "consultant": {
       "dashboard": "Dashboard",
       "requestQueue": "Request queue",
+      "allAudits": "All audits",
       "snapshotQueue": "Snapshot queue",
       "discoveryQueue": "Discovery queue",
       "designSystem": "Design system",
       "auditWorkspace": "Audit Workspace",
       "pipeline": "Pipeline",
+      "timeline": "Execution timeline",
       "reports": "Reports",
-      "strategyLab": "Strategy Lab"
+      "strategyLab": "Strategy Lab",
+      "strategyLabDetailLayer": "Plan details"
     },
     "client": {
       "myPortal": "My Portal",
       "auditStatus": "Audit Status",
-      "pipeline": "Pipeline"
+      "pipeline": "Pipeline",
+      "timeline": "Execution timeline",
+      "reports": "Report",
+      "strategyLab": "Strategy Lab",
+      "strategyLabDetailLayer": "Plan details"
     },
     "guest": {
       "freeSnapshot": "Free snapshot"

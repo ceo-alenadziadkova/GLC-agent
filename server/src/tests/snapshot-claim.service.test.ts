@@ -24,11 +24,14 @@ vi.mock('../services/notifications.js', () => ({
 const CLAIM_TOKEN = '550e8400-e29b-41d4-a716-446655440000';
 const USER_ID = 'test-snapshot-user-id';
 const AUDIT_ID = 'audit-claim-unit';
-const RECENT_CREATED = '2026-04-15T12:00:00.000Z';
 
-describe('claimSnapshotForUser', () => {
+/** Within SNAPSHOT_TOKEN_TTL_HOURS (72h) so claim flow is not short-circuited as expired. */
+let recentCreatedWithinTtl: string;
+
+describe('claimSnapshotForUser', { timeout: 30_000 }, () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
+    recentCreatedWithinTtl = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   });
 
   it('returns not_found when repository returns an error', async () => {
@@ -66,7 +69,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: 'someone-else',
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -81,7 +84,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: USER_ID,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -101,7 +104,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: null,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -132,7 +135,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: null,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -158,7 +161,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: null,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -178,7 +181,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: null,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });
@@ -194,7 +197,7 @@ describe('claimSnapshotForUser', () => {
         id: AUDIT_ID,
         client_id: null,
         snapshot_token: CLAIM_TOKEN,
-        created_at: RECENT_CREATED,
+        created_at: recentCreatedWithinTtl,
       },
       error: null,
     });

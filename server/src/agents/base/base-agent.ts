@@ -96,7 +96,7 @@ export abstract class BaseAgent {
     return `${effectiveInstructions}\n\n${autoLoopPatch}`;
   }
 
-  private async resolveExecutionMode(): Promise<ExecutionMode> {
+  protected async resolveExecutionMode(): Promise<ExecutionMode> {
     if (this.executionModeCache !== undefined) return this.executionModeCache;
     const mode = await fetchAuditExecutionMode(this.auditId);
     this.executionModeCache = mode;

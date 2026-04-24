@@ -1,5 +1,6 @@
 import type { DomainKey } from '@glc/intake-core';
 
+import type { GlcDirectorOrchestrationSlice } from '../../schemas/glc-director-orchestration-slice.js';
 import type { PhaseStatus } from './phase-status.js';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
@@ -83,6 +84,8 @@ export interface DomainResult {
    * E.g. ["Page speed data unavailable — server-side crawl only", "No pricing page found"]
    */
   unknown_items: string[];
+  /** Machine-readable Director bundle for orchestration merge (optional; from Claude when enabled). */
+  glc_director_execution?: GlcDirectorOrchestrationSlice;
   /** Computed by BaseAgent after fact-check — not provided by Claude directly. */
   confidence_distribution?: ConfidenceDistribution;
 }

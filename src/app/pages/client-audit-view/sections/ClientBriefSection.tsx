@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, Circle, ClipboardText, Spinner, Warning } from '@phosphor-icons/react';
 import { readinessBadgeFromProgress } from '@glc/intake-core';
@@ -13,14 +12,6 @@ import {
 } from '../../../data/briefQuestions';
 import { effectiveBriefForPipelineGates } from '../../../data/intakeBriefMap';
 import { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
-import { useBriefLayoutPrefsSync } from '../../../hooks/useBriefLayoutPrefsSync';
-import {
-  CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
-  clearClientBriefLayout,
-  clientBriefLayoutStorageKey,
-  resolveClientBriefLayout,
-  writeClientBriefLayout,
-} from '../../../lib/client-brief-layout-preference';
 import {
   INTAKE_BRIEF_SLA_PRODUCT_MODE,
   type IntakeBriefCollectionMode,
@@ -28,13 +19,12 @@ import {
 import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHint';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
 import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
-import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
-import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
 import { Callout } from '../../../components/ui/callout';
 import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../../../lib/snapshot-polling-config';
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
+import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
 
 export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBriefSaved?: () => void }) {
   const queryClient = useQueryClient();
@@ -55,21 +45,6 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
   const [saved, setSaved] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
   const [briefCollectionMode, setBriefCollectionMode] = useState<IntakeBriefCollectionMode | undefined>(undefined);
-  const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(
-    () => resolveClientBriefLayout(auditId) ?? 'unset',
-  );
-
-  useEffect(() => {
-    setBriefLayoutChoice(resolveClientBriefLayout(auditId) ?? 'unset');
-  }, [auditId]);
-
-  const layoutSyncKeys = useMemo(
-    () => [CLIENT_BRIEF_LAYOUT_DEFAULT_KEY, clientBriefLayoutStorageKey(auditId)],
-    [auditId],
-  );
-  useBriefLayoutPrefsSync(layoutSyncKeys, () => {
-    setBriefLayoutChoice(resolveClientBriefLayout(auditId) ?? 'unset');
-  });
 
   useEffect(() => {
     const data = briefQuery.data;
@@ -94,6 +69,10 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
 
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;
+  const answeredPipelineRequiredIds = useMemo(
+    () => pipelineRequiredIds.filter(id => countAnswered(effectiveBriefForGates, [id]) > 0),
+    [effectiveBriefForGates, pipelineRequiredIds],
+  );
   const fallbackProgress = Math.min(
     100,
     Math.round((answeredRequired / Math.max(1, pipelineRequiredTotal)) * 100),
@@ -113,6 +92,18 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
     clientIntakeSurface,
     briefSlaMode,
   );
+  const serverVisibleQuestionIds = useMemo(() => {
+    const qs = briefQuery.data?.questions;
+    if (!Array.isArray(qs)) return undefined;
+    const ids = qs
+      .map((q): string | null =>
+        q && typeof q === 'object' && 'id' in (q as Record<string, unknown>)
+          ? String((q as { id?: unknown }).id ?? '')
+          : null,
+      )
+      .filter((id): id is string => Boolean(id && id.length > 0));
+    return ids.length > 0 ? ids : undefined;
+  }, [briefQuery.data?.questions]);
 
   async function handleSave() {
     setSaving(true);
@@ -134,7 +125,7 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
   }
 
   if (briefQuery.isPending && !briefQuery.data) return null;
-  const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
+  const layoutSelected = true;
 
   return (
     <div className="rounded-xl" style={CLIENT_AUDIT_VIEW_UI.brief.card}>
@@ -145,46 +136,34 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {layoutSelected && (
-            <button
-              type="button"
-              onClick={() => {
-                clearClientBriefLayout(auditId);
-                setBriefLayoutChoice('unset');
-              }}
-              className="text-xs font-medium underline-offset-2 hover:underline"
-              style={CLIENT_AUDIT_VIEW_UI.brief.linkButton}
-            >
-              {CLIENT_AUDIT_VIEW_COPY.brief.changeLayout}
-            </button>
-          )}
-          {layoutSelected && (
-            <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
-              {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+                {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
+              </span>
+              {answeredPipelineRequiredIds.length > 0 ? (
+                <details className="ds-step2-brief-answered-details ds-client-brief-answered-details">
+                  <summary>{CLIENT_AUDIT_VIEW_COPY.brief.reviewAnsweredRequired}</summary>
+                  <BriefPipelineAnsweredTable
+                    answeredIds={answeredPipelineRequiredIds}
+                    responses={effectiveBriefForGates}
+                    questionHeader={CLIENT_AUDIT_VIEW_COPY.brief.answeredTableQuestionCol}
+                    answerHeader={CLIENT_AUDIT_VIEW_COPY.brief.answeredTableAnswerCol}
+                    valueLabels={{
+                      unknown: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueUnknown,
+                      yes: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueYes,
+                      no: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueNo,
+                      empty: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueEmpty,
+                    }}
+                  />
+                </details>
+              ) : null}
+            </div>
           )}
         </div>
       </div>
 
       <div className="px-5 py-4 mobile:px-4 space-y-4">
-        <p className="text-xs leading-relaxed ds-text-quaternary" >
-          {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutPrefix}{' '}
-          <Link to="/settings#brief-layout" className="font-medium underline-offset-2 hover:underline ds-text-brand" >
-            {CLIENT_AUDIT_VIEW_COPY.brief.settingsLink}
-          </Link>
-          {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutSuffix}
-        </p>
-        {!layoutSelected && (
-          <BriefLayoutPreferenceCards
-            selected={null}
-            onSelect={(mode) => {
-              writeClientBriefLayout(auditId, mode);
-              setBriefLayoutChoice(mode);
-            }}
-          />
-        )}
-
-        {layoutSelected && (
-          <>
+        <>
             <div className="flex items-center justify-between">
               <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
                 {CLIENT_AUDIT_VIEW_COPY.brief.readinessPrefix} {progressPct}%
@@ -223,44 +202,30 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualityPrefix} {missingRecommendedCount}{' '}
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualitySuffix}
             </p>
+            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+              {CLIENT_AUDIT_VIEW_COPY.brief.auditFirstContextNote}
+            </p>
             <div className="overflow-y-auto pr-1 -mr-1" style={{ maxHeight: CLIENT_AUDIT_VIEW_UI.brief.formMaxHeight }}>
-              {briefLayoutChoice === 'wizard' ? (
-                <IntakeBankWizard
-                  responses={responses}
-                  onResponsesChange={(next) => setResponses(next)}
-                  interviewMode={false}
-                  emphasizeClientSource={false}
-                  answerSource="client"
-                  collectionMode={briefCollectionMode}
-                  intakeSurface={clientIntakeSurface}
-                  intakeAnalytics={
-                    clientIntakeSurface
-                      ? {
-                          auditId,
-                          surface: clientIntakeSurface,
-                          getIntakeVersions: () => briefQuery.data?.brief?.intake_versions ?? null,
-                        }
-                      : undefined
-                  }
-                  productMode={briefSlaMode}
-                />
-              ) : (
-                <BankClassicBriefFields
-                  compact
-                  responses={responses}
-                  collectionMode={briefCollectionMode}
-                  intakeSurface={clientIntakeSurface}
-                  productMode={briefSlaMode}
-                  onChange={(qid, value) =>
-                    setResponses((prev) => ({ ...prev, [qid]: { value, source: 'client' } }))
-                  }
-                  onSetUnknown={(qid) =>
-                    setResponses((prev) => ({ ...prev, [qid]: { value: null, source: 'unknown' } }))
-                  }
-                  interviewMode={false}
-                  emphasizeClientSource={false}
-                />
-              )}
+              <IntakeBankWizard
+                responses={responses}
+                onResponsesChange={(next) => setResponses(next)}
+                interviewMode={false}
+                emphasizeClientSource={false}
+                answerSource="client"
+                collectionMode={briefCollectionMode}
+                intakeSurface={clientIntakeSurface}
+                intakeAnalytics={
+                  clientIntakeSurface
+                    ? {
+                        auditId,
+                        surface: clientIntakeSurface,
+                        getIntakeVersions: () => briefQuery.data?.brief?.intake_versions ?? null,
+                      }
+                    : undefined
+                }
+                productMode={briefSlaMode}
+                serverVisibleQuestionIds={serverVisibleQuestionIds}
+              />
             </div>
             {briefError && (
               <Callout intent="danger">
@@ -288,8 +253,7 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
                 CLIENT_AUDIT_VIEW_COPY.brief.save
               )}
             </button>
-          </>
-        )}
+        </>
       </div>
     </div>
   );

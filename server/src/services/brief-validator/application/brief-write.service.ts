@@ -1,6 +1,8 @@
 import {
+  buildHypothesisCrossCheckFromReconPrefills,
   buildIntakePlan,
   currentIntakeVersionTuple,
+  evaluateIntakeReadinessEnvelope,
   isSupportedIntakeArtifactTuple,
   mergeReconConflictsFromC1,
   prepareBriefForValidation,
@@ -26,6 +28,7 @@ import { computeOptionalStats } from '../domain/progress-policy.js';
 import { resolveIntakeSurfaceForPlan } from '../domain/surface-policy.js';
 import { validateBriefResponses } from '../domain/sla-policy.js';
 import { getAuditProductMode, getBriefMetaByAuditId, upsertIntakeBriefReturningSingle } from '../infra/brief-repository.js';
+import { logger } from '../../../services/logger.js';
 import type { SaveBriefOptions, SaveBriefResult } from '../types.js';
 
 /**
@@ -93,6 +96,27 @@ export async function saveBriefResponses(
     prefills,
     priorConflicts,
   );
+
+  /**
+   * Recompute ADR readiness for observability. UX may save drafts while execution readiness is blocked;
+   * blocking remains on `POST .../pipeline/start` when `FEATURE_DIAGNOSTIC_INTAKE_PILOT` is enabled.
+   */
+  const hypothesisCrossCheckByQuestionId = buildHypothesisCrossCheckFromReconPrefills(prefills);
+  const intakeReadinessOnWrite = evaluateIntakeReadinessEnvelope({
+    responses: responses as Record<string, unknown>,
+    slaProductMode: mode,
+    collectionMode,
+    surface,
+    intakeVersionTuple: effectiveTuple,
+    enforcementPoint: 'brief_recompute',
+    hypothesisCrossCheckByQuestionId,
+  });
+  logger.debug('brief_write.intake_readiness_recomputed', {
+    auditId,
+    flowReadinessStatus: intakeReadinessOnWrite.flowReadinessStatus,
+    auditReadinessStatus: intakeReadinessOnWrite.auditReadinessStatus,
+    trace_codes: intakeReadinessOnWrite.trace.map(t => t.code),
+  });
 
   const { data, error } = await upsertIntakeBriefReturningSingle(auditId, {
     responses,

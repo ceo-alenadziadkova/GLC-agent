@@ -1,7 +1,76 @@
 export type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped' | 'failed';
 
-export const REVIEW_AFTER_PHASES_FULL = [0, 4, 7];
-export const REVIEW_AFTER_PHASES_EXPRESS = [0, 4];
+/** Persisted `audits.status` values while the orchestrator is executing a phase (matches server `PIPELINE_PHASE_ACTIVE_STATUSES`). */
+export const PIPELINE_AUDIT_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+
+export function isPipelineAuditActiveStatus(status: string): boolean {
+  return (PIPELINE_AUDIT_ACTIVE_STATUSES as readonly string[]).includes(status);
+}
+
+/** Subset of `StatusPill` variants used by the pipeline monitor header. */
+export type PipelineMonitorHeaderPillStatus = 'pending' | 'running' | 'completed' | 'review' | 'failed' | 'cancelled';
+
+export type PipelineMonitorHeaderPresentation = {
+  status: PipelineMonitorHeaderPillStatus;
+  pulse: boolean;
+};
+
+export type AuditListPillStatus = 'pending' | 'running' | 'completed' | 'review' | 'failed' | 'cancelled';
+
+export type AuditListPillPresentation = {
+  status: AuditListPillStatus;
+  pulse: boolean;
+};
+
+/**
+ * Map persisted `audits.status` to the header badge (avoid showing "Running" + pulse during `review` pauses).
+ */
+export function getPipelineMonitorHeaderPresentation(auditStatus: string): PipelineMonitorHeaderPresentation {
+  if (isPipelineAuditActiveStatus(auditStatus)) {
+    return { status: 'running', pulse: true };
+  }
+  switch (auditStatus) {
+    case 'completed':
+      return { status: 'completed', pulse: false };
+    case 'cancelled':
+      return { status: 'cancelled', pulse: false };
+    case 'failed':
+      return { status: 'failed', pulse: false };
+    case 'review':
+      return { status: 'review', pulse: false };
+    case 'created':
+      return { status: 'pending', pulse: false };
+    default:
+      return { status: 'pending', pulse: false };
+  }
+}
+
+/**
+ * Shared status mapper for dashboard/portfolio cards and tables.
+ */
+export function getAuditListPillPresentation(auditStatus: string): AuditListPillPresentation {
+  if (isPipelineAuditActiveStatus(auditStatus)) {
+    return { status: 'running', pulse: true };
+  }
+
+  switch (auditStatus) {
+    case 'completed':
+      return { status: 'completed', pulse: false };
+    case 'review':
+      return { status: 'review', pulse: false };
+    case 'failed':
+      return { status: 'failed', pulse: false };
+    case 'cancelled':
+      return { status: 'cancelled', pulse: false };
+    case 'created':
+      return { status: 'pending', pulse: false };
+    default:
+      return { status: 'pending', pulse: false };
+  }
+}
+
+export const REVIEW_AFTER_PHASES_FULL = [0, 4, 7] as const;
+export const REVIEW_AFTER_PHASES_EXPRESS = [0, 4] as const;
 export const EXPRESS_MAX_PHASE = 4;
 
 export const AUTO_WING_IDS = [1, 2, 3, 4];
@@ -33,7 +102,13 @@ export function getPhaseStatus(
   if (auditStatus === 'completed') return 'completed';
   if (auditStatus === 'failed') {
     if (phaseId < currentPhase) return 'completed';
-    if (phaseId === currentPhase) return 'review';
+    if (phaseId === currentPhase) return 'failed';
+    return 'pending';
+  }
+
+  if (auditStatus === 'cancelled') {
+    if (phaseId < currentPhase) return 'completed';
+    if (phaseId === currentPhase) return 'pending';
     return 'pending';
   }
 
@@ -41,6 +116,12 @@ export function getPhaseStatus(
   if (phaseId === currentPhase) {
     const review = reviews.find(r => r.after_phase === phaseId);
     if (review?.status === 'pending') return 'review';
+    // Approve clears the gate but does not advance `current_phase` until POST pipeline/next.
+    // Without this branch, the card stays "running" forever (no agent work, misleading UX).
+    if (auditStatus === 'review' && review?.status === 'approved') return 'completed';
+    // Orchestrator idle (`review`): never show a fake "running" card (e.g. after platform
+    // resume from `cancelled` mid-phase — no review row for this phase, but agent is not active).
+    if (auditStatus === 'review') return 'review';
     return 'running';
   }
   return 'pending';

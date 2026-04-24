@@ -1,15 +1,26 @@
 import { calcAiReadinessScore } from '@glc/intake-core';
 import {
+  buildHypothesisCrossCheckFromReconPrefills,
   buildIntakePlan,
+  buildProjectContextEnvelope,
   currentIntakeVersionTuple,
+  evaluateIntakeReadinessEnvelope,
   isSupportedIntakeArtifactTuple,
   responsesUseQuestionBankV1,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
+import type { IntakeSurface } from '@glc/intake-core';
+import { isProjectContextEnvelopeEnabled } from '../../config/feature-flags.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { resolveIntakeSurfaceForPlan } from '../brief-validator.js';
 import type { ContextBuilderBriefRow } from './load-context-snapshot.js';
 import { computeIntakeReportAnchors } from './lib/compute-intake-report-anchors.js';
+
+function mapProductModeToEnvelopeExecutionPlan(productMode: ProductMode): 'starter' | 'pro' | 'complete' {
+  if (productMode === 'free_snapshot') return 'starter';
+  if (productMode === 'express') return 'pro';
+  return 'complete';
+}
 
 export function enrichIntakeMetadata(params: {
   allResponses: Record<string, unknown>;
@@ -19,6 +30,7 @@ export function enrichIntakeMetadata(params: {
   intake_ai_readiness_score?: number;
   intake_report_anchors?: Record<string, string>;
   intake_missing_report_domains?: string[];
+  intake_project_context_envelope?: Record<string, unknown>;
 } {
   const { allResponses, brief, productMode } = params;
 
@@ -34,7 +46,9 @@ export function enrichIntakeMetadata(params: {
     SYSTEM_DEFAULTS.intake.defaultBriefCollectionMode;
   const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
-  const intakeSurface = resolveIntakeSurfaceForPlan(collectionMode, validationPerspective);
+  const intakeSurface = resolveIntakeSurfaceForPlan(collectionMode, validationPerspective) as
+    | IntakeSurface
+    | undefined;
   const storedTuple = brief?.intake_versions as IntakeVersionTuple | null | undefined;
   const intakeTuple =
     storedTuple && isSupportedIntakeArtifactTuple(storedTuple) ? storedTuple : currentIntakeVersionTuple();
@@ -49,9 +63,37 @@ export function enrichIntakeMetadata(params: {
   const intakeMissingReportDomains =
     intakePlan.missingForReport.length > 0 ? [...intakePlan.missingForReport] : undefined;
 
+  const reconPrefills =
+    brief?.recon_prefills && typeof brief.recon_prefills === 'object' && !Array.isArray(brief.recon_prefills)
+      ? (brief.recon_prefills as Record<string, unknown>)
+      : null;
+  const hypothesisCrossCheckByQuestionId = buildHypothesisCrossCheckFromReconPrefills(reconPrefills);
+  const readiness = evaluateIntakeReadinessEnvelope({
+    responses: allResponses,
+    slaProductMode: productMode,
+    collectionMode,
+    surface: intakeSurface,
+    intakeVersionTuple: intakeTuple,
+    enforcementPoint: 'brief_recompute',
+    hypothesisCrossCheckByQuestionId,
+  });
+  const criticalMissingKeys = Object.entries(intakePlan.criticalSignals?.confidenceByKey ?? {})
+    .filter(([, confidence]) => confidence === 'unknown')
+    .map(([signalKey]) => signalKey);
+  const envelope = isProjectContextEnvelopeEnabled()
+    ? buildProjectContextEnvelope({
+      responses: allResponses,
+      flowReadinessStatus: readiness.flowReadinessStatus,
+      auditReadinessStatus: readiness.auditReadinessStatus,
+      criticalMissingKeys,
+      executionPlan: mapProductModeToEnvelopeExecutionPlan(productMode),
+    })
+    : undefined;
+
   return {
     intake_ai_readiness_score: bankAiReadiness,
     ...(intakeReportAnchors ? { intake_report_anchors: intakeReportAnchors } : {}),
     ...(intakeMissingReportDomains ? { intake_missing_report_domains: intakeMissingReportDomains } : {}),
+    ...(envelope ? { intake_project_context_envelope: envelope as unknown as Record<string, unknown> } : {}),
   };
 }

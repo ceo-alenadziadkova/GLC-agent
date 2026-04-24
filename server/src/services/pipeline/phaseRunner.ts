@@ -1,13 +1,22 @@
 import { supabase } from '../supabase.js';
 import { banditService, DEFAULT_VARIANT_ID } from '../bandit.js';
 import type { BaseAgent } from '../../agents/base.js';
-import type { ControlObjectV1 } from '../../schemas/control-object/index.js';
+import type { ControlObjectV1, PhaseId } from '../../schemas/control-object/index.js';
 import { findVariant } from '../../config/agent-variants.js';
 import {
   interpolateOrchestratorMessage,
   pipelineOrchestratorCopy,
 } from '../../config/pipeline-orchestrator-copy.js';
 import type { DomainKey, DomainResult } from '../../types/audit.js';
+import { logger } from '../logger.js';
+import { persistGlcDirectorOrchestrationSliceForAuditOwner } from '../orchestration/director-orchestration-persistence.service.js';
+import {
+  directorOrchestrationPersistenceModeForPhase,
+  isDirectorOrchestrationPhaseAllowed,
+} from '../../config/director-orchestration-policy.js';
+import { isDirectorOrchestrationAgentOutputEnabled } from '../../config/feature-flags.js';
+import { extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed } from '../orchestration/extract-glc-director-slice-from-agent-output.js';
+import { isStrictReadyDirectorSlice } from '../../schemas/glc-director-orchestration-slice.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -21,7 +30,7 @@ export type PhaseDomainExecutionDeps = {
     phase: number,
     controlObject: ControlObjectV1,
     evaluationCapture: {
-      phaseId: DomainKey;
+      phaseId: PhaseId;
       rawAgentOutput: Record<string, unknown> | null;
       cleanedOutput: DomainResult;
     }
@@ -42,7 +51,7 @@ export function buildPhaseCompletedMessage(phase: number): string {
  * Runs a single phase agent and persists:
  * - audit_domains.status='collecting' (when applicable)
  * - bandit variant selection (when applicable)
- * - publishControlObjectGovernance (when domainKey is not recon/strategy)
+ * - publishControlObjectGovernance (domain phases + strategy narrow governance)
  * - agent.saveDomainResult (when domainKey is not recon/strategy)
  *
  * Event emission is handled by the caller (different semantics between sequential and parallel blocks).
@@ -62,6 +71,16 @@ export async function runPhaseDomainExecution(
 
   const agent = new AgentClass(auditId);
 
+  if (domainKey !== 'recon' && domainKey !== 'strategy' && isDirectorOrchestrationPhaseAllowed(phase)) {
+    const persistenceMode = directorOrchestrationPersistenceModeForPhase(phase);
+    if (persistenceMode === 'strict_for_selected_domains' && !isDirectorOrchestrationAgentOutputEnabled()) {
+      throw new Error(
+        'Director orchestration strict mode is enabled, but agent-output slice is disabled by feature flag. ' +
+          'Set FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT=true only after the agent output contract is implemented.',
+      );
+    }
+  }
+
   if (domainKey !== 'recon' && domainKey !== 'strategy') {
     const banditResult = await banditService.selectVariant(domainKey as DomainKey);
     agent.selectedVariantId = banditResult.variant_id;
@@ -75,6 +94,20 @@ export async function runPhaseDomainExecution(
 
   const result = await agent.run();
 
+  if (domainKey === 'strategy') {
+    if (agent.lastControlObject) {
+      await publishControlObjectGovernance(phase, agent.lastControlObject, {
+        phaseId: 'strategy',
+        rawAgentOutput: agent.lastRawDomainResult,
+        cleanedOutput: result,
+      });
+    }
+    const withFinalize = agent as BaseAgent & { finalizeStrategyPersistence?: () => Promise<void> };
+    if (typeof withFinalize.finalizeStrategyPersistence === 'function') {
+      await withFinalize.finalizeStrategyPersistence();
+    }
+  }
+
   if (domainKey !== 'recon' && domainKey !== 'strategy') {
     const controlObject = agent.lastControlObject;
     if (controlObject) {
@@ -83,6 +116,64 @@ export async function runPhaseDomainExecution(
         rawAgentOutput: agent.lastRawDomainResult,
         cleanedOutput: result,
       });
+    }
+
+    if (isDirectorOrchestrationPhaseAllowed(phase)) {
+      const directorExtraction = extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed(
+        agent.lastRawDomainResult,
+      );
+      const directorSlice = directorExtraction.slice;
+      const persistenceMode = directorOrchestrationPersistenceModeForPhase(phase);
+      const strictDirectorSliceReady = isStrictReadyDirectorSlice(directorSlice);
+      if (directorSlice) {
+        if (persistenceMode === 'strict_for_selected_domains' && !strictDirectorSliceReady) {
+          logger.warn('pipeline.director_orchestration_slice_strict_not_ready', {
+            auditId,
+            phase,
+            domainKey,
+            mode: persistenceMode,
+            parse_mode: directorExtraction.mode,
+          });
+          throw new Error('Director orchestration slice in strict mode requires non-empty baseline.actions');
+        }
+        const persistDirector = await persistGlcDirectorOrchestrationSliceForAuditOwner({
+          auditId,
+          domainKey: domainKey as DomainKey,
+          slice: directorSlice,
+          mode: persistenceMode,
+        });
+        if (persistDirector.error) {
+          logger.warn('pipeline.director_orchestration_slice_persist_failed', {
+            auditId,
+            phase,
+            domainKey,
+            mode: persistenceMode,
+            message: persistDirector.error.message,
+          });
+          if (persistenceMode === 'strict_for_selected_domains') {
+            throw persistDirector.error;
+          }
+        }
+      } else if (persistenceMode === 'strict_for_selected_domains') {
+        logger.warn('pipeline.director_orchestration_slice_missing', {
+          auditId,
+          phase,
+          domainKey,
+          mode: persistenceMode,
+          parse_mode: directorExtraction.mode,
+        });
+        throw new Error(
+          `Director orchestration slice is required in strict mode (parse_mode=${directorExtraction.mode})`,
+        );
+      } else if (directorExtraction.mode !== 'missing') {
+        logger.info('pipeline.director_orchestration_slice_degraded_legacy', {
+          auditId,
+          phase,
+          domainKey,
+          mode: persistenceMode,
+          parse_mode: directorExtraction.mode,
+        });
+      }
     }
 
     await agent.saveDomainResult(result);
