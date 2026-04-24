@@ -85,9 +85,6 @@ vi.mock('../services/supabase.js', () => ({
           };
         }
         const chain: Record<string, unknown> = {
-          eq: vi.fn(function () {
-            return this;
-          }),
           in: vi.fn(() =>
             Promise.resolve(
               typeof selectQueueRowsMock === 'function' ? selectQueueRowsMock() : { data: [], count: 0 },
@@ -95,6 +92,7 @@ vi.mock('../services/supabase.js', () => ({
           ),
           maybeSingle: selectMetadataMock,
         };
+        chain.eq = vi.fn(() => chain);
         return chain;
       }),
       upsert: upsertMock,
