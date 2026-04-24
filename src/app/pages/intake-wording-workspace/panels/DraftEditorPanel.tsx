@@ -1,6 +1,7 @@
 import { bankIdToBriefQuestion } from '../../../data/bankQuestionUiCatalog';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
 import { Button } from '../../../components/ui/button';
+import { Textarea } from '../../../components/ui/textarea';
 
 export function DraftEditorPanel(props: {
   hydrated: boolean;
@@ -68,7 +69,7 @@ export function DraftEditorPanel(props: {
           </div>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">{W.fields.draftWording}</span>
-            <textarea className="glc-input ds-intake-wording-draft-minh text-sm" value={draftText} onChange={e => onDraftTextChange(e.target.value)} placeholder={W.fields.draftPlaceholder} />
+            <Textarea className="glc-input ds-intake-wording-draft-minh text-sm" value={draftText} onChange={e => onDraftTextChange(e.target.value)} placeholder={W.fields.draftPlaceholder} />
           </label>
           <div className="flex flex-wrap gap-2 items-center">
             <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onSaveDraftLocal}>{W.actions.saveDraftLocal}</Button>

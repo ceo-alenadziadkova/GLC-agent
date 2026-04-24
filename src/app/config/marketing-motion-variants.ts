@@ -1,7 +1,7 @@
 import type { Variants } from 'motion/react';
 import {
   MARKETING_HERO_BILLBOARD,
-  MARKETING_MOTION_EASE_BILLBOARD,
+  MARKETING_SPRING_PREMIUM,
 } from './marketing-motion';
 
 export const marketingHeroBillboardContainerVariants: Variants = {
@@ -20,8 +20,7 @@ export const marketingHeroBillboardItemVariants: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: MARKETING_HERO_BILLBOARD.itemDurationSec,
-      ease: MARKETING_MOTION_EASE_BILLBOARD,
+      ...MARKETING_SPRING_PREMIUM,
     },
   },
 };

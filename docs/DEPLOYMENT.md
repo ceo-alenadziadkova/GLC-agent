@@ -2,28 +2,30 @@
 
 ## Infrastructure Overview
 
-| Service | Provider | Purpose |
-|---|---|---|
-| Frontend | Vercel | React SPA static hosting |
-| Backend API | Railway | Node.js Express server |
-| Database + Auth + Realtime | Supabase Cloud | PostgreSQL, Auth, Realtime |
-| AI | Anthropic API | Claude API calls from backend |
+
+| Service                    | Provider       | Purpose                       |
+| -------------------------- | -------------- | ----------------------------- |
+| Frontend                   | Vercel         | React SPA static hosting      |
+| Backend API                | Railway        | Node.js Express server        |
+| Database + Auth + Realtime | Supabase Cloud | PostgreSQL, Auth, Realtime    |
+| AI                         | Anthropic API  | Claude API calls from backend |
+
 
 ---
 
 ## Environment layers: infrastructure vs ops overrides
 
-Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy). **`server/.env.example`** is the working allowlist comment template; extend it whenever you add a new server env read. **Deprecated vars** (e.g. superseded by DB tables) are called out in the file and below. **Ops escape hatches** (pipeline model id, Sentry trace sampling / link templates, Anthropic base URL) are tabulated under [ARCHITECTURE.md — Documented ops exceptions](./ARCHITECTURE.md#documented-ops-exceptions-env-overrides-for-incidents).
+Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy). `**server/.env.example**` is the working allowlist comment template; extend it whenever you add a new server env read. **Deprecated vars** (e.g. superseded by DB tables) are called out in the file and below. **Ops escape hatches** (pipeline model id, Sentry trace sampling / link templates, Anthropic base URL) are tabulated under [ARCHITECTURE.md — Documented ops exceptions](./ARCHITECTURE.md#documented-ops-exceptions-env-overrides-for-incidents).
 
 ### Infrastructure (typical allowlist)
 
-Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), Telegram / operator tokens where used. **Public marketing copy** (`brand_name`, footer text, optional `support_email`, sentinel URL) lives in **`public_brand_defaults.v1`** (package **`@glc/dev-brand-defaults`**), not in env. The no-public-website value (**`NO_PUBLIC_WEBSITE_URL`**) is re-exported from **`@glc/intake-core`** from that JSON (`no_public_website_sentinel`), not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
+Values that are **secrets, connectivity, or deploy wiring** — not product defaults: `**SUPABASE_URL`**, `**SUPABASE_SERVICE_KEY`**, `**ANTHROPIC_API_KEY**`, `**NODE_ENV**`, `**PORT**` (when the host injects it), `**SNAPSHOT_GUEST_IP_SALT**` (required in production), `**RATE_LIMIT_REDIS_URL**`, `**FRONTEND_URL**` / `**ALLOWED_ORIGINS**`, `**GLC_PUBLIC_SITE_URL**` (required in production), Telegram / operator tokens where used. Public marketing copy (`brand_name`, footer text, optional `support_email`, sentinel URL) lives in `**public_brand_defaults.v1**` (package `**@glc/dev-brand-defaults**`), not in env. The no-public-website value (`**NO_PUBLIC_WEBSITE_URL**`) is re-exported from `**@glc/intake-core**` from that JSON (`no_public_website_sentinel`), not an env var. See `[server/.env.example](../server/.env.example)` for the authoritative commented list.
 
 ### Deprecated / ops-only
 
-- **`PLATFORM_ADMIN_USER_IDS`** — **deprecated, ignored at runtime.** Copy values into **`platform_settings.legacy_platform_admin_user_ids`** or set **`profiles.is_platform_admin`**. If still present, the server logs **`platform_admin.env_deprecated_ignored`** at startup (see [Railway](#railway-backend) platform admin note).
-- **`CONSULTANT_EMAILS`** — **removed.** Consultant promotion on first login uses **`consultant_email_allowlist`** only (SQL or **`/api/platform/consultant-allowlist`**). Delete this env from any legacy deploy configs.
-- **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in **`SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
+- `**PLATFORM_ADMIN_USER_IDS**` — **deprecated, ignored at runtime.** Copy values into `**platform_settings.legacy_platform_admin_user_ids`** or set `**profiles.is_platform_admin`**. If still present, the server logs `**platform_admin.env_deprecated_ignored**` at startup (see [Railway](#railway-backend) platform admin note).
+- `**CONSULTANT_EMAILS**` — **removed.** Consultant promotion on first login uses `**consultant_email_allowlist`** only (SQL or `**/api/platform/consultant-allowlist`**). Delete this env from any legacy deploy configs.
+- **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in `**SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
 
 **Rule:** new product limits and thresholds get a **code default in config** first; env only **overrides** when operators need to tune without a release.
 
@@ -34,16 +36,16 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance (**Needs Review:** pick the region your org requires).
 2. **Schema:** apply migrations exactly as described in [DATABASE.md — Overview](./DATABASE.md#overview) (ordered list through latest `server/migrations/*.sql`). Do not duplicate that sequence here.
 3. Authentication → Settings:
- - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
- - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
+  Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
+   Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
 4. Authentication → Providers:
- - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
- - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
-5. Optional: **Authentication → Email Templates** — paste branded bodies from repo **`email-templates/supabase/`**; see [AUTH.md](./AUTH.md#email-templates-supabase) and [`email-templates/README.md`](../email-templates/README.md).
+  Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
+   Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
+5. Optional: **Authentication → Email Templates** — paste branded bodies from repo `**email-templates/supabase/`**; see [AUTH.md](./AUTH.md#email-templates-supabase) and `[email-templates/README.md](../email-templates/README.md)`.
 6. Note down from Project Settings → API:
- - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
- - `anon public` key → frontend `VITE_SUPABASE_ANON_KEY`
- - `service_role secret` key → backend `SUPABASE_SERVICE_KEY` (keep secret, never expose)
+  `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
+   `anon public` key → frontend `VITE_SUPABASE_ANON_KEY`
+   `service_role secret` key → backend `SUPABASE_SERVICE_KEY` (keep secret, never expose)
 
 ---
 
@@ -51,42 +53,127 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 
 1. Create account at [railway.app](https://railway.app)
 2. New Project → Deploy from GitHub repo
-3. **Monorepo + Docker:** set the service **Root Directory to the repository root** (not `server/`). Use **`railway.json`** at the repo root (`builder: DOCKERFILE`, `dockerfilePath: server/Dockerfile`). The Dockerfile expects build context **`.`** and runs `pnpm install --filter glc-audit-server...` from the workspace lockfile. If Root Directory stays **`server/`** alone, the Docker build cannot see `pnpm-workspace.yaml` / root `pnpm-lock.yaml` and will fail.
-4. **Railpack / Nixpacks:** if you deploy **without** Docker from **repo root**, Nixpacks may treat the project as a **Vite SPA** and start the wrong stack. Prefer the **Dockerfile** flow above. The image runs **`playwright install --with-deps chromium`** after `tsc` for **free snapshot** (see § Free snapshot — Playwright). Builds are slower than a minimal API-only image.
+3. **Monorepo + Docker:** set the service **Root Directory to the repository root** (not `server/`). Use `**railway.json`** at the repo root (`builder: DOCKERFILE`, `dockerfilePath: server/Dockerfile`). The Dockerfile expects build context `**.`** and runs `pnpm install --filter glc-audit-server...` from the workspace lockfile. If Root Directory stays `**server/**` alone, the Docker build cannot see `pnpm-workspace.yaml` / root `pnpm-lock.yaml` and will fail.
+4. **Railpack / Nixpacks:** if you deploy **without** Docker from **repo root**, Nixpacks may treat the project as a **Vite SPA** and start the wrong stack. Prefer the **Dockerfile** flow above. The image runs `**playwright install --with-deps chromium`** after `tsc` for **free snapshot** (see § Free snapshot — Playwright). Builds are slower than a minimal API-only image.
 5. Set environment variables in Railway dashboard:
+  `env SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_KEY=eyJ... ANTHROPIC_API_KEY=sk-ant-... NODE_ENV=production SNAPSHOT_GUEST_IP_SALT=<long-random-secret> GLC_PUBLIC_SITE_URL=https://your-marketing-site.example`
+  **Do not set** `PORT` **manually** unless you know what you are doing: Railway injects `PORT`; the app must listen on that TCP port (the Node entrypoint in `server/dist/index.js` reads `process.env.PORT`). In Public networking, Target port must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns 502, fix the domain’s target port or remove a conflicting custom `PORT` variable. `**LISTEN_HOST**` (optional) defaults to `**0.0.0.0**` for containers; set `**127.0.0.1**` only for local hardening when you intentionally avoid exposing the API on all interfaces.
+  **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in `**platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces `**implicit_fallback_active`** when that applies. **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration `**049_profiles_platform_admin.sql`** adds `**profiles.is_platform_admin**`. When at least one consultant has this flag `**true**`, only those users (plus ids in `**platform_settings.legacy_platform_admin_user_ids**`) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
+6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with `**node dist/index.js**` (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
+7. **Watch paths (monorepo):** root `railway.json` sets `**build.watchPatterns`** so pushes that only touch the SPA (`src/`, marketing assets, etc.) do **not** redeploy the API. Patterns include `**server/`****, `**packages/**`**, root `**package.json` / `pnpm-lock.yaml` / `pnpm-workspace.yaml**`, `**railway.json**`, and `**.dockerignore**`.
+8. Railway provides a public URL like `https://glc-api.up.railway.app`
 
- ```env
- SUPABASE_URL=https://xxxx.supabase.co
- SUPABASE_SERVICE_KEY=eyJ...
- ANTHROPIC_API_KEY=sk-ant-...
- NODE_ENV=production
- SNAPSHOT_GUEST_IP_SALT=<long-random-secret>
- GLC_PUBLIC_SITE_URL=https://your-marketing-site.example
- ```
- **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`index`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable. **`LISTEN_HOST`** (optional) defaults to **`0.0.0.0`** for containers; set **`127.0.0.1`** only for local hardening when you intentionally avoid exposing the API on all interfaces.
-
- **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in **`platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces **`implicit_fallback_active`** when that applies. **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has this flag **`true`**, only those users (plus ids in **`platform_settings.legacy_platform_admin_user_ids`**) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
-
-6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with **`node dist/index.js`** (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
-7. Railway provides a public URL like `https://glc-api.up.railway.app`
-
-**Healthcheck:** use **`/api/health`** (see root `railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
+**Healthcheck:** use `**/api/health`** (see root `railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
 
 ### Free snapshot — Playwright
 
-Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set **`SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
+Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set `**SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
 
-- **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). **`SNAPSHOT_FETCH_BUDGET_MS`** defaults to **`10000`** (10s wall clock for the tiered fetch). Optional **`SNAPSHOT_OPERATOR_TOKEN`** enables **`GET /api/snapshot/operator/metrics`** and **`POST /api/snapshot/operator/purge-cache`** (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
-- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`. Outbound Mozilla-style snapshot UAs embed a **Chrome major token** from **`playwright_user_agent`** (`PLAYWRIGHT_CHROME_MAJOR_FOR_UA`); it is a **site-compatibility hint**, not necessarily the bundled Chromium revision — review it when upgrading the **`playwright`** dependency. Sanity test: `pnpm -C server exec vitest run src/config/playwright-user-agent.test.ts`.
+- **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). `**SNAPSHOT_FETCH_BUDGET_MS`** defaults to `**10000`** (10s wall clock for the tiered fetch). Optional `**SNAPSHOT_OPERATOR_TOKEN**` enables `**GET /api/snapshot/operator/metrics**` and `**POST /api/snapshot/operator/purge-cache**` (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
+- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via `**playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`. Outbound Mozilla-style snapshot UAs embed a Chrome major token from `**playwright_user_agent`** (`PLAYWRIGHT_CHROME_MAJOR_FOR_UA`); it is a **site-compatibility hint**, not necessarily the bundled Chromium revision — review it when upgrading the `**playwright`** dependency. Sanity test: `pnpm -C server exec vitest run src/config/playwright-user-agent.test.ts`.
 - If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
 
-**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_GUEST_IP_SALT`** — **required in production** (non-empty secret mixed into **`ip_hash`** for **`snapshot_guest_sessions`**; the API exits at startup if missing when `NODE_ENV=production`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
+**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). `**SNAPSHOT_GUEST_IP_SALT`** — **required in production** (non-empty secret mixed into `**ip_hash`** for `**snapshot_guest_sessions`**; the API exits at startup if missing when `NODE_ENV=production`). `**SNAPSHOT_ROBOTS_CACHE_MS**` — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). `**SNAPSHOT_SHARED_ABUSE_STORE**` — set to `1` / `true` / `yes` after applying migrations `**021_snapshot_domain_cooldown.sql**` and `**022_snapshot_fresh_lease.sql**` so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. `**SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
 
-**Hosted dashboards (logs):** Ship **JSON** logs (`LOG_FORMAT=json`, `LOG_SERVICE` set per env) to your provider’s log drain (Railway log integrations → **Grafana Loki**, **Datadog**, **Axiom**, etc.). Primary snapshot signal: **`message: "snapshot.run_complete"`** with **`domain_fp`** (SHA-256 prefix of registrable host, not the URL). Secondary: **`snapshot.pipeline_capacity`** (capacity shed), **`snapshot.shared_lease_*`** (RPC / migration issues). Build panels on **rates** of `outcome`, `cache_hit`, `playwright_used`, `home_fetch_failure`; alert on sustained **`snapshot.pipeline_capacity`** or missing `snapshot.run_complete` after `POST /api/snapshot` spikes. Operator in-process counters + shared lease headcount: **`GET /api/snapshot/operator/metrics`** (Bearer **`SNAPSHOT_OPERATOR_TOKEN`**); poll with a cron or uptime check, or point a **JSON API** datasource at that URL if your dashboard product supports auth headers.
+**Hosted dashboards (logs):** Ship **JSON** logs (`LOG_FORMAT=json`, `LOG_SERVICE` set per env) to your provider’s log drain (Railway log integrations → **Grafana Loki**, **Datadog**, **Axiom**, etc.). Primary snapshot signal: `**message: "snapshot.run_complete"`** with `**domain_fp`** (SHA-256 prefix of registrable host, not the URL). Secondary: `**snapshot.pipeline_capacity**` (capacity shed), `**snapshot.shared_lease_***` (RPC / migration issues). Build panels on **rates** of `outcome`, `cache_hit`, `playwright_used`, `home_fetch_failure`; alert on sustained `**snapshot.pipeline_capacity`** or missing `snapshot.run_complete` after `POST /api/snapshot` spikes. Operator in-process counters + shared lease headcount: `**GET /api/snapshot/operator/metrics`** (Bearer `**SNAPSHOT_OPERATOR_TOKEN**`); poll with a cron or uptime check, or point a **JSON API** datasource at that URL if your dashboard product supports auth headers.
 
 Full redaction rules: [SECURITY.md — Snapshot observability & log redaction](./SECURITY.md#snapshot-observability--log-redaction-runbook).
 
 See [API.md — Public Snapshot](./API.md#public-snapshot).
+
+### Diagnostic Adaptive Intake pilot (ops)
+
+Normative contract: [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md). Rollout is **off by default**; enable only after the Product/Ops handshake in that doc.
+
+
+| Env | Purpose |
+| --- | --- |
+| `FEATURE_DIAGNOSTIC_INTAKE_PILOT` | When `true`, `POST /api/audits/:id/pipeline/start` and `POST …/pipeline/next` can return `intake_readiness_blocked`; discover convert uses the same envelope with **`criticalSignalsMode: sla_only`** (does not apply the six-signal pilot registry at convert). |
+| `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE` | Post-KPI optional: when **`true` together with** the pilot flag, pipeline preflight passes execution-plan selected domains into readiness so in-scope **coverage** gaps (not SLA alone) can block per [Phase-B backlog](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md#post-kpi-controlled-expansion-order-phase-4). Default **off**. |
+| `FEATURE_PROJECT_CONTEXT_ENVELOPE` | Post-KPI optional: when `true`, ContextBuilder includes `intake_project_context_envelope` in agent context payloads. Default **off** until Phase-B/C context-envelope rollout is approved. |
+| `FEATURE_NL_INGRESS_LLM` | Enables LLM mapper for `POST /api/intake/:token/nl-describe` (regex fallback remains active). |
+| `FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE` | `shadow` \| `internal` \| `pilot` \| `ga` staged rollout for NL ingress LLM. |
+| `FEATURE_NL_INGRESS_LLM_ROLLOUT_PERCENT` | Percentage bucket for `pilot` mode (hash on intake token). |
+| `FEATURE_NL_INGRESS_LLM_ALLOWLIST_TOKENS` | Comma-separated internal canary token list/prefixes for `internal` mode. |
+| `FEATURE_INTAKE_NEXT_QUESTION` | When `true` **and** `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, exposes `POST /api/intake/:token/next-question` — **F1** deterministic `buildIntakePlan` next head / stop (no LLM; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)). Default **on** in `SYSTEM_DEFAULTS` / `APP_FEATURE_FLAGS` (disable with `FEATURE_INTAKE_NEXT_QUESTION=false` if needed). Public `/intake/:token` uses F1 when `intakeNextQuestionClientEnabled` matches this (parity: `orchestration-contract-parity.test.ts`). |
+
+
+**NL ingress — privacy / DPA (operations checklist):** free-text to LLM (when `FEATURE_NL_INGRESS_LLM` is on) should follow the product/legal process in [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](./adrs/ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md) (client consent in UI, PII redaction on the request path, processor agreements). This does not replace counsel review for jurisdiction-specific DPA language.
+
+#### Intake, orchestration, and E2E: operator index
+
+Use this as a **single crosswalk** so intake pilots, orchestration flags, and CI coverage stay aligned (avoids “green CI” with skipped orchestration E2E when secrets are missing — see [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md)).
+
+| Area | Where to read | Env / inputs (representative) |
+| --- | --- | --- |
+| Diagnostic intake + NL + F1 | § [Diagnostic Adaptive Intake pilot (ops)](#diagnostic-adaptive-intake-pilot-ops) above | `FEATURE_DIAGNOSTIC_INTAKE_PILOT`, `FEATURE_NL_INGRESS_LLM*`, `FEATURE_INTAKE_NEXT_QUESTION` |
+| Orchestration pack, timeline, directors, narrative | [ADR feature-flag runtime matrix](#adr-feature-flag-runtime-matrix) (includes Orchestration runbook short + staged promotion) | `FEATURE_ORCHESTRATION_*`, `FEATURE_DIRECTOR_*`, `ORCHESTRATION_DASHBOARD_URL` (ops link only) |
+| Orchestration SLO + telemetry | [Orchestration SLO (Product MVP)](#orchestration-slo-product-mvp) | Canonical KPI names `kpi_orchestration_*` in `orchestration-telemetry-policy.ts`; not bare `kpi_llm_*` |
+| E2E non-skip + KPI | [`e2e/README.md`](../e2e/README.md), P0 operator checklist [readiness-p0-e2e-orchestration-slo.md](./operations/readiness-p0-e2e-orchestration-slo.md) | `E2E_ORCHESTRATION_AUDIT_ID`, `E2E_ORCHESTRATION_AUTH_TOKEN`, repo var `VITE_API_URL` (CI proxy to API); optional `E2E_ORCHESTRATION_JSON=1`, `E2E_ORCHESTRATION_STRICT=1`, `E2E_ORCHESTRATION_UI=1` |
+
+**Rollback:** set both env vars to `false` / unset; no migration rollback required.
+
+**Log keys (dashboards):** `brief_write.intake_readiness_recomputed` (debug), `discover.convert.intake_readiness_blocked`, `pipeline.intake_readiness_blocked`, `pipeline.next.intake_readiness_blocked` — see implementation contract for field shapes.
+
+**Log drain panels (practical):** index JSON logs by the **message** field (exact string match). For blocked-rate triage, chart rates of `pipeline.intake_readiness_blocked` and `pipeline.next.intake_readiness_blocked` vs successful starts; include `trace_codes` (array) and `auditId` on those lines. For discovery, use `discover.convert.intake_readiness_blocked`. For draft-save observability (no user block), sample or filter `brief_write.intake_readiness_recomputed` at debug level only — avoid high-cardinality dashboards on that key in production.
+
+**Product/Ops pre-flight (handshake before first enable):**
+
+1. **Pilot window:** agreed start/end dates and review cadence for the KPI decision checkpoint table in [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md).
+2. **Traffic stages:** roll forward only in order; do not skip.
+  - **Internal:** org-only or feature-flag cohort; validate dashboards for false blocked rate and completion.
+  - **Limited:** partial production traffic; same KPI gates as internal.
+  - **Full:** pilot flag on for the agreed slice (single vertical per contract; Healthcare for the current artifact set).
+3. **KPI gates (all must pass for `expand`):** (a) completion / wizard **non-regression** vs pre-pilot baseline, (b) **readiness-qualified context** uplift (product-defined proxy), (c) **false blocked** trend acceptable (log triage). Until the first checkpoint row records `**expand`**, treat Phase-B/C application changes as **frozen** except pilot work behind `FEATURE_DIAGNOSTIC_INTAKE_PILOT`.
+4. **Owners:** name Product owner for gates (a) and (b) and Engineering/on-call for gate (c) via `pipeline.intake_readiness_blocked`, `discover.convert.intake_readiness_blocked`, and `brief_write.intake_readiness_recomputed` (debug).
+5. **Rollback:** any KPI gate **fail** in the window → set `FEATURE_DIAGNOSTIC_INTAKE_PILOT` off (and `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE` off); record **hold** in the checkpoint table; no Phase-B/C expansion in that train.
+
+#### Pilot handshake record (copy into ticket or runbook)
+
+Fill this table **before** the first `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true` on any shared environment. Do not leave owner cells empty in production.
+
+
+| Field                                                                      | Value                                                        |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Pilot window (ISO dates, inclusive)                                        | e.g. `2026-05-01` — `2026-05-14`                             |
+| Review cadence                                                             | e.g. weekly checkpoint / end-of-window only                  |
+| Traffic stage at enable                                                    | `internal` / `limited` / `full` (advance only in that order) |
+| Product owner (gates: completion non-regression, readiness-qualified lift) | name + channel                                               |
+| Engineering / on-call (gate: false blocked triage via log keys below)      | name + channel                                               |
+| Baseline reference                                                         | link or note to pre-pilot metrics snapshot                   |
+| Rollback confirmed                                                         | yes — ops can disable env vars without deploy blockers       |
+
+
+#### Enabling the pilot flag (procedure)
+
+Defaults stay **off** in `SYSTEM_DEFAULTS`; ops enables via env only after the handshake row exists.
+
+1. Set `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true` on the target Railway (or host) service; redeploy if the platform requires a restart to pick up env.
+2. **Do not** set `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE` until the KPI checkpoint records `**expand`** (post-KPI train 1).
+3. Smoke: from staging, run a brief save (`PUT …/brief`) and attempt `POST …/pipeline/start` on an audit that should pass readiness; confirm no unexpected `intake_readiness_blocked`.
+4. Dashboards: chart rates of `pipeline.intake_readiness_blocked`, `pipeline.next.intake_readiness_blocked`, and `discover.convert.intake_readiness_blocked` (see table above); alert if false blocked spikes vs handshake baseline.
+5. **Rollback:** set `FEATURE_DIAGNOSTIC_INTAKE_PILOT` to `false` or unset; set `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE` off if it was on; no DB migration rollback.
+
+**Engineering note:** gate policy is also encoded as `evaluatePilotKpiGate` in `@glc/intake-core` (`packages/intake-core/src/core/diagnostic-intake/evaluate-pilot-kpi-gate.ts`) for internal tooling or future automation; the authoritative decision remains the documented checkpoint row plus Product sign-off.
+
+**Client telemetry:** authenticated brief wizard surfaces using `IntakeBankWizard` emit ADR diagnostic batch events (`readiness_blocked`, `remediation_asked`, `sequencing_transition_taken`, etc.) via `useBriefDiagnosticIntakeAnalyticsEvents` together with question funnel events; verify `intake_analytics_events` rows in staging when testing the pilot.
+
+**CI:** `pnpm run test:intake-diagnostic-contracts` (root `package.json`) mirrors the engineering re-verification list.
+
+#### Post-KPI enablement sequence (mandatory order)
+
+Run these steps only after the KPI checkpoint row decision is `expand`:
+
+1. Keep `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, then enable `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true`.
+2. Verify blocked reasons include `audit_blocked_execution_scope` only for in-scope domains.
+3. Enable `FEATURE_PROJECT_CONTEXT_ENVELOPE=true` and confirm ContextBuilder payload contains `intake_project_context_envelope`.
+4. Keep bridge governance active: sequencing dependency trace must include lifecycle metadata (`owner`, `kpiMetric`, `lifecycleState`, `reviewByIsoDate`).
+5. If false blocked trend regresses, rollback in reverse order: context envelope off -> coverage scope off -> pilot off.
+
+Recommended smoke command:
+
+- `pnpm run test:intake-diagnostic-contracts`
+- `pnpm vitest run packages/intake-core/src/tests/intake-caveat-taxonomy-and-ask-slot.test.ts`
 
 ### Configuration centralization (avoid drift)
 
@@ -94,91 +181,97 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 Shared constants and env-driven defaults introduced to reduce duplicated literals:
 
-| Concern | Location |
-| --- | --- |
-| No-public-website sentinel URL + `isNoPublicWebsiteUrl` / display helper | `intake_core` (`no-public-website.ts`); server/app re-export from `@glc/intake-core` |
-| Discovery → brief patch (`a5` canon, legacy `c_nosite_1` labels) | `discovery_brief_mapping` |
-| Crawler/snapshot/playwright user-agents + public site URL | `bot_identity` (`GLC_PUBLIC_SITE_URL`, **required in production**); GLC product token `GLC-*/x.y` from **`SYSTEM_DEFAULTS.outboundBot.uaProductVersion`** |
-| HTTP listen bind address | `LISTEN_HOST` env (default `0.0.0.0`) in `index` |
-| Full-audit crawler limits (max pages, per-page timeout, total crawl budget) | `SYSTEM_DEFAULTS.crawler` via `crawler_limits` |
-| Collector HTTP timeouts and header truncation (security / performance / SEO / sitemap) | `SYSTEM_DEFAULTS.collectorsHttp` via `collector_http` |
-| Tech stack HTML fingerprint inline-script bound | `SYSTEM_DEFAULTS.techWappalyzer` (`maxInlineScriptChars`) in `tech_wappalyzer_detect` |
-| Discovery session token hex length, contact-edit key pattern, maturity bounds | `discover_contract` (see migrations 013, 032, 033) |
-| SSRF-safe public fetch (redirect cap, retries, backoff) | `public_http_fetch` |
-| Sitemap discovery bounds (fetch count, bytes, URL cap, fallback paths) | `sitemap_discovery_limits` |
-| Idempotency key TTL | `SYSTEM_DEFAULTS.idempotency` in `system_defaults` |
-| Snapshot tiered-fetch wall clock default | `SYSTEM_DEFAULTS.snapshotFetchBudgetMs` via `snapshot_fetch_budget` |
-| Snapshot route defaults (token budget, TTL, guest funnel retention, guest header caps, UX summary length, competitor mini timeout) | `SYSTEM_DEFAULTS.snapshotPublic` via `snapshot_public` |
-| Snapshot HTTP/Playwright/axe timing caps | `SYSTEM_DEFAULTS.snapshotTiming` via `snapshot_timing` |
-| Rate-limit numeric defaults | `SYSTEM_DEFAULTS.rateLimits` via `rate_limits` |
-| Express JSON body size | `SYSTEM_DEFAULTS.express.jsonBodyLimit` via `http_server` |
-| Claude model id, token reserve, max_tokens, budget warning | `SYSTEM_DEFAULTS.pipelineModel` via `model` |
-| Claude per-model USD/MTok pricing for cost estimates | `model_pricing`; `getModelPricing` re-exported from `model.ts` |
-| Intake absolute URLs | `frontend_url` (`FRONTEND_URL`) |
-| Production startup assertions | `runtime_assert` |
-| Snapshot audit partial-score multiplier | `SYSTEM_DEFAULTS.snapshotAudit.partialScoreFactor` via `snapshot_partial_score` |
-| Redis key prefix for Claude circuit breaker + distributed rate limits (optional) | `REDIS_KEY_PREFIX` — `claude_client`, `rate_limit` (`${prefix}glc:…` / `${prefix}cb:…`) |
-| Local dev API/SPA ports and default CORS dev origins | `glc_dev_brand_defaults` (`GLC_DEV_*`); consumed by Vite proxy, Playwright, `cors-origins`, `frontend-url`, `api-base-url` |
-| Marketing brief → recommended SPA route | `intake_core` (`marketing-brief-routing.ts`); re-exported from `marketing_brief_routing` (logic: unsure / no-site / preferred depth; **no env**) |
-| Snapshot tiered HTTP fetch (Accept-Language, path hints, robots fallback paths) | `snapshot_fetch_heuristics` |
-| Audit list pagination (`GET /api/audits`) | `SYSTEM_DEFAULTS.auditsList` via `audits_list_limits` |
-| Pipeline phase index bounds (full-mode max; retry validation) | `pipeline_phases` (`PIPELINE_MIN_PHASE`, `PIPELINE_MAX_PHASE_INDEX`) |
-| Stable JSON error `code` values (subset; grows over time) | `api_error_codes` (`API_ERROR_CODES`, types, `apiErrorJson`, dynamic message helpers) |
-| Default English API `error` strings for coded responses | `api_user_messages.en` + `api-user-messages.en.ts` (re-exported from `api-error-codes.ts` as `*_MESSAGE`) |
-| HTTP body truncation limits (marketing brief, logs, audit requests, intake analytics ids) | `request_field_limits` (`REQUEST_FIELD_LIMITS`) |
-| Collector user-visible copy (security headers, accessibility heuristics) | `collector_copy_security.en`, `collector_copy_accessibility.en` |
-| URL validation hint example (`{example}` in `AUDITS_COMPANY_URL_INVALID`) | `api_user_messages.en` (`COMPANY_URL_VALIDATION_EXAMPLE`) |
-| SPA → API relative paths | `api_paths` (`API_PATHS`, builder helpers) |
-| Express `app.use` API mounts (kept in sync with SPA paths) | `api_route_mounts` (`API_ROUTE_MOUNT_ENTRIES`, `mountApiRouters`); contract: `api_paths_mount_contract.test` (Vitest) |
-| Discover wizard timing (scroll delay, save timeout) | `discover_page_defaults` |
-| Login operator hints (e.g. Supabase manual linking) | `login_copy.en` |
-| Copy layering (zones, single source, PR checklist) | [ARCHITECTURE.md — §6](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone) |
-| Intake UX toggles and next-recommended cap (no env overrides) | `intake_ui_config` (`INTAKE_UI_CONFIG`); `intake-flags.ts` re-exports booleans/cap — change CONFIG and redeploy, or add a future DB/feature-flag layer for runtime toggles |
-| Platform admin UUID list (migration off `PLATFORM_ADMIN_USER_IDS`) | `platform_settings.legacy_platform_admin_user_ids` (migration `050_platform_settings_legacy_admin_ids.sql`) — when non-empty, replaces env for ACL + self-serve owner fallback; prefer `profiles.is_platform_admin` for individuals |
+
+| Concern                                                                                                                            | Location                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No-public-website sentinel URL + `isNoPublicWebsiteUrl` / display helper                                                           | `intake_core` (`no-public-website.ts`); server/app re-export from `@glc/intake-core`                                                                                                                                                |
+| Discovery → brief patch (`a5` canon, legacy `c_nosite_1` labels)                                                                   | `discovery_brief_mapping`                                                                                                                                                                                                           |
+| Crawler/snapshot/playwright user-agents + public site URL                                                                          | `bot_identity` (`GLC_PUBLIC_SITE_URL`, **required in production**); GLC product token `GLC-*/x.y` from `**SYSTEM_DEFAULTS.outboundBot.uaProductVersion`**                                                                           |
+| HTTP listen bind address                                                                                                           | `LISTEN_HOST` env (default `0.0.0.0`) in `index`                                                                                                                                                                                    |
+| Full-audit crawler limits (max pages, per-page timeout, total crawl budget)                                                        | `SYSTEM_DEFAULTS.crawler` via `crawler_limits`                                                                                                                                                                                      |
+| Collector HTTP timeouts and header truncation (security / performance / SEO / sitemap)                                             | `SYSTEM_DEFAULTS.collectorsHttp` via `collector_http`                                                                                                                                                                               |
+| Tech stack HTML fingerprint inline-script bound                                                                                    | `SYSTEM_DEFAULTS.techWappalyzer` (`maxInlineScriptChars`) in `tech_wappalyzer_detect`                                                                                                                                               |
+| Discovery session token hex length, contact-edit key pattern, maturity bounds                                                      | `discover_contract` (see migrations 013, 032, 033)                                                                                                                                                                                  |
+| SSRF-safe public fetch (redirect cap, retries, backoff)                                                                            | `public_http_fetch`                                                                                                                                                                                                                 |
+| Sitemap discovery bounds (fetch count, bytes, URL cap, fallback paths)                                                             | `sitemap_discovery_limits`                                                                                                                                                                                                          |
+| Idempotency key TTL                                                                                                                | `SYSTEM_DEFAULTS.idempotency` in `system_defaults`                                                                                                                                                                                  |
+| Snapshot tiered-fetch wall clock default                                                                                           | `SYSTEM_DEFAULTS.snapshotFetchBudgetMs` via `snapshot_fetch_budget`                                                                                                                                                                 |
+| Snapshot route defaults (token budget, TTL, guest funnel retention, guest header caps, UX summary length, competitor mini timeout) | `SYSTEM_DEFAULTS.snapshotPublic` via `snapshot_public`                                                                                                                                                                              |
+| Snapshot HTTP/Playwright/axe timing caps                                                                                           | `SYSTEM_DEFAULTS.snapshotTiming` via `snapshot_timing`                                                                                                                                                                              |
+| Rate-limit numeric defaults                                                                                                        | `SYSTEM_DEFAULTS.rateLimits` via `rate_limits`                                                                                                                                                                                      |
+| Express JSON body size                                                                                                             | `SYSTEM_DEFAULTS.express.jsonBodyLimit` via `http_server`                                                                                                                                                                           |
+| Claude model id, token reserve, max_tokens, budget warning                                                                         | `SYSTEM_DEFAULTS.pipelineModel` via `model`                                                                                                                                                                                         |
+| Claude per-model USD/MTok pricing for cost estimates                                                                               | `model_pricing`; `getModelPricing` re-exported from `model.ts`                                                                                                                                                                      |
+| Intake absolute URLs                                                                                                               | `frontend_url` (`FRONTEND_URL`)                                                                                                                                                                                                     |
+| Production startup assertions                                                                                                      | `runtime_assert`                                                                                                                                                                                                                    |
+| Snapshot audit partial-score multiplier                                                                                            | `SYSTEM_DEFAULTS.snapshotAudit.partialScoreFactor` via `snapshot_partial_score`                                                                                                                                                     |
+| Redis key prefix for Claude circuit breaker + distributed rate limits (optional)                                                   | `REDIS_KEY_PREFIX` — `claude_client`, `rate_limit` (`${prefix}glc:…` / `${prefix}cb:…`)                                                                                                                                             |
+| Local dev API/SPA ports and default CORS dev origins                                                                               | `glc_dev_brand_defaults` (`GLC_DEV_*`); consumed by Vite proxy, Playwright, `cors-origins`, `frontend-url`, `api-base-url`                                                                                                          |
+| Marketing brief → recommended SPA route                                                                                            | `intake_core` (`marketing-brief-routing.ts`); re-exported from `marketing_brief_routing` (logic: unsure / no-site / preferred depth; **no env**)                                                                                    |
+| Snapshot tiered HTTP fetch (Accept-Language, path hints, robots fallback paths)                                                    | `snapshot_fetch_heuristics`                                                                                                                                                                                                         |
+| Audit list pagination (`GET /api/audits`)                                                                                          | `SYSTEM_DEFAULTS.auditsList` via `audits_list_limits`                                                                                                                                                                               |
+| Pipeline phase index bounds (full-mode max; retry validation)                                                                      | `pipeline_phases` (`PIPELINE_MIN_PHASE`, `PIPELINE_MAX_PHASE_INDEX`)                                                                                                                                                                |
+| Stable JSON error `code` values (subset; grows over time)                                                                          | `api_error_codes` (`API_ERROR_CODES`, types, `apiErrorJson`, dynamic message helpers)                                                                                                                                               |
+| Default English API `error` strings for coded responses                                                                            | `api_user_messages.en` + `api-user-messages.en.ts` (re-exported from `api-error-codes.ts` as `*_MESSAGE`)                                                                                                                           |
+| HTTP body truncation limits (marketing brief, logs, audit requests, intake analytics ids)                                          | `request_field_limits` (`REQUEST_FIELD_LIMITS`)                                                                                                                                                                                     |
+| Collector user-visible copy (security headers, accessibility heuristics)                                                           | `collector_copy_security.en`, `collector_copy_accessibility.en`                                                                                                                                                                     |
+| URL validation hint example (`{example}` in `AUDITS_COMPANY_URL_INVALID`)                                                          | `api_user_messages.en` (`COMPANY_URL_VALIDATION_EXAMPLE`)                                                                                                                                                                           |
+| SPA → API relative paths                                                                                                           | `api_paths` (`API_PATHS`, builder helpers)                                                                                                                                                                                          |
+| Express `app.use` API mounts (kept in sync with SPA paths)                                                                         | `api_route_mounts` (`API_ROUTE_MOUNT_ENTRIES`, `mountApiRouters`); contract: `api_paths_mount_contract.test` (Vitest)                                                                                                               |
+| Discover wizard timing (scroll delay, save timeout)                                                                                | `discover_page_defaults`                                                                                                                                                                                                            |
+| Login operator hints (e.g. Supabase manual linking)                                                                                | `login_copy.en`                                                                                                                                                                                                                     |
+| Copy layering (zones, single source, PR checklist)                                                                                 | [ARCHITECTURE.md — §6](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone)                                                                                                                                       |
+| Intake UX toggles and next-recommended cap (no env overrides)                                                                      | `intake_ui_config` (`INTAKE_UI_CONFIG`); `intake-flags.ts` re-exports booleans/cap — change CONFIG and redeploy, or add a future DB/feature-flag layer for runtime toggles                                                          |
+| Platform admin UUID list (migration off `PLATFORM_ADMIN_USER_IDS`)                                                                 | `platform_settings.legacy_platform_admin_user_ids` (migration `050_platform_settings_legacy_admin_ids.sql`) — when non-empty, replaces env for ACL + self-serve owner fallback; prefer `profiles.is_platform_admin` for individuals |
+
 
 ### White-label and dev defaults: environment matrix
 
-| Layer | Variables / package | Purpose |
-| --- | --- | --- |
-| **Dev template (fork)** | `glc_dev_brand_defaults` (`GLC_DEV_*` from `dev-infra.ts`; brand/sentinel from `public-brand-defaults.v1.json` via `brand-from-json.ts`) | Local API/SPA ports and origins, extra dev CORS origins; **`no_public_website_sentinel`** in JSON → **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** → **`NO_PUBLIC_WEBSITE_URL`** (**`@glc/intake-core`**). Production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
-| **Server — public JSON** | `public_brand_defaults.v1` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
-| **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPABASE_*` | API base URL, Supabase client |
-| **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`) | Telegram outbound; override base only behind a corporate proxy |
 
-**Copy and brand:** public contact for marketing surfaces comes from **`public_brand_defaults.v1`** field **`support_email`** (served by **`GET /api/public/brand`** via **`public-brand-config.ts`**). JSON **`null`** hides the footer mail link; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** (same JSON). See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+| Layer                        | Variables / package                                                                                                                      | Purpose                                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dev template (fork)**      | `glc_dev_brand_defaults` (`GLC_DEV_*` from `dev-infra.ts`; brand/sentinel from `public-brand-defaults.v1.json` via `brand-from-json.ts`) | Local API/SPA ports and origins, extra dev CORS origins; `**no_public_website_sentinel`** in JSON → `**GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** → `**NO_PUBLIC_WEBSITE_URL**` (`**@glc/intake-core**`). Production must set `**FRONTEND_URL**`, `**GLC_PUBLIC_SITE_URL**`, `**VITE_***` for deploy wiring |
+| **Server — public JSON**     | `public_brand_defaults.v1` + `**GLC_PUBLIC_SITE_URL`** (required in production)                                                          | `GET /api/public/brand` for marketing shell                                                                                                                                                                                                                                                            |
+| **Vite / browser**           | `VITE_API_URL` (required prod), `VITE_SUPABASE_*`                                                                                        | API base URL, Supabase client                                                                                                                                                                                                                                                                          |
+| **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`)                                       | Telegram outbound; override base only behind a corporate proxy                                                                                                                                                                                                                                         |
 
-See also § **White-label and cross-stack parity** in [`server/.env.example`](../server/.env.example).
+
+**Copy and brand:** public contact for marketing surfaces comes from `**public_brand_defaults.v1`** field `**support_email`** (served by `**GET /api/public/brand**` via `**public-brand-config.ts**`). JSON `**null**` hides the footer mail link; omitted or empty string falls back to `**GLC_DEV_SUPPORT_EMAIL**` (same JSON). See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+
+See also § **White-label and cross-stack parity** in `[server/.env.example](../server/.env.example)`.
 
 Library-style modules (`page-anomaly` rules, `site-html-signals` / `TECH_PATTERNS`, `wappalyzer-imported-rules`) are intentionally not driven by env beyond existing threshold tunables.
 
-Collector/crawler HTTP limits, snapshot public route defaults (token budget, TTL, guest funnel, header/UX caps, competitor timeout), audits list pagination, Claude cost table for token-tracker, PDF palette/locale, snapshot partial-score factor, collector `collected_data` cache TTL, and snapshot guest cookie name/age are **not** environment variables — change `SYSTEM_DEFAULTS` or the listed module and redeploy.
+Collector/crawler HTTP limits, snapshot public route defaults (token budget, TTL, guest funnel, header/UX caps, competitor timeout), audits list pagination, Claude cost table for token-tracker, PDF palette/locale, PDF section pagination mode (`SYSTEM_DEFAULTS.reportPdf.sectionPerPage`), snapshot partial-score factor, collector `collected_data` cache TTL, and snapshot guest cookie name/age are **not** environment variables — change `SYSTEM_DEFAULTS` or the listed module and redeploy.
 
 ### Product sentinel: no-public-website URL
 
-- **Source of truth:** JSON field **`no_public_website_sentinel`** in **`public_brand_defaults.v1`**, exposed as **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** from **`@glc/dev-brand-defaults`**, then as **`NO_PUBLIC_WEBSITE_URL`** from **`no_public_website`**, re-exported by the server (`no_public_website`) and SPA (`no_public_website`). API and browser bundles share the same compiled constant — **no env vars**.
-- **White-label / fork:** edit that JSON field (or replace the package defaults) and redeploy server + SPA together. When persisted as **`audits.company_url`**, collectors and snapshot logic treat it as “no public site” and **must not** crawl it.
+- **Source of truth:** JSON field `**no_public_website_sentinel`** in `**public_brand_defaults.v1`**, exposed as `**GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL**` from `**@glc/dev-brand-defaults**`, then as `**NO_PUBLIC_WEBSITE_URL**` from `**no_public_website**`, re-exported by the server (`no_public_website`) and SPA (`no_public_website`). API and browser bundles share the same compiled constant — **no env vars**.
+- **White-label / fork:** edit that JSON field (or replace the package defaults) and redeploy server + SPA together. When persisted as `**audits.company_url`**, collectors and snapshot logic treat it as “no public site” and **must not** crawl it.
 - **Changing the sentinel** is **breaking** for stored rows: plan a **data migration** for existing `audits.company_url` values.
 
 ### Server and SPA variables that must match (when set)
 
-| Server (Railway) | Frontend (Vercel) | Notes |
-| --- | --- | --- |
-| **`@glc/intake-core` version** (lockfile / deploy) | Same workspace version in the SPA build | Marketing brief routing and **`NO_PUBLIC_WEBSITE_URL`** live in the package — **aligned releases** avoid preview vs API drift. |
 
-There is **no** required Vite env mirror for the no-public sentinel beyond shipping the same **`@glc/intake-core`** / **`@glc/dev-brand-defaults`** as the API.
+| Server (Railway)                                   | Frontend (Vercel)                       | Notes                                                                                                                          |
+| -------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `**@glc/intake-core` version** (lockfile / deploy) | Same workspace version in the SPA build | Marketing brief routing and `**NO_PUBLIC_WEBSITE_URL`** live in the package — **aligned releases** avoid preview vs API drift. |
+
+
+There is **no** required Vite env mirror for the no-public sentinel beyond shipping the same `**@glc/intake-core`** / `**@glc/dev-brand-defaults`** as the API.
 
 **Release checklist:** after changing the sentinel in code, smoke-test audit create + snapshot skip for the placeholder URL and run any data migration.
 
 ### Consultant list endpoints (hard cap)
 
-Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`system_defaults`), re-exported from `route_query_limits` — not environment variables.
+Caps are **static config** in `**SYSTEM_DEFAULTS.routeQueries`** (`system_defaults`), re-exported from `route_query_limits` — not environment variables.
 
-- **`GET /api/intake/submissions`** — newest submitted pre-brief links for the current consultant; default cap **`intakeSubmissionsMaxRows`** (**100**).
-- **`GET /api/discover/sessions`** — discovery queue for the current consultant; **`discoverSessionsMaxRows`** (**100**). For larger backfills, extend the API (pagination or a raised cap in `SYSTEM_DEFAULTS`) in a dedicated change.
+- `**GET /api/intake/submissions`** — newest submitted pre-brief links for the current consultant; default cap `**intakeSubmissionsMaxRows**` (**100**).
+- `**GET /api/discover/sessions`** — discovery queue for the current consultant; `**discoverSessionsMaxRows`** (**100**). For larger backfills, extend the API (pagination or a raised cap in `SYSTEM_DEFAULTS`) in a dedicated change.
 
 ### Reliability alerts (Telegram)
 
-- Alerts use **`TELEGRAM_BOT_TOKEN`** and **`TELEGRAM_CHAT_ID`** (`notifications`). The Bot API request URL is **`https://api.telegram.org/bot<token>/sendMessage`** (official endpoint). If Telegram ever publishes a new base URL, update the server module; it is not configured via env today.
+- Alerts use `**TELEGRAM_BOT_TOKEN`** and `**TELEGRAM_CHAT_ID`** (`notifications`). The Bot API request URL is `**https://api.telegram.org/bot<token>/sendMessage**` (official endpoint). If Telegram ever publishes a new base URL, update the server module; it is not configured via env today.
 
 ---
 
@@ -188,16 +281,13 @@ Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`system_defaul
 2. New Project → Import GitHub repo
 3. Vercel auto-detects Vite — no changes needed to build settings
 4. Set environment variables in Vercel dashboard (Settings → Environment Variables):
-
- ```env
- VITE_API_URL=https://glc-api.up.railway.app
- VITE_SUPABASE_URL=https://xxxx.supabase.co
- VITE_SUPABASE_ANON_KEY=eyJ...
- ```
+  `env ITE_API_URL=https://glc-api.up.railway.app ITE_SUPABASE_URL=https://xxxx.supabase.co ITE_SUPABASE_ANON_KEY=eyJ...`
 5. Deploy — Vercel builds with `pnpm build` and serves `dist/`
 6. Add your custom domain in Vercel → update Supabase Site URL + Redirect URLs
 
-**SPA routing:** Vercel handles React Router automatically (all paths served `index.html`). No `vercel.json` needed for basic SPA routing.
+**Monorepo / skipped builds:** root `vercel.json` sets `**ignoreCommand`** to `scripts/vercel-ignore-when-frontend-unchanged.sh`. Vercel skips the SPA build when the diff since the previous deployment does not touch `src/`, `public/`, `packages/`, or listed root files (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `vercel.json`, `index.html`, `vite.config.ts`, `postcss.config.mjs`, `tsconfig.json`) — e.g. **server-only** commits.
+
+**SPA routing:** `vercel.json` rewrites all paths to `index.html` for client-side routing.
 
 ---
 
@@ -205,58 +295,151 @@ Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`system_defaul
 
 ### Frontend (Vercel)
 
-| Variable | Value |
-|---|---|
-| `VITE_API_URL` | Railway backend URL (**required** for production builds; the SPA throws at runtime if unset when `import.meta.env.PROD`) |
-| `VITE_SUPABASE_URL` | Supabase project URL (**required** in production builds together with anon key) |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (**required** in production builds) |
+
+| Variable                 | Value                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_API_URL`           | Railway backend URL (**required** for production builds; the SPA throws at runtime if unset when `import.meta.env.PROD`) |
+| `VITE_SUPABASE_URL`      | Supabase project URL (**required** in production builds together with anon key)                                          |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (**required** in production builds)                                                             |
+
 
 Client analytics batching, TanStack Query defaults, and HTTP client timeouts are **static TypeScript** under `` (see `client-analytics-batching.ts`, `query-client-defaults.ts`, `http-client-defaults.ts`, `app-feature-flags.ts`) — not `VITE_*` env vars.
 
 ### Backend (Railway)
 
-| Variable | Value |
-|---|---|
-| `PORT` | Injected by Railway (do not hardcode `3001` unless it matches **Public networking → Target port**) |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase service role key (secret) |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `ANTHROPIC_BASE_URL` | Optional Anthropic-compatible API base URL (corporate proxy / gateway); omit for SDK default |
-| `NODE_ENV` | `production` |
-| `FRONTEND_URL` | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
-| `GLC_PUBLIC_SITE_URL` | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset. |
-| `NO_PUBLIC_WEBSITE_URL` | Not an env var. Build/runtime shared constant from `@glc/intake-core` (derived from `@glc/dev-brand-defaults` JSON sentinel). |
-| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (comma-separated; merged with `FRONTEND_URL`) |
-| `RATE_LIMIT_REDIS_URL` | Redis URL for shared rate-limit counters (required for multi-instance consistency) |
-| `STRICT_RATE_LIMIT_REDIS` | `true` to fail startup when Redis for rate limits is missing |
-| `PIPELINE_QUEUE_REDIS_URL` | Optional dedicated Redis URL for BullMQ (falls back to `RATE_LIMIT_REDIS_URL`) |
-| `REDIS_KEY_PREFIX` | Optional prefix for Claude circuit-breaker Redis key when sharing Redis |
-| `SENTRY_DSN` | Sentry DSN for backend error/trace capture |
-| `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling ratio, e.g. `0.2` |
-| `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
-| `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
-| `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
-| `TELEGRAM_API_BASE` | Optional Bot API base (proxy); default official endpoint |
-| `SELF_SERVE_AUDIT_OWNER_USER_ID` | **Deprecated, ignored.** Persist owner via Settings or **`PATCH /api/platform/self-serve-owner`** |
-| `PLATFORM_ADMIN_USER_IDS` | **Deprecated, ignored.** Use **`platform_settings.legacy_platform_admin_user_ids`** or **`profiles.is_platform_admin`** |
-| `PIPELINE_CLAUDE_MODEL_ID` | Optional infra override for the Anthropic model id used by the pipeline; falls back to **`SYSTEM_DEFAULTS`** (`model`). Alias: **`ANTHROPIC_MODEL`** |
-| `SNAPSHOT_OPERATOR_TOKEN` | Optional operator-only snapshot actions (see `snapshot`) |
 
-**Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, default Claude model id (unless **`PIPELINE_CLAUDE_MODEL_ID`** / **`ANTHROPIC_MODEL`** is set), `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in **`system_defaults`** and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in **`@glc/intake-core`**.
+| Variable                         | Value                                                                                                                                                                                                                        |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                           | Injected by Railway (do not hardcode `3001` unless it matches **Public networking → Target port**)                                                                                                                           |
+| `SUPABASE_URL`                   | Supabase project URL                                                                                                                                                                                                         |
+| `SUPABASE_SERVICE_KEY`           | Supabase service role key (secret)                                                                                                                                                                                           |
+| `ANTHROPIC_API_KEY`              | Anthropic API key                                                                                                                                                                                                            |
+| `ANTHROPIC_BASE_URL`             | Optional Anthropic-compatible API base URL (corporate proxy / gateway); omit for SDK default                                                                                                                                 |
+| `NODE_ENV`                       | `production`                                                                                                                                                                                                                 |
+| `FRONTEND_URL`                   | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
+| `GLC_PUBLIC_SITE_URL`            | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset.                                               |
+| `NO_PUBLIC_WEBSITE_URL`          | Not an env var. Build/runtime shared constant from `@glc/intake-core` (derived from `@glc/dev-brand-defaults` JSON sentinel).                                                                                                |
+| `ALLOWED_ORIGINS`                | `https://your-app.vercel.app` (comma-separated; merged with `FRONTEND_URL`)                                                                                                                                                  |
+| `RATE_LIMIT_REDIS_URL`           | Redis URL for shared rate-limit counters (required for multi-instance consistency)                                                                                                                                           |
+| `STRICT_RATE_LIMIT_REDIS`        | `true` to fail startup when Redis for rate limits is missing                                                                                                                                                                 |
+| `PIPELINE_QUEUE_REDIS_URL`       | Optional dedicated Redis URL for BullMQ (falls back to `RATE_LIMIT_REDIS_URL`)                                                                                                                                               |
+| `REDIS_KEY_PREFIX`               | Optional prefix for Claude circuit-breaker Redis key when sharing Redis                                                                                                                                                      |
+| `SENTRY_DSN`                     | Sentry DSN for backend error/trace capture                                                                                                                                                                                   |
+| `SENTRY_TRACES_SAMPLE_RATE`      | Trace sampling ratio, e.g. `0.2`                                                                                                                                                                                             |
+| `SENTRY_TRACE_LINK_TEMPLATE`     | Optional deep link template with `{trace_id}` placeholder                                                                                                                                                                    |
+| `TRACE_LINK_TEMPLATE`            | Optional custom trace viewer link template with `{trace_id}`                                                                                                                                                                 |
+| `TELEGRAM_BOT_TOKEN`             | Telegram bot token for reliability alerts                                                                                                                                                                                    |
+| `TELEGRAM_CHAT_ID`               | Telegram channel or chat ID for alerts                                                                                                                                                                                       |
+| `TELEGRAM_API_BASE`              | Optional Bot API base (proxy); default official endpoint                                                                                                                                                                     |
+| `SELF_SERVE_AUDIT_OWNER_USER_ID` | **Deprecated, ignored.** Persist owner via Settings or `**PATCH /api/platform/self-serve-owner`**                                                                                                                            |
+| `PLATFORM_ADMIN_USER_IDS`        | **Deprecated, ignored.** Use `**platform_settings.legacy_platform_admin_user_ids`** or `**profiles.is_platform_admin`**                                                                                                      |
+| `PIPELINE_CLAUDE_MODEL_ID`       | Optional infra override for the Anthropic model id used by the pipeline; falls back to `**SYSTEM_DEFAULTS**` (`model`). Alias: `**ANTHROPIC_MODEL**`                                                                         |
+| `SNAPSHOT_OPERATOR_TOKEN`        | Optional operator-only snapshot actions (see `snapshot`)                                                                                                                                                                     |
+| `ORCHESTRATION_DASHBOARD_URL`   | **Ops-only (v9 DoD-4).** Link to the primary dashboard that hosts orchestration SLO rows (timeline/pack/synthesis/cockpit/LLM). Not consumed by application code — document in on-call runbooks and, if you use a secrets store for ops links, keep this in sync. |
+
+### ADR feature-flag runtime matrix
+
+`server/src/config/feature-flags.ts` is the only allowed facade for these toggles.  
+Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
+
+
+| ADR capability                                             | Env key(s)                                                               | Code default (`SYSTEM_DEFAULTS`)                                         | Sandbox/Internal (recommended)                                      | Production (recommended)                                                                                                                                                  | Owner                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Bandit variant selection                                   | `FEATURE_BANDITS`                                                        | `true`                                                                   | `true` after readiness gate check                                   | `false` until calibration window is approved                                                                                                                              | Backend + Data                                                                                  |
+| Auto-loop rerun                                            | `AUTO_LOOP_ENABLED`, `GLC_DEPLOYMENT_PROFILE`, `AUTO_LOOP_ALLOWED_MODES` | `true`, modes `sandbox,internal`                                         | `true` (`GLC_DEPLOYMENT_PROFILE=sandbox`)                           | `false` (opt-in per incident/experiment)                                                                                                                                  | Backend Platform                                                                                |
+| Causal DAG + downstream invalidation                       | `FEATURE_CAUSAL_DAG`                                                     | `true`                                                                   | `true` for integration testing                                      | `false` by default; enable after migration + runbook signoff                                                                                                              | Backend Platform                                                                                |
+| Auto-remediation                                           | `FEATURE_AUTO_REMEDIATION`                                               | `true`                                                                   | `true` for deterministic remediation validation                     | `false` by default; enable per domain-risk policy                                                                                                                         | Backend + Product                                                                               |
+| Domain benchmarks                                          | `FEATURE_BENCHMARKS`, `BENCHMARK_RECOMPUTE_SECRET`                       | `true`                                                                   | `true` when recompute job exists                                    | `false` until recompute scheduling/monitoring is live                                                                                                                     | Backend + Ops                                                                                   |
+| Strategy execution pack                                    | `FEATURE_STRATEGY_EXECUTION_PACK`                                        | `true`                                                                   | `true`                                                              | `true` (set `false` only for emergency cost control)                                                                                                                      | Backend + Product                                                                               |
+| Orchestration pack API                                     | `FEATURE_ORCHESTRATION_PACK_API`                                         | `true`                                                                   | `true`                                                              | `true` (set `false` to disable POST/GET `/api/audits/:id/orchestration/pack` without redeploy; requires migration `069`)                                                  | Backend + Product                                                                               |
+| Auto-persist pack after strategy phase                     | `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY`                         | `false`                                                                  | `true` only when latest manifest snapshot + pack path are validated | `false` until consultants expect zero-click pack after phase 7                                                                                                            | Backend + Product                                                                               |
+| Timeline-primary orchestration (telemetry / rollout hooks) | `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`                              | `true`                                                                   | `true`                                                              | `true` (set `false` to disable structured `route.audit_timeline_served` logs and other timeline-first hooks; `GET /api/audits/:id/timeline` still returns the read model) | Backend + Product                                                                               |
+| Director orchestration slice from domain-agent output      | `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT`                            | `false`                                                                  | `true` once each strict phase emits a parseable director slice      | `false` until domain rollout is signed off (`director-orchestration-policy.ts`, `server/src/services/orchestration/README.md`)                                            | Backend + Product                                                                               |
+| Orchestration conflict synthesis (LLM)                     | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS`                               | `true`                                                                   | `true` only when implemented + reviewed                             | `false` via env until second-stage copy is shipped + cost review                                                                                                          | Backend + Product                                                                               |
+| Orchestration conflict synthesis rollout segment           | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT` (`0`–`100`)   | `100`                                                                    | `100` in sandbox; lower in prod when enabling synthesis gradually   | Tune per rollout; `0` disables eligible segment even if synthesis flag is on                                                                                              | Backend + Product                                                                               |
+| Director deep-dive on-demand                               | `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`                                    | `true`                                                                   | `true` after API smoke (`POST/GET deep-dive`)                       | `true` by default; rollback via env override to `false`                                                                                                                    | Backend + Product                                                                               |
+| Director sub-agents (CMO MVP)                              | `FEATURE_DIRECTOR_SUB_AGENTS`                                              | `true`                                                                   | `true` only with deep-dive flag on                                  | `true` by default; rollback via env override to `false`                                                                                                                    | Backend + Product                                                                               |
+| Director deep-dive rollout stage                           | `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (see `server/src/config/system-defaults/feature-flags-defaults.ts` — **must match** SPA `directorDeepDiveRolloutMode` in `app-feature-flags.ts`) | `internal` after smoke + owner validation                           | Promote `pilot` then `ga` only after full regression and rollback rehearsal                                                                                                 | Backend + Product                                                                               |
+| Director sub-agents rollout stage                          | `FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (same note as above — **code default is not `shadow`**) | `internal` with `FEATURE_DIRECTOR_SUB_AGENTS=true` and CMO-only scope | `pilot` only for approved segment; `ga` after stability window and token-budget soak                                                                                        | Backend + Product                                                                               |
+| Client roadmap narrative (all users) | `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` | `true` (matches SPA `orchestrationRoadmapNarrativeEnabled` static default) | `true` in sandbox after `GET /timeline` narrative field checks | `true` in prod; rollback via env override to `false` | Backend + Product |
+| Roadmap narrative rollout (server; mirrors SPA staged access for consistency checks / logs) | `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (matches SPA `orchestrationRoadmapNarrativeRolloutMode`) | `internal` for allowlisted operators | `ga` when narrative ships broadly | Backend + Product |
+| Non-CMO deep-dive stub bundles (CDO/CAO/CSO) | `FEATURE_DIRECTOR_CDO_SUB_AGENTS`, `FEATURE_DIRECTOR_CAO_SUB_AGENTS`, `FEATURE_DIRECTOR_CSO_SUB_AGENTS` | `false` each | `true` in sandbox to exercise domain routing | `false` in prod until domain orchestrators are signed off | Backend + Product |
+| CDO LLM deep-dive (`ux_conversion`) | `FEATURE_CDO_DEEP_DIVE_LLM` | `true` | `true` on staging after CMO deep-dive smoke + token soak | Keep enabled by default; rollback = `false` | Backend + Product |
+| CAO LLM deep-dive (`automation_processes`) | `FEATURE_CAO_DEEP_DIVE_LLM` | `true` | `true` after CDO LLM is stable | Keep enabled by default; rollback = `false` | Backend + Product |
+| CSO LLM deep-dive (`security_compliance`) | `FEATURE_CSO_DEEP_DIVE_LLM` | `true` | `true` after CAO LLM is stable | Keep enabled by default; rollback = `false` | Backend + Product |
+| CTO LLM deep-dive (`tech_infrastructure`) | `FEATURE_CTO_DEEP_DIVE_LLM` | `true` | `true` after CTO/SEO SSOT validation and orchestration smoke | Keep enabled by default; rollback = `false` | Backend + Product |
+| SEO LLM deep-dive (`seo_digital`) | `FEATURE_SEO_DEEP_DIVE_LLM` | `true` | `true` after CTO wave path is stable | Keep enabled by default; rollback = `false` | Backend + Product |
+| Orchestration plan governance persistence mode             | `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE` (`shadow \| hard_structure_soft_quality \| tightened_quality`) | `shadow` | `shadow` | `shadow` or `hard_structure_soft_quality` per `orchestration-plan-governance-rollout-policy.ts` | Backend + Product |
+| Consultant governance CTAs (POST `govern_action`) | `FEATURE_CONSULTANT_GOVERNANCE_CTAS` | `true` | `true` in staging | `true`; rollback to `false` (read-only + rebuild) | Backend + Product |
+| Manifest scenario compare (preview memo) | `FEATURE_MANIFEST_SCENARIO_COMPARE` | `true` | `true` | `true`; `false` bypasses 60s memo | Backend + Product |
+| Plan-level `control_object` in pack (ADR V4) | `FEATURE_PLAN_CONTROL_OBJECT` | `false` | `false` | `true` only after ADR Accepted | Backend + Product |
+| Anthropic prompt cache (synthesis) | `FEATURE_LLM_PROMPT_CACHE` | `true` | `true` | `true`; `false` disables cache blocks | Backend + Ops |
+
+
+**SPA orchestration / timeline toggles (not env):** client nav and portal surfaces read `**APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts`: `orchestrationRoadmapUiEnabled`, `clientPostAuditCockpitEnabled`, `strategyLabOrchestratorDetailTabsEnabled`, `strategyLabDirectorStage2IntentEnabled`, `clientOrchestrationLabReadOnlyEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, **non-CMO LLM mirrors** `cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`, `ctoDeepDiveLlmEnabled`, `seoDeepDiveLlmEnabled`, and staged rollout mirrors (`orchestrationRoadmapNarrativeRolloutMode`, `directorDeepDiveRolloutMode`, `directorSubAgentsRolloutMode`). There is **no** `VITE_*` for these — change the static map and redeploy. Keep `**orchestrationTimelinePrimaryUxEnabled`** aligned with `**FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX**`, and keep LLM mirrors aligned with `SYSTEM_DEFAULTS` (see `src/app/config/orchestration-contract-parity.test.ts`).
+
+**Note (2026-04-23):** Repo `SYSTEM_DEFAULTS` / SPA static maps ship `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, and non-CMO LLM mirrors (`cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`) as **on** with rollout mode **ga** where applicable; production can still **override** via env (`FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED`, `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`, `FEATURE_DIRECTOR_SUB_AGENTS`, `FEATURE_CDO_DEEP_DIVE_LLM`, `FEATURE_CAO_DEEP_DIVE_LLM`, `FEATURE_CSO_DEEP_DIVE_LLM`, and matching `*_ROLLOUT_MODE`) per incident rollback.
+
+**Staged rollout allowlist parity:** the email allowlist in `src/app/config/orchestration-client-feature-gates.ts` (`ORCHESTRATION_CLIENT_ROLLOUT_ALLOWLIST_EMAILS`) must stay identical to `server/src/config/orchestration-rollout-gates.ts` (`ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS`). Deep-dive POST/GET/quota and worker `subAgentsEntitled` use the server copy; `getEffective*` in the SPA uses the client copy. CI guard: `src/app/config/orchestration-contract-parity.test.ts` — **`keeps orchestration staged rollout allowlist identical on client and server`** (sorts both lists before compare).
+
+**Orchestration runbook (short):** (1) `FEATURE_ORCHESTRATION_PACK_API` on in target env. (2) Governance: start `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE=shadow`, watch `orchestration_pack_success` / `orchestration_pack_rejected` logs and `kpi_orchestration_plan_governance_rollout_observation`, then promote per `orchestration-plan-governance-rollout-policy.ts`. (3) Director strict: enable `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` only when domain output emits a parseable slice; optional pilot via `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT` in `director-orchestration-policy.ts`. (4) Optional auto-pack: `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` after manifest snapshots are routine.
+
+**Roadmap narrative rollback:** set `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED=false` and optionally `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE=shadow` so `GET /api/audits/:id/timeline` omits `milestones` and `top_priorities` for non-entitled users; redeploy SPA with `orchestrationRoadmapNarrativeEnabled=false` for the same UX.
+
+**Director deep-dive rollback (Phase B/C):**
+
+1. Set `FEATURE_DIRECTOR_SUB_AGENTS=false` first (keeps deep-dive endpoint up, disables CMO sub-agent branch safely).
+2. Set `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND=false` next (server returns `503 feature_disabled`; SPA hides CTA via static flag map on redeploy).
+3. Verify `job_runs` settles for queue `director_deep_dive` (`queued/running` drains to terminal states; no new rows expected).
+4. If an incident requires queue-level pause, stop worker process before toggling flags back on.
+
+### Staged promotion checklist (internal -> pilot -> ga)
+
+Use this sequence for environment promotion when any deep-dive/timeline gate changes:
+
+1. `internal`: validate allowlist behavior (`orchestration-rollout-gates.ts` parity with SPA), deep-dive quota/read/status APIs, and one selected-initiative CTA roundtrip.
+2. `pilot`: promote only after smoke passes and no regression in `director_deep_dive` queue stability (`job_runs` queued/running drain).
+3. `ga`: promote only after full regression (`pnpm vitest run` + `e2e/orchestration-*.spec.ts`) and a rollback rehearsal with env overrides.
+4. Record effective env profile + decision rationale in release notes and `docs/adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md` verification log.
+
+**Orchestration contract smoke (local / CI):** from repo root, `pnpm vitest server/src/tests/glc-orchestration-pack.test.ts server/src/tests/orchestration-pack-controller.test.ts server/src/tests/orchestrator-timeline-read.service.test.ts src/app/config/orchestration-contract-parity.test.ts` — pack build, HTTP controller, timeline read model, and server/front enum parity.
+
+**v2 smoke/full split:** keep PR checks to smoke (`changed orchestration unit tests + one happy-path e2e`), run full regression (`pnpm vitest run` + orchestration e2e matrix) before phase release promotion.
+Recommended env matrix:
+- Smoke: `E2E_ORCHESTRATION_SMOKE=1` and per-feature flag (for example `E2E_ORCHESTRATION_DEEP_DIVE=1`).
+- Full release regression: `E2E_ORCHESTRATION_TIMELINE=1`, `E2E_ORCHESTRATION_DEEP_DIVE=1`, `E2E_ORCHESTRATION_CMO=1`.
+- Optional: `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` with the same deep-dive auth env runs `orchestration-deep-dive.spec.ts` **mobile project** block (exercises a phone viewport around the quota API call).
+
+**Director deep-dive smoke:** `cd server && pnpm vitest run src/tests/director-deep-dive-jobs.test.ts src/tests/director-deep-dive-controllers.test.ts src/tests/director-cmo-orchestrator.test.ts` and `pnpm vitest run src/app/components/__tests__/DirectorDeepDiveDialog.test.tsx src/app/config/orchestration-contract-parity.test.ts`; confirm startup logs include `director_deep_dive.worker_started`.
+Client polling safety-net limits are config-driven (`ORCHESTRATION_UI_LIMITS.deepDiveStatusPollIntervalMs`, `ORCHESTRATION_UI_LIMITS.deepDiveStatusPollMaxAttempts`) and must not be hardcoded in UI components.
+
+### Runtime verification checklist (feature flags)
+
+Before promoting a release:
+
+1. Confirm Railway env values for each key in the matrix.
+2. Confirm required DB migrations are applied for enabled capabilities (`053`-`056` where relevant; orchestration pack / manifest / diff / history: `**069`**–`**071`**).
+3. Run smoke tests for enabled capabilities:
+  - bandits (`bandit_arm_performance` reads/writes),
+  - causal DAG (`audit_claim_graph` edges/invalidation),
+  - remediation (`audit_remediations` rows),
+  - benchmarks (`domain_benchmark_snapshot` + reference attach/API reads).
+4. Record the runtime profile in release notes (what is enabled and why).
+
+**Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, default Claude model id (unless `**PIPELINE_CLAUDE_MODEL_ID`** / `**ANTHROPIC_MODEL`** is set), `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in `**system_defaults**` and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in `**@glc/intake-core**`.
 
 ### Minimum secure production baseline
 
 - Required:
- - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`
- - `FRONTEND_URL` (required by startup guard when `NODE_ENV=production`)
- - `GLC_PUBLIC_SITE_URL` (required by startup guard and bot identity when `NODE_ENV=production`)
- - `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)
- - `SNAPSHOT_GUEST_IP_SALT` (required by startup guard in production)
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`
+- `FRONTEND_URL` (required by startup guard when `NODE_ENV=production`)
+- `GLC_PUBLIC_SITE_URL` (required by startup guard and bot identity when `NODE_ENV=production`)
+- `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)
+- `SNAPSHOT_GUEST_IP_SALT` (required by startup guard in production)
 - Strongly recommended:
- - `STRICT_RATE_LIMIT_REDIS=true`
- - `PIPELINE_QUEUE_REDIS_URL` (or reuse `RATE_LIMIT_REDIS_URL`)
- - `SENTRY_DSN`, Telegram alert vars, and trace-link templates
+- `STRICT_RATE_LIMIT_REDIS=true`
+- `PIPELINE_QUEUE_REDIS_URL` (or reuse `RATE_LIMIT_REDIS_URL`)
+- `SENTRY_DSN`, Telegram alert vars, and trace-link templates
 
 ---
 
@@ -264,7 +447,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 
 Allowlist is built in `cors_origins` and applied in `index`:
 
-- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. **`FRONTEND_URL` is required** for a healthy production boot (startup assert); if **`ALLOWED_ORIGINS`** is empty but **`FRONTEND_URL`** is set, the SPA origin is still allowed. If both were unset the API would not start in production.
+- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. `**FRONTEND_URL` is required** for a healthy production boot (startup assert); if `**ALLOWED_ORIGINS`** is empty but `**FRONTEND_URL`** is set, the SPA origin is still allowed. If both were unset the API would not start in production.
 - **Development:** same merge, plus default localhost dev server ports (`5173`, `5174`, `3000`).
 
 Example on Railway:
@@ -277,31 +460,78 @@ Example on Railway:
 
 ## Local Dev vs Production
 
-| Concern | Local Dev | Production |
-|---|---|---|
-| API URL | Vite proxy to `localhost:3001` | `VITE_API_URL` Railway URL |
-| Auth redirect | `http://localhost:5173` | `https://your-app.vercel.app` |
-| CORS | Localhost ports + optional `ALLOWED_ORIGINS` | `ALLOWED_ORIGINS` + `FRONTEND_URL` |
-| HTTPS | HTTP (fine for dev) | HTTPS enforced by Vercel/Railway |
+
+| Concern       | Local Dev                                    | Production                         |
+| ------------- | -------------------------------------------- | ---------------------------------- |
+| API URL       | Vite proxy to `localhost:3001`               | `VITE_API_URL` Railway URL         |
+| Auth redirect | `http://localhost:5173`                      | `https://your-app.vercel.app`      |
+| CORS          | Localhost ports + optional `ALLOWED_ORIGINS` | `ALLOWED_ORIGINS` + `FRONTEND_URL` |
+| HTTPS         | HTTP (fine for dev)                          | HTTPS enforced by Vercel/Railway   |
+
 
 ---
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in numeric order through the latest file in `server/migrations/` (see [DATABASE.md](./DATABASE.md#overview))
-- [ ] RLS policies active (check in Supabase → Table Editor → each table)
-- [ ] Supabase Site URL + Redirect URLs updated to production domain
-- [ ] Google OAuth configured in Supabase (if using)
-- [ ] All env vars set in Railway and Vercel
-- [ ] Railway: `FRONTEND_URL` matches the canonical Vercel (or custom) SPA origin
-- [ ] `ALLOWED_ORIGINS` in Railway matches every browser origin that calls the API with credentials
-- [ ] Backend `/api/health` healthcheck returns 200
- - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
-- [ ] Test: create audit end-to-end in production
+- Run all SQL migrations in numeric order through the latest file in `server/migrations/` (see [DATABASE.md](./DATABASE.md#overview))
+- RLS policies active (check in Supabase → Table Editor → each table)
+- Supabase Site URL + Redirect URLs updated to production domain
+- Google OAuth configured in Supabase (if using)
+- All env vars set in Railway and Vercel
+- Railway: `FRONTEND_URL` matches the canonical Vercel (or custom) SPA origin
+- `ALLOWED_ORIGINS` in Railway matches every browser origin that calls the API with credentials
+- Backend `/api/health` healthcheck returns 200
+- Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
+- Test: create audit end-to-end in production
 
 ---
 
 ## Monitoring
+
+### Orchestration SLO (Product MVP)
+
+Baseline targets (measure in Grafana/Datadog from structured logs + `ORCHESTRATION_TELEMETRY_METRICS`):
+
+- `GET /api/audits/:id/timeline` — **p95 ≤ 500 ms** under normal load (alert on sustained regression vs baseline week).
+- `POST /api/audits/:id/orchestration/pack` — **p95 ≤ 3 s** without conflict synthesis; **≤ 8 s** when synthesis is enabled (watch `kpi_orchestration_synthesis_deterministic_fallback`).
+
+Related keys: `kpi_orchestration_timeline_view`, `kpi_orchestration_timeline_run_failure`, `kpi_orchestration_pack_run_failure`, `kpi_orchestration_synthesis_deterministic_fallback`, `kpi_orchestration_consultant_cockpit_view`.
+
+**Grafana (or Datadog) — minimum Product MVP dashboard rows**
+
+Ops handoff (checklist, KPI field table, probes): [docs/operations/orchestration-observability-dod4.md](./operations/orchestration-observability-dod4.md).
+
+Wire log/metric queries to the labels your platform already indexes (route, `component:audits`, `metric` on structured lines, etc.):
+
+| Row | Query intent | Alert (suggested) |
+| --- | --- | --- |
+| Timeline latency | p95 duration for `GET` `/api/audits/:id/timeline` (or `route` label equivalent) | p95 > 500 ms for 15+ min |
+| Pack POST latency | p95 for `POST` `/api/audits/:id/orchestration/pack`, split by synthesis on/off if tagged | p95 > 3 s (no synthesis) or > 8 s (synthesis) |
+| Error rate | Count `5xx` or `kpi_orchestration_timeline_run_failure` / `kpi_orchestration_pack_run_failure` | > 0.5% of success volume for 10 min |
+| Synthesis fallback | `kpi_orchestration_synthesis_deterministic_fallback` rate | sustained spike vs 7d baseline (e.g. > 2×) |
+| Cockpit usage | `kpi_orchestration_consultant_cockpit_view` (adoption, not SLO) | none unless zero in pilot week |
+
+**DoD-4** is satisfied when the above panels exist and p95/alert rules are active in the chosen observer — not when keys exist only in `orchestration-telemetry-policy.ts`.
+
+**Post-MVP (v9) — full-product observability (DoD-4 extension)**
+
+- **Grafana (or primary observer) dashboard links** — set these in your org’s dashboard settings (not committed):  
+  - **`ORCHESTRATION_DASHBOARD_URL`** — store the same URL in: (1) your ops / incident runbook index (1Password, Notion, or on-call wiki), (2) optional Railway/Vercel **internal** env (non-`VITE_`) so engineers can paste it in incident threads without hunting Grafana. The variable is a **reference only**; the app does not read it at runtime.  
+- **Extra panels (after v9 rollout):** p95 for dual `POST /api/audits/:id/roadmap/manifest-preview` (if scenario compare is enabled); `kpi_orchestration_governance_action` by `action` (consultant CTA); BullMQ / Redis queue **deep-dive** job depth; `kpi_orchestration_llm_cache_hit_rate` and `kpi_orchestration_llm_cost_per_audit_usd` (prompt cache). **Do not** use bare `kpi_llm_*` names in dashboards — canonical keys are defined in `server/src/config/orchestration-telemetry-policy.ts` and validated by `pnpm run audit:orchestration-telemetry` (DoD-7).  
+- **Alert thresholds (suggested):** pack failure rate \> 1% of requests @ 5m; synthesis fallback \> 10% of pack runs; timeline p95 \> 800 ms @ 5m; director queue depth \> 100; LLM cost per audit +20% WoW vs 7d baseline.  
+- **On-call / routing:** route critical orchestration pages to the same on-call as API (Slack + PagerDuty) — [Runbook: orchestration alert triage](#runbook-orchestration-alert-triage).  
+- **DoD-4 ops sign-off checklist (v9):** (1) Primary dashboard URL stored under `ORCHESTRATION_DASHBOARD_URL` in the ops index. (2) At least one **synthetic** or **ping** check runs on a schedule (see below). (3) Alert routes are tested once per quarter (page on-call dry-run or synthetic failure inject).
+- **Synthetic probe (staging):** schedule `GET /api/health` + optional authenticated `GET /api/audits/:syntheticId/timeline` (or a dedicated canary audit) every 1–5 min; alert on 5xx or SLO breach. Example shell probe (set `API_BASE` + optional bearer) lives at [`scripts/orchestration-synthetic-probe.example.sh`](../scripts/orchestration-synthetic-probe.example.sh). **Schedule options:** Kubernetes `CronJob`, Railway/cron on a small worker, or GitHub **Actions** [`.github/workflows/orchestration-synthetic-probe.yml`](../.github/workflows/orchestration-synthetic-probe.yml) (committed in-repo; **enable** in the GitHub **Actions** tab if your org does not run all workflows by default). Set repository variable **`VITE_API_URL`** to the same API origin as Vercel (trailing slash stripped; optional fallback `ORCH_PUBLIC_API_BASE`) for unauthenticated `GET /api/health`. The same workflow can run a **second** job (`timeline-canary`) when you add repository **secrets** `ORCHESTRATION_PROBE_TOKEN` (Bearer) and `ORCHESTRATION_CANARY_AUDIT_ID` (a stable audit with timeline data) — it runs after a successful health check.
+
+##### Runbook: orchestration alert triage
+
+1. Open Grafana/Datadog dashboard rows above; narrow the time range to the alert window.  
+2. Cross-check Sentry for `component:audits` and `orchestration_pack` / `route.audit_timeline` logs.  
+3. For **stale version / 409** on pack POST, verify consultant flows — see governance CTA and `If-None-Match` on pack GET.  
+4. If LLM / synthesis spikes: set `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS=false` or `FEATURE_LLM_PROMPT_CACHE=false` per [Environment layers](#environment-layers-infrastructure-vs-ops-overrides), redeploy, confirm deterministic pack still returns.  
+5. File incident with trace IDs; link to `glc_orchestration_*` state for affected `audit_id`.
+
+CI enforces **DoD-7** (`pnpm run audit:orchestration-telemetry`) and **DoD-8** (`pnpm build && pnpm run audit:bundle-main-budget`).
 
 - **Railway** → built-in logs + metrics (CPU/memory). Set up email alerts for error spikes.
 - **Supabase** → database logs, auth logs, Realtime connection counts.
@@ -317,24 +547,26 @@ Example on Railway:
 3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
 4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
 5. Expired idempotency keys are cleaned up by background worker automatically.
+6. `evaluation_datasets` TTL cleanup runs in the background worker (`expires_at < now()`), logging `Expired evaluation_datasets cleaned` with deleted row count.
+7. If logs show `evaluation_datasets cleanup failed` repeatedly, treat as an ops incident (check DB connectivity/permissions and migration `051_evaluation_datasets_and_execution_mode.sql`).
 
 ### SRE runbooks (security + reliability)
 
 1. **Incident triage (P0/P1)**
- - Confirm blast radius using `pipeline_events`, `job_runs`, `phase_runs` and API logs.
- - Identify affected tenant IDs/audit IDs and freeze risky endpoints with temporary stricter rate limits.
+  Confirm blast radius using `pipeline_events`, `job_runs`, `phase_runs` and API logs.
+   Identify affected tenant IDs/audit IDs and freeze risky endpoints with temporary stricter rate limits.
 2. **Rollback**
- - Roll back application deploy first (Railway/Vercel), then revert only the latest unsafe migration if needed.
- - Never roll back by deleting audit data; use status transitions (`failed`, `phase_stalled`) and replay jobs.
+  Roll back application deploy first (Railway/Vercel), then revert only the latest unsafe migration if needed.
+   Never roll back by deleting audit data; use status transitions (`failed`, `phase_stalled`) and replay jobs.
 3. **Key rotation**
- - Rotate `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, and `SNAPSHOT_OPERATOR_TOKEN` in provider dashboards.
- - Deploy backend immediately after rotation and verify `/api/health`, queue worker startup, and snapshot endpoints.
+  Rotate `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, and `SNAPSHOT_OPERATOR_TOKEN` in provider dashboards.
+   Deploy backend immediately after rotation and verify `/api/health`, queue worker startup, and snapshot endpoints.
 4. **Queue recovery**
- - Check Redis connectivity and queue lag.
- - Inspect `job_runs` rows with `status in ('failed','dead_letter')`; requeue targeted jobs only.
+  Check Redis connectivity and queue lag.
+   Inspect `job_runs` rows with `status in ('failed','dead_letter')`; requeue targeted jobs only.
 5. **Post-incident review**
- - Capture timeline, root cause, and guardrail actions.
- - Add a regression test under `` for the exact failure mode before closing the incident.
+  Capture timeline, root cause, and guardrail actions.
+   Add a regression test under `` for the exact failure mode before closing the incident.
 
 ## Для разработчиков
 

@@ -9,6 +9,34 @@ export const SETTINGS_PAGE_COPY = {
   appearance: {
     title: 'Appearance',
   },
+  designSystem: {
+    title: 'Design system',
+    description: 'Open the internal design system workspace from settings.',
+    open: 'Open design system',
+  },
+  tokenUsage: {
+    title: 'LLM token usage',
+    description:
+      'Claude token consumption per audit you can access, and totals across those audits. Per-audit remaining is capped at zero when usage exceeds the audit budget.',
+    loading: 'Loading token usage…',
+    loadFailed: 'Token usage could not be loaded.',
+    colAudit: 'Audit',
+    colUsed: 'Tokens used',
+    colBudget: 'Budget',
+    colRemaining: 'Remaining',
+    openWorkspace: 'Open',
+    accessibleTotals: 'Your visible audits (all pages)',
+    totalUsed: 'Total used',
+    totalBudget: 'Total budget',
+    totalRemaining: 'Remaining headroom',
+    platformPool: 'Platform token pool',
+    platformCap: 'Pool cap',
+    platformUsed: 'Used (all audits)',
+    platformRemaining: 'Remaining in pool',
+    platformPoolUnset:
+      'Platform-wide pool cap is not set. Designated platform administrators see pool remaining here after `platform_settings.llm_token_pool_cap` is configured in the database.',
+    showingCount: 'Showing {{shown}} of {{total}} audits',
+  },
   selfServe: {
     title: 'Client portal — audit owner',
     description:
@@ -42,8 +70,33 @@ export const SETTINGS_PAGE_COPY = {
     title: 'Notifications',
     auditStatusReminders: 'Audit status reminders',
     productUpdates: 'Product updates',
+    productUpdatesHint: 'Stored as your email marketing consent on the server.',
+    showExecutionTracePanels: 'Show execution trace panels',
+    showExecutionTracePanelsHint:
+      'Admin-only developer surface. When enabled, execution trace panels appear in report, workspace, and pipeline monitor.',
+  },
+  legalConsents: {
+    title: 'Client consent preferences',
+    description:
+      'Optional marketing, analytics, case-study, and evaluation preferences. You can change these choices anytime.',
+    requiredTitle: 'Updated legal policies',
+    requiredDescription:
+      'To continue using the platform, please review and accept the updated Terms of Service and Privacy Policy.',
+    requiredTos: 'I accept the updated Terms of Service',
+    requiredPrivacy: 'I acknowledge the updated Privacy Policy',
+    termsLink: 'Terms of Service',
+    privacyLink: 'Privacy Policy',
+    loading: 'Loading consent preferences…',
+    loadFailed: 'Consent preferences could not be loaded.',
+    saved: 'Preferences updated.',
+    saveFailed: 'Could not save preference. Reverted to last saved state.',
+    productAnalytics: 'Allow anonymized product analytics',
+    caseStudy: 'Allow anonymized use in case studies',
+    evaluationInternal: 'Allow internal evaluation datasets (see Privacy Policy)',
+    dpa: 'Data Processing Agreement (consultant / B2B)',
   },
   account: {
+    credentialsPanelAriaLabel: 'Change email and password',
     signedInEmail: 'Signed in email',
     unknownEmail: 'unknown',
     changeEmail: 'Change email',
@@ -58,6 +111,19 @@ export const SETTINGS_PAGE_COPY = {
     updatePassword: 'Update password',
     updatingPassword: 'Updating...',
     signOut: 'Sign out',
+    asideTitle: 'Security tips',
+    asideIntro: 'Short reminders while you update email or password.',
+    asideBulletEmail:
+      'Email change messages can land in spam. If nothing arrives, check filters and try again after a few minutes.',
+    asideBulletPasswordMin: 'Passwords must be at least {{min}} characters (platform minimum).',
+    asideBulletPasswordUnique: 'Use a password you do not reuse on other sites or apps.',
+    generateStrongPassword: 'Generate strong password',
+    generateStrongPasswordAriaLabel:
+      'Generate a strong random password and fill the new password and confirmation fields',
+    ariaShowPassword: 'Show new password and confirmation',
+    ariaHidePassword: 'Hide new password and confirmation',
+    asideBulletPasswordGenerator:
+      'Use Generate strong password to fill both fields, then store it in a password manager before you save.',
   },
   page: {
     title: 'Settings',

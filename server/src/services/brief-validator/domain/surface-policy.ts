@@ -1,6 +1,7 @@
 import {
   currentIntakeVersionTuple,
   isSupportedIntakeArtifactTuple,
+  normalizeIntakeVersionTupleFromStorage,
   type IntakeSurface,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple } from '../../../types/audit.js';
@@ -35,7 +36,9 @@ export function coerceArtifactTupleForRead(
 ): IntakeVersionTuple {
   const current = currentIntakeVersionTuple();
   if (!stored) return current;
-  if (isSupportedIntakeArtifactTuple(stored)) return stored;
+  const normalized =
+    normalizeIntakeVersionTupleFromStorage(stored as unknown as Record<string, unknown>) ?? stored;
+  if (isSupportedIntakeArtifactTuple(normalized)) return normalized;
   logger.warn('intake_versions not in supported artifact registry; using current engine', {
     context,
     stored,

@@ -1,6 +1,4 @@
-import {FACT_CHECKER_THRESHOLDS} from '../config/fact-checker-thresholds.js';
-import {factCheckerCopy, interpolateFactCheckerMessage} from '../config/fact-checker-copy.js';
-import type {DomainResult, DomainKey, ConfidenceLevel} from '../types/audit.js';
+import type {DomainResult, DomainKey} from '../types/audit.js';
 import {
     createControlObjectV1,
     type ControlObjectV1,
@@ -19,8 +17,6 @@ import {buildHumanAttention} from './fact-checker/control-object/build-human-att
 import {finalizeExecutionAndPerformance} from './fact-checker/control-object/finalize-execution-performance.js';
 import {maybeBuildCausalDag} from './fact-checker/control-object/causal-dag.js';
 import type {BriefSnapshot} from './feasibility-layer.js';
-
-const T = FACT_CHECKER_THRESHOLDS;
 
 /** Optional governance fields populated from audit row + pipeline (CONTROL_OBJECT v2.1+). */
 export interface BuildControlObjectGovernanceInput {

@@ -36,7 +36,7 @@ export function ReportFindings({
             title: REPORT_VIEWER_COPY.sections.keyStrengths,
             icon: CheckCircle,
             color: 'var(--glc-green)',
-            bg: 'var(--glc-green-xlight)',
+            bg: 'var(--score-5-bg)',
             border: 'var(--score-5-border)',
             items: strengthItems,
           },

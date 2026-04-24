@@ -5,6 +5,7 @@ import type { FieldErrors } from '../../types';
 import { cn } from '../../../../components/ui/utils';
 import { Callout } from '../../../../components/ui/callout';
 import { FormField } from '../../../../components/ui/form-field';
+import { Input } from '../../../../../design-system/ui';
 
 type ForgotPasswordFormProps = {
   email: string;
@@ -45,7 +46,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
             label={<span className="sr-only">{LC.labelEmail}</span>}
             error={emailError ? <span id={emailErrorId}>{emailError}</span> : undefined}
           >
-            <input
+            <Input
               id="forgot-email"
               type="email"
               value={email}
@@ -55,7 +56,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
               autoComplete="email"
               aria-invalid={Boolean(emailError)}
               aria-describedby={emailError ? emailErrorId : undefined}
-              className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
+              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
             />
           </FormField>
           <motion.button

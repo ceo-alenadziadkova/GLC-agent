@@ -8,150 +8,157 @@
   --glc-blue-deeper: #0077A8;
   --glc-blue-light: #8ADEFF;
   --glc-blue-xlight: #E0F6FF;
-  --glc-blue-muted: rgba(28, 189, 255, 0.10);
-  --glc-blue-muted-faint: rgba(28, 189, 255, 0.04);
-  --glc-blue-muted-soft: rgba(28, 189, 255, 0.06);
-  --glc-blue-muted-strong: rgba(28, 189, 255, 0.15);
+  --glc-blue-muted: color-mix(in oklab, var(--glc-blue) 10%, transparent);
+  --glc-blue-muted-faint: color-mix(in oklab, var(--glc-blue) 4%, transparent);
+  --glc-blue-muted-soft: color-mix(in oklab, var(--glc-blue) 6%, transparent);
+  --glc-blue-muted-strong: color-mix(in oklab, var(--glc-blue) 15%, transparent);
 
   --glc-orange: #F24F1D;
   --glc-orange-dark: #D43A0C;
   --glc-orange-light: #F9A48A;
   --glc-orange-xlight: #FEF0EB;
-  --glc-orange-muted: rgba(242, 79, 29, 0.08);
+  --glc-orange-muted: color-mix(in oklab, var(--glc-orange) 8%, transparent);
 
   --glc-green: #0ECF82;
   --glc-green-dark: #0AB36F;
   --glc-green-light: #7EEBB9;
   --glc-green-xlight: #E6FAF3;
-  --glc-green-muted: rgba(14, 207, 130, 0.10);
-  --glc-green-alpha-06: rgba(14, 207, 130, 0.06);
+  --glc-green-muted: color-mix(in oklab, var(--glc-green) 10%, transparent);
+  --glc-green-alpha-06: color-mix(in oklab, var(--glc-green) 6%, transparent);
 
   --glc-neutral: #E5E7EB;
   --glc-ink: #080F1E;
   --glc-ink-1: #0D1628;
   --glc-ink-2: #111E38;
   --glc-ink-3: #172849;
-  --glc-ink-4: #1E345C;
 
-  --score-1: #EF4444;
-  --score-1-bg: #FEF2F2;
-  --score-1-border: rgba(239, 68, 68, 0.18);
-  --score-2: #F97316;
-  --score-2-bg: #FFF7ED;
-  --score-2-border: rgba(249, 115, 22, 0.18);
-  --score-3: #EAB308;
-  --score-3-bg: #FEFCE8;
-  --score-3-border: rgba(234, 179, 8, 0.18);
-  --score-4: #22C55E;
-  --score-4-bg: #F0FDF4;
-  --score-4-border: rgba(34, 197, 94, 0.18);
-  --score-5: #0ECF82;
-  --score-5-bg: #E6FAF3;
-  --score-5-border: rgba(14, 207, 130, 0.18);
+  --score-1: oklch(0.62 0.23 25);
+  --score-1-bg: color-mix(in oklab, var(--score-1) 14%, var(--bg-surface));
+  --score-1-border: color-mix(in oklab, var(--score-1) 28%, transparent);
+  --score-2: oklch(0.7 0.18 48);
+  --score-2-bg: color-mix(in oklab, var(--score-2) 14%, var(--bg-surface));
+  --score-2-border: color-mix(in oklab, var(--score-2) 28%, transparent);
+  --score-3: oklch(0.78 0.16 95);
+  --score-3-bg: color-mix(in oklab, var(--score-3) 14%, var(--bg-surface));
+  --score-3-border: color-mix(in oklab, var(--score-3) 28%, transparent);
+  --score-4: oklch(0.72 0.18 150);
+  --score-4-bg: color-mix(in oklab, var(--score-4) 14%, var(--bg-surface));
+  --score-4-border: color-mix(in oklab, var(--score-4) 28%, transparent);
+  --score-5: oklch(0.75 0.17 162);
+  --score-5-bg: color-mix(in oklab, var(--score-5) 14%, var(--bg-surface));
+  --score-5-border: color-mix(in oklab, var(--score-5) 28%, transparent);
 
-  --callout-warning-fg: #92400E;
-  --callout-warning-fg-emphasis: #D97706;
-  --callout-warning-bg-subtle: rgba(245, 158, 11, 0.06);
-  --callout-warning-bg: rgba(245, 158, 11, 0.07);
-  --callout-warning-bg-strong: rgba(245, 158, 11, 0.12);
-  --callout-warning-border: rgba(245, 158, 11, 0.22);
-  --callout-warning-border-strong: rgba(245, 158, 11, 0.30);
-  --callout-warning-border-focus: rgba(245, 158, 11, 0.35);
-  --callout-warning-icon: #F59E0B;
-  --callout-warning-pill-bg: #FFFBEB;
-  --callout-error-bg: rgba(239, 68, 68, 0.07);
-  --callout-error-border: rgba(239, 68, 68, 0.25);
-  --callout-info-bg: rgba(28, 189, 255, 0.08);
-  --callout-info-border: rgba(28, 189, 255, 0.22);
-  --callout-info-border-strong: rgba(28, 189, 255, 0.30);
+  --callout-warning-fg: color-mix(in oklab, var(--score-2) 78%, var(--text-primary));
+  --callout-warning-fg-emphasis: color-mix(in oklab, var(--score-2) 88%, var(--text-primary));
+  --callout-warning-bg-subtle: color-mix(in oklab, var(--score-2) 6%, transparent);
+  --callout-warning-bg: color-mix(in oklab, var(--score-2) 8%, transparent);
+  --callout-warning-bg-strong: color-mix(in oklab, var(--score-2) 14%, transparent);
+  --callout-warning-border: color-mix(in oklab, var(--score-2) 24%, transparent);
+  --callout-warning-border-strong: color-mix(in oklab, var(--score-2) 32%, transparent);
+  --callout-warning-border-focus: color-mix(in oklab, var(--score-2) 38%, transparent);
+  --callout-warning-icon: var(--score-2);
+  --callout-warning-pill-bg: color-mix(in oklab, var(--score-2) 12%, var(--bg-surface));
+  --callout-error-bg: color-mix(in oklab, var(--score-1) 8%, transparent);
+  --callout-error-border: color-mix(in oklab, var(--score-1) 26%, transparent);
+  --callout-info-bg: color-mix(in oklab, var(--glc-blue) 9%, transparent);
+  --callout-info-border: color-mix(in oklab, var(--glc-blue) 24%, transparent);
+  --callout-info-border-strong: color-mix(in oklab, var(--glc-blue) 32%, transparent);
 
-  --ui-danger-fg-strong: #b91c1c;
-  --ui-danger-bg-pale: #fee2e2;
-  --ui-danger-muted-bg: rgba(239, 68, 68, 0.08);
-  --ui-danger-muted-bg-12: rgba(239, 68, 68, 0.12);
-  --ui-danger-border-20: rgba(239, 68, 68, 0.20);
-  --ui-success-muted-bg-12: rgba(16, 185, 129, 0.12);
-  --ui-success-border-25: rgba(16, 185, 129, 0.25);
-  --ui-success-light: #34D399;
-  --ui-danger-light: #F87171;
-  --ui-warning-amber: #CA8A04;
-  --ui-warning-orange: #F97316;
-  --ui-code-surface: #0A0F1E;
-  --ui-slate-muted: rgba(148, 163, 184, 0.80);
-  --ui-strategic-purple: #8B5CF6;
+  --ui-danger-fg-strong: color-mix(in oklab, var(--score-1) 84%, var(--text-primary));
+  --ui-danger-bg-pale: color-mix(in oklab, var(--score-1) 15%, var(--bg-surface));
+  --ui-danger-muted-bg: color-mix(in oklab, var(--score-1) 8%, transparent);
+  --ui-danger-muted-bg-12: color-mix(in oklab, var(--score-1) 12%, transparent);
+  --ui-danger-border-20: color-mix(in oklab, var(--score-1) 20%, transparent);
+  --ui-success-muted-bg-12: color-mix(in oklab, var(--score-5) 12%, transparent);
+  --ui-success-border-25: color-mix(in oklab, var(--score-5) 25%, transparent);
+  --ui-success-light: color-mix(in oklab, var(--score-5) 72%, var(--bg-surface));
+  --ui-danger-light: color-mix(in oklab, var(--score-1) 72%, var(--bg-surface));
+  --ui-warning-amber: color-mix(in oklab, var(--score-3) 88%, var(--score-2));
+  --ui-warning-orange: var(--score-2);
+  --ui-code-surface: var(--glc-ink);
+  --ui-slate-muted: color-mix(in oklab, var(--text-tertiary) 80%, transparent);
+  --ui-strategic-purple: oklch(0.62 0.2 300);
 
-  --ui-intake-edge-stroke: #64748b;
-  --ui-intake-focus-edge-stroke: #38bdf8;
-  --ui-intake-selected-edge-stroke: #34d399;
-  --ui-intake-focused-alt-edge-stroke: #22d3ee;
-  --ui-intake-node-required-fill: #7c4a03;
-  --ui-intake-node-required-stroke: #f59e0b;
-  --ui-intake-node-required-text: #fef3c7;
-  --ui-intake-node-visible-fill: #0b3f5c;
-  --ui-intake-node-visible-stroke: #38bdf8;
-  --ui-intake-node-visible-text: #e0f2fe;
-  --ui-intake-node-deferred-fill: #3b1f59;
-  --ui-intake-node-deferred-stroke: #a78bfa;
-  --ui-intake-node-deferred-text: #f3e8ff;
-  --ui-intake-node-hidden-fill: #2f2f34;
-  --ui-intake-node-hidden-stroke: #71717a;
-  --ui-intake-node-hidden-text: #f4f4f5;
-  --ui-intake-node-other-fill: #1f2937;
-  --ui-intake-node-other-stroke: #94a3b8;
-  --ui-intake-node-other-text: #e2e8f0;
+  --ui-intake-edge-stroke: color-mix(in oklab, var(--text-tertiary) 82%, transparent);
+  --ui-intake-focus-edge-stroke: color-mix(in oklab, var(--glc-blue) 78%, var(--bg-surface));
+  --ui-intake-selected-edge-stroke: color-mix(in oklab, var(--glc-green) 74%, var(--bg-surface));
+  --ui-intake-focused-alt-edge-stroke: color-mix(in oklab, var(--glc-blue) 58%, var(--glc-green) 42%);
+  --ui-intake-node-required-fill: color-mix(in oklab, var(--score-2) 52%, var(--glc-ink));
+  --ui-intake-node-required-stroke: var(--score-2);
+  --ui-intake-node-required-text: color-mix(in oklab, var(--score-3) 32%, var(--text-inverse));
+  --ui-intake-node-visible-fill: color-mix(in oklab, var(--glc-blue) 36%, var(--glc-ink));
+  --ui-intake-node-visible-stroke: color-mix(in oklab, var(--glc-blue) 78%, var(--bg-surface));
+  --ui-intake-node-visible-text: color-mix(in oklab, var(--glc-blue) 22%, var(--text-inverse));
+  --ui-intake-node-deferred-fill: color-mix(in oklab, var(--ui-strategic-purple) 52%, var(--glc-ink));
+  --ui-intake-node-deferred-stroke: color-mix(in oklab, var(--ui-strategic-purple) 72%, var(--bg-surface));
+  --ui-intake-node-deferred-text: color-mix(in oklab, var(--ui-strategic-purple) 20%, var(--text-inverse));
+  --ui-intake-node-hidden-fill: color-mix(in oklab, var(--glc-ink) 82%, var(--bg-muted));
+  --ui-intake-node-hidden-stroke: color-mix(in oklab, var(--text-tertiary) 68%, transparent);
+  --ui-intake-node-hidden-text: color-mix(in oklab, var(--text-inverse) 92%, var(--bg-surface));
+  --ui-intake-node-other-fill: color-mix(in oklab, var(--glc-ink) 88%, var(--glc-blue));
+  --ui-intake-node-other-stroke: color-mix(in oklab, var(--text-tertiary) 78%, var(--glc-blue));
+  --ui-intake-node-other-text: color-mix(in oklab, var(--glc-blue) 14%, var(--text-inverse));
 
   /**
-   * Question Bank Studio — graph / export / legend (SSOT for former TS hex literals).
+   * @deprecated Question Bank Studio is legacy surface.
+   * Keep these tokens for compatibility only; exclude from active DS modernization scope.
+   * Graph / export / legend (historical SSOT for former TS hex literals).
    */
-  --studio-graph-domain-tech-infrastructure: #2563eb;
-  --studio-graph-domain-security-compliance: #dc2626;
-  --studio-graph-domain-seo-digital: #16a34a;
-  --studio-graph-domain-ux-conversion: #9333ea;
-  --studio-graph-domain-marketing-utp: #ea580c;
-  --studio-graph-domain-automation-processes: #0891b2;
-  --studio-graph-domain-recon: #64748b;
-  --studio-graph-domain-strategy: #ca8a04;
-  --studio-graph-domain-fallback: #64748b;
+  --studio-graph-domain-tech-infrastructure: var(--glc-blue-dark);
+  --studio-graph-domain-security-compliance: var(--score-1);
+  --studio-graph-domain-seo-digital: var(--score-4);
+  --studio-graph-domain-ux-conversion: var(--ui-strategic-purple);
+  --studio-graph-domain-marketing-utp: var(--glc-orange);
+  --studio-graph-domain-automation-processes: color-mix(in oklab, var(--glc-blue) 52%, var(--glc-green));
+  --studio-graph-domain-recon: var(--text-tertiary);
+  --studio-graph-domain-strategy: var(--ui-warning-amber);
+  --studio-graph-domain-fallback: var(--text-tertiary);
 
-  --studio-map-export-dark-bg: #121418;
-  --studio-map-export-dark-structure-stroke: #3f4654;
-  --studio-map-export-dark-branch-stroke: #1cbdff;
-  --studio-map-export-dark-text: #e8eaef;
-  --studio-map-export-dark-subtext: #9aa3b2;
-  --studio-map-export-light-bg: #f5f7fb;
-  --studio-map-export-light-structure-stroke: #c8ced9;
-  --studio-map-export-light-branch-stroke: #0ea3e0;
-  --studio-map-export-light-text: #1a1d24;
-  --studio-map-export-light-subtext: #5c6578;
-  --studio-map-node-fill-section: rgba(28, 189, 255, 0.14);
-  --studio-map-node-fill-domain-cluster: rgba(8, 145, 178, 0.12);
-  --studio-map-node-fill-layout-step: rgba(147, 51, 234, 0.1);
-  --studio-map-node-fill-identity: rgba(242, 79, 29, 0.1);
-  --studio-map-node-fill-question-dark: #1c2128;
-  --studio-map-node-fill-question-light: #ffffff;
-  --studio-map-node-stroke-domain-cluster: #0891b2;
-  --studio-map-node-stroke-layout-step: #9333ea;
-  --studio-map-node-stroke-identity: #f24f1d;
+  --studio-map-export-dark-bg: var(--glc-ink);
+  --studio-map-export-dark-structure-stroke: color-mix(in oklab, var(--text-inverse) 24%, transparent);
+  --studio-map-export-dark-branch-stroke: var(--glc-blue);
+  --studio-map-export-dark-text: color-mix(in oklab, var(--text-inverse) 96%, var(--glc-blue));
+  --studio-map-export-dark-subtext: color-mix(in oklab, var(--text-inverse) 66%, transparent);
+  --studio-map-export-light-bg: var(--bg-canvas);
+  --studio-map-export-light-structure-stroke: var(--border-default);
+  --studio-map-export-light-branch-stroke: var(--glc-blue-dark);
+  --studio-map-export-light-text: var(--text-primary);
+  --studio-map-export-light-subtext: var(--text-secondary);
+  --studio-map-node-fill-section: color-mix(in oklab, var(--glc-blue) 14%, transparent);
+  --studio-map-node-fill-domain-cluster: color-mix(in oklab, var(--studio-graph-domain-automation-processes) 12%, transparent);
+  --studio-map-node-fill-layout-step: color-mix(in oklab, var(--ui-strategic-purple) 10%, transparent);
+  --studio-map-node-fill-identity: color-mix(in oklab, var(--glc-orange) 10%, transparent);
+  --studio-map-node-fill-question-dark: var(--glc-ink-1);
+  --studio-map-node-fill-question-light: var(--bg-surface);
+  --studio-map-node-stroke-domain-cluster: var(--studio-graph-domain-automation-processes);
+  --studio-map-node-stroke-layout-step: var(--studio-graph-domain-ux-conversion);
+  --studio-map-node-stroke-identity: var(--studio-graph-domain-marketing-utp);
 
-  --bg-canvas: #EFF3FA;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #FFFFFF;
-  --bg-muted: #E5ECF7;
-  --bg-inset: #E8EFF8;
+  --bg-canvas: oklch(0.965 0.012 248);
+  --bg-surface: oklch(0.99 0.006 248);
+  --bg-elevated: oklch(0.995 0.004 248);
+  --bg-muted: oklch(0.94 0.015 248);
+  --bg-inset: oklch(0.925 0.017 248);
   /** Light app: sidebar is a panel (not ink); dark app overrides in html.dark */
   --bg-sidebar: var(--bg-muted);
 
-  --text-primary: #0B1120;
-  --text-secondary: #334861;
-  --text-tertiary: #7488A4;
-  --text-quaternary: #A3B2C4;
-  --text-inverse: #FFFFFF;
+  --text-primary: oklch(0.2 0.03 255);
+  --text-secondary: oklch(0.37 0.03 252);
+  --text-tertiary: oklch(0.58 0.02 252);
+  --text-quaternary: oklch(0.7 0.015 252);
+  /*
+   * --text-inverse usage rule:
+   * - Use for foreground on dark/ink brand fills and dark surfaces.
+   * - Do NOT use as a source for "white" alpha overlays in dark mode.
+   *   In html.dark, derive translucent light overlays from --text-primary.
+   */
+  --text-inverse: oklch(0.98 0.003 250);
   --text-accent: var(--glc-orange);
   --text-blue: var(--glc-blue);
 
-  --border-subtle: #D6E0ED;
-  --border-default: #BDCBDE;
-  --border-strong: #95A7C0;
+  --border-subtle: oklch(0.88 0.014 248);
+  --border-default: oklch(0.8 0.017 248);
+  --border-strong: oklch(0.71 0.02 248);
   --border-width-default: 1px;
 
   /**
@@ -168,46 +175,80 @@
   /** SectionLabel (glc) — preserves previous 0.10em tracking */
   --section-label-tracking: 0.10em;
 
-  --shadow-xs: 0 1px 2px rgba(11, 17, 32, 0.06);
-  --shadow-sm: 0 2px 7px rgba(11, 17, 32, 0.09), 0 1px 2px rgba(11, 17, 32, 0.05);
-  --shadow-md: 0 9px 22px rgba(11, 17, 32, 0.11), 0 3px 7px rgba(11, 17, 32, 0.06);
-  --shadow-lg: 0 18px 38px rgba(11, 17, 32, 0.13), 0 7px 16px rgba(11, 17, 32, 0.07);
-  --shadow-xl: 0 30px 58px rgba(11, 17, 32, 0.15), 0 11px 26px rgba(11, 17, 32, 0.08);
-  --shadow-blue: 0 0 0 3px rgba(28, 189, 255, 0.20);
+  --shadow-xs: 0 1px 2px color-mix(in oklab, var(--glc-ink) 6%, transparent);
+  --shadow-sm: 0 2px 7px color-mix(in oklab, var(--glc-ink) 9%, transparent), 0 1px 2px color-mix(in oklab, var(--glc-ink) 5%, transparent);
+  --shadow-md: 0 9px 22px color-mix(in oklab, var(--glc-ink) 11%, transparent), 0 3px 7px color-mix(in oklab, var(--glc-ink) 6%, transparent);
+  --shadow-lg: 0 18px 38px color-mix(in oklab, var(--glc-ink) 13%, transparent), 0 7px 16px color-mix(in oklab, var(--glc-ink) 7%, transparent);
+  --shadow-xl: 0 30px 58px color-mix(in oklab, var(--glc-ink) 15%, transparent), 0 11px 26px color-mix(in oklab, var(--glc-ink) 8%, transparent);
+  --shadow-blue: 0 0 0 3px color-mix(in oklab, var(--glc-blue) 20%, transparent);
   --shadow-card: 0 0 0 1px color-mix(in oklab, var(--border-subtle) 80%, transparent), var(--shadow-md);
   --glow-blue: 0 0 0 3px rgba(28, 189, 255, 0.20), 0 0 20px rgba(28, 189, 255, 0.10);
   --glow-blue-sm: 0 0 0 3px rgba(28, 189, 255, 0.20);
   --glow-orange: 0 0 0 3px rgba(242, 79, 29, 0.18);
   --glow-green: 0 0 0 3px rgba(14, 207, 130, 0.20);
   --shadow-ink: 0 4px 16px rgba(8, 15, 30, 0.60), 0 1px 4px rgba(8, 15, 30, 0.40);
-  --shadow-swiss: 3px 3px 0 var(--glc-ink);
   --shadow-mobile-bottom-nav: 0 -4px 12px var(--overlay-shadow-soft);
 
-  --glass-bg: rgba(255, 255, 255, 0.86);
-  --glass-border: rgba(255, 255, 255, 0.68);
+  --glass-bg: color-mix(in oklab, var(--text-inverse) 86%, transparent);
+  --glass-border: color-mix(in oklab, var(--text-inverse) 68%, transparent);
   --glass-blur: blur(14px) saturate(160%);
   --glc-light-home-hero-backdrop: blur(10px) saturate(120%);
-  --glass-shadow: 0 10px 30px rgba(11, 17, 32, 0.11), 0 0 0 1px rgba(255, 255, 255, 0.68);
+  --glass-shadow: 0 10px 30px color-mix(in oklab, var(--glc-ink) 11%, transparent), 0 0 0 1px color-mix(in oklab, var(--text-inverse) 68%, transparent);
 
   --gradient-brand: linear-gradient(135deg, #1CBDFF 0%, #0077A8 100%);
+  /**
+   * Buttons/avatars on brand fill: lighter end in light UI so --glc-ink stays readable; in html.dark
+   * use full --gradient-brand with light --on-gradient-brand-fg (ink on deep stop fails in dark UI).
+   */
+  --gradient-brand-cta: linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-dark) 100%);
+  --on-gradient-brand-fg: var(--glc-ink);
   --gradient-accent: linear-gradient(135deg, #F24F1D 0%, #C93B0C 100%);
   /**
    * Foreground for text/icons on --gradient-accent (and similar warm fills).
-   * White (--primary-foreground) on this orange band is often below WCAG AA for body copy;
-   * ink stays >= 4.5:1 across the gradient stops.
+   * Light UI: ink for strong contrast on the orange band. Dark UI: overridden to
+   * --primary-foreground so label/spinner stay legible if fill reads as a dark surface.
    */
   --on-warm-gradient-fg: var(--glc-ink);
+  /**
+   * Icons/copy on --gradient-success (e.g. pipeline phase completed chip).
+   * Light UI: dark ink reads on saturated green; dark UI: light fg (see html.dark).
+   */
+  --on-gradient-success-fg: var(--glc-ink);
   --gradient-success: linear-gradient(135deg, #0ECF82 0%, #0AB36F 100%);
   --gradient-ink: linear-gradient(160deg, #0D1628 0%, #080F1E 100%);
   --gradient-ink-rich: linear-gradient(160deg, #111E38 0%, #080F1E 55%, #0A1930 100%);
   --gradient-surface: linear-gradient(180deg, #FFFFFF 0%, #F8FAFD 100%);
 
-  --mesh-brand: radial-gradient(ellipse 80% 60% at 15% 40%, rgba(28, 189, 255, 0.13) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 15%, rgba(14, 207, 130, 0.09) 0%, transparent 50%),
-    radial-gradient(ellipse 40% 60% at 65% 80%, rgba(242, 79, 29, 0.07) 0%, transparent 50%);
-  --mesh-ink: radial-gradient(ellipse 90% 70% at 10% 25%, rgba(28, 189, 255, 0.20) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 55% at 85% 75%, rgba(14, 207, 130, 0.11) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 55% 50%, rgba(139, 92, 246, 0.07) 0%, transparent 50%);
+  --mesh-brand: radial-gradient(
+      ellipse 80% 60% at 15% 40%,
+      color-mix(in oklab, var(--glc-blue) 35%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 80% 15%,
+      color-mix(in oklab, var(--glc-green) 25%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 40% 60% at 65% 80%,
+      color-mix(in oklab, var(--glc-orange) 20%, transparent) 0%,
+      transparent 50%
+    );
+  --mesh-ink: radial-gradient(
+      ellipse 90% 70% at 10% 25%,
+      color-mix(in oklab, var(--glc-blue) 20%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 55% at 85% 75%,
+      color-mix(in oklab, var(--glc-green) 11%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 55% 50%,
+      color-mix(in oklab, var(--ui-strategic-purple) 7%, transparent) 0%,
+      transparent 50%
+    );
 
   --radius-xs: 2px;
   --radius-sm: 4px;
@@ -236,6 +277,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --marketing-dropdown-min-width: 12rem;
   --sidebar-width: 16rem;
   --sidebar-width-mobile: 18rem;
   --sidebar-width-icon: 3rem;
@@ -243,6 +285,38 @@
   --app-shell-drawer-width: min(20rem, 88vw);
   --client-audit-brief-form-max-height: min(55vh, 28rem);
   --client-audit-brief-progress-track-height: 3px;
+
+  /**
+   * Public marketing “spatial” glass surfaces (dark package + home overdrive).
+   * Visual literals live only here; TSX uses `var(--marketing-*)` and `.ds-marketing-*` bridges.
+   */
+  --marketing-canvas-deep: #050510;
+  --marketing-glass-tint: color-mix(in oklab, #0a0a0c 80%, transparent);
+  --marketing-glass-tint-soft: color-mix(in oklab, #0a0a0c 60%, transparent);
+  --marketing-text-muted: #a0acb0;
+  /** Main label on deep canvas / glass — not `--text-primary` (follows :root) or `--text-inverse` (inverts in html.dark). */
+  --marketing-fg-on-canvas: #e6edf3;
+  --marketing-fg-on-glass: #e6edf3;
+  --marketing-border-on-glass: color-mix(in oklab, #ffffff 20%, transparent);
+  --marketing-shadow-glass-lg: 0 0 50px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-glass-md: 0 0 40px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-glass-sm: 0 0 20px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-shadow-cta: 0 0 20px color-mix(in oklab, #ffffff 10%, transparent);
+  --marketing-shadow-cta-hover: 0 0 30px color-mix(in oklab, #ffffff 20%, transparent);
+  --marketing-max-w-content: 62.5rem;
+  --marketing-max-w-hero-content: 50rem;
+  --marketing-hero-title-shadow: 0 4px 20px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --marketing-hero-title-size: clamp(2.5rem, 8vw, 5.5rem);
+  --marketing-hero-title-track: -0.04em;
+  --marketing-cockpit-ambient: 0 50px 150px -20px color-mix(in oklab, var(--glc-ink) 80%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #ffffff 10%, transparent);
+  --marketing-cockpit-perspective: 1200px;
+  --marketing-radius-card-3xl: 1.5rem;
+  --marketing-outcome-pill-glow: 0 0 15px color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  --marketing-specimen-orb: 50px;
+  --marketing-section-heading-track: -0.03em;
+  --marketing-kicker-track: 0.15em;
+  --marketing-compression-kicker-track: 0.08em;
 
   /* Snapshot landing (marketing hero + quota) */
   --snapshot-command-shell-outline: linear-gradient(
@@ -258,6 +332,8 @@
   --tracking-snapshot-hero-lg: -0.035em;
   --shadow-snapshot-cta-active: 0 8px 22px color-mix(in oklab, var(--glc-blue) 36%, transparent);
   --shadow-snapshot-cta-muted: 0 3px 10px color-mix(in oklab, var(--glc-blue) 18%, transparent);
+  --shadow-brand-cta: 0 4px 14px color-mix(in oklab, var(--glc-blue) 28%, transparent);
+  --shadow-accent-cta: 0 4px 14px color-mix(in oklab, var(--glc-orange) 30%, transparent);
   --gradient-snapshot-quota-fill: linear-gradient(90deg, var(--glc-blue), var(--glc-green));
   --shadow-snapshot-shell-inner-mobile: 0 12px 40px rgba(0, 0, 0, 0.14);
 
@@ -291,6 +367,31 @@
 
   --text-2xs: 0.625rem;
   --text-xs: 0.6875rem;
+  /** Focus ring tint for DS surfaces (replaces inline rgba in intake path toggles). */
+  --primitive-focus-ring-color: color-mix(in oklab, rgb(99 102 241) 40%, transparent);
+
+  /* Strategy Lab — min widths / preview cap (TSX uses length:var only) */
+  --strategy-lab-form-field-min-width: 10rem;
+  --strategy-lab-roadmap-preview-max-height: min(50vh, 26rem);
+  --strategy-lab-orchestrator-tab-min-width: 5.5rem;
+
+  /* Consultant orchestration table */
+  --consultant-orchestration-initiatives-table-min-width: 32rem;
+
+  /* Pipeline monitor — review modal and client header (policy string tokens) */
+  --pipeline-monitor-review-content-max-width: 560px;
+  --pipeline-monitor-review-with-recon-max-width: min(96vw, 40rem);
+  --pipeline-monitor-review-body-max-height: 440px;
+  --pipeline-monitor-review-body-with-recon-max-height: min(72vh, 36rem);
+  --pipeline-monitor-client-header-progress-min-width: 7rem;
+  --pipeline-monitor-mobile-stacked-aside-max-height: min(45vh, 24rem);
+  --pipeline-monitor-header-actions-max-width: 15rem;
+
+  /* Settings token usage table */
+  --settings-token-usage-audit-name-max-width: 200px;
+
+  /* Intake NL ingress textarea */
+  --intake-nl-ingress-textarea-min-height: 5.5rem;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
   --text-lg: 1.0625rem;
@@ -323,6 +424,8 @@
   --z-content: 1;
   --z-overlay: 10;
   --z-floating: 30;
+  /** Below Radix dialog overlay/content (z-50); above floating chrome. */
+  --z-cookie-consent-banner: 40;
   --z-login-mesh: 0;
   --z-login-decor: 1;
   --z-login-layout: 10;
@@ -345,7 +448,7 @@
   --popover: var(--bg-surface);
   --popover-foreground: var(--text-primary);
   --primary: var(--glc-blue);
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: oklch(0.98 0.003 250);
   --secondary: var(--bg-muted);
   --secondary-foreground: var(--text-primary);
   --muted: var(--bg-muted);
@@ -353,7 +456,7 @@
   --accent: var(--glc-orange-xlight);
   --accent-foreground: var(--glc-orange);
   --destructive: var(--score-1);
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: oklch(0.98 0.003 250);
   --border: var(--border-subtle);
   --input: var(--bg-muted);
   --input-background: var(--bg-muted);
@@ -368,7 +471,7 @@
   --sidebar-accent: var(--bg-inset);
   --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: var(--border-subtle);
-  --sidebar-ring: rgba(28, 189, 255, 0.4);
+  --sidebar-ring: color-mix(in oklab, var(--glc-blue) 40%, transparent);
 
   /**
    * App shell sidebar surface + copy (DesktopSidebar / MobileDrawer).
@@ -395,28 +498,28 @@
   --app-shell-sidebar-disabled-fg: var(--text-quaternary);
   --app-shell-sidebar-disabled-icon: var(--text-quaternary);
 
-  --overlay-backdrop: rgba(8, 15, 30, 0.45);
-  --overlay-backdrop-strong: rgba(8, 15, 30, 0.5);
-  --overlay-shadow-soft: rgba(11, 17, 32, 0.06);
-  --overlay-white-46: rgba(255, 255, 255, 0.46);
-  --overlay-white-75: rgba(255, 255, 255, 0.75);
-  --overlay-white-90: rgba(255, 255, 255, 0.90);
-  --overlay-white-80: rgba(255, 255, 255, 0.80);
-  --overlay-white-72: rgba(255, 255, 255, 0.72);
-  --overlay-white-40: rgba(255, 255, 255, 0.40);
-  --overlay-white-28: rgba(255, 255, 255, 0.28);
-  --overlay-white-10: rgba(255, 255, 255, 0.10);
-  --overlay-white-07: rgba(255, 255, 255, 0.07);
-  --overlay-white-45: rgba(255, 255, 255, 0.45);
-  --overlay-white-38: rgba(255, 255, 255, 0.38);
-  --overlay-white-35: rgba(255, 255, 255, 0.35);
-  --overlay-white-30: rgba(255, 255, 255, 0.30);
-  --overlay-white-20: rgba(255, 255, 255, 0.20);
-  --overlay-white-15: rgba(255, 255, 255, 0.15);
-  --overlay-white-85: rgba(255, 255, 255, 0.85);
-  --overlay-white-14: rgba(255, 255, 255, 0.14);
-  --overlay-white-09: rgba(255, 255, 255, 0.09);
-  --overlay-white-08: rgba(255, 255, 255, 0.08);
+  --overlay-backdrop: color-mix(in oklab, var(--glc-ink) 45%, transparent);
+  --overlay-backdrop-strong: color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  --overlay-shadow-soft: color-mix(in oklab, var(--text-primary) 6%, transparent);
+  --overlay-white-46: color-mix(in oklab, var(--text-inverse) 46%, transparent);
+  --overlay-white-75: color-mix(in oklab, var(--text-inverse) 75%, transparent);
+  --overlay-white-90: color-mix(in oklab, var(--text-inverse) 90%, transparent);
+  --overlay-white-80: color-mix(in oklab, var(--text-inverse) 80%, transparent);
+  --overlay-white-72: color-mix(in oklab, var(--text-inverse) 72%, transparent);
+  --overlay-white-40: color-mix(in oklab, var(--text-inverse) 40%, transparent);
+  --overlay-white-28: color-mix(in oklab, var(--text-inverse) 28%, transparent);
+  --overlay-white-10: color-mix(in oklab, var(--text-inverse) 10%, transparent);
+  --overlay-white-07: color-mix(in oklab, var(--text-inverse) 7%, transparent);
+  --overlay-white-45: color-mix(in oklab, var(--text-inverse) 45%, transparent);
+  --overlay-white-38: color-mix(in oklab, var(--text-inverse) 38%, transparent);
+  --overlay-white-35: color-mix(in oklab, var(--text-inverse) 35%, transparent);
+  --overlay-white-30: color-mix(in oklab, var(--text-inverse) 30%, transparent);
+  --overlay-white-20: color-mix(in oklab, var(--text-inverse) 20%, transparent);
+  --overlay-white-15: color-mix(in oklab, var(--text-inverse) 15%, transparent);
+  --overlay-white-85: color-mix(in oklab, var(--text-inverse) 85%, transparent);
+  --overlay-white-14: color-mix(in oklab, var(--text-inverse) 14%, transparent);
+  --overlay-white-09: color-mix(in oklab, var(--text-inverse) 9%, transparent);
+  --overlay-white-08: color-mix(in oklab, var(--text-inverse) 8%, transparent);
 
   /* Third-party brand (OAuth SVG fills; SSOT for design-system raw-value audits) */
   --brand-oauth-google-blue: #4285f4;
@@ -425,25 +528,29 @@
   --brand-oauth-google-red: #ea4335;
 
   /* Discover results hero mesh */
-  --discover-results-mesh-indigo: rgba(30, 58, 138, 0.22);
-  --discover-results-mesh-sky: rgba(14, 165, 233, 0.18);
+  --discover-results-mesh-indigo: color-mix(in oklab, var(--glc-blue-deeper) 22%, transparent);
+  --discover-results-mesh-sky: color-mix(in oklab, var(--glc-blue) 18%, transparent);
 
   /* Shared marketing / discovery pill gradient (blue + orange stops) */
-  --gradient-badge-blue-orange: linear-gradient(135deg, rgba(28, 189, 255, 0.12) 0%, rgba(242, 79, 29, 0.08) 100%);
+  --gradient-badge-blue-orange: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 12%, transparent) 0%,
+    color-mix(in oklab, var(--glc-orange) 8%, transparent) 100%
+  );
 
   /* Blue alpha stops (pills, tabs, pipeline badges) */
-  --glc-blue-alpha-12: rgba(28, 189, 255, 0.12);
-  --glc-blue-alpha-18: rgba(28, 189, 255, 0.18);
-  --glc-blue-alpha-20: rgba(28, 189, 255, 0.20);
-  --glc-blue-alpha-25: rgba(28, 189, 255, 0.25);
-  --glc-blue-alpha-30: rgba(28, 189, 255, 0.30);
+  --glc-blue-alpha-12: color-mix(in oklab, var(--glc-blue) 12%, transparent);
+  --glc-blue-alpha-18: color-mix(in oklab, var(--glc-blue) 18%, transparent);
+  --glc-blue-alpha-20: color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  --glc-blue-alpha-25: color-mix(in oklab, var(--glc-blue) 25%, transparent);
+  --glc-blue-alpha-30: color-mix(in oklab, var(--glc-blue) 30%, transparent);
 
   /* Confidence / translucent score backgrounds */
-  --score-3-alpha-10: rgba(234, 179, 8, 0.10);
+  --score-3-alpha-10: color-mix(in oklab, var(--score-3) 10%, transparent);
 
   /* Component shadows tied to brand orange / blue glow */
-  --shadow-orange-tab: 0 2px 8px rgba(242, 79, 29, 0.28);
-  --glow-step-ring: 0 0 12px rgba(28, 189, 255, 0.30);
+  --shadow-orange-tab: 0 2px 8px color-mix(in oklab, var(--glc-orange) 28%, transparent);
+  --glow-step-ring: 0 0 12px color-mix(in oklab, var(--glc-blue) 30%, transparent);
 
   --chart-1: var(--glc-blue);
   --chart-2: var(--glc-green);
@@ -458,13 +565,150 @@
 
   /* Report viewer — profile tab triggers (size SSOT; colors from semantic tokens) */
   --report-profile-tab-font-size: var(--text-xs);
+  /* Report viewer — light theme semantic colors (dark overrides in html.dark) */
+  --report-hero-bg: linear-gradient(
+    140deg,
+    color-mix(in oklab, var(--bg-elevated) 92%, var(--glc-blue-muted)) 0%,
+    color-mix(in oklab, var(--bg-surface) 78%, var(--glc-blue-xlight)) 56%,
+    color-mix(in oklab, var(--bg-surface) 92%, var(--glc-orange-xlight)) 100%
+  );
+  --report-hero-mesh-bg: var(--mesh-brand);
+  --report-hero-mesh-opacity: 0.82;
+  --report-hero-kicker-fg: color-mix(in oklab, var(--glc-blue-deeper) 82%, var(--text-secondary));
+  --report-hero-kicker-border: color-mix(in oklab, var(--glc-blue) 28%, var(--border-subtle));
+  --report-hero-title-fg: var(--text-primary);
+  --report-hero-meta-fg: color-mix(in oklab, var(--text-secondary) 78%, var(--text-primary));
+  --report-hero-summary-fg: color-mix(in oklab, var(--text-secondary) 72%, var(--text-primary));
+  --report-hero-pill-bg: color-mix(in oklab, var(--bg-surface) 74%, var(--glc-blue-muted));
+  --report-hero-pill-border: color-mix(in oklab, var(--glc-blue) 28%, var(--border-default));
+  --report-hero-pill-fg: var(--text-primary);
+  --report-hero-score-panel-bg: color-mix(in oklab, var(--bg-surface) 84%, var(--glc-blue-muted));
+  --report-hero-score-panel-border: color-mix(in oklab, var(--glc-blue) 18%, var(--border-default));
+  --report-hero-score-label-fg: color-mix(in oklab, var(--glc-blue-deeper) 72%, var(--text-secondary));
+  --report-hero-ring-track: color-mix(in oklab, var(--glc-blue) 16%, var(--border-subtle));
+  --report-hero-score-value-fg: var(--text-primary);
+  --report-hero-ring-glow: drop-shadow(0 0 10px color-mix(in oklab, var(--glc-blue) 38%, transparent));
+  --report-scorecard-head-bg: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-canvas) 86%, var(--glc-blue-muted)) 0%,
+    color-mix(in oklab, var(--bg-canvas) 88%, var(--glc-orange-muted)) 100%
+  );
+  --report-scorecard-head-border: color-mix(in oklab, var(--glc-blue) 16%, var(--border-subtle));
+  --report-scorecard-meta-fg: color-mix(in oklab, var(--text-secondary) 84%, var(--text-primary));
+  --report-scorecard-row-hover-bg: color-mix(in oklab, var(--bg-canvas) 78%, var(--glc-blue-muted));
+  --report-quick-wins-header-bg: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-canvas) 84%, var(--glc-orange-xlight)) 0%,
+    color-mix(in oklab, var(--bg-canvas) 90%, var(--glc-blue-muted)) 100%
+  );
+  --report-quick-wins-index-bg: color-mix(in oklab, var(--glc-orange) 18%, var(--bg-surface));
+  --report-quick-wins-index-fg: color-mix(in oklab, var(--glc-orange-dark) 82%, var(--text-primary));
 
-  --sync-loader-path-idle: #94A3B8;
-  --sync-loader-path-pulse: #CBD5E1;
+  --sync-loader-path-idle: color-mix(in oklab, var(--text-tertiary) 80%, var(--text-inverse));
+  --sync-loader-path-pulse: color-mix(in oklab, var(--text-quaternary) 65%, var(--text-inverse));
   /** Fullscreen loader: caption on `var(--glc-ink)` (independent of page light/dark text tokens). */
   --sync-loader-fullscreen-fg: #e6edf3;
-  --sync-loader-logo-glow-filter: drop-shadow(0 0 20px rgba(28, 189, 255, 0.3));
-  --sync-loader-fullscreen-vignette: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+  --sync-loader-logo-glow-filter: drop-shadow(0 0 20px color-mix(in oklab, var(--glc-blue) 30%, transparent));
+  --sync-loader-fullscreen-vignette: radial-gradient(circle, transparent 40%, color-mix(in oklab, var(--glc-ink) 50%, transparent) 100%);
+
+  /**
+   * Audit workspace — consultant domain view + shared page heroes (Dashboard).
+   * Tune light canvas intensity via `--audit-ws-light-mesh-*-mix` (lower = calmer).
+   */
+  --audit-ws-light-mesh-blue-mix: 9%;
+  --audit-ws-light-mesh-green-mix: 7%;
+  --audit-ws-light-mesh-1-w: 85%;
+  --audit-ws-light-mesh-1-h: 70%;
+  --audit-ws-light-mesh-1-x: 8%;
+  --audit-ws-light-mesh-1-y: -8%;
+  --audit-ws-light-mesh-1-fade: 58%;
+  --audit-ws-light-mesh-2-w: 55%;
+  --audit-ws-light-mesh-2-h: 48%;
+  --audit-ws-light-mesh-2-x: 98%;
+  --audit-ws-light-mesh-2-y: 18%;
+  --audit-ws-light-mesh-2-fade: 52%;
+
+  --audit-workspace-main-bg:
+    radial-gradient(
+      ellipse var(--audit-ws-light-mesh-1-w) var(--audit-ws-light-mesh-1-h)
+        at var(--audit-ws-light-mesh-1-x) var(--audit-ws-light-mesh-1-y),
+      color-mix(in oklab, var(--glc-blue) var(--audit-ws-light-mesh-blue-mix), transparent) 0%,
+      transparent var(--audit-ws-light-mesh-1-fade)
+    ),
+    radial-gradient(
+      ellipse var(--audit-ws-light-mesh-2-w) var(--audit-ws-light-mesh-2-h)
+        at var(--audit-ws-light-mesh-2-x) var(--audit-ws-light-mesh-2-y),
+      color-mix(in oklab, var(--glc-green) var(--audit-ws-light-mesh-green-mix), transparent) 0%,
+      transparent var(--audit-ws-light-mesh-2-fade)
+    ),
+    var(--bg-canvas);
+
+  --audit-ws-light-hero-s1-surface: 94%;
+  --audit-ws-light-hero-s1-xlight: 6%;
+  --audit-ws-light-hero-s2-elevated: 90%;
+  --audit-ws-light-hero-s2-muted-faint: 10%;
+  --audit-ws-light-hero-s3-surface: 96%;
+  --audit-ws-light-hero-s3-green-xlight: 4%;
+
+  --audit-domain-hero-bg: linear-gradient(
+    155deg,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-light-hero-s1-surface),
+        var(--glc-blue-xlight) var(--audit-ws-light-hero-s1-xlight)
+      )
+      0%,
+    color-mix(
+        in oklab,
+        var(--bg-elevated) var(--audit-ws-light-hero-s2-elevated),
+        var(--glc-blue-muted-faint) var(--audit-ws-light-hero-s2-muted-faint)
+      )
+      48%,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-light-hero-s3-surface),
+        var(--glc-green-xlight) var(--audit-ws-light-hero-s3-green-xlight)
+      )
+      100%
+  );
+
+  --audit-ws-light-sidebar-s1-surface: 94%;
+  --audit-ws-light-sidebar-s1-xlight: 6%;
+  --audit-ws-light-sidebar-s2-surface: 98%;
+  --audit-ws-light-sidebar-s2-green-xlight: 2%;
+
+  --audit-workspace-sidebar-bg: linear-gradient(
+    180deg,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-light-sidebar-s1-surface),
+        var(--glc-blue-xlight) var(--audit-ws-light-sidebar-s1-xlight)
+      )
+      0%,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-light-sidebar-s2-surface),
+        var(--glc-green-xlight) var(--audit-ws-light-sidebar-s2-green-xlight)
+      )
+      100%
+  );
+
+  /** Strengths list — dial `--ui-audit-strength-*-mix` for chip density on light surfaces */
+  --ui-audit-strength-pill-mix: 12%;
+  --ui-audit-strength-index-mix: 14%;
+  --ui-audit-strength-pill-bg: color-mix(
+    in oklab,
+    var(--glc-green) var(--ui-audit-strength-pill-mix),
+    var(--bg-surface)
+  );
+  --ui-audit-strength-index-bg: color-mix(
+    in oklab,
+    var(--glc-green) var(--ui-audit-strength-index-mix),
+    var(--bg-surface)
+  );
+
+  /** DomainHeaderCard — Phosphor icon fg (stroke/fill via currentColor); light: ink on pale chip */
+  --audit-domain-header-icon-fg: var(--glc-ink);
 
   --glc-mobile-nav-height: 56px;
   --glc-mobile-header-height: 52px;
@@ -472,6 +716,9 @@
 
   /** Intake brief main column — pixel parity with legacy 560px at 16px root */
   --intake-brief-max-width: 35rem;
+
+  /** Settings — account column: wide enough for paired actions (generate + update) */
+  --settings-account-form-fields-max-width: 30rem;
 }
 
 html:not(.dark) {
@@ -480,6 +727,12 @@ html:not(.dark) {
 
 html.dark {
   color-scheme: dark;
+
+  --gradient-brand-cta: var(--gradient-brand);
+  --on-gradient-brand-fg: var(--primary-foreground);
+  --on-gradient-success-fg: var(--primary-foreground);
+  /** Warm CTA / accent band: light copy reads on deep orange and if gradient fill fails against dark surfaces. */
+  --on-warm-gradient-fg: var(--primary-foreground);
 
   --bg-canvas: #121418;
   --bg-surface: #1A1D22;
@@ -508,45 +761,139 @@ html.dark {
   --shadow-blue: 0 0 0 3px rgba(28, 189, 255, 0.28);
   --shadow-card: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
 
-  --score-1-bg: rgba(239, 68, 68, 0.12);
-  --score-1-border: rgba(239, 68, 68, 0.35);
-  --score-2-bg: rgba(249, 115, 22, 0.12);
-  --score-2-border: rgba(249, 115, 22, 0.35);
-  --score-3-bg: rgba(234, 179, 8, 0.12);
-  --score-3-border: rgba(234, 179, 8, 0.35);
-  --score-4-bg: rgba(34, 197, 94, 0.12);
-  --score-4-border: rgba(34, 197, 94, 0.35);
-  --score-5-bg: rgba(14, 207, 130, 0.14);
-  --score-5-border: rgba(14, 207, 130, 0.38);
+  --score-1-bg: color-mix(in oklab, var(--score-1) 12%, transparent);
+  --score-1-border: color-mix(in oklab, var(--score-1) 35%, transparent);
+  --score-2-bg: color-mix(in oklab, var(--score-2) 12%, transparent);
+  --score-2-border: color-mix(in oklab, var(--score-2) 35%, transparent);
+  --score-3-bg: color-mix(in oklab, var(--score-3) 12%, transparent);
+  --score-3-border: color-mix(in oklab, var(--score-3) 35%, transparent);
+  --score-4-bg: color-mix(in oklab, var(--score-4) 12%, transparent);
+  --score-4-border: color-mix(in oklab, var(--score-4) 35%, transparent);
+  --score-5-bg: color-mix(in oklab, var(--score-5) 14%, transparent);
+  --score-5-border: color-mix(in oklab, var(--score-5) 38%, transparent);
 
   --callout-warning-fg: #FBBF24;
   --callout-warning-fg-emphasis: #FCD34D;
-  --callout-warning-bg-subtle: rgba(245, 158, 11, 0.10);
-  --callout-warning-bg: rgba(245, 158, 11, 0.12);
-  --callout-warning-bg-strong: rgba(245, 158, 11, 0.18);
-  --callout-warning-border: rgba(245, 158, 11, 0.35);
-  --callout-warning-border-strong: rgba(245, 158, 11, 0.42);
-  --callout-warning-border-focus: rgba(245, 158, 11, 0.48);
+  --callout-warning-bg-subtle: color-mix(in oklab, var(--score-2) 10%, transparent);
+  --callout-warning-bg: color-mix(in oklab, var(--score-2) 12%, transparent);
+  --callout-warning-bg-strong: color-mix(in oklab, var(--score-2) 18%, transparent);
+  --callout-warning-border: color-mix(in oklab, var(--score-2) 35%, transparent);
+  --callout-warning-border-strong: color-mix(in oklab, var(--score-2) 42%, transparent);
+  --callout-warning-border-focus: color-mix(in oklab, var(--score-2) 48%, transparent);
   --callout-warning-icon: #FBBF24;
   --callout-warning-pill-bg: rgba(234, 179, 8, 0.14);
-  --callout-error-bg: rgba(239, 68, 68, 0.14);
-  --callout-error-border: rgba(239, 68, 68, 0.38);
-  --callout-info-bg: rgba(28, 189, 255, 0.10);
-  --callout-info-border: rgba(28, 189, 255, 0.28);
-  --callout-info-border-strong: rgba(28, 189, 255, 0.36);
+  --callout-error-bg: color-mix(in oklab, var(--score-1) 14%, transparent);
+  --callout-error-border: color-mix(in oklab, var(--score-1) 38%, transparent);
+  --callout-info-bg: color-mix(in oklab, var(--glc-blue) 10%, transparent);
+  --callout-info-border: color-mix(in oklab, var(--glc-blue) 28%, transparent);
+  --callout-info-border-strong: color-mix(in oklab, var(--glc-blue) 36%, transparent);
 
-  --glass-bg: rgba(22, 27, 34, 0.72);
-  --glass-border: rgba(230, 237, 243, 0.08);
-  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(230, 237, 243, 0.06);
+  --glass-bg: color-mix(in oklab, var(--bg-inset) 72%, transparent);
+  --glass-border: color-mix(in oklab, var(--text-primary) 8%, transparent);
+  --glass-shadow: 0 4px 24px color-mix(in oklab, var(--glc-ink) 35%, transparent), 0 0 0 1px color-mix(in oklab, var(--text-primary) 6%, transparent);
 
   --gradient-surface: linear-gradient(180deg, #161B22 0%, #0D1117 100%);
-  --mesh-brand: radial-gradient(ellipse 85% 65% at 12% 35%, rgba(28, 189, 255, 0.09) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 45% at 82% 18%, rgba(14, 207, 130, 0.06) 0%, transparent 52%),
-    radial-gradient(ellipse 45% 55% at 68% 82%, rgba(242, 79, 29, 0.06) 0%, transparent 52%);
+  --mesh-brand: radial-gradient(
+      ellipse 85% 65% at 12% 35%,
+      color-mix(in oklab, var(--glc-blue) 30%, transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 82% 18%,
+      color-mix(in oklab, var(--glc-green) 22%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse 45% 55% at 68% 82%,
+      color-mix(in oklab, var(--glc-orange) 20%, transparent) 0%,
+      transparent 52%
+    );
   --mesh-ink: var(--mesh-brand);
+
+  --audit-workspace-main-bg: var(--bg-canvas);
+
+  --audit-ws-dark-hero-s1-surface: 94%;
+  --audit-ws-dark-hero-s1-blue: 4%;
+  --audit-ws-dark-hero-s2-inset: 92%;
+  --audit-ws-dark-hero-s2-deeper: 5%;
+
+  --audit-domain-hero-bg: linear-gradient(
+    155deg,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-dark-hero-s1-surface),
+        var(--glc-blue) var(--audit-ws-dark-hero-s1-blue)
+      )
+      0%,
+    color-mix(
+        in oklab,
+        var(--bg-inset) var(--audit-ws-dark-hero-s2-inset),
+        var(--glc-blue-deeper) var(--audit-ws-dark-hero-s2-deeper)
+      )
+      72%,
+    var(--bg-surface) 100%
+  );
+
+  --audit-ws-dark-sidebar-s1-surface: 92%;
+  --audit-ws-dark-sidebar-s1-elevated: 8%;
+
+  --audit-workspace-sidebar-bg: linear-gradient(
+    180deg,
+    color-mix(
+        in oklab,
+        var(--bg-surface) var(--audit-ws-dark-sidebar-s1-surface),
+        var(--bg-elevated) var(--audit-ws-dark-sidebar-s1-elevated)
+      )
+      0%,
+    var(--bg-surface) 100%
+  );
+
+  --ui-audit-strength-pill-mix: 14%;
+  --ui-audit-strength-index-mix: 16%;
+  --ui-audit-strength-pill-bg: color-mix(
+    in oklab,
+    var(--glc-green) var(--ui-audit-strength-pill-mix),
+    transparent
+  );
+  --ui-audit-strength-index-bg: color-mix(
+    in oklab,
+    var(--glc-green) var(--ui-audit-strength-index-mix),
+    transparent
+  );
+
+  --audit-domain-header-icon-fg: var(--primary-foreground);
 
   --sync-loader-path-idle: #30363D;
   --sync-loader-path-pulse: #484F58;
+  --report-hero-bg: linear-gradient(
+    155deg,
+    color-mix(in oklab, var(--bg-surface) 88%, var(--glc-blue) 12%) 0%,
+    color-mix(in oklab, var(--bg-inset) 92%, var(--glc-blue) 8%) 58%,
+    color-mix(in oklab, var(--bg-canvas) 95%, var(--glc-blue-deeper) 5%) 100%
+  );
+  --report-hero-mesh-bg: var(--mesh-ink);
+  --report-hero-mesh-opacity: 0.46;
+  --report-hero-kicker-fg: var(--overlay-white-90);
+  --report-hero-kicker-border: var(--overlay-white-28);
+  --report-hero-title-fg: var(--primary-foreground);
+  --report-hero-meta-fg: var(--overlay-white-45);
+  --report-hero-summary-fg: var(--overlay-white-72);
+  --report-hero-pill-bg: var(--overlay-white-07);
+  --report-hero-pill-border: var(--overlay-white-10);
+  --report-hero-pill-fg: var(--overlay-white-80);
+  --report-hero-score-panel-bg: var(--sidebar-border);
+  --report-hero-score-panel-border: var(--overlay-white-10);
+  --report-hero-score-label-fg: var(--overlay-white-40);
+  --report-hero-ring-track: var(--overlay-white-10);
+  --report-hero-score-value-fg: var(--text-inverse);
+  --report-hero-ring-glow: drop-shadow(0 0 8px color-mix(in oklab, var(--glc-blue) 60%, transparent));
+  --report-scorecard-head-bg: var(--bg-canvas);
+  --report-scorecard-head-border: var(--border-subtle);
+  --report-scorecard-meta-fg: var(--text-tertiary);
+  --report-scorecard-row-hover-bg: var(--bg-canvas);
+  --report-quick-wins-header-bg: var(--bg-canvas);
+  --report-quick-wins-index-bg: var(--glc-orange-xlight);
+  --report-quick-wins-index-fg: var(--glc-orange);
 
   --background: var(--bg-canvas);
   --foreground: var(--text-primary);
@@ -558,7 +905,7 @@ html.dark {
   --secondary-foreground: var(--text-primary);
   --muted: var(--bg-muted);
   --muted-foreground: var(--text-tertiary);
-  --accent: rgba(28, 189, 255, 0.16);
+  --accent: color-mix(in oklab, var(--glc-blue) 16%, transparent);
   --accent-foreground: var(--glc-blue-light);
   --border: var(--border-subtle);
   --input: var(--bg-muted);
@@ -566,30 +913,51 @@ html.dark {
   --switch-background: var(--border-default);
 
   /* Shadcn sidebar on dark canvas: ink chrome + light copy */
-  --sidebar-foreground: rgba(255, 255, 255, 0.82);
+  --sidebar-foreground: color-mix(in oklab, var(--text-primary) 82%, transparent);
   --sidebar-accent: var(--glc-ink-2);
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-border: color-mix(in oklab, var(--text-primary) 6%, transparent);
 
   --app-shell-sidebar-bg: var(--bg-canvas);
   --app-shell-sidebar-mesh-opacity: 0;
-  --app-shell-sidebar-hairline: rgba(255, 255, 255, 0.15);
-  --app-shell-sidebar-control-bg: rgba(255, 255, 255, 0.2);
-  --app-shell-sidebar-control-border: rgba(255, 255, 255, 0.15);
-  --app-shell-sidebar-search-slot-bg: rgba(255, 255, 255, 0.15);
-  --app-shell-sidebar-kbd-bg: rgba(255, 255, 255, 0.2);
-  --app-shell-sidebar-kbd-fg: rgba(255, 255, 255, 0.35);
-  --app-shell-sidebar-active-row-bg: rgba(255, 255, 255, 0.2);
-  --app-shell-sidebar-theme-icon-muted: rgba(255, 255, 255, 0.42);
-  --app-shell-sidebar-theme-icon-active: rgba(255, 255, 255, 0.78);
-  --app-shell-sidebar-switch-track: rgba(255, 255, 255, 0.22);
+  --app-shell-sidebar-hairline: color-mix(in oklab, var(--text-primary) 15%, transparent);
+  --app-shell-sidebar-control-bg: color-mix(in oklab, var(--text-primary) 20%, transparent);
+  --app-shell-sidebar-control-border: color-mix(in oklab, var(--text-primary) 15%, transparent);
+  --app-shell-sidebar-search-slot-bg: color-mix(in oklab, var(--text-primary) 15%, transparent);
+  --app-shell-sidebar-kbd-bg: color-mix(in oklab, var(--text-primary) 20%, transparent);
+  --app-shell-sidebar-kbd-fg: color-mix(in oklab, var(--text-primary) 35%, transparent);
+  --app-shell-sidebar-active-row-bg: color-mix(in oklab, var(--text-primary) 20%, transparent);
+  --app-shell-sidebar-theme-icon-muted: color-mix(in oklab, var(--text-primary) 42%, transparent);
+  --app-shell-sidebar-theme-icon-active: color-mix(in oklab, var(--text-primary) 78%, transparent);
+  --app-shell-sidebar-switch-track: color-mix(in oklab, var(--text-primary) 22%, transparent);
 
-  --app-shell-sidebar-caps-fg: rgba(255, 255, 255, 0.62);
-  --app-shell-sidebar-link-fg: rgba(255, 255, 255, 0.8);
-  --app-shell-sidebar-link-icon: rgba(255, 255, 255, 0.7);
-  --app-shell-sidebar-search-fg: rgba(255, 255, 255, 0.76);
-  --app-shell-sidebar-disabled-fg: rgba(255, 255, 255, 0.5);
-  --app-shell-sidebar-disabled-icon: rgba(255, 255, 255, 0.45);
+  --app-shell-sidebar-caps-fg: color-mix(in oklab, var(--text-primary) 62%, transparent);
+  --app-shell-sidebar-link-fg: color-mix(in oklab, var(--text-primary) 80%, transparent);
+  --app-shell-sidebar-link-icon: color-mix(in oklab, var(--text-primary) 70%, transparent);
+  --app-shell-sidebar-search-fg: color-mix(in oklab, var(--text-primary) 76%, transparent);
+  --app-shell-sidebar-disabled-fg: color-mix(in oklab, var(--text-primary) 50%, transparent);
+  --app-shell-sidebar-disabled-icon: color-mix(in oklab, var(--text-primary) 45%, transparent);
+
+  /* Dark mode overlays must be derived from light ink, not --text-inverse. */
+  --overlay-white-46: color-mix(in oklab, var(--text-primary) 46%, transparent);
+  --overlay-white-75: color-mix(in oklab, var(--text-primary) 75%, transparent);
+  --overlay-white-90: color-mix(in oklab, var(--text-primary) 90%, transparent);
+  --overlay-white-80: color-mix(in oklab, var(--text-primary) 80%, transparent);
+  --overlay-white-72: color-mix(in oklab, var(--text-primary) 72%, transparent);
+  --overlay-white-40: color-mix(in oklab, var(--text-primary) 40%, transparent);
+  --overlay-white-28: color-mix(in oklab, var(--text-primary) 28%, transparent);
+  --overlay-white-10: color-mix(in oklab, var(--text-primary) 10%, transparent);
+  --overlay-white-07: color-mix(in oklab, var(--text-primary) 7%, transparent);
+  --overlay-white-45: color-mix(in oklab, var(--text-primary) 45%, transparent);
+  --overlay-white-38: color-mix(in oklab, var(--text-primary) 38%, transparent);
+  --overlay-white-35: color-mix(in oklab, var(--text-primary) 35%, transparent);
+  --overlay-white-30: color-mix(in oklab, var(--text-primary) 30%, transparent);
+  --overlay-white-20: color-mix(in oklab, var(--text-primary) 20%, transparent);
+  --overlay-white-15: color-mix(in oklab, var(--text-primary) 15%, transparent);
+  --overlay-white-85: color-mix(in oklab, var(--text-primary) 85%, transparent);
+  --overlay-white-14: color-mix(in oklab, var(--text-primary) 14%, transparent);
+  --overlay-white-09: color-mix(in oklab, var(--text-primary) 9%, transparent);
+  --overlay-white-08: color-mix(in oklab, var(--text-primary) 8%, transparent);
 }
 
 @theme inline {

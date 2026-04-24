@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ArrowUpRight, ArrowsClockwise } from '@phosphor-icons/react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight, ArrowsClockwise, CaretDoubleRight } from '@phosphor-icons/react';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'motion/react';
 import { Link } from 'react-router';
 import { AppShell } from '../../components/AppShell';
@@ -10,6 +11,9 @@ import { AUDIT_WORKSPACE_COPY } from '../../config/audit-workspace-copy.en';
 import { DOMAIN_LABELS, INTAKE_BRIEF_SLA_PRODUCT_MODE } from '../../data/auditTypes';
 import type { IntakeVersionTuple } from '../../data/auditTypes';
 import type { BriefResponses } from '../../data/briefQuestions';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
+import { useIsMobile } from '../../components/ui/use-mobile';
+import { cn } from '../../components/ui/utils';
 import { useAuditWorkspaceBriefAutosave } from './hooks/useAuditWorkspaceBriefAutosave';
 import {
   useAuditWorkspaceRouteParams,
@@ -25,9 +29,15 @@ import { RecommendationsSection } from './sections/RecommendationsSection';
 import { DataGapsSection } from './sections/DataGapsSection';
 import { EnrichmentSection } from './sections/EnrichmentSection';
 import { Button } from '../../components/ui/button';
+import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
+import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
+  const isMobile = useIsMobile();
+  const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const layout = AUDIT_WORKSPACE_UI.layout;
   const { audit, loading, error, reload } = useAudit(id);
   const state = useAuditWorkspaceState(audit, domainId, id);
   const { visibleDomainKeys, domainData, followupQuestions, overallScore, companyName } =
@@ -80,6 +90,134 @@ export function AuditWorkspaceScreen() {
     .map(key => audit.domains[key])
     .filter(entry => entry != null && entry.score != null);
 
+  const workspaceSidebar = (
+    <WorkspaceSidebar
+      id={id}
+      audit={audit}
+      overallScore={overallScore}
+      domainCount={domainEntries.length}
+      briefPanelOpen={state.briefPanelOpen}
+      setBriefPanelOpen={state.setBriefPanelOpen}
+      briefLayoutChoice={state.briefLayoutChoice}
+      selectBriefLayout={state.selectBriefLayout}
+      clearBriefLayout={state.clearBriefLayout}
+      workspaceBriefResponses={workspaceBriefResponses}
+      workspaceBriefSavedFlash={workspaceSavedFlash}
+      onWizardResponsesChange={next => {
+        setWorkspaceBriefResponses(next);
+        queueWorkspaceSave(next);
+      }}
+      onFieldChange={(qid, value) => {
+        setWorkspaceBriefResponses(prev => {
+          const next = { ...prev, [qid]: { value, source: 'consultant' as const } };
+          queueWorkspaceSave(next);
+          return next;
+        });
+      }}
+      onFieldUnknown={qid => {
+        setWorkspaceBriefResponses(prev => {
+          const next = { ...prev, [qid]: { value: null, source: 'unknown' as const } };
+          queueWorkspaceSave(next);
+          return next;
+        });
+      }}
+      visibleDomainKeys={visibleDomainKeys}
+      activeDomain={state.activeDomain}
+      setActiveDomain={state.setActiveDomain}
+      resetOpenRecommendation={() => state.setOpenRec(null)}
+      workspaceConsultantSurface={workspaceConsultantSurface}
+      bankMetrics={bankMetrics}
+      fillParentWidth={!isMobile}
+      onRequestCollapse={
+        isMobile ? undefined : () => {
+          sidebarPanelRef.current?.collapse();
+        }
+      }
+    />
+  );
+
+  const workspaceMain = (
+    <div
+      className={cn(
+        'ds-audit-workspace-main relative min-h-0 overflow-y-auto',
+        isMobile ? 'flex-1' : 'h-full min-w-0',
+      )}
+    >
+      {sidebarCollapsed && !isMobile ? (
+        <button
+          type="button"
+          onClick={() => {
+            sidebarPanelRef.current?.expand(layout.sidebarPanelMinSizePct);
+          }}
+          className="absolute left-2 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-sm hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2"
+          aria-label={AUDIT_WORKSPACE_COPY.sidebar.expandSidebar}
+        >
+          <CaretDoubleRight className="h-4 w-4" aria-hidden />
+        </button>
+      ) : null}
+      <AnimatePresence mode="wait">
+        {domainData ? (
+          <motion.div
+            key={state.activeDomain}
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{
+              duration: AUDIT_WORKSPACE_UI.transitions.contentFadeDuration,
+              ease: AUDIT_WORKSPACE_UI.transitions.panelEase,
+            }}
+            className={`${AUDIT_WORKSPACE_UI.layout.contentMaxWidthClass} mx-auto ds-pattern-page-shell-body space-y-6`}
+          >
+            <DomainHeaderCard activeDomain={state.activeDomain} domainData={domainData} />
+            <StrengthsSection domainData={domainData} />
+            <IssuesSection domainData={domainData} />
+            <EnrichmentSection
+              id={id}
+              domainData={domainData}
+              activeDomain={state.activeDomain}
+              followupQuestions={followupQuestions}
+              enrichOpen={state.enrichOpen}
+              setEnrichOpen={state.setEnrichOpen}
+              enrichSaved={enrichSaved}
+              briefResponses={workspaceBriefResponses}
+              queueFollowupSave={(qid, value, source, base) => {
+                const next = {
+                  ...base,
+                  [qid]: { value, source: source ?? 'consultant' },
+                };
+                setWorkspaceBriefResponses(next);
+                queueFollowupBriefSave(qid, value, source ?? 'consultant', next);
+              }}
+            />
+            <RecommendationsSection
+              domainData={domainData}
+              openRec={state.openRec}
+              setOpenRec={state.setOpenRec}
+            />
+            <DataGapsSection domainData={domainData} />
+            <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.auditWorkspace} compact />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-center h-64"
+          >
+            <div className="text-center">
+              <p className="text-muted-foreground text-sm">
+                {AUDIT_WORKSPACE_COPY.emptyDomain.title}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {AUDIT_WORKSPACE_COPY.emptyDomain.hint}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
   return (
     <AppShell
       title={AUDIT_WORKSPACE_COPY.shell.title}
@@ -103,107 +241,53 @@ export function AuditWorkspaceScreen() {
         </div>
       }
     >
-      <div className="flex ds-audit-workspace-main-h">
-        <WorkspaceSidebar
-          id={id}
-          audit={audit}
-          overallScore={overallScore}
-          domainCount={domainEntries.length}
-          briefPanelOpen={state.briefPanelOpen}
-          setBriefPanelOpen={state.setBriefPanelOpen}
-          briefLayoutChoice={state.briefLayoutChoice}
-          selectBriefLayout={state.selectBriefLayout}
-          clearBriefLayout={state.clearBriefLayout}
-          workspaceBriefResponses={workspaceBriefResponses}
-          workspaceBriefSavedFlash={workspaceSavedFlash}
-          onWizardResponsesChange={next => {
-            setWorkspaceBriefResponses(next);
-            queueWorkspaceSave(next);
-          }}
-          onFieldChange={(qid, value) => {
-            setWorkspaceBriefResponses(prev => {
-              const next = { ...prev, [qid]: { value, source: 'consultant' as const } };
-              queueWorkspaceSave(next);
-              return next;
-            });
-          }}
-          onFieldUnknown={qid => {
-            setWorkspaceBriefResponses(prev => {
-              const next = { ...prev, [qid]: { value: null, source: 'unknown' as const } };
-              queueWorkspaceSave(next);
-              return next;
-            });
-          }}
-          visibleDomainKeys={visibleDomainKeys}
-          activeDomain={state.activeDomain}
-          setActiveDomain={state.setActiveDomain}
-          resetOpenRecommendation={() => state.setOpenRec(null)}
-          workspaceConsultantSurface={workspaceConsultantSurface}
-          bankMetrics={bankMetrics}
-        />
-
-        <div className="bg-background flex-1 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            {domainData ? (
-              <motion.div
-                key={state.activeDomain}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{
-                  duration: AUDIT_WORKSPACE_UI.transitions.contentFadeDuration,
-                  ease: AUDIT_WORKSPACE_UI.transitions.panelEase,
-                }}
-                className={`${AUDIT_WORKSPACE_UI.layout.contentMaxWidthClass} mx-auto ds-pattern-page-shell-body space-y-6`}
-              >
-                <DomainHeaderCard activeDomain={state.activeDomain} domainData={domainData} />
-                <StrengthsSection domainData={domainData} />
-                <IssuesSection domainData={domainData} />
-                <EnrichmentSection
-                  id={id}
-                  domainData={domainData}
-                  activeDomain={state.activeDomain}
-                  followupQuestions={followupQuestions}
-                  enrichOpen={state.enrichOpen}
-                  setEnrichOpen={state.setEnrichOpen}
-                  enrichSaved={enrichSaved}
-                  briefResponses={workspaceBriefResponses}
-                  queueFollowupSave={(qid, value, source, base) => {
-                    const next = {
-                      ...base,
-                      [qid]: { value, source: source ?? 'consultant' },
-                    };
-                    setWorkspaceBriefResponses(next);
-                    queueFollowupBriefSave(qid, value, source ?? 'consultant', next);
-                  }}
-                />
-                <RecommendationsSection
-                  domainData={domainData}
-                  openRec={state.openRec}
-                  setOpenRec={state.setOpenRec}
-                />
-                <DataGapsSection domainData={domainData} />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center justify-center h-64"
-              >
-                <div className="text-center">
-                  <p className="text-muted-foreground text-sm">
-                    {AUDIT_WORKSPACE_COPY.emptyDomain.title}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {AUDIT_WORKSPACE_COPY.emptyDomain.hint}
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {isMobile ? (
+        <div className="flex ds-audit-workspace-main-h">
+          {workspaceSidebar}
+          {workspaceMain}
         </div>
-      </div>
+      ) : (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="ds-audit-workspace-main-h"
+          autoSaveId={layout.sidebarLayoutAutoSaveId}
+          onLayout={sizes => {
+            const left = sizes[0];
+            if (left === undefined) return;
+            setSidebarCollapsed(left <= 1);
+          }}
+        >
+          <ResizablePanel
+            ref={sidebarPanelRef}
+            id="audit-workspace-sidebar"
+            order={1}
+            defaultSize={layout.sidebarPanelDefaultSizePct}
+            minSize={layout.sidebarPanelMinSizePct}
+            maxSize={layout.sidebarPanelMaxSizePct}
+            collapsible
+            collapsedSize={layout.sidebarPanelCollapsedSizePct}
+            onCollapse={() => setSidebarCollapsed(true)}
+            onExpand={() => setSidebarCollapsed(false)}
+            className="min-w-0"
+          >
+            <div className="flex h-full min-h-0 flex-col">{workspaceSidebar}</div>
+          </ResizablePanel>
+          <ResizableHandle
+            aria-label={AUDIT_WORKSPACE_COPY.sidebar.resizeHandle}
+            title={AUDIT_WORKSPACE_COPY.sidebar.resizeHint}
+            className="w-1.5 bg-[var(--border-subtle)] after:w-1.5"
+          />
+          <ResizablePanel
+            id="audit-workspace-main"
+            order={2}
+            defaultSize={100 - layout.sidebarPanelDefaultSizePct}
+            minSize={layout.sidebarPanelRightMinSizePct}
+            className="min-w-0"
+          >
+            <div className="flex h-full min-h-0 flex-col">{workspaceMain}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
     </AppShell>
   );
 }

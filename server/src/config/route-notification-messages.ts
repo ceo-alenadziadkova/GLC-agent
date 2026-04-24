@@ -69,6 +69,9 @@ const pl = raw.pipeline;
 
 export const PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE = pl.phaseFailedTitle;
 
+/** In-app notification body for audit participants when a phase crashes (no raw error text). */
+export const PIPELINE_PHASE_FAILED_USER_NOTIFICATION_MESSAGE = pl.phaseFailedUserMessage;
+
 export const PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE = pl.retryStartedTitle;
 
 export function pipelineRetryStartedNotificationMessage(phase: number): string {

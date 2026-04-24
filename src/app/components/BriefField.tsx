@@ -11,6 +11,20 @@ export const PRIORITY_BADGE: Record<string, { label: string; className: string }
   optional: { label: 'Optional', className: 'text-success' },
 };
 
+const EXCLUSIVE_MULTI_CHOICE_OPTIONS = new Set([
+  'None',
+  'None / minimal',
+  'None currently',
+  'Nothing specific yet',
+  'Not really online yet',
+  'Not ready to run tests yet',
+  'No explicit guarantees',
+]);
+
+function isExclusiveMultiChoiceOption(option: string): boolean {
+  return EXCLUSIVE_MULTI_CHOICE_OPTIONS.has(option) || /^None(?:\b|\/|\s)/i.test(option);
+}
+
 function friendlyFreeTextPlaceholder(questionId: string): string {
   const byId: Record<string, string> = {
     b1: 'Example: "Families visiting Palma for 3-5 nights, booking 2-4 weeks ahead."',
@@ -83,7 +97,7 @@ export function BriefField({
           </span>
         </div>
       </div>
-      {q.hint && (
+      {q.hint && q.type !== 'free_text' && (
         <p className="text-muted-foreground -mt-0.5 text-xs">{q.hint}</p>
       )}
       {q.id === 'f2' && productMode === 'express' && (
@@ -109,11 +123,11 @@ export function BriefField({
             rows={interviewMode ? 3 : 2}
             value={strVal}
             onChange={e => onChange(e.target.value || null)}
-            placeholder={friendlyFreeTextPlaceholder(q.id)}
+            placeholder={q.hint ?? friendlyFreeTextPlaceholder(q.id)}
             className="bg-muted resize-none text-sm"
           />
           <p className="text-muted-foreground m-0 text-xs">
-            Short answer is enough. If you want, write in detail. Voice input is also welcome.
+            Write what comes to mind first. Short is fine, detailed is even better.
           </p>
         </div>
       )}
@@ -173,13 +187,23 @@ export function BriefField({
             {q.options.map(opt => {
               const selected = arrVal.includes(opt);
               const locked = disabledOptions?.includes(opt) ?? false;
+              const clickedExclusive = isExclusiveMultiChoiceOption(opt);
               return (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => {
                     if (locked) return;
-                    const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
+                    let next: string[];
+                    if (selected) {
+                      next = arrVal.filter(v => v !== opt);
+                    } else if (clickedExclusive) {
+                      // "None/Not really..." answers must be exclusive.
+                      next = [opt];
+                    } else {
+                      // Choosing a concrete channel/tool removes exclusive "none" answer.
+                      next = [...arrVal.filter(v => !isExclusiveMultiChoiceOption(v)), opt];
+                    }
                     onChange(next.length ? next : null);
                   }}
                   disabled={locked}

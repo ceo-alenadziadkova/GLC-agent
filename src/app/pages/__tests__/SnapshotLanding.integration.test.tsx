@@ -86,7 +86,7 @@ describe('SnapshotLanding integration', () => {
 
     fireEvent.change(input, { target: { value: 'example.com' } });
 
-    const submitBtn = await screen.findByRole('button', { name: /Analyse my website/i });
+    const submitBtn = await screen.findByRole('button', { name: /Get clarity on my website/i });
     fireEvent.click(submitBtn);
 
     await waitFor(
@@ -127,7 +127,7 @@ describe('SnapshotLanding integration', () => {
 
     const input = await screen.findByPlaceholderText('yourcompany.com');
     fireEvent.change(input, { target: { value: 'slow.example.com' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Analyse my website/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get clarity on my website/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Daily limit reached/i)).toBeInTheDocument();
@@ -187,7 +187,7 @@ describe('SnapshotLanding integration', () => {
 
     const input = await screen.findByPlaceholderText('yourcompany.com');
     fireEvent.change(input, { target: { value: 'transient.example.com' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Analyse my website/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get clarity on my website/i }));
 
     await waitFor(
       () => {
@@ -226,7 +226,7 @@ describe('SnapshotLanding integration', () => {
 
     const input = await screen.findByPlaceholderText('yourcompany.com');
     fireEvent.change(input, { target: { value: 'threshold.example.com' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Analyse my website/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get clarity on my website/i }));
 
     await waitFor(
       () => {
@@ -280,7 +280,7 @@ describe('SnapshotLanding integration', () => {
 
     const input = await screen.findByPlaceholderText('yourcompany.com');
     fireEvent.change(input, { target: { value: 'gaps.example.com' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Analyse my website/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get clarity on my website/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Gaps Co' })).toBeInTheDocument();
@@ -340,7 +340,7 @@ describe('SnapshotLanding integration', () => {
 
     const input = await screen.findByPlaceholderText('yourcompany.com');
     fireEvent.change(input, { target: { value: 'nogaps.example.com' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Analyse my website/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Get clarity on my website/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'NoGaps Co' })).toBeInTheDocument();

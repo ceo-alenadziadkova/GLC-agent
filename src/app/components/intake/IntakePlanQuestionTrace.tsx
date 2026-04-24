@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import type { IntakePlan } from '@glc/intake-core';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import {
   TRACE_LAYERS,
   TRACE_STATES,
@@ -101,9 +102,9 @@ export function IntakePlanQuestionTrace({
 
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium text-[var(--glc-fg)]">Question id contains</span>
-        <input
+        <Input
           type="search"
-          className="glc-input font-mono text-xs"
+          className="glc-input h-auto min-h-7 font-mono text-xs"
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="e.g. c_nosite or a5"

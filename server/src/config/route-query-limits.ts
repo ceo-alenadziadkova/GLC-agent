@@ -22,3 +22,21 @@ export const PIPELINE_STATUS_EVENTS_LIMIT = R.pipelineStatusEventsLimit;
 export const AUDIT_REQUESTS_LIST_DEFAULT_LIMIT = R.auditRequestsList.defaultLimit;
 
 export const AUDIT_REQUESTS_LIST_MAX_LIMIT = R.auditRequestsList.maxLimit;
+
+export const ORCHESTRATION_ROADMAP_MANIFEST_SNAPSHOTS_LIST_DEFAULT_LIMIT =
+  R.orchestrationRoadmapManifestSnapshotsList.defaultLimit;
+
+export const ORCHESTRATION_ROADMAP_MANIFEST_SNAPSHOTS_LIST_MAX_LIMIT =
+  R.orchestrationRoadmapManifestSnapshotsList.maxLimit;
+
+export const ORCHESTRATION_ROADMAP_MANIFEST_SNAPSHOTS_LIST_MIN_LIMIT =
+  R.orchestrationRoadmapManifestSnapshotsList.minLimit;
+
+export const ORCHESTRATION_PACK_DIFF_HISTORY_LIST_DEFAULT_LIMIT =
+  R.orchestrationPackDiffHistoryList.defaultLimit;
+
+export const ORCHESTRATION_PACK_DIFF_HISTORY_LIST_MAX_LIMIT =
+  R.orchestrationPackDiffHistoryList.maxLimit;
+
+export const ORCHESTRATION_PACK_DIFF_HISTORY_LIST_MIN_LIMIT =
+  R.orchestrationPackDiffHistoryList.minLimit;

@@ -52,6 +52,46 @@ export interface FreeSnapshotModePolicyV1 extends PolicyRichnessV1 {
   requiredness: 'none';
 }
 
+export type IntakePolicyFollowupRuleDefinitionV1 = {
+  /** Stop follow-up when mapped signal confidence is in this set. */
+  stopWhenSignalConfidenceIn?: Array<'low' | 'medium' | 'high' | 'unknown'>;
+  /** Ask deeper when mapped signal confidence is in this set. */
+  deeperWhenSignalConfidenceIn?: Array<'low' | 'medium' | 'high' | 'unknown'>;
+  /** When true, treat explicit unknown / empty response as stop for this question. */
+  treatEmptyOrUnknownResponseAsStop?: boolean;
+};
+
+/**
+ * Configurable intelligence behavior (no magic numbers in services — thresholds live in JSON).
+ */
+export interface IntakePolicyIntelligenceV1 {
+  casePatternsEnabled?: boolean;
+  followupRuleDefinitions?: Record<string, IntakePolicyFollowupRuleDefinitionV1>;
+  /**
+   * When true (default), remove unanswered optional overlay bank ids from `nextRecommended` after a
+   * matched case’s `stopCondition` is met and `minOverlayAnswered` is satisfied. Required bank ids
+   * from policy are never removed.
+   */
+  caseStopPrunesOptionalOverlay?: boolean;
+  /**
+   * When true (default), after an answered question’s follow-up policy evaluates to `stop`, drop
+   * subsequent unanswered questions that share the same primary `signalContribution[0].signalKey`
+   * unless they are in the policy required set.
+   */
+  followupStopPrunesSameSignalOptional?: boolean;
+  /**
+   * F1: deterministic “minimum sufficient context” for `decideIntakeNextQuestion` (ADR-INTAKE-NEXT-QUESTION-V1).
+   * When enabled with no sub-flags, an empty `nextRecommended` is treated as sufficient to stop.
+   */
+  minimumSufficientContext?: {
+    enabled?: boolean;
+    requirePilotCriticalSatisfied?: boolean;
+    requireMatchedCaseStops?: boolean;
+    requireConfidenceFloor?: boolean;
+    confidenceTarget?: 'low' | 'medium' | 'high';
+  };
+}
+
 export interface IntakePolicyV1 {
   version: string;
   modes: {
@@ -61,4 +101,6 @@ export interface IntakePolicyV1 {
     pre_brief: PreBriefModePolicyV1;
     free_snapshot: FreeSnapshotModePolicyV1;
   };
+  /** Optional: adaptive case overlays + follow-up rule registry (Diagnostic Adaptive Intake). */
+  intelligence?: IntakePolicyIntelligenceV1;
 }

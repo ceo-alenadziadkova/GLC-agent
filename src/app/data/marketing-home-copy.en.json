@@ -1,16 +1,20 @@
 {
   "faqPreview": [
     {
-      "q": "Where should I start?",
-      "a": "If you are unsure—Snapshot. If you need one domain—Focus. For 2-3 coordinated domains—Context. For full cross-domain synthesis—Strategy workspace. No site—Discovery."
+      "q": "Can I get a full strategic roadmap from a pitch or voice note alone?",
+      "a": "The strongest output comes from a completed structured brief and, when you have a public site, a full analysis run. Free-text and dictation can speed up the brief as non-authoritative assists; they do not replace bank answers, and we do not promise open-ended viral or channel-scale growth from a pitch without evidence. See product scope for the audit-first contract."
     },
     {
-      "q": "Snapshot vs full workspace?",
-      "a": "Snapshot gives first visibility from public signals. Workspace adds your context, coordinates domain analysis, and builds roadmap."
+      "q": "What exactly do I receive after the brief?",
+      "a": "A decision pack: priority map, trade-off notes, and a first sequencing plan matched to agreed scope."
     },
     {
-      "q": "Can we implement without you?",
-      "a": "Yes. The workspace output and roadmap are written so your team or another vendor can run with them."
+      "q": "How fast do we get usable output?",
+      "a": "You get structured findings early, then a finalized output with explicit scope boundaries."
+    },
+    {
+      "q": "What is in scope, and what is not?",
+      "a": "Scope is confirmed before work starts. Items outside selected coverage are marked as non-covered."
     }
   ],
   "whoWeAreTitle": "Who we are",
@@ -21,26 +25,164 @@
     "Prioritize what matters.",
     "Move with a roadmap."
   ],
+  "homeMetricsSectionLabel": "At a glance",
   "whoWeAreMetrics": [
     {
-      "value": "Six domains",
-      "label": "Full-workspace runs cover tech, security, SEO, UX, marketing, and automation."
+      "value": "One shared story",
+      "label": "Capture context once—teams reuse it instead of re-briefing in every tool."
     },
     {
-      "value": "Fast first read",
-      "label": "Snapshot surfaces direction from public signals; deeper tiers add context and certainty."
+      "value": "Dependencies in view",
+      "label": "See cross-team handoffs before dates and budgets harden."
     },
     {
-      "value": "Structured handoff",
-      "label": "Findings and next steps your team—or another vendor—can execute without guesswork."
+      "value": "Ready to run",
+      "label": "Owners, a first sequence, and plain-language boundaries—nothing left vague."
     }
   ],
-  "trustMetricsLandmark": "At a glance",
-  "trustPointsAriaLabel": "What you can expect",
-  "trustMetricsTagline": "From ambiguity to action: clear priorities, confident execution.",
+  "homeAtAGlanceLandmark": "Everything starts here: shared context, connected picture, coherent direction",
+  "trustMetricsLandmark": "Everything starts here",
+  "homeMetricsGridLabel": "Proof point cards",
+  "trustPointsAriaLabel": "Core trust signals",
+  "homeHeroQuickLinksAriaLabel": "Jump to key sections",
+  "homeHeroQuickLinks": [
+    {
+      "label": "Need specifics now?",
+      "to": "/#outcomes"
+    },
+    {
+      "label": "Review output specimen",
+      "to": "/#outcomes"
+    },
+    {
+      "label": "or start with a brief",
+      "to": "/brief"
+    }
+  ],
+  "homeHeroPauseLine": "Signals are noisy. Direction should not be.",
+  "trustMetricsTagline": "One entry point. A direction teams can execute.",
   "whatWeDoActionLabel": "",
-  "chooseEntryTitle": "Choose an entry point",
-  "chooseEntryDescription": "Pick the route that matches your current depth and decision speed.",
+  "chooseEntryTitle": "Pick your route in under a minute",
+  "chooseEntryDescription": "Choose what matters most right now and open the matching route.",
+  "homeHowItWorksInputLabel": "Raw operating signals",
+  "homeHowItWorksResultLabel": "Decision path you can execute",
+  "homeHowItWorksResultTitle": "Decision pack ready for execution",
+  "homeHowItWorksResultBody": "Priority order, ownership, dependencies, and first action sequence.",
+  "homeGuidedSelectorTitle": "Quick route picker",
+  "homeGuidedSelectorDescription": "Three options. Pick one and continue.",
+  "homeGuidedSelectorOptions": [
+    {
+      "id": "idea-stage",
+      "label": "Idea stage (no public website yet)",
+      "hint": "",
+      "recommendedPathId": "discovery",
+      "recommendationLabel": "Recommended route"
+    },
+    {
+      "id": "signal-read",
+      "label": "Fast outside-in read",
+      "hint": "",
+      "recommendedPathId": "snapshot",
+      "recommendationLabel": "Recommended route"
+    },
+    {
+      "id": "cross-team",
+      "label": "Cross-team dependency clarity",
+      "hint": "",
+      "recommendedPathId": "pro",
+      "recommendationLabel": "Recommended route"
+    },
+    {
+      "id": "full-synthesis",
+      "label": "Full synthesis for leadership",
+      "hint": "",
+      "recommendedPathId": "complete",
+      "recommendationLabel": "Recommended route"
+    }
+  ],
+  "homeGuidedSelectorPaths": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "subtitle": "Structured path without a live website",
+      "to": "/discovery",
+      "nextStepLabel": "Next: clarify scope before build decisions.",
+      "ctaLabel": "Open Discovery route"
+    },
+    {
+      "id": "snapshot",
+      "title": "Snapshot",
+      "subtitle": "Fast outside-in signal read",
+      "to": "/snapshot",
+      "nextStepLabel": "Next: get first findings fast.",
+      "ctaLabel": "Open Snapshot route"
+    },
+    {
+      "id": "pro",
+      "title": "Context package",
+      "subtitle": "Cross-team alignment pack",
+      "to": "/pro",
+      "nextStepLabel": "Next: align key domains.",
+      "ctaLabel": "Open Context route"
+    },
+    {
+      "id": "complete",
+      "title": "Strategy workspace",
+      "subtitle": "Leadership synthesis workspace",
+      "to": "/complete",
+      "nextStepLabel": "Next: run full synthesis.",
+      "ctaLabel": "Open Strategy route"
+    }
+  ],
+  "homeGuidedSelectorComparisonRows": [
+    {
+      "label": "Decision depth",
+      "values": {
+        "snapshot": "Outside-in signals",
+        "pro": "Cross-domain context",
+        "complete": "Full strategic synthesis"
+      }
+    },
+    {
+      "label": "Time to first output",
+      "values": {
+        "snapshot": "Fastest",
+        "pro": "Moderate",
+        "complete": "Most comprehensive"
+      }
+    },
+    {
+      "label": "Team involvement",
+      "values": {
+        "snapshot": "Low",
+        "pro": "Medium",
+        "complete": "High"
+      }
+    }
+  ],
+  "homeGuidedSelectorRecoveryLabel": "Need a safer start?",
+  "homeGuidedSelectorRecoveryCtaLabel": "Start with Brief first.",
+  "homeGuidedSelectorRecoveryCtaTo": "/brief",
+  "homeCompressionBridgeKicker": "Before you continue",
+  "homeCompressionBridgeSummary": "You choose one route once. We keep scope explicit. Full roadmaps and execution sequences are strongest when the structured brief is complete and, where applicable, built on public-site evidence and a full run—not on a one-line idea alone.",
+  "homeScopeTruthKicker": "What shapes the direction",
+  "homeScopeTruthTitle": "Scope is explicit before delivery",
+  "homeScopeTruthBody": "We confirm coverage first, then interpret findings only within selected areas so recommendations stay useful and comparable.",
+  "homeScopeTruthExpandTriggerLabel": "How we prevent false confidence",
+  "homeScopeTruthExpandBody": "If a dependency sits outside agreed coverage, it is marked as non-covered in the output. This keeps recommendations honest and prevents over-commitment on weak signal. Natural-language or dictated notes in intake are merged as non-authoritative hints; explicit bank answers remain primary, consistent with the audit-first product contract.",
+  "homeScopeTruthCoverageItems": [
+    "Business model and positioning",
+    "Product and UX execution",
+    "Technology and architecture",
+    "Security, resilience, and risk",
+    "Operations and delivery flow",
+    "Growth channels and visibility"
+  ],
+  "homeScopeTruthBoundaryNote": "Boundary rule: non-covered dependencies are clearly labeled in the report.",
+  "homeScopeTruthCoverageMapHeadingLeft": "Coverage areas",
+  "homeScopeTruthCoverageMapHeadingRight": "Included in shared reading",
+  "homeScopeTruthCoverageStatusIncludedLabel": "Included",
+  "decisionPathCardActionLabel": "Explore this direction",
   "coveragePackagesTitle": "Coverage tiers",
   "coveragePackagesDescription": "Choose depth: one domain, a coordinated multi-domain pack, or full synthesis and roadmap.",
   "pillars": {
@@ -54,7 +196,48 @@
       "description": "Share context—we suggest a sensible route (Snapshot, Focus, Context, or Strategy workspace)."
     }
   },
-  "questionsTitle": "Questions",
-  "questionsDescription": "Short answers now, full detail in FAQ.",
-  "faqAllQuestionsLabel": "All questions and answers"
+  "questionsTitle": "Questions that reduce decision risk",
+  "questionsDescription": "Output format, timing, and boundaries - answered before you commit.",
+  "homeOutcomeSpecimenEyebrow": "Output specimen",
+  "homeOutcomeSpecimenBody": "Typical output: priority map, owner-by-owner sequence, trade-off notes, and labeled non-covered dependencies.",
+  "homeOutcomesRoleExplorerLabel": "View outcomes by role",
+  "homeOutcomesRoleLenses": [
+    {
+      "id": "founder",
+      "label": "Founder",
+      "summary": "Focus on where decision risk is highest this quarter.",
+      "specimenBody": "Founder view: priority map by business impact, trade-off notes, and a first sequence linked to quarter goals.",
+      "primaryBody": "You receive a priority map and a first action sequence to guide company-level direction.",
+      "secondaryBodies": [
+        "Cross-team implications are surfaced early so leadership can choose with downside in plain view.",
+        "Dependencies outside selected coverage are clearly labeled before budget or hiring commitments."
+      ]
+    },
+    {
+      "id": "ops",
+      "label": "Ops lead",
+      "summary": "Focus on ownership clarity and execution flow.",
+      "specimenBody": "Ops view: owner-by-owner sequence, handoff dependencies, and execution blockers visible before work starts.",
+      "primaryBody": "You receive a sequence that maps priorities to owners and handoff order your team can run.",
+      "secondaryBodies": [
+        "Dependencies across teams are made explicit so execution can move without hidden queue collisions.",
+        "Boundary labels prevent operational plans from assuming coverage that was never agreed."
+      ]
+    },
+    {
+      "id": "product",
+      "label": "Product lead",
+      "summary": "Focus on trade-offs and sequencing choices.",
+      "specimenBody": "Product view: decision order, scope trade-offs, and non-covered dependencies tied to roadmap choices.",
+      "primaryBody": "You receive a decision-ready sequence showing what to ship first and what to defer with intent.",
+      "secondaryBodies": [
+        "Trade-offs are explicit so roadmap choices are made with visible downside instead of intuition only.",
+        "Boundaries are documented in plain language to avoid accidental overcommitment in planning."
+      ]
+    }
+  ],
+  "homeMidCtaRecoveryLabel": "If the route still feels unclear,",
+  "homeMidCtaRecoveryCtaLabel": "start with Brief and we map the best path with you.",
+  "homeMidCtaRecoveryCtaTo": "/brief",
+  "faqAllQuestionsLabel": "See all answers"
 }

@@ -15,6 +15,9 @@ export const ALERT_CHECK_INTERVAL_MS = D.intervalMs;
 /** Background idempotency-key cleanup interval (ms). */
 export const IDEMPOTENCY_CLEANUP_INTERVAL_MS = D.intervalMs * D.idempotencyCleanupTickMultiplier;
 
+/** Background evaluation_datasets TTL cleanup interval (ms). */
+export const EVALUATION_DATASETS_CLEANUP_INTERVAL_MS = SYSTEM_DEFAULTS.evaluationDatasets.cleanupIntervalMs;
+
 /** Failure rate (failed starts / started) above which to notify. */
 export const ALERT_FAILURE_RATE_THRESHOLD = D.failureRateThreshold;
 

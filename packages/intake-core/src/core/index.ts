@@ -1,5 +1,77 @@
 export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
+export {
+  buildHypothesisCrossCheckFromReconPrefills,
+  evaluateIntakeReadinessEnvelope,
+  type EvaluateIntakeReadinessInput,
+  type IntakeReadinessCriticalSignalsMode,
+} from './intake-readiness-envelope.js';
+export {
+  decideIntakeNextQuestion,
+  evaluateMinimumSufficientContext,
+} from './intake-next-question.js';
+export {
+  computePilotCriticalBottleneckRank,
+  evaluateCriticalSignalsPilot,
+} from './evaluate-critical-signals.js';
+export { selectRemediationPilotQueue } from './evaluate-remediation-pilot.js';
+export { assembleIntakePlanDiagnostics } from './assemble-intake-plan-diagnostics.js';
+export {
+  resolveSequencingPilotArtifact,
+  type SequencingPilotArtifactV1,
+  type SequencingDependencyRuleV1,
+} from './resolve-sequencing-artifact.js';
+export { loadSurfaceMatrixPilot, type SurfaceMatrixPilotV1 } from './load-surface-matrix-pilot.js';
+export {
+  buildProjectContextEnvelope,
+  evaluateExecutionPlanScopeReadiness,
+  PHASE_BC_EXPANSION_ORDER,
+  isPhaseBcExpansionOrderValid,
+  type BuildProjectContextEnvelopeInput,
+  type ExecutionCoveragePackage,
+  type ExecutionPlanReadinessInput,
+  type ExecutionPlanReadinessResult,
+  type ExecutionPlanReadinessStub,
+  type PhaseBcExpansionStep,
+  type ProjectContextEnvelopeStub,
+} from './diagnostic-intake/phase-bc-stubs.js';
+export {
+  evaluatePilotKpiGate,
+  type IntakePilotKpiGateDecision,
+  type IntakePilotKpiGateEvaluation,
+  type IntakePilotKpiGateInput,
+} from './diagnostic-intake/evaluate-pilot-kpi-gate.js';
+export {
+  buildReadinessAnalyticsEvents,
+  type IntakeReadinessAnalyticsEvent,
+} from './diagnostic-intake/build-readiness-analytics-events.js';
+export {
+  getQuestionBankLegalMetaForBankId,
+  listQuestionBankIdsWithLegalMeta,
+  type QuestionBankLegalBasisV1,
+  type QuestionBankLegalMetaRowV1,
+} from '../question-bank-legal-meta.v1.js';
+export {
+  matchCasePatterns,
+  matchesCasePattern,
+  evaluateCaseStopCondition,
+  countAnsweredInSet,
+} from './case-matcher.js';
+export {
+  resolveCaseOverlay,
+  mergeOverlayIntoNextRecommended,
+  pruneNextRecommendedForSatisfiedCaseStops,
+} from './case-overlay-resolver.js';
+export {
+  evaluateFollowupPolicy,
+  pruneNextRecommendedAfterFollowupStops,
+  type FollowupEvaluationOutcome,
+} from './followup-policy-executor.js';
+export type {
+  IntakeCasePatternCatalogV1,
+  IntakeCasePatternV1,
+  CasePatternPrecondition,
+} from './case-pattern-types.js';
 export { buildIntakePlan, buildPlanFromScratch, recomputePlanIncremental } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
@@ -13,6 +85,8 @@ export {
   lintDuplicateDiscoveryIncluded,
   lintLayoutReferencesUnknownBankIds,
   lintMissingPolicyCoverage,
+  lintIntelligenceContractV1,
+  lintCasePatternsV1,
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
   lintPreBriefBankIncludedBranchConflicts,
@@ -24,6 +98,13 @@ export {
   type LintSeverity,
 } from './lint-bank-policy.js';
 export {
+  buildIntakeQuestionQualityReport,
+  INTAKE_QUESTION_QUALITY_BASELINE_V1,
+  type IntakeQuestionQualityBaseline,
+  type IntakeQuestionQualityDelta,
+  type IntakeQuestionQualityReport,
+} from './question-quality-engine/index.js';
+export {
   isFrozenArtifactTuple,
   isSupportedIntakeArtifactTuple,
   listSupportedFrozenArtifactKeys,
@@ -32,6 +113,7 @@ export {
 } from './resolve-intake-artifacts.js';
 export {
   intakeTupleArtifactKey,
+  normalizeIntakeVersionTupleFromStorage,
   parseIntakeVersionTuple,
   parseIntakeVersionsBody,
   tuplesEqual,
@@ -57,6 +139,8 @@ export type {
   ExpressModePolicyV1,
   FreeSnapshotModePolicyV1,
   FullModePolicyV1,
+  IntakePolicyFollowupRuleDefinitionV1,
+  IntakePolicyIntelligenceV1,
   IntakePolicyV1,
   PreBriefModePolicyV1,
 } from './policy-types.js';
@@ -81,5 +165,6 @@ export {
   INTAKE_LAYOUT_VERSION,
   INTAKE_POLICY_VERSION,
   INTAKE_RESOLVER_VERSION,
+  INTAKE_SEQUENCING_VERSION,
   syntheticIntakeVersionsBeforeMatrix,
 } from './versions.js';

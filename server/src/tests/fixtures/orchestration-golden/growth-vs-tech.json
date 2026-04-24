@@ -1,0 +1,29 @@
+{
+  "scenario": "growth-vs-tech",
+  "manifestSnapshotId": "11111111-1111-4111-8111-111111111111",
+  "nodes": [
+    {
+      "id": "growth-launch",
+      "title": "Growth launch sequence",
+      "domain": "marketing_utp",
+      "lane": "marketing_narrative",
+      "dependencies": ["tech-foundation", "missing-analytics"],
+      "weight": 7
+    },
+    {
+      "id": "tech-foundation",
+      "title": "Tech foundation hardening",
+      "domain": "tech_infrastructure",
+      "lane": "tech_delivery",
+      "dependencies": ["growth-launch"],
+      "weight": 8
+    }
+  ],
+  "expected": {
+    "critical_path": ["growth-launch", "tech-foundation"],
+    "conflict_ids": [
+      "orphan-dep:growth-launch:missing-analytics",
+      "cycle-break:tech-foundation->growth-launch"
+    ]
+  }
+}

@@ -26,6 +26,8 @@ These files contain **Plugin API script bodies** intended for the Cursor **Figma
 
 If **MCP returns a rate-limit error** (Figma Starter), wait for the monthly reset, **upgrade the team plan**, or paste each script into a Figma plugin that runs Plugin API code (same JS as `use_figma`).
 
+**Local Desktop plugin:** plain `code.js` often rejects **top-level `await`** from the `*.code.js` files. Use the wrapped entry and manifest notes in [`local-dev-plugin/README.md`](./local-dev-plugin/README.md) (includes ready [`part1-styles.plugin-entry.js`](./local-dev-plugin/part1-styles.plugin-entry.js)).
+
 ## After running
 
 Update token inventory in [`../FIGMA_GLC_DESIGN_SYSTEM.md`](../FIGMA_GLC_DESIGN_SYSTEM.md) if you add variables or rename pages.

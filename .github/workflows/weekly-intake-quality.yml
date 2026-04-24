@@ -1,0 +1,25 @@
+# Weekly report hook for question-bank + intake quality (Sprint E operational).
+name: Weekly intake quality report
+
+on:
+  schedule:
+    - cron: '20 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Intake quality report
+        run: pnpm test:intake-quality-report

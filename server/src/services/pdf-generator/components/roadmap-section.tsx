@@ -3,6 +3,7 @@ import { Text, View } from '@react-pdf/renderer';
 
 import { PDF_COPY_EN } from '../../../config/pdf-copy.en.js';
 import type { ReportInput } from '../../report-profiler.js';
+import { sanitizePdfText } from '../lib/formatters.js';
 import { pdfStyles as s, pdfTheme as C } from '../styles.js';
 
 type StrategyItem = { title: string; description?: string | null };
@@ -15,14 +16,14 @@ const RoadmapPhase: React.FC<{ color: string; title: string; items: StrategyItem
   <View style={s.rmSec}>
     <View style={s.rmPhHdr}>
       <View style={[s.rmDot, { backgroundColor: color }]} />
-      <Text style={s.rmPhTitle}>{title}</Text>
+      <Text style={s.rmPhTitle}>{sanitizePdfText(title)}</Text>
     </View>
     {items.map((item, i) => (
       <View key={i} style={s.rmItem}>
         <View style={s.rmBullet} />
         <Text style={s.rmText}>
-          <Text style={{ fontFamily: 'Helvetica-Bold' }}>{item.title}</Text>
-          {item.description ? `: ${item.description}` : ''}
+          <Text style={{ fontFamily: 'Helvetica-Bold' }}>{sanitizePdfText(item.title)}</Text>
+          {item.description ? `: ${sanitizePdfText(item.description)}` : ''}
         </Text>
       </View>
     ))}

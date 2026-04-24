@@ -19,9 +19,11 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 
 The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** `public-brand-defaults.v1.json`, not a `VITE_*` variable.
 
-**Static front config (no `VITE_*`):** feature flags (`app_feature_flags` — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback; change there and redeploy), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
+**Static front config (no `VITE_*`):** feature flags in [`src/app/config/app-feature-flags.ts`](../src/app/config/app-feature-flags.ts) (`APP_FEATURE_FLAGS`) — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback, plus orchestration/timeline rollout (`orchestrationRoadmapUiEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, …). These are **not** set via Railway/Vercel env; change constants and redeploy. Server mirror for timeline-first hooks: **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** — parity is enforced in [`src/app/config/orchestration-contract-parity.test.ts`](../src/app/config/orchestration-contract-parity.test.ts). Also: client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 
 Cross-page persistence keys for consultant flows live in **`storage_keys`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
+
+**Cookie consent (banner + settings):** The SPA mounts **`CookieConsentProvider`** in **`RootOutlet`** ([`src/app/routes.tsx`](../src/app/routes.tsx)) so cookie links can use **`Link`** inside the router. English copy lives in [`src/app/config/cookie-consent-banner.en.ts`](../src/app/config/cookie-consent-banner.en.ts); persistence policy in [`src/app/config/cookie-consent-storage-policy.ts`](../src/app/config/cookie-consent-storage-policy.ts) and helpers in [`src/app/lib/cookie-consent-storage.ts`](../src/app/lib/cookie-consent-storage.ts). Stored choices are versioned against **`LEGAL_DOCUMENT_VERSIONS.cookiesPolicy`** from **`@glc/api-paths`**; when that version changes, the user sees the banner again. For signed-in, non-anonymous users, **`GET /api/profile/legal-consents`** is the source of truth after load (local storage is then aligned). Banner actions persist optional categories via **`POST /api/profile/legal-consents`** with `product_analytics` and **`marketing`**. **Vercel Web Analytics** ([`@vercel/analytics/react`](../package.json)) is rendered inside the provider and **`beforeSend`** drops events until **`product_analytics`** is allowed. When consents change from **Settings**, the app dispatches **`GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT`** ([`src/app/config/legal-consent-client-policy.ts`](../src/app/config/legal-consent-client-policy.ts)) so the banner state and local snapshot stay aligned.
 
 ### UI languages (i18n target list)
 
@@ -57,7 +59,7 @@ Single source of truth for **visual values** is `src/styles/tokens.css` (light/d
 | Cyan `#1CBDFF` (`--glc-blue` …) | Primary / focus / data accent |
 | Orange `#F24F1D` (`--glc-orange` …) | CTA and emphasis (`--text-accent`, primary button utility) |
 | Green `#0ECF82` (`--glc-green` …) | Success / positive drift |
-| Ink stack (`--glc-ink` … `--glc-ink-4`) | Sidebar and deep surfaces |
+| Ink stack (`--glc-ink` … `--glc-ink-3`) | Sidebar and deep surfaces |
 
 **References:** product tone “Linear / Vercel / Stripe” is noted in `theme.css`. **Glass** panels use `--glass-*`; **mesh** backgrounds use `--mesh-brand` / `--mesh-ink`.
 
@@ -131,7 +133,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 | `--shadow-card` | Default card border + shadow |
 | `--glow-blue`, `--glow-orange`, `--glow-green` | Focus / emphasis rings |
 | `--gradient-brand`, `--gradient-accent`, `--gradient-success` | Buttons, heroes |
-| `--shadow-ink`, `--shadow-swiss` | Sidebar / bold UI |
+| `--shadow-ink` | Sidebar / bold UI |
 
 ### Motion and focus
 
@@ -218,6 +220,8 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
+| `/timeline/:id` | `PortalTimelinePage.tsx` | Orchestration execution timeline (`GET /api/audits/:id/timeline`); primary surface when `orchestrationTimelinePrimaryUxEnabled` |
+| `/portal/timeline/:id` | `PortalTimelinePage.tsx` | Client portal timeline (same data model; `restricted_client_view` when applicable) |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
 | `/admin/requests` | `pages/admin-request-queue/AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |
@@ -385,8 +389,9 @@ export function ProtectedRoute({ children }) {
 
 ### `ReviewPointModal.tsx`
 Modal shown at review gates in PipelineMonitor.
-- Displays generated interview questions (from recon)
-- Two textareas: "Consultant Notes" and "Client Interview Answers"
+- **Review Gate #1 (after phase 0):** renders `ReconReviewSummary` using `GET /api/audits/:id` → `recon` (crawl list, tech signals, contacts, optional brief) plus a warning when phase 0 logged crawler context truncation; copy in `src/app/data/pipeline-monitor-copy.en.json` (`reviewModal.recon`), limits in `src/app/config/recon-review-summary-policy.ts`.
+- **Pipeline Monitor — Phase 0:** the same `ReconReviewSummary` block appears in `PhaseDetailPanel` for consultants (not the client portal) as soon as the pipeline is started, with intro lines from `detail.reconPreview*` in that JSON file.
+- Two textareas: "Consultant Notes" and "Interview Notes"
 - "Approve & Continue" → calls `approveReview(phase, { consultant_notes, interview_notes })`
 
 ---

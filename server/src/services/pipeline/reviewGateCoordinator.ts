@@ -50,3 +50,24 @@ export async function runStrategyQualityGate(deps: RunStrategyQualityGateDeps): 
     .eq('after_phase', afterPhase);
 }
 
+/**
+ * Prepare the human review row for a new cycle after this phase completes.
+ * Required when a gate was previously approved (e.g. Strategy rerun after Gate 3): the row must
+ * return to `pending` so the UI and `runPipelineNext` see an open gate again.
+ * Prior-round notes are cleared here; they were already incorporated into the saved phase output.
+ */
+export async function reopenHumanReviewPointForPhase(auditId: string, afterPhase: number): Promise<void> {
+  const { error } = await supabase
+    .from('review_points')
+    .update({
+      status: 'pending',
+      consultant_notes: null,
+      interview_notes: null,
+      approved_at: null,
+      quality_gate_passed: null,
+    })
+    .eq('audit_id', auditId)
+    .eq('after_phase', afterPhase);
+  if (error) throw new Error(`[review_gate] reopen review point failed: ${error.message}`);
+}
+

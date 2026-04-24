@@ -1,11 +1,23 @@
 import { useEffect, useRef } from 'react';
-import { Link, NavLink } from 'react-router';
-import { List, X } from '@phosphor-icons/react';
+import { Link, NavLink, useLocation } from 'react-router';
+import { CaretDown, List, X } from '@phosphor-icons/react';
 import { GlcLogo } from '../components/GlcLogo';
-// import { ThemeToggle } from '../components/ThemeToggle';
-import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
+import { ThemeToggle } from '../components/ThemeToggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  LOGIN_PATH,
+  MARKETING_DESKTOP_HUB_LINKS,
+  MARKETING_LINKS,
+  MARKETING_PACKAGE_LINKS,
+} from './marketing-nav';
 import { cn } from '../components/ui/utils';
 import { usePublicBrand } from './PublicBrandContext';
+import { useGlcTempLightThemeLock } from '../hooks/useGlcTempLightThemeLock';
 import { useScrolled } from '../hooks/useScrolled';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
@@ -17,14 +29,14 @@ export function MarketingHeader({
   onMobileNavOpenChange: (open: boolean) => void;
 }) {
   const scrolled = useScrolled();
+  const location = useLocation();
+  const isLightThemeTempDisabled = useGlcTempLightThemeLock();
   const { footer } = usePublicBrand();
   const navCopy = WORKSPACE_PAGE_COPY.marketingLayout;
   const briefLink = MARKETING_LINKS.find(link => link.to === '/brief');
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const primaryLinks = MARKETING_LINKS.filter(link =>
-    ['/', '/snapshot', '/starter', '/pro', '/complete', '/discovery'].includes(link.to),
-  );
+  const packagesActive = MARKETING_PACKAGE_LINKS.some(link => link.to === location.pathname);
 
   useEffect(() => {
     if (!open) return;
@@ -88,7 +100,7 @@ export function MarketingHeader({
 
         <nav className="hidden lg:flex lg:flex-1 lg:justify-center" aria-label={navCopy.primaryNavAriaLabel}>
           <ul className="flex flex-wrap items-center justify-center gap-1">
-            {primaryLinks.filter(l => l.to !== '/').map(({ to, label }) => (
+            {MARKETING_DESKTOP_HUB_LINKS.map(({ to, label }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -105,11 +117,44 @@ export function MarketingHeader({
                 </NavLink>
               </li>
             ))}
+            <li>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium outline-none transition-[color,background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)] data-[state=open]:bg-[var(--bg-muted)] data-[state=open]:text-[var(--text-primary)]',
+                    packagesActive
+                      ? 'bg-[var(--bg-muted)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                  )}
+                  aria-label={navCopy.packagesMenuAriaLabel}
+                >
+                  <span>{navCopy.packagesMenuLabel}</span>
+                  <CaretDown className="h-3.5 w-3.5 shrink-0 opacity-70" weight="bold" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="min-w-[var(--marketing-dropdown-min-width)]">
+                  {MARKETING_PACKAGE_LINKS.map(({ to, label }) => (
+                    <DropdownMenuItem key={to} asChild className="cursor-pointer p-0">
+                      <NavLink
+                        to={to}
+                        className={({ isActive }) =>
+                          cn(
+                            'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm font-medium outline-none focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)]',
+                            isActive ? 'bg-[var(--bg-muted)] text-[var(--text-primary)]' : 'text-[var(--text-primary)]',
+                          )
+                        }
+                      >
+                        {label}
+                      </NavLink>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </li>
           </ul>
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {/* <ThemeToggle /> */}
+          {!isLightThemeTempDisabled && <ThemeToggle />}
           {/* TODO(ds): Spec and implement dedicated marketing-header CTA appearance in the design system (Brief link). */}
           <Link
             to={briefLink?.to ?? '/brief'}

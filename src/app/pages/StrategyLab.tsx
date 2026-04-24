@@ -1,29 +1,56 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
-  Target, Sparkle, ArrowsClockwise, ChartBar,
+  Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
+import { useProfile } from '../hooks/useProfile';
 import type { StrategyInitiative } from '../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
 import { api } from '../data/apiService';
+import { ApiError } from '../data/api-error';
 import { COLOR_TOKENS } from '../../design-system/tokens/colors';
 import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
+  STRATEGY_LAB_DOMAIN_FILTER_ALL,
+  STRATEGY_LAB_EXECUTION_PACK_POLICY,
+  STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS,
+  STRATEGY_LAB_ROADMAP_EXPORT_POLICY,
+  STRATEGY_LAB_SORT_MODES,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
+  type StrategyLabDomainFilter,
+  type StrategyLabRoadmapTimeframe,
+  type StrategyLabSortMode,
 } from '../config/strategy-lab';
+import {
+  STRATEGY_LAB_UI_BUDGET_BANDS,
+  STRATEGY_LAB_UI_COMPANY_STAGES,
+  STRATEGY_LAB_UI_TEAM_SCALES,
+} from '../config/strategy-lab-constraints';
 import { STRATEGY_LAB_COPY } from '../config/strategy-lab-copy';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
+import { toast } from 'sonner';
+import {
+  buildStrategyLabRoadmapMarkdown,
+  downloadTextFile,
+  strategyLabRoadmapExportFileName,
+} from '../lib/strategy-lab-roadmap-export';
+import { sortStrategyInitiatives } from '../lib/strategy-lab-sort';
+import type { StrategyExecutionPackResponse } from '../data/audit/contracts/report/strategy-lab.types';
 
-type Timeframe = 'quick' | 'medium' | 'strategic';
-
-const TABS: { key: Timeframe; label: string; icon: typeof Lightning; toneClass: string; desc: string }[] = [
+const TABS: {
+  key: StrategyLabRoadmapTimeframe;
+  label: string;
+  icon: typeof Lightning;
+  toneClass: string;
+  desc: string;
+}[] = [
   { key: 'quick', label: STRATEGY_LAB_COPY.tabLabels.quick, icon: Lightning, toneClass: 'text-warning', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
   { key: 'medium', label: STRATEGY_LAB_COPY.tabLabels.medium, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
   { key: 'strategic', label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, toneClass: 'text-violet-500', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
@@ -43,15 +70,39 @@ const EFFORT_CLASS: Record<string, string> = {
 
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
-  const { audit, loading, error } = useAudit(id);
-  const [activeTab, setActiveTab] = useState<Timeframe>('quick');
+  const { audit, loading, error, reload } = useAudit(id);
+  const { isClient } = useProfile();
+  const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
+  const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
+  const [sortMode, setSortMode] = useState<StrategyLabSortMode>('roi');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [executionLoading, setExecutionLoading] = useState(false);
+  const [lastPack, setLastPack] = useState<StrategyExecutionPackResponse | null>(null);
   const [domainBenchmarks, setDomainBenchmarks] = useState<
     Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>
   >({});
+  const [constraintStageDraft, setConstraintStageDraft] = useState<string>('growth');
+  const [constraintBudgetDraft, setConstraintBudgetDraft] = useState<string>('unknown');
+  const [constraintTeamDraft, setConstraintTeamDraft] = useState<string>('unknown');
+  const [constraintSaving, setConstraintSaving] = useState(false);
 
   useEffect(() => {
-    if (!audit?.strategy) return;
+    if (!audit?.strategy || isClient) return;
+    const ec = audit.strategy.effective_constraints;
+    if (ec && typeof ec.company_stage === 'string') {
+      setConstraintStageDraft(ec.company_stage);
+      setConstraintBudgetDraft(ec.budget_band);
+      setConstraintTeamDraft(ec.team_scale);
+      return;
+    }
+    setConstraintStageDraft('growth');
+    setConstraintBudgetDraft('unknown');
+    setConstraintTeamDraft('unknown');
+  }, [audit?.strategy, isClient]);
+
+  useEffect(() => {
+    if (!audit?.strategy || isClient) return;
     let cancelled = false;
     const ind = normalizeAuditIndustryKey(audit.meta?.industry);
     void (async () => {
@@ -77,7 +128,7 @@ export function StrategyLab() {
     return () => {
       cancelled = true;
     };
-  }, [audit?.strategy, audit?.meta?.industry]);
+  }, [audit?.strategy, audit?.meta?.industry, isClient]);
 
   const initiatives = useMemo(() => {
     if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
@@ -89,8 +140,120 @@ export function StrategyLab() {
   }, [audit?.strategy]);
 
   const visible = initiatives[activeTab];
+  const filteredVisible = useMemo(() => {
+    const base = visible.filter(
+      i => domainFilter === STRATEGY_LAB_DOMAIN_FILTER_ALL || i.domain === domainFilter,
+    );
+    return sortStrategyInitiatives(base, sortMode);
+  }, [visible, domainFilter, sortMode]);
+
+  const roadmapMarkdownPreview = useMemo(() => {
+    if (!audit?.strategy || selected.size === 0) return null;
+    const selectedByTimeframe = {
+      quick: initiatives.quick.filter(i => selected.has(i.id)),
+      medium: initiatives.medium.filter(i => selected.has(i.id)),
+      strategic: initiatives.strategic.filter(i => selected.has(i.id)),
+    };
+    return buildStrategyLabRoadmapMarkdown({
+      title: STRATEGY_LAB_COPY.export.documentTitle,
+      companyLabel: STRATEGY_LAB_COPY.export.companyLabel,
+      urlLabel: STRATEGY_LAB_COPY.export.urlLabel,
+      auditIdLabel: STRATEGY_LAB_COPY.export.auditIdLabel,
+      generatedOnLabel: STRATEGY_LAB_COPY.export.generatedOnLabel,
+      executiveSummaryHeading: STRATEGY_LAB_COPY.export.executiveSummaryHeading,
+      selectedHeading: STRATEGY_LAB_COPY.export.selectedInitiativesHeading,
+      sectionLabels: {
+        quick: STRATEGY_LAB_COPY.tabLabels.quick,
+        medium: STRATEGY_LAB_COPY.tabLabels.medium,
+        strategic: STRATEGY_LAB_COPY.tabLabels.strategic,
+      },
+      impactLabel: STRATEGY_LAB_COPY.export.impactLabel,
+      effortLabel: STRATEGY_LAB_COPY.export.effortLabel,
+      dependenciesLabel: STRATEGY_LAB_COPY.export.dependenciesLabel,
+      missingFieldValue: STRATEGY_LAB_COPY.export.missingFieldValue,
+      companyName: audit.meta.company_name,
+      companyUrl: audit.meta.company_url,
+      auditId: audit.meta.id,
+      executiveSummary: audit.strategy.executive_summary,
+      selectedByTimeframe,
+    });
+  }, [audit, initiatives, selected]);
+
   const allInitiatives = [...initiatives.quick, ...initiatives.medium, ...initiatives.strategic];
   const allSelected = allInitiatives.filter(i => selected.has(i.id));
+
+  const handleGenerateRoadmap = useCallback(() => {
+    if (!roadmapMarkdownPreview || !audit?.strategy) return;
+    const fileName = strategyLabRoadmapExportFileName(audit.meta, new Date());
+    downloadTextFile(fileName, roadmapMarkdownPreview, STRATEGY_LAB_ROADMAP_EXPORT_POLICY.markdownDownloadMimeType);
+    toast.success(STRATEGY_LAB_COPY.toasts.roadmapDownloaded);
+  }, [audit, roadmapMarkdownPreview]);
+
+  const handleSaveConstraintOverrides = useCallback(async () => {
+    if (!id) return;
+    setConstraintSaving(true);
+    try {
+      await api.patchStrategyLabContext(id, {
+        company_stage: constraintStageDraft,
+        budget_band: constraintBudgetDraft,
+        team_scale: constraintTeamDraft,
+      });
+      toast.success(STRATEGY_LAB_COPY.constraints.saveOk);
+      reload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.constraints.saveFailed);
+    } finally {
+      setConstraintSaving(false);
+    }
+  }, [id, constraintStageDraft, constraintBudgetDraft, constraintTeamDraft, reload]);
+
+  const handleClearConstraintOverrides = useCallback(async () => {
+    if (!id) return;
+    setConstraintSaving(true);
+    try {
+      await api.patchStrategyLabContext(id, {
+        company_stage: null,
+        budget_band: null,
+        team_scale: null,
+      });
+      toast.success(STRATEGY_LAB_COPY.constraints.clearOk);
+      reload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.constraints.saveFailed);
+    } finally {
+      setConstraintSaving(false);
+    }
+  }, [id, reload]);
+
+  const handleGenerateExecutionPlan = useCallback(async () => {
+    if (!id || selected.size === 0) return;
+    const initiative_ids = Array.from(selected);
+    if (initiative_ids.length > STRATEGY_LAB_EXECUTION_PACK_POLICY.maxInitiativesPerRequest) {
+      toast.error(
+        STRATEGY_LAB_COPY.panel.executionPlanTooMany.replace(
+          '{max}',
+          String(STRATEGY_LAB_EXECUTION_PACK_POLICY.maxInitiativesPerRequest),
+        ),
+      );
+      return;
+    }
+    setExecutionLoading(true);
+    try {
+      const res = await api.postStrategyExecutionPack(id, { initiative_ids });
+      setLastPack(res);
+      toast.success(STRATEGY_LAB_COPY.panel.executionPlanDone);
+    } catch (e) {
+      const detail =
+        e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null && 'detail' in e.details
+          ? String((e.details as { detail?: unknown }).detail ?? '')
+          : '';
+      toast.error(
+        detail ? `${STRATEGY_LAB_COPY.panel.executionPlanFailed} (${detail})` : STRATEGY_LAB_COPY.panel.executionPlanFailed,
+      );
+    } finally {
+      setExecutionLoading(false);
+    }
+  }, [id, selected]);
 
   function toggle(initId: string) {
     setSelected(prev => {
@@ -99,8 +262,6 @@ export function StrategyLab() {
       return next;
     });
   }
-
-  const activeTabCfg = TABS.find(t => t.key === activeTab)!;
 
   if (loading && !audit) {
     return (
@@ -141,12 +302,27 @@ export function StrategyLab() {
       title={STRATEGY_LAB_COPY.appShell.title}
       subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="text-success text-xs font-mono font-semibold">
             {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
           </span>
-          <Button type="button" variant="default">
-            <Sparkle className="w-4 h-4" /> {STRATEGY_LAB_COPY.panel.generateRoadmap}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={selected.size === 0 || executionLoading}
+            className={cn(selected.size === 0 ? 'opacity-40' : '')}
+            onClick={handleGenerateExecutionPlan}
+          >
+            <ListBullets className="w-4 h-4" />
+            {executionLoading ? STRATEGY_LAB_COPY.panel.executionPlanRunning : STRATEGY_LAB_COPY.panel.generateExecutionPlan}
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            disabled={selected.size === 0}
+            className={cn(selected.size === 0 ? 'opacity-40' : '')}
+            onClick={handleGenerateRoadmap}
+          >{STRATEGY_LAB_COPY.panel.generateRoadmap}
           </Button>
         </div>
       }
@@ -155,9 +331,11 @@ export function StrategyLab() {
 
         {/* ── Initiative picker ─────────────────────── */}
         <div className="bg-background flex-1 overflow-y-auto border-r">
-          <div
-            className="space-y-3 border-b bg-card p-4"
-          >
+          {!isClient && (
+            <>
+              <div
+                className="space-y-3 border-b bg-card p-4"
+              >
             <div className="flex items-center gap-2">
               <ChartBar className="text-info h-4 w-4" />
               <span className="text-foreground text-sm font-semibold">
@@ -186,6 +364,108 @@ export function StrategyLab() {
                 );
               })}
             </div>
+          </div>
+          <div className="space-y-3 border-b bg-card p-4">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="text-info h-4 w-4" />
+              <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
+            </div>
+            <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={constraintStageDraft}
+                  onChange={e => setConstraintStageDraft(e.target.value)}
+                >
+                  {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
+                    <option key={s} value={s}>
+                      {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={constraintBudgetDraft}
+                  onChange={e => setConstraintBudgetDraft(e.target.value)}
+                >
+                  {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
+                    <option key={b} value={b}>
+                      {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={constraintTeamDraft}
+                  onChange={e => setConstraintTeamDraft(e.target.value)}
+                >
+                  {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
+                    <option key={t} value={t}>
+                      {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                type="button"
+                variant="default"
+                disabled={constraintSaving}
+                onClick={() => void handleSaveConstraintOverrides()}
+              >
+                {STRATEGY_LAB_COPY.constraints.save}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={constraintSaving}
+                onClick={() => void handleClearConstraintOverrides()}
+              >
+                {STRATEGY_LAB_COPY.constraints.useBrief}
+              </Button>
+            </div>
+          </div>
+            </>
+          )}
+          <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
+            <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+              <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
+              <select
+                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                value={domainFilter}
+                onChange={e => setDomainFilter(e.target.value as StrategyLabDomainFilter)}
+              >
+                <option value={STRATEGY_LAB_DOMAIN_FILTER_ALL}>{STRATEGY_LAB_COPY.panel.domainFilterAll}</option>
+                {STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS.map(dk => (
+                  <option key={dk} value={dk}>
+                    {DOMAIN_LABELS[dk as keyof typeof DOMAIN_LABELS] ?? dk}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+              <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.sortModeLabel}</span>
+              <select
+                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                value={sortMode}
+                onChange={e => setSortMode(e.target.value as StrategyLabSortMode)}
+              >
+                {STRATEGY_LAB_SORT_MODES.map(m => (
+                  <option key={m} value={m}>
+                    {STRATEGY_LAB_COPY.panel.sortModes[m]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           {/* Tabs */}
           <div
@@ -232,67 +512,128 @@ export function StrategyLab() {
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2"
               >
-                {visible.length === 0 && (
+                {filteredVisible.length === 0 && (
                   <div className="text-center py-10">
                     <p className="text-muted-foreground text-sm">
                       {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
                     </p>
                   </div>
                 )}
-                {visible.map((init: StrategyInitiative, i: number) => {
+                {filteredVisible.map((init: StrategyInitiative, i: number) => {
                   const sel = selected.has(init.id);
+                  const expanded = expandedId === init.id;
                   return (
-                    <motion.button
+                    <motion.div
                       key={init.id}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.045, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                      onClick={() => toggle(init.id)}
                       className={cn(
-                        'w-full rounded-xl border p-4 text-left transition-all',
+                        'w-full rounded-xl border text-left transition-all',
                         sel ? 'border-primary/40 bg-primary/10 shadow-xs ring-2 ring-primary/10' : 'border-border bg-card shadow-xs',
                       )}
                     >
-                      <div className="flex items-start gap-3">
-                        <div
+                      <div className="flex items-start gap-2 p-4">
+                        <button
+                          type="button"
+                          aria-pressed={sel}
+                          onClick={() => toggle(init.id)}
                           className={cn(
                             'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all',
                             sel ? 'border-primary bg-primary' : 'border-border bg-muted',
                           )}
                         >
                           {sel && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <span
-                              className="text-foreground text-sm font-medium"
-                            >
-                              {init.title}
-                            </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => toggle(init.id)}
+                        >
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span className="text-foreground text-sm font-medium">{init.title}</span>
+                            {init.domain ? (
+                              <span className="text-muted-foreground text-[length:var(--text-2xs)] font-mono uppercase">
+                                {init.domain}
+                              </span>
+                            ) : null}
                           </div>
-
-                          {init.description && (
-                            <p className="text-muted-foreground mb-2 text-xs leading-relaxed">
-                              {init.description}
-                            </p>
-                          )}
-
-                          <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-                            <span
-                              className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold"
-                            >
+                          {init.description ? (
+                            <p className="text-muted-foreground mb-2 text-xs leading-relaxed">{init.description}</p>
+                          ) : null}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold">
                               {init.impact} impact
                             </span>
-                            <span
-                              className={cn('text-xs font-semibold', EFFORT_CLASS[init.effort] ?? 'text-muted-foreground')}
-                            >
+                            <span className={cn('text-xs font-semibold', EFFORT_CLASS[init.effort] ?? 'text-muted-foreground')}>
                               {init.effort} effort
                             </span>
+                            {typeof init.evidence_verified === 'boolean' ? (
+                              <span className={cn('text-[length:var(--text-2xs)] font-medium', init.evidence_verified ? 'text-success' : 'text-warning')}>
+                                {init.evidence_verified ? STRATEGY_LAB_COPY.panel.labels.verified : STRATEGY_LAB_COPY.panel.labels.unverified}
+                              </span>
+                            ) : null}
                           </div>
-                        </div>
+                        </button>
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          className="text-muted-foreground hover:text-foreground flex-shrink-0 p-1"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setExpandedId(expanded ? null : init.id);
+                          }}
+                        >
+                          <CaretDown className={cn('h-4 w-4 transition-transform', expanded ? 'rotate-180' : '')} />
+                        </button>
                       </div>
-                    </motion.button>
+                      {expanded ? (
+                        <div className="text-muted-foreground space-y-2 border-t px-4 py-3 text-xs leading-relaxed">
+                          {init.decision?.why_this?.length ? (
+                            <div>
+                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.why}</p>
+                              <ul className="list-inside list-disc space-y-0.5">
+                                {init.decision.why_this.map((s, idx) => (
+                                  <li key={`${init.id}-why-${idx}`}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {init.outcome?.description ? (
+                            <div>
+                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.outcome}</p>
+                              <p>{init.outcome.description}</p>
+                            </div>
+                          ) : null}
+                          {init.scope?.includes?.length ? (
+                            <div>
+                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.scopeIn}</p>
+                              <ul className="list-inside list-disc space-y-0.5">
+                                {init.scope.includes.map((s, idx) => (
+                                  <li key={`${init.id}-in-${idx}`}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {init.execution_paths?.length ? (
+                            <div>
+                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.paths}</p>
+                              <ul className="space-y-1">
+                                {init.execution_paths.map(p => (
+                                  <li key={`${init.id}-${p.type}`}>
+                                    <span className="text-foreground font-medium">{p.type}</span>
+                                    {p.incompatible ? (
+                                      <span className="text-warning ml-2">({STRATEGY_LAB_COPY.panel.labels.incompatible})</span>
+                                    ) : null}
+                                    : {p.description} ({p.time_estimate})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </motion.div>
                   );
                 })}
               </motion.div>
@@ -328,6 +669,26 @@ export function StrategyLab() {
               ))}
             </div>
 
+            <div className="space-y-2">
+              <SectionLabel className="mb-1">{STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}</SectionLabel>
+              <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.panel.roadmapPreviewHint}</p>
+              {roadmapMarkdownPreview ? (
+                <div
+                  className="bg-background max-h-[length:var(--strategy-lab-roadmap-preview-max-height)] overflow-auto rounded-lg border"
+                  role="region"
+                  aria-label={STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}
+                >
+                  <pre className="text-foreground whitespace-pre-wrap break-words p-3 font-mono text-[length:var(--text-2xs)] leading-relaxed">
+                    {roadmapMarkdownPreview}
+                  </pre>
+                </div>
+              ) : (
+                <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
+                  {STRATEGY_LAB_COPY.panel.roadmapPreviewEmpty}
+                </p>
+              )}
+            </div>
+
             {/* Effort mix */}
             <div>
               <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.effortMix}</SectionLabel>
@@ -351,6 +712,26 @@ export function StrategyLab() {
                 );
               })}
             </div>
+
+            {lastPack ? (
+              <div>
+                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.lastExecutionPlan}</SectionLabel>
+                <div className="space-y-3">
+                  {lastPack.payload.packs.map(pack => (
+                    <div key={pack.initiative_id} className="bg-background rounded-lg border px-3 py-2.5 text-xs">
+                      <p className="text-foreground mb-1 font-mono font-semibold">{pack.initiative_id}</p>
+                      <p className="text-muted-foreground mb-2 line-clamp-3">{pack.architecture}</p>
+                      <ul className="text-muted-foreground list-inside list-decimal space-y-1">
+                        {pack.tasks.slice(0, 6).map((t, idx) => (
+                          <li key={`${pack.initiative_id}-t-${idx}`}>{t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{STRATEGY_LAB_COPY.panel.outcomeMeasurementFooter}</p>
+              </div>
+            ) : null}
 
             {/* Selected list */}
             {allSelected.length > 0 && (
@@ -387,8 +768,8 @@ export function StrategyLab() {
                 variant="default"
                 className={cn('w-full justify-center py-2.5', selected.size === 0 ? 'opacity-40' : '')}
                 disabled={selected.size === 0}
+                onClick={handleGenerateRoadmap}
               >
-                <Sparkle className="w-4 h-4" />
                 {STRATEGY_LAB_COPY.panel.generateRoadmap}
               </Button>
             </motion.div>

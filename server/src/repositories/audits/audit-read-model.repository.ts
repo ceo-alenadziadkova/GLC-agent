@@ -1,17 +1,60 @@
 import { supabase } from '../../services/supabase.js';
 import { safeOrUserFilter } from '../../lib/postgrest-filter.js';
 
-export async function listAuditsByUser(args: { userId: string; offset: number; limit: number }) {
+export async function listAuditsByUser(args: {
+  userId: string;
+  offset: number;
+  limit: number;
+  source?: string[];
+  status?: string[];
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+  sortBy?: 'created_at' | 'updated_at';
+  sortDir?: 'asc' | 'desc';
+}) {
   const userFilter = safeOrUserFilter(args.userId);
-  return supabase
+  let query = supabase
     .from('audits')
     .select(
-      'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, created_at, updated_at, no_public_website',
+      'id, user_id, client_id, company_url, company_name, industry, product_mode, origin, execution_plan, status, current_phase, overall_score, snapshot_token, tokens_used, token_budget, created_at, updated_at, no_public_website',
       { count: 'exact' },
     )
-    .or(userFilter)
-    .order('created_at', { ascending: false })
+    .or(userFilter);
+  if (args.source && args.source.length > 0) {
+    query = query.in('origin', args.source);
+  }
+  if (args.status && args.status.length > 0) {
+    query = query.in('status', args.status);
+  }
+  if (args.createdFrom) {
+    query = query.gte('created_at', args.createdFrom);
+  }
+  if (args.createdTo) {
+    query = query.lte('created_at', args.createdTo);
+  }
+  if (args.updatedFrom) {
+    query = query.gte('updated_at', args.updatedFrom);
+  }
+  if (args.updatedTo) {
+    query = query.lte('updated_at', args.updatedTo);
+  }
+
+  const sortBy = args.sortBy ?? 'created_at';
+  const sortDir = args.sortDir ?? 'desc';
+
+  return query
+    .order(sortBy, { ascending: sortDir === 'asc' })
     .range(args.offset, args.offset + args.limit - 1);
+}
+
+export async function rpcAuditTokenTotalsForUser(userId: string) {
+  return supabase.rpc('audit_token_totals_for_user', { p_user_id: userId });
+}
+
+export async function rpcAuditTokenTotalsGlobal() {
+  return supabase.rpc('audit_token_totals_global');
 }
 
 export async function fetchAuditByIdForUser(id: string, userId: string) {

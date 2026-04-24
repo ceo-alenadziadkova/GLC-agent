@@ -25,7 +25,7 @@ export function RunAuditSection({
         className={cn(
           'flex w-full items-center justify-center gap-2 rounded-lg border-0 py-2.5 text-sm font-medium',
           canStart && !starting
-            ? 'cursor-pointer bg-[var(--gradient-brand)] text-[var(--glc-ink)] shadow-[var(--glow-blue-sm)]'
+            ? 'cursor-pointer bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--glow-blue-sm)]'
             : 'cursor-not-allowed bg-[var(--bg-muted)] text-[var(--text-quaternary)] shadow-none',
         )}
       >

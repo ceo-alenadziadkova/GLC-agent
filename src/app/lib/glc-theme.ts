@@ -1,3 +1,5 @@
+import { isGlcTempLightThemeDisabledForPathname } from './glc-temp-light-theme';
+
 /** localStorage `light` | `dark` | omit = follow `prefers-color-scheme` */
 export const GLC_THEME_STORAGE_KEY = 'glc-theme';
 export type GlcThemeMode = 'light' | 'dark' | 'system';
@@ -14,6 +16,9 @@ export function getGlcThemeMode(): GlcThemeMode {
 export function getResolvedGlcDark(): boolean {
   if (typeof document === 'undefined') {
     return false;
+  }
+  if (isGlcTempLightThemeDisabledForPathname(window.location.pathname)) {
+    return true;
   }
   const mode = getGlcThemeMode();
   if (mode === 'dark') {

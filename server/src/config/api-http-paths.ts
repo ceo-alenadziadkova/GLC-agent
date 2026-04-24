@@ -6,6 +6,11 @@ export {
   API_HTTP_PATH_PREFIX,
   idempotencyPostAuditRequestApproveKey,
   idempotencyPostAuditsCreateKey,
+  idempotencyPostAuditsOrchestrationPackKey,
+  idempotencyPostAuditsOrchestrationPackRegenerateKey,
+  idempotencyPostAuditsOrchestrationSelectedInitiativeKey,
+  idempotencyPostAuditsOrchestratorRunKey,
+  idempotencyPostAuditsRoadmapManifestSnapshotsKey,
   idempotencyPostKey,
   type ApiHttpPathPrefixKey,
 } from '@glc/api-paths';

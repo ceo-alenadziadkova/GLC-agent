@@ -175,8 +175,48 @@ export {
   resolveIntakeNextRecommendedMax,
 } from './config/intake-flags.js';
 export { INTAKE_UI_CONFIG, type IntakeUiConfig } from './config/intake-ui-config.js';
+export {
+  INTAKE_DIAGNOSTIC_ANALYTICS_KINDS,
+  type IntakeDiagnosticAnalyticsKind,
+} from './config/intake-rollout-analytics-kinds.js';
+export {
+  getIntakeIntelligenceContract,
+  getIntakeIntelligenceCoverageSummary,
+  getIntakeIntelligenceSprint2CoverageSummary,
+  hasIntakeIntelligenceOptionalWithTodo,
+  hasIntakeIntelligenceRequiredNow,
+  projectIntakeIntelligenceRequiredNow,
+  INTAKE_INTELLIGENCE_OPTIONAL_WITH_TODO_FIELDS,
+  INTAKE_INTELLIGENCE_P0_IDS,
+  INTAKE_INTELLIGENCE_REQUIRED_NOW_FIELDS,
+  INTAKE_INTELLIGENCE_BANK_IDS_OUTSIDE_SPRINT2_GATE,
+  INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS,
+  getIntakeIntelligenceBankIdsOutsideSprint2Gate,
+  isValidIntakeIntelligenceTodo,
+  isIntakeIntelligenceP0Question,
+  isIntakeIntelligenceSprint2GateSatisfied,
+  type IntakeIntelligenceContract,
+  type IntakeIntelligenceOptionalWithTodoField,
+  type IntakeIntelligenceOwnerDomain,
+  type IntakeIntelligenceRequiredNowField,
+  type IntakeIntelligenceStewardship,
+  type IntakeIntelligenceTodo,
+} from './config/intake-intelligence-contract.js';
+export { MIN_EXPECTED_INFO_GAIN_BITS_SPRINT2 } from './config/intake-intelligence-sprint2.js';
+export {
+  DEEP_DIVE_CONTEXT_BY_DOMAIN,
+  DEEP_DIVE_CONTEXT_CONSTRAINT_QUESTION_IDS,
+  DEEP_DIVE_CONTEXT_GOAL_QUESTION_IDS,
+  DEEP_DIVE_CONTEXT_TIMEFRAME_QUESTION_IDS,
+  getDeepDiveExtractionIdLists,
+} from './config/deep-dive-context-extraction.js';
+export {
+  extractDirectorDeepDiveContextFromBrief,
+  type DirectorDeepDiveBriefContext,
+} from './core/extract-director-deep-dive-context-from-brief.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
+  AuditReadinessStatus,
   BriefPriority,
   BriefQuestion,
   BriefResponseEntry,
@@ -184,11 +224,29 @@ export type {
   BriefResponseValue,
   BriefRevenueSignal,
   DomainKey,
+  DecisionImpact,
+  DiagnosticSpineCategory,
+  FlowReadinessStatus,
+  FollowupPolicy,
   IntakeBriefCollectionMode,
+  IntakeCriticalSignalConfidence,
+  IntakeReadinessEnvelope,
+  IntakeSignalPriorityLevel,
+  IntakeSignalPriorityState,
+  IntakeSignalSkipPolicy,
+  IntakeReadinessTraceEntry,
+  IntakeReadinessProgressiveCertaintyTraceCode,
+  SignalContribution,
+  StopCondition,
   IntakeVersionMigration,
+  IntakeVersionTuple,
   ProductMode,
 } from './audit-contract.js';
-export { DOMAIN_KEYS } from './audit-contract.js';
+export {
+  DIAGNOSTIC_SPINE_CATEGORIES,
+  DOMAIN_KEYS,
+  INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES,
+} from './audit-contract.js';
 export {
   INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
   INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,

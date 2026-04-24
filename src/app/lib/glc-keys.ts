@@ -7,7 +7,8 @@ export const glcKeys = {
     detail: (id: string) => ['glc', 'brief', 'detail', id] as const,
   },
   audits: {
-    list: (limit: number, offset: number) => ['glc', 'audits', 'list', limit, offset] as const,
+    list: (limit: number, offset: number, userId: string | null, filtersKey: string = 'none') =>
+      ['glc', 'audits', 'list', userId ?? 'anonymous', limit, offset, filtersKey] as const,
     listsPrefix: ['glc', 'audits', 'list'] as const,
   },
   dashboard: () => ['glc', 'dashboard'] as const,
@@ -17,4 +18,14 @@ export const glcKeys = {
   adminRequestQueue: (filter: 'all' | 'pending', auditRequestsOffset: number) =>
     ['glc', 'admin', 'request-queue', filter, auditRequestsOffset] as const,
   discoverySessions: () => ['glc', 'admin', 'discovery-sessions'] as const,
+  timeline: {
+    detail: (id: string) => ['glc', 'timeline', 'detail', id] as const,
+  },
+  /** `GET /api/audits/:id/orchestration/pack` — shared with portal, consultant cockpit, Strategy Lab. */
+  orchestrationPack: {
+    detail: (id: string) => ['glc', 'orchestration-pack', 'detail', id] as const,
+  },
+  strategyExecutionPacks: {
+    list: (auditId: string) => ['glc', 'strategy-execution-packs', 'list', auditId] as const,
+  },
 };

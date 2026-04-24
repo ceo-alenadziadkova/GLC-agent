@@ -1,7 +1,6 @@
 import {
   ArrowRight, CaretDown, Clock, Code, Copy,
 } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { buildAppRoute } from '../../../config/route-paths';
 import {
   ADMIN_REQUEST_QUEUE_COPY,
@@ -18,6 +17,8 @@ import {
 } from '../domain/admin-request-queue.domain';
 import { ORDERED_PRE_BRIEF_QUESTIONS } from '../domain/ordered-pre-brief-questions';
 import { cn } from '../../../components/ui/utils';
+import { formatAppMediumDateTime } from '../../../lib/date-format';
+import { QueueInlineActionLink } from '../../queue-inline-action-link';
 
 type Props = {
   submission: IntakeSubmissionQueueRow;
@@ -36,18 +37,22 @@ export function IntakeSubmissionQueueCard({
 }: Props) {
   const meta = s.metadata as Record<string, string | undefined>;
   const title = (meta.company_name as string | undefined)?.trim() || ADMIN_REQUEST_QUEUE_COPY.intakeTitleFallback;
-  const submitted = new Date(s.submitted_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const submitted = formatAppMediumDateTime(s.submitted_at);
   const expired = Date.now() > new Date(s.expires_at).getTime();
   const norm = normalizeIntakeResponses(s.responses);
 
   return (
     <div className="bg-card overflow-hidden rounded-xl border">
-      <button
-        type="button"
-        className={cn('w-full cursor-pointer px-4 py-3 text-left', open ? 'bg-muted' : 'bg-transparent')}
-        onClick={onToggleExpand}
-      >
-        <CaretDown className={cn('text-muted-foreground h-4 w-4 shrink-0 transition-transform', open ? 'rotate-180' : '')} />
+      <div className={cn('flex items-start gap-3 px-4 py-3', open ? 'bg-muted' : 'bg-transparent')}>
+        <button
+          type="button"
+          className="text-muted-foreground mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-expanded={open}
+          aria-label={open ? ADMIN_REQUEST_QUEUE_COPY.collapseDetails : ADMIN_REQUEST_QUEUE_COPY.expandDetails}
+          onClick={onToggleExpand}
+        >
+          <CaretDown className={cn('h-4 w-4 shrink-0 transition-transform', open ? 'rotate-180' : '')} />
+        </button>
         <div className="min-w-0 flex-1">
           <div className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider">
             {ADMIN_REQUEST_QUEUE_COPY.rowKindClientPreBrief}
@@ -61,22 +66,21 @@ export function IntakeSubmissionQueueCard({
               expired,
             )}
           </div>
-          <div className="text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs">
+          <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {submitted}
             </span>
             {expired && <span className="text-warning">{ADMIN_REQUEST_QUEUE_COPY.linkExpired}</span>}
-            {s.audit_id ? (
-              <Link to={buildAppRoute.audit(s.audit_id)} className="text-info font-medium no-underline" onClick={e => e.stopPropagation()}>
-                {ADMIN_REQUEST_QUEUE_COPY.linkedAudit}
-              </Link>
-            ) : (
-              <span>{ADMIN_REQUEST_QUEUE_COPY.notLinkedToAudit}</span>
-            )}
+            <span>{s.audit_id ? ADMIN_REQUEST_QUEUE_COPY.linkedAudit : ADMIN_REQUEST_QUEUE_COPY.notLinkedToAudit}</span>
           </div>
         </div>
-      </button>
+        {s.audit_id && (
+          <QueueInlineActionLink to={buildAppRoute.audit(s.audit_id)} tone="info">
+            {ADMIN_REQUEST_QUEUE_COPY.openAudit}
+          </QueueInlineActionLink>
+        )}
+      </div>
       {open && (
         <IntakeSubmissionExpandedBody
           s={s}
@@ -105,7 +109,7 @@ function IntakeSubmissionExpandedBody({
       <div className="flex flex-wrap gap-2 pt-3">
         <button
           type="button"
-          className="text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium"
+          className="glc-touch-target text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium"
           onClick={() => {
             void navigator.clipboard.writeText(s.intake_url).then(() => {
               onCopiedIntakeUrl(s.token);
@@ -116,12 +120,14 @@ function IntakeSubmissionExpandedBody({
           <Copy className="w-3.5 h-3.5" />
           {copiedIntakeUrl === s.token ? ADMIN_REQUEST_QUEUE_COPY.copied : ADMIN_REQUEST_QUEUE_COPY.copyClientLink}
         </button>
-        <Link
+        <QueueInlineActionLink
           to={buildAppRoute.auditNewWithIntakeToken(s.token)}
-          className="text-info inline-flex items-center gap-1.5 rounded-lg border border-info/40 px-2.5 py-1.5 text-xs font-medium no-underline"
+          tone="info"
+          variant="outline"
+          className="gap-1.5"
         >
           {ADMIN_REQUEST_QUEUE_COPY.newAuditWithPrefill} <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        </QueueInlineActionLink>
       </div>
       <div className="bg-muted space-y-2 rounded-lg border p-3">
         <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider">{ADMIN_REQUEST_QUEUE_COPY.answersSectionTitle}</p>

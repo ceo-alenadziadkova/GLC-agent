@@ -5,23 +5,33 @@ import { ReviewPointModal } from '../../components/glc/ReviewPointModal';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
 import { hasQualityWarnings } from './selectors/quality-gates.selector';
 import { selectReviewForPhase } from './selectors/phase-view.selector';
-import { getPipelineMonitorCompanyName, getWorkspacePath } from './utils/pipeline-monitor-format';
+import { getPipelineMonitorCompanyName } from './utils/pipeline-monitor-format';
 import { usePipelineMonitorController } from './hooks/usePipelineMonitorController';
 import { PIPELINE_MONITOR_UI_POLICY } from './config/pipeline-monitor-ui-policy';
 import { MonitorHeaderActions } from './sections/MonitorHeaderActions';
 import { PhaseSidebar } from './sections/PhaseSidebar';
 import { PhaseDetailPanel } from './sections/PhaseDetailPanel';
 import { StopPipelineDialog } from './sections/StopPipelineDialog';
+import { pipelineHasReconCrawlerTruncationWarning } from '../../lib/pipeline-recon-truncation';
+import type { PipelineReview } from './types-pipeline-state';
+import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
+import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
+import { useIsMobile } from '../../components/ui/use-mobile';
+import { cn } from '../../components/ui/utils';
 
 export function PipelineMonitorPage() {
   const { id } = useParams<{ id: string }>();
+  const isMobile = useIsMobile();
   const controller = usePipelineMonitorController(id);
   const {
     pipelineState,
     pipeLoading,
     pipeError,
+    runNextPhaseBusy,
     startPipeline,
     runNextPhase,
+    retryPhase,
     audit,
     isClient,
     clientPortalOk,
@@ -45,12 +55,20 @@ export function PipelineMonitorPage() {
     canStopPipeline,
     handleApprove,
     handleStopPipeline,
+    canManagePlatformSettings,
+    resumeCancelledBusy,
+    resumeCancelledError,
+    handleResumeCancelledPlatform,
   } = controller;
 
   const companyName = getPipelineMonitorCompanyName(audit);
-  const workspacePath = getWorkspacePath(id, isClient);
+  const currentPhaseId = pipelineState?.current_phase ?? -1;
+  const failedRetryPhase =
+    auditStatus === PIPELINE_MONITOR_UI_POLICY.status.failed && pipelineState != null
+      ? pipelineState.current_phase
+      : null;
 
-  const reviewStatusByPhase = new Map<number, { status: string }>([
+  const reviewByPhase = new Map<number, PipelineReview>([
     [0, selectReviewForPhase(reviews, 0)],
     [4, selectReviewForPhase(reviews, 4)],
     [7, selectReviewForPhase(reviews, 7)],
@@ -64,7 +82,7 @@ export function PipelineMonitorPage() {
 
   if (pipeLoading && !pipelineState) {
     return (
-      <AppShell title={PM.pageTitle} subtitle={PM.loading}>
+      <AppShell title={isClient ? PM.clientPortal.pageTitle : PM.pageTitle} subtitle={PM.loading}>
         <div className={`flex items-center justify-center ${PIPELINE_MONITOR_UI_POLICY.layout.loaderHeightClassName}`}>
           <ArrowsClockwise className="h-6 w-6 animate-spin text-[var(--glc-blue)]" />
         </div>
@@ -74,7 +92,7 @@ export function PipelineMonitorPage() {
 
   if (isClient && clientPortalOk === 'pending' && id) {
     return (
-      <AppShell title={PM.pageTitle} subtitle={PM.loading}>
+      <AppShell title={PM.clientPortal.pageTitle} subtitle={PM.loading}>
         <div className={`flex items-center justify-center ${PIPELINE_MONITOR_UI_POLICY.layout.loaderHeightClassName}`}>
           <ArrowsClockwise className="h-6 w-6 animate-spin text-[var(--glc-blue)]" />
         </div>
@@ -86,10 +104,15 @@ export function PipelineMonitorPage() {
     return <Navigate to={`/portal/audit/${id}`} replace />;
   }
 
+  const shellTitle = isClient ? PM.clientPortal.pageTitle : PM.pageTitle;
+  const shellSubtitle = isClient
+    ? `${companyName} · ${PM.clientPortal.auditRefPrefix} ${id?.slice(0, 8) ?? ''}`.trim()
+    : `${companyName} · ${PM.auditIdPrefix}${id?.slice(0, 8) ?? ''}`;
+
   return (
     <AppShell
-      title={PM.pageTitle}
-      subtitle={`${companyName} · ${PM.auditIdPrefix}${id?.slice(0, 8) ?? ''}`}
+      title={shellTitle}
+      subtitle={shellSubtitle}
       actions={
         <MonitorHeaderActions
           isExpress={isExpress}
@@ -98,33 +121,161 @@ export function PipelineMonitorPage() {
           canStopPipeline={canStopPipeline}
           isStopping={isStopping}
           onOpenStopDialog={() => setStopDialogOpen(true)}
+          isClient={isClient}
+          failedRetryPhase={failedRetryPhase}
+          onRetryFailedPhase={retryPhase}
         />
       }
     >
-      <div className={`flex ${PIPELINE_MONITOR_UI_POLICY.layout.contentClassName}`}>
-        <PhaseSidebar
-          phases={phases}
-          selectedPhaseId={selectedPhaseId}
-          isExpress={isExpress}
-          isClient={isClient}
-          reviewStatusByPhase={reviewStatusByPhase}
-          reviewWarningsByPhase={reviewWarningsByPhase}
-          onSelectPhase={setSelectedPhaseId}
-          onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
-        />
-        <PhaseDetailPanel
-          selectedPhase={selectedPhase}
-          phases={phases}
-          pipelineState={pipelineState}
-          pipeError={pipeError}
-          isCreated={isCreated}
-          isClient={isClient}
-          isExpress={isExpress}
-          workspacePath={workspacePath}
-          governance={governance}
-          onStartPipeline={startPipeline}
-          onRunNextPhase={runNextPhase}
-        />
+      {isMobile ? (
+        <div
+          className={cn(
+            'flex min-h-0',
+            PIPELINE_MONITOR_UI_POLICY.layout.contentClassName,
+            isClient && 'flex-col',
+          )}
+        >
+          {isClient ? (
+            <>
+              <PhaseDetailPanel
+                selectedPhase={selectedPhase}
+                phases={phases}
+                pipelineState={pipelineState}
+                pipeError={pipeError}
+                isCreated={isCreated}
+                isClient={isClient}
+                isExpress={isExpress}
+                recon={audit?.recon ?? null}
+                showReconCrawlerTruncationWarning={pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? [])}
+                auditId={id}
+                governance={governance}
+                auditStatus={auditStatus}
+                canManagePlatformSettings={canManagePlatformSettings}
+                resumeCancelledBusy={resumeCancelledBusy}
+                resumeCancelledError={resumeCancelledError}
+                onResumeCancelledPlatform={handleResumeCancelledPlatform}
+                onStartPipeline={startPipeline}
+                onRunNextPhase={runNextPhase}
+                runNextPhaseBusy={runNextPhaseBusy}
+                onRetryPhase={retryPhase}
+              />
+              <PhaseSidebar
+                phases={phases}
+                selectedPhaseId={selectedPhaseId}
+                isExpress={isExpress}
+                isClient={isClient}
+                currentPhaseId={currentPhaseId}
+                stackedBelowDetail
+                reviewByPhase={reviewByPhase}
+                reviewWarningsByPhase={reviewWarningsByPhase}
+                onSelectPhase={setSelectedPhaseId}
+                onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+              />
+            </>
+          ) : (
+            <>
+              <PhaseSidebar
+                phases={phases}
+                selectedPhaseId={selectedPhaseId}
+                isExpress={isExpress}
+                isClient={isClient}
+                currentPhaseId={currentPhaseId}
+                reviewByPhase={reviewByPhase}
+                reviewWarningsByPhase={reviewWarningsByPhase}
+                onSelectPhase={setSelectedPhaseId}
+                onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+              />
+              <PhaseDetailPanel
+                selectedPhase={selectedPhase}
+                phases={phases}
+                pipelineState={pipelineState}
+                pipeError={pipeError}
+                isCreated={isCreated}
+                isClient={isClient}
+                isExpress={isExpress}
+                recon={audit?.recon ?? null}
+                showReconCrawlerTruncationWarning={pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? [])}
+                auditId={id}
+                governance={governance}
+                auditStatus={auditStatus}
+                canManagePlatformSettings={canManagePlatformSettings}
+                resumeCancelledBusy={resumeCancelledBusy}
+                resumeCancelledError={resumeCancelledError}
+                onResumeCancelledPlatform={handleResumeCancelledPlatform}
+                onStartPipeline={startPipeline}
+                onRunNextPhase={runNextPhase}
+                runNextPhaseBusy={runNextPhaseBusy}
+                onRetryPhase={retryPhase}
+              />
+            </>
+          )}
+        </div>
+      ) : (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className={cn('min-h-0', PIPELINE_MONITOR_UI_POLICY.layout.contentClassName)}
+          autoSaveId={PIPELINE_MONITOR_UI_POLICY.layout.sidebarLayoutAutoSaveId}
+        >
+          <ResizablePanel
+            id="pipeline-monitor-sidebar"
+            order={1}
+            defaultSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelDefaultSizePct}
+            minSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelMinSizePct}
+            maxSize={PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelMaxSizePct}
+            className="min-w-0 min-h-0"
+          >
+            <PhaseSidebar
+              phases={phases}
+              selectedPhaseId={selectedPhaseId}
+              isExpress={isExpress}
+              isClient={isClient}
+              currentPhaseId={currentPhaseId}
+              resizableLayout
+              reviewByPhase={reviewByPhase}
+              reviewWarningsByPhase={reviewWarningsByPhase}
+              onSelectPhase={setSelectedPhaseId}
+              onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+            />
+          </ResizablePanel>
+          <ResizableHandle
+            aria-label={isClient ? PM.clientPortal.sidebar.resizeHandle : PM.sidebar.resizeHandle}
+            title={isClient ? PM.clientPortal.sidebar.resizeHint : PM.sidebar.resizeHint}
+            className="w-1.5 bg-[var(--border-subtle)] after:w-1.5"
+          />
+          <ResizablePanel
+            id="pipeline-monitor-detail"
+            order={2}
+            defaultSize={100 - PIPELINE_MONITOR_UI_POLICY.layout.sidebarPanelDefaultSizePct}
+            minSize={PIPELINE_MONITOR_UI_POLICY.layout.detailPanelMinSizePct}
+            className="min-w-0 min-h-0"
+          >
+            <PhaseDetailPanel
+              selectedPhase={selectedPhase}
+              phases={phases}
+              pipelineState={pipelineState}
+              pipeError={pipeError}
+              isCreated={isCreated}
+              isClient={isClient}
+              isExpress={isExpress}
+              recon={audit?.recon ?? null}
+              showReconCrawlerTruncationWarning={pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? [])}
+              auditId={id}
+              governance={governance}
+              auditStatus={auditStatus}
+              canManagePlatformSettings={canManagePlatformSettings}
+              resumeCancelledBusy={resumeCancelledBusy}
+              resumeCancelledError={resumeCancelledError}
+              onResumeCancelledPlatform={handleResumeCancelledPlatform}
+              onStartPipeline={startPipeline}
+              onRunNextPhase={runNextPhase}
+              runNextPhaseBusy={runNextPhaseBusy}
+              onRetryPhase={retryPhase}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+      <div className="mt-4">
+        <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.pipelineMonitor} />
       </div>
 
       <ReviewPointModal
@@ -140,6 +291,15 @@ export function PipelineMonitorPage() {
         governanceRefines={governanceRefinesForModal}
         governanceRefineSectionTitle={PM.reviewModal.governanceRefineSectionTitle}
         governanceRefineSectionIntro={PM.reviewModal.governanceRefineSectionIntro}
+        reconReviewSummary={
+          modalReview?.afterPhase === 0
+            ? {
+                recon: audit?.recon ?? null,
+                copy: PM.reviewModal.recon,
+                showCrawlerTruncationWarning: pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? []),
+              }
+            : null
+        }
       />
 
       <StopPipelineDialog

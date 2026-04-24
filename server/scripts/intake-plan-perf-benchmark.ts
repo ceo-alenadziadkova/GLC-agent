@@ -26,6 +26,7 @@ const FROZEN_TUPLE: IntakeVersionTuple = {
   policyVersion: '1.0.0',
   layoutVersion: '1.1.0',
   resolverVersion: '1.0.0',
+  sequencingVersion: '1.0.0',
 };
 
 function elapsedMs(fn: () => void): number {

@@ -22,9 +22,20 @@ See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [
 
 **Package:** Shared intake (question bank JSON, resolver, SLA gates, `choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`, `@glc/intake-core`) — import by package name only; decision record [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
 
-**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md).
+**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md). **Diagnostic adaptive intake — roadmap vs implementation (G1–G13, F1/F2, KPI wire-up):** [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md).
 
 **Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
+
+### Additive change gate (no silent overwrite)
+
+**Stakeholder-facing summary** (product narrative, same rules): [PRODUCT.md — Stakeholder readiness contract](./PRODUCT.md#stakeholder-readiness-contract).
+
+When adding **intake assist** (NL, dictation), **orchestration export**, or **new lanes**, changes must **extend** existing contracts rather than replace them:
+
+1. **Intake** — question-bank answers and ordering stay primary; assists merge with `prefer_explicit_over_inferred` / client rules ([ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md)).
+2. **API** — new fields optional; additive migrations; existing clients must behave unchanged when flags are off.
+3. **Orchestration** — a single `glc_orchestration_pack` graph remains SSOT; exports and timeline presets are **projections** ([ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md)).
+4. **Telemetry** — new metrics use new keys; do not rename `kpi_orchestration_*` ([ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA](./adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md)).
 
 ### Legacy removal guardrail (semantic parity)
 
@@ -91,6 +102,11 @@ interface BaseCollector {
 
 **Claude task:** Score security posture — SSL config, HTTP security headers, cookie security, CORS policy, known vulnerability signals.
 
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `server/prompts/security_compliance.md` — externally observable security signals + intake-driven compliance scoping.
+- **Deep (optional, not part of the default single-phase call):** **CSO Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md` (client-selected “zones” split across **Compliance & privacy governance** vs **Security operations & engineering**, access-aware internal evidence depth).
+
 ---
 
 ### SeoAgent — Phase 3
@@ -106,6 +122,11 @@ interface BaseCollector {
 **Domain key:** `ux_conversion` | **Collectors:** `CrawlerCollector`, `AccessibilityCollector`
 
 **Claude task:** Evaluate UX and conversion optimisation — navigation clarity, CTA presence and quality, mobile viewport, form usability, accessibility basics.
+
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `server/prompts/ux_conversion.md` — structured `DomainOutputSchema` output from crawl + accessibility/UX signals, with lightweight **conversion economics** framing (directional only; no fabricated financial precision).
+- **Deep (optional, not part of the default single-phase call):** **CDO Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-CDO-DIRECTOR-TWO-STAGE.md`, with orchestration rubric in `docs/instructions/CDO-INSTRUCTIONS.md` (client-selected “zones”, access-aware analytics depth, prioritization + dependency graph + experimentation backlog).
 
 ---
 
@@ -123,6 +144,11 @@ interface BaseCollector {
 
 **Claude task:** Evaluate operational automation — existing integrations detected, manual process signals, CRM/email/booking tool presence, automation gaps and opportunities.
 
+**Prompt contract (baseline vs deep):**
+
+- **Baseline (pipeline default):** `automation_processes` domain phase — intake/recon-driven diagnosis of operational bottlenecks and automation readiness.
+- **Deep (optional, not part of the default single-phase call):** **Automation & Processes Director** — a separate two-stage deep audit pattern documented in `docs/adrs/ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md` (client-selected zones split across **Process governance & operating design** vs **Automation operations & implementation**, with access-aware depth, prioritization, dependency graph, build-vs-buy paths, and operational economics + risk/observability discipline).
+
 ---
 
 ### StrategyAgent — Phase 7
@@ -138,6 +164,20 @@ interface BaseCollector {
 - Cross-domain dependencies
 
 **Output saved to:** `audit_strategy`
+
+**Orchestration note (product direction, not the default pipeline call today):**
+
+- **GLC Orchestrator (Meta-Director)** is the cross-domain “decision graph engine” contract for turning multiple Director outputs into **one** dependency-aware execution plan (conflict resolution + global prioritization). See `docs/adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md` and the human prompt canon in `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`.
+- **Pipeline today:** Phase 7 remains `StrategyAgent` synthesis into `audit_strategy`. The Orchestrator is the intended evolution once Director outputs are normalized into the machine-readable action graph contract.
+
+## Director Prompt Governance
+
+- Director sub-agent prompts are treated as deep-research contracts and must remain analytically strong and progressive by default.
+- This applies to all director tracks (CMO, CTO, and any future director families).
+- Prompt maintenance must not lower investigation depth, scope coverage, evidence standards, or reasoning strictness.
+- If contracts diverge, align implementation to the prompt intent by strengthening schema constraints, deterministic fallbacks, and regression tests instead of simplifying prompt requirements.
+- New director-family onboarding is complete only when prompt, schema, fallback, and schema-rigor tests are added together; partial onboarding is not allowed.
+- Coverage gate is enforced by `server/src/tests/director-schema-rigor-coverage.test.ts`, which requires one `director-<family>-schema-rigor.test.ts` per `server/src/schemas/sub-agents/<family>`.
 
 ---
 

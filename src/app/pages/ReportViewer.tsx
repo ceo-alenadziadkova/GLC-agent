@@ -1,5 +1,5 @@
 import { useState, type ElementType } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import {
   ArrowUpRight, FileText, ArrowsClockwise,
   DownloadSimple, User, Code, Megaphone, Article, ChartBar,
@@ -14,14 +14,22 @@ import { CoverageCard } from '../features/report-viewer/components/CoverageCard'
 import { DomainScorecard } from '../features/report-viewer/components/DomainScorecard';
 import { ReportFindings } from '../features/report-viewer/components/ReportFindings';
 import { FollowUpCard } from '../features/report-viewer/components/FollowUpCard';
+import { ReportOrchestrationRoadmapSection } from '../features/report-viewer/components/ReportOrchestrationRoadmapSection';
+import { ReportRoadmapCockpitSection } from '../features/report-viewer/components/ReportRoadmapCockpitSection';
 import { Button } from '../components/ui/button';
+import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
+import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { REPORT_VIEWER_COPY } from '../features/report-viewer/config/report-viewer.copy.en';
 import { REPORT_VIEWER_CONSTANTS } from '../features/report-viewer/config/report-viewer.constants';
+import { ORCHESTRATION_MANIFEST_SETUP_DOM_ID, ORCHESTRATION_PANEL_DOM_ID } from '../config/orchestration-ui-limits';
+import { buildAppRoute } from '../config/route-paths';
+import { PIPELINE_UI_COPY } from '../config/pipeline-ui-copy.en';
 import {
   getReportPageViewModel,
   getReportProfileOptions,
 } from '../features/report-viewer/domain/selectors';
 import { downloadReportCsv, downloadReportPdf } from '../features/report-viewer/services/report-export.client';
+import { ExecutionLogPanel } from '../components/pipeline/ExecutionLogPanel';
 
 const PROFILE_ICONS: Record<ReportProfile, ElementType> = {
   full: ChartBar,
@@ -35,6 +43,7 @@ const PROFILES = getReportProfileOptions(PROFILE_ICONS);
 
 export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
+  const { pathname } = useLocation();
   const { audit, loading, error } = useAudit(id);
   const [profile, setProfile] = useState<ReportProfile>('full');
   const [csvLoading, setCsvLoading] = useState(false);
@@ -86,6 +95,12 @@ export function ReportViewer() {
 
   const reportVm = getReportPageViewModel(audit, profile);
   const maxItems = REPORT_VIEWER_CONSTANTS.profileMaxItems[profile];
+  const isPortalReport = pathname.startsWith('/portal/reports/');
+  const strategyPath = isPortalReport ? buildAppRoute.portalStrategy(id ?? '') : buildAppRoute.strategy(id ?? '');
+  const timelinePath = isPortalReport ? buildAppRoute.portalTimeline(id ?? '') : buildAppRoute.timeline(id ?? '');
+  const timelineManifestPath = `${timelinePath}#${ORCHESTRATION_MANIFEST_SETUP_DOM_ID}`;
+  const timelineComparePath = `${timelinePath}#${ORCHESTRATION_PANEL_DOM_ID}`;
+  const hasOrchestrationPack = isGlcOrchestrationPackView(audit.strategy?.glc_orchestration_pack);
 
   return (
     <AppShell
@@ -133,6 +148,26 @@ export function ReportViewer() {
           coverageAdjustedScore={reportVm.coverage.coverageAdjustedScore}
         />
 
+        {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && (
+          <ReportRoadmapCockpitSection
+            audit={audit}
+            reportVm={reportVm}
+            timelineHref={timelinePath}
+            manifestHref={timelineManifestPath}
+            compareHref={timelineComparePath}
+            hasOrchestrationPack={hasOrchestrationPack}
+          />
+        )}
+
+        {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && (
+          <ReportOrchestrationRoadmapSection
+            strategy={audit.strategy}
+            strategyLabHref={strategyPath}
+            laneDisplayPreset={isPortalReport ? 'client_mvp' : 'full'}
+            selectedDomains={audit.meta.execution_plan?.selected_domains ?? null}
+          />
+        )}
+
         <DomainScorecard
           auditId={id}
           domains={reportVm.profileDomains}
@@ -152,13 +187,15 @@ export function ReportViewer() {
           followUpQuestionsCount={reportVm.followUpQuestions.length}
           answeredFollowUps={reportVm.answeredFollowUps}
         />
+        <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.reportViewer} compact />
 
-        {/* Strategy link */}
+        {/* Timeline-first link */}
         {audit.strategy && (
           <div className="text-center">
             <Button asChild variant="outline" className="inline-flex no-underline">
-              <Link to={`/strategy/${id}`}>
-                {REPORT_VIEWER_COPY.buttons.viewStrategyLab} <ArrowUpRight className="w-4 h-4" />
+              <Link to={timelinePath}>
+                {REPORT_VIEWER_COPY.buttons.viewTimeline}{' '}
+                <ArrowUpRight className="w-4 h-4" />
               </Link>
             </Button>
           </div>

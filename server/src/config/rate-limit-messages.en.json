@@ -2,6 +2,7 @@
   "AUDIT_CREATE": "Too many audits created. Maximum {max} per rolling window.",
   "PIPELINE": "Too many pipeline operations. Please wait before retrying.",
   "GENERAL": "Too many API requests. Please wait before retrying.",
+  "REPORT_PDF": "Too many PDF export requests. Please wait before retrying.",
   "COMPARE": "Too many competitor comparisons. Try again later.",
   "SNAPSHOT_PUBLIC_DAILY_CAP": "You've used all {limit} free website checks available today from this connection. Please try again tomorrow — or sign in for a full audit.",
   "INTAKE_LEGACY": "Too many requests to this intake link. Try again later.",

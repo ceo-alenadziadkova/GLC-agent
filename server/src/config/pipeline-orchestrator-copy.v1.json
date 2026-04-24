@@ -20,9 +20,9 @@
     "completedTemplate": "Parallel block finished: phases [{{phases}}]"
   },
   "errors": {
-    "phaseFailedUserMessage": "Pipeline phase failed. Please retry or contact support if the issue persists.",
+    "phaseFailedUserMessage": "This step could not finish. Your consultant has been notified and will take care of it.",
     "phaseFailedCode": "PIPELINE_PHASE_FAILED",
-    "parallelPhaseFailedUserMessage": "A parallel pipeline phase failed. Please retry or contact support if the issue persists.",
+    "parallelPhaseFailedUserMessage": "Part of this audit step could not finish. Your consultant has been notified and will take care of it.",
     "parallelPhaseFailedCode": "PIPELINE_PARALLEL_PHASE_FAILED"
   },
   "notifications": {

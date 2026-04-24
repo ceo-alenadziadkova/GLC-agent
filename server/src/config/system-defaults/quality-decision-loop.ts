@@ -40,6 +40,41 @@ export const SYSTEM_DEFAULTS_AUTO_LOOP = {
   allowedModesDefault: ['sandbox', 'internal'] as const,
 } as const;
 
+/**
+ * Narrow-profile Decision Layer (recon/strategy): no claim-bucket / feasibility gates.
+ * Uses confidence.overall, structural errors, and human_attention_required only.
+ */
+export const SYSTEM_DEFAULTS_DECISION_LAYER_NARROW = {
+  accept: { minOverallConfidence: 85 },
+  acceptWithWarnings: { minOverallConfidence: 70 },
+  maxStructuralErrors: 0,
+  /** Appended to `active_error_types` when narrow CONTROL_OBJECT fails basic invariants. */
+  activeErrorTypeInvariantFailed: 'narrow_invariant_failed',
+} as const;
+
+/**
+ * Heuristics for strategy narrow CONTROL_OBJECT (Phase A — before full cross-domain claim checks).
+ */
+export const SYSTEM_DEFAULTS_STRATEGY_NARROW_GOVERNANCE = {
+  /** On 1–5 scale: if |model overall_score − weighted aggregate| exceeds this, emit structural mismatch. */
+  maxModelVsWeightedScoreDelta: 0.75,
+  errorCodes: {
+    modelVsWeightedScoreMismatch: 'strategy_model_vs_weighted_score_mismatch',
+    noCompletedDomainScores: 'strategy_no_completed_domain_scores',
+    governanceIncomplete: 'narrow_governance_incomplete',
+  },
+  /** Penalties applied to `confidence.overall` (0–100) when building narrow strategy CONTROL_OBJECT. */
+  confidence: {
+    baselineOverall: 100,
+    overallClampMin: 0,
+    overallClampMax: 100,
+    penaltyPointsPerStructural: 25,
+    penaltyPointsPerDataGap: 20,
+    /** Cap when `governanceIncomplete` structural code is added after invariant failure. */
+    invariantFailureMaxOverall: 40,
+  },
+} as const;
+
 export const SYSTEM_DEFAULTS_DECISION_LAYER = {
   accept: {
     minOverallConfidence: 85,
@@ -50,6 +85,15 @@ export const SYSTEM_DEFAULTS_DECISION_LAYER = {
     maxHallucinationCount: 3,
     maxStructuralErrors: 0,
   },
+  narrow: SYSTEM_DEFAULTS_DECISION_LAYER_NARROW,
   feasibilityForceRefineThreshold: 0.5,
   feasibilityGatedDomains: ['tech_infrastructure', 'automation_processes'] as const,
+  onErrorFallback: {
+    /**
+     * Safe fallback when `DecisionLayer.decide()` throws.
+     * Must never imply clean pass-through.
+     */
+    hint: 'accept_with_warnings' as const,
+    reasonCode: 'decision_layer_error_fallback' as const,
+  },
 } as const;

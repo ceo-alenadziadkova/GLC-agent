@@ -56,11 +56,16 @@ describe('emitStructuredNotification', () => {
     });
 
     expect(insertMock).toHaveBeenCalled();
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
-    expect(requestBody.text).toContain('[YELLOW|MEDIUM]');
-    expect(requestBody.text).toContain('[HELP]');
-    expect(requestBody.text).toContain('event=brief_help_requested');
-    expect(requestBody.text).toContain('route=/audit/audit-1');
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      text: string;
+      parse_mode?: string;
+    };
+    expect(requestBody.parse_mode).toBe('HTML');
+    expect(requestBody.text).toContain('GLC Ops');
+    expect(requestBody.text).toContain('Medium (YELLOW)');
+    expect(requestBody.text).toContain('HELP');
+    expect(requestBody.text).toContain('brief_help_requested');
+    expect(requestBody.text).toContain('/audit/audit-1');
   });
 });
 

@@ -2,6 +2,7 @@ import { INTAKE_TRACE_GRAPH_CONFIG } from '../config/graph-config';
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from '../config/graph-copy';
 import type { WordingScoringMode } from '../types';
 import { Button } from '../../../ui/button';
+import { Input } from '../../../ui/input';
 
 interface GraphAdvancedControlsProps {
   showWordingReview: boolean;
@@ -51,9 +52,9 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs">
             <span className="text-[var(--glc-muted)]">{copy.searchNode}</span>
-            <input
+            <Input
               type="search"
-              className="glc-input font-mono text-xs"
+              className="glc-input h-auto min-h-7 font-mono text-xs"
               value={props.searchQuery}
               onChange={event => props.onSearchQueryChange(event.target.value)}
               placeholder={copy.searchPlaceholder}

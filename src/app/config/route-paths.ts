@@ -1,3 +1,4 @@
+import { LEGAL_DOCUMENT_SPA_ROUTES } from '@glc/api-paths';
 import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
 
 export const APP_ROUTE_PATHS = {
@@ -7,11 +8,17 @@ export const APP_ROUTE_PATHS = {
   discovery: '/discovery',
   brief: `/${P.brief}`,
   faq: `/${P.faq}`,
+  legalTerms: LEGAL_DOCUMENT_SPA_ROUTES.termsOfService,
+  legalPrivacy: LEGAL_DOCUMENT_SPA_ROUTES.privacyPolicy,
+  legalDpa: LEGAL_DOCUMENT_SPA_ROUTES.dataProcessingAgreement,
+  legalNotice: LEGAL_DOCUMENT_SPA_ROUTES.legalNotice,
+  legalCookies: LEGAL_DOCUMENT_SPA_ROUTES.cookiePolicy,
   dashboard: `/${P.dashboard}`,
   portfolio: `/${P.portfolio}`,
   portal: `/${P.portal}`,
   settings: `/${P.settings}`,
   adminRequests: `/${P.adminRequests}`,
+  adminAudits: `/${P.adminAudits}`,
   adminSnapshots: `/${P.adminSnapshots}`,
   adminDiscovery: `/${P.adminDiscovery}`,
   adminDesignSystem: `/${P.adminDesignSystem}`,
@@ -25,10 +32,19 @@ export const APP_ROUTE_PATHS = {
 export const buildAppRoute = {
   audit: (auditId: string): string => `/${P.auditById.replace(':id', auditId)}`,
   pipeline: (auditId: string): string => `/${P.pipelineById.replace(':id', auditId)}`,
+  timeline: (auditId: string): string => `/${P.timelineById.replace(':id', auditId)}`,
+  roadmap: (auditId: string): string => `/${P.roadmapById.replace(':id', auditId)}`,
   reports: (auditId: string): string => `/${P.reportsById.replace(':id', auditId)}`,
   strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
+  auditOrchestration: (auditId: string): string => `/${P.auditOrchestrationById.replace(':id', auditId)}`,
   portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
+  portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
+  portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
+  portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
+  portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
+  portalRoadmapManifest: (auditId: string): string =>
+    `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
   /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
@@ -40,11 +56,15 @@ export const buildAppRoute = {
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
-  portalAuditScope: new RegExp(`^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
+  /** Includes optional `/roadmap-manifest` after portal audit scope (client wizard). */
+  portalAuditScope: new RegExp(
+    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/roadmap-manifest)?/?$`,
+    'i',
+  ),
   auditById: /^\/audit\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}/i,
 } as const;

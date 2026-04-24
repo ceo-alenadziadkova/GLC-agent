@@ -1,5 +1,6 @@
 import type { QuestionBankStudioDiffSummary } from '../hooks/useQuestionBankStudioDiff';
 import { STUDIO_COPY_EN } from '../config/studio-copy.en';
+import { Textarea } from '../../ui/textarea';
 
 type StudioDiffSectionProps = {
   bankDiffJson: string;
@@ -23,7 +24,7 @@ export function StudioDiffSection(props: StudioDiffSectionProps) {
       <p className="text-[length:var(--text-2xs)] m-0 ds-text-quaternary" >
         {STUDIO_COPY_EN.logicDiffDescription}
       </p>
-      <textarea
+      <Textarea
         className="w-full min-h-[72px] px-2 py-1.5 text-xs font-mono rounded-md ds-studio-diff-textarea"
         value={bankDiffJson}
         onChange={e => onBankDiffJsonChange(e.target.value)}

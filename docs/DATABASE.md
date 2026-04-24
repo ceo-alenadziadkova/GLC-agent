@@ -67,6 +67,16 @@ Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist b
 59. `059_audits_status_add_cancelled.sql` — **`audits.status`** adds **`cancelled`**
 60. `060_audits_execution_plan.sql` — **`audits.execution_plan`** (`jsonb`)
 61. `061_public_brief_sessions.sql` — **`public_brief_sessions`** (public `/brief` resumable session rows; RLS deny-all for `anon`/`authenticated`; API uses **service role**)
+62. `062_intake_trace_wording_action_batch_rpc.sql` — intake trace wording batch RPC (see migration file)
+63. `063_platform_llm_token_pool_and_totals_rpc.sql` — **`platform_settings.llm_token_pool_cap`**; RPC **`audit_token_totals_for_user`**, **`audit_token_totals_global`** (service role) for token usage summary API
+64. `064_evaluation_datasets_expires_at_trigger_guard.sql` — fixes **`set_evaluation_datasets_expires_at`** when **`platform_settings` id=1** is missing (avoids NULL **`expires_at`** on insert)
+65. `065_audits_status_add_strategy.sql` — **`audits.status`** CHECK adds **`strategy`** (phase 7 lock status; aligns DB with `pipelineStatusForPhase(7)`)
+66. `066_audit_strategy_v2_execution_packs.sql` — **`audit_strategy.schema_version`**; **`audit_strategy_execution_packs`** (Strategy Lab on-demand execution plans)
+67. `067_audit_strategy_strategy_lab_context.sql` — **`audit_strategy.strategy_lab_context`** (consultant constraint overrides)
+68. `067_legal_consent_events.sql` — **`legal_consent_events`** append-only consent log
+69. `068_legal_consent_source_audit_create.sql` — expands **`legal_consent_events.source`** enum (e.g. **`audit_create`**)
+70. `069_glc_orchestration_pack.sql` — **`audit_strategy.glc_orchestration_pack`**, **`orchestration_pack_version`**; **`audit_roadmap_manifest_snapshots`** (roadmap manifest + GLC orchestration pack persistence)
+71. `070_glc_orchestration_last_revision_diff.sql` — **`audit_strategy.glc_orchestration_last_revision_diff`** (JSON diff from previous pack to current when version ≥ 2)
 
 **Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, **`public_brief_sessions`**, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 
@@ -112,7 +122,7 @@ brief_help_requested_at timestamptz -- optional; client self-serve help ping (mi
 brief_help_client_message text -- optional short note from client (migration 017)
 ```
 
-**`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed` | `cancelled`
+**`status` values:** While phases run: `recon`, `auto`, `analytic`, `strategy` (phase 7 lock); idle / review gates: `review`; not started: `created`; terminal: `completed`, `failed`, `cancelled`
 
 **`company_url` — no public website:** When the client has no public site, the API stores the stable sentinel **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (`https://glc-audit.placeholder/no-public-website`). Collectors and snapshot code detect it via **`isNoPublicWebsiteUrl`** and skip outbound HTTP crawls. Do not hand-edit to an arbitrary placeholder without updating the shared package and all consumers. See [DEPLOYMENT.md — Immutable product constants](./DEPLOYMENT.md#immutable-product-constants).
 
@@ -274,6 +284,16 @@ User roles and display metadata. **`role`:** `consultant` | `client` | `guest` (
 
 ---
 
+### `legal_consent_events`
+
+Append-only log of **Terms of Service** acceptance, **Privacy Policy** acknowledgment, optional consents (**`marketing`**, **`product_analytics`**, **`case_study_use`**, **`evaluation_internal`**), and **`dpa_acceptance`** (typically when a **consultant** starts client work — at **audit creation** or via **Settings**). Each row stores **`consent_key`**, **`accepted`**, a snapshot of published document versions (**`document_bundle_version`**, optional **`tos_version`**, **`privacy_version`**, **`dpa_version`**), **`source`** (`signup` | `settings` | `api` | `import` | **`audit_create`**), and **`created_at`**. No `UPDATE` / `DELETE` — effective state is derived as the latest row per `(user_id, consent_key)` by `created_at`.
+
+**RLS:** authenticated users may **`SELECT`** rows where **`user_id = auth.uid()`**; inserts are performed by the API with the **service role** (same pattern as **`intake_wording_publication_log`**).
+
+Migrations: **`067_legal_consent_events.sql`**, **`068_legal_consent_source_audit_create.sql`** (adds **`audit_create`** to **`source`**).
+
+---
+
 ### `audit_requests`
 
 Client-submitted audit requests before an `audits` row is attached. Status workflow: `draft` → `submitted` → `under_review` → `approved` | `rejected` → `running` → `delivered` (see migration `005`).
@@ -395,6 +415,7 @@ Migration: `014_notifications.sql`.
 Singleton row (`id = 1`) for cross-tenant platform options maintained via the API (service role).
 
 - `self_serve_audit_owner_user_id` — optional `profiles.id` (role `consultant`) used as `audits.user_id` when a **client** creates an audit from the portal. If null, the API resolves an owner via legacy admin UUIDs or (open mode) earliest consultant; **`SELF_SERVE_AUDIT_OWNER_USER_ID`** env is deprecated and ignored (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
+- `llm_token_pool_cap` — optional non-negative cap on aggregate pipeline usage (`SUM(audits.tokens_used)`). When set, platform administrators see remaining pool in **Settings** via `GET /api/audits/token-usage-summary` (migration **`063`**).
 - `updated_at`, `updated_by` — audit metadata.
 
 **RLS** enabled with an explicit **deny-all** policy for **`anon` / `authenticated`** (migration **`043`**); server writes through the **service role**.

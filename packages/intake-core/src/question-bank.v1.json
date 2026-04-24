@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "optionCatalogs": {
     "industry": [
       "E-commerce",
@@ -1181,6 +1181,79 @@
           "Investor, partner, or board review",
           "Contract or compliance milestone",
           "No specific deadline"
+        ]
+      }
+    },
+    {
+      "id": "f_idea_1",
+      "section": "F",
+      "priority": "required",
+      "branch": "no_website",
+      "label": "What evidence tells you this idea solves a real customer problem?",
+      "reportUse": "strategy_idea_problem_evidence",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "I have paid pilots or early customers",
+          "Strong interview or survey validation",
+          "Informal conversations only",
+          "Mostly my assumption for now"
+        ]
+      }
+    },
+    {
+      "id": "f_idea_2",
+      "section": "F",
+      "priority": "required",
+      "branch": "no_website",
+      "label": "How clear is your ideal first customer profile (ICP)?",
+      "reportUse": "strategy_idea_icp_clarity",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Very clear (segment, context, budget, urgency)",
+          "Partly clear (some assumptions still open)",
+          "Broad audience for now",
+          "Not defined yet"
+        ]
+      }
+    },
+    {
+      "id": "f_idea_3",
+      "section": "F",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "Which go-to-market tests are you ready to run in the next 30 days?",
+      "reportUse": "strategy_idea_gtm_tests_readiness",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Landing page test",
+          "Paid ads test",
+          "Direct outreach test",
+          "Marketplace or directory listing test",
+          "Partnership channel test",
+          "Not ready to run tests yet",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "f_idea_4",
+      "section": "F",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "What is the main constraint that could delay launch?",
+      "reportUse": "strategy_idea_launch_constraint",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Time or team capacity",
+          "Budget",
+          "Offer or positioning is not finalized",
+          "Delivery process is not ready",
+          "Legal or compliance uncertainty",
+          "No major blocker"
         ]
       }
     },

@@ -132,7 +132,12 @@ export function startPipelineWorker(): void {
           return;
         }
         if (action === 'retry') {
-          await orchestrator.startPhase(phase ?? 0);
+          const p = phase ?? 0;
+          if (Number.isInteger(p) && p >= 1 && p <= 6) {
+            await orchestrator.retryDomainPhase(p);
+          } else {
+            await orchestrator.startPhase(p);
+          }
           clearInterval(heartbeatTimer);
           await touchLease(job.id!, job.data, attempt, 'completed');
           return;

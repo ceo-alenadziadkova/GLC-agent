@@ -11,10 +11,13 @@ import { useSettingsPageController } from './hooks/useSettingsPageController';
 import { useSettingsTabs } from './hooks/useSettingsTabs';
 import { ProfileSection } from './sections/ProfileSection';
 import { AppearanceSection } from './sections/AppearanceSection';
+import { DesignSystemSection } from './sections/DesignSystemSection';
 import { SelfServeSection } from './sections/SelfServeSection';
 import { BriefLayoutSection } from './sections/BriefLayoutSection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { AccountSecuritySection } from './sections/AccountSecuritySection';
+import { TokenUsageSection } from './sections/TokenUsageSection';
+import { LegalConsentsSection } from './sections/LegalConsentsSection';
 
 type GeneralSectionsProps = {
   controller: ReturnType<typeof useSettingsPageController>;
@@ -31,6 +34,8 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
         disabled={!controller.nameChanged}
       />
       <AppearanceSection mode={controller.mode} onModeChange={controller.setMode} />
+      {controller.isConsultant ? <DesignSystemSection /> : null}
+      {controller.isConsultant ? <TokenUsageSection enabled /> : null}
       {controller.profile && controller.isConsultant && (
         <SelfServeSection
           selfServeLoading={controller.selfServeLoading}
@@ -41,15 +46,22 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
           onSave={() => void controller.onSaveSelfServe()}
         />
       )}
-      <BriefLayoutSection
-        showClient={Boolean(controller.profile && controller.isClient)}
-        showConsultant={Boolean(controller.profile && controller.isConsultant)}
-        clientBriefDefault={controller.clientBriefDefault}
-        consultantBriefDefault={controller.consultantBriefDefault}
-        onClientChange={controller.setClientBriefLayoutDefault}
-        onConsultantChange={controller.setConsultantBriefLayoutDefault}
+      {controller.isConsultant ? (
+        <BriefLayoutSection
+          showClient={false}
+          showConsultant={Boolean(controller.profile && controller.isConsultant)}
+          clientBriefDefault={controller.clientBriefDefault}
+          consultantBriefDefault={controller.consultantBriefDefault}
+          onClientChange={controller.setClientBriefLayoutDefault}
+          onConsultantChange={controller.setConsultantBriefLayoutDefault}
+        />
+      ) : null}
+      <NotificationsSection
+        notifyPrefs={controller.notifyPrefs}
+        setNotifyPrefs={controller.setNotifyPrefs}
+        showExecutionTraceToggle={controller.isAdmin}
       />
-      <NotificationsSection notifyPrefs={controller.notifyPrefs} setNotifyPrefs={controller.setNotifyPrefs} />
+      <LegalConsentsSection enabled={Boolean(controller.profile && !controller.isGuest)} />
       <AccountSecuritySection
         email={controller.user?.email ?? ''}
         newEmail={controller.newEmail}

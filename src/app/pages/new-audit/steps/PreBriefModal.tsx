@@ -6,6 +6,7 @@ import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { Callout } from '../../../components/ui/callout';
 import { FormField } from '../../../components/ui/form-field';
 import { cn } from '../../../components/ui/utils';
+import { Input, Textarea } from '../../../../design-system/ui';
 
 export type PreBriefModalProps = {
   isOpen: boolean;
@@ -127,7 +128,7 @@ export function PreBriefModal({
           </p>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyNameLabel}>
-            <input
+            <Input
               value={company}
               onChange={e => setCompany(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyNamePlaceholder}
@@ -136,7 +137,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyWebsiteLabel}>
-            <input
+            <Input
               value={website}
               onChange={e => setWebsite(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyWebsitePlaceholder}
@@ -164,7 +165,7 @@ export function PreBriefModal({
               label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryOtherLabel}
               requiredMark
             >
-              <input
+              <Input
                 value={industrySpecify}
                 onChange={e => setIndustrySpecify(e.target.value)}
                 placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryOtherPlaceholder}
@@ -174,7 +175,7 @@ export function PreBriefModal({
           )}
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.messageOptionalLabel}>
-            <textarea
+            <Textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
               rows={2}
@@ -183,7 +184,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.consultantNameLabel}>
-            <input
+            <Input
               value={consultantName}
               onChange={e => setConsultantName(e.target.value)}
               placeholder={consultantNamePlaceholder}
@@ -192,7 +193,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.expectedContactLabel}>
-            <input
+            <Input
               value={expectedContact}
               onChange={e => setExpectedContact(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.expectedContactPlaceholder}
@@ -201,7 +202,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.contactChannelLabel}>
-            <input
+            <Input
               value={contactChannel}
               onChange={e => setContactChannel(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.contactChannelPlaceholder}
@@ -210,7 +211,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.emailOptionalLabel}>
-            <input
+            <Input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -220,7 +221,7 @@ export function PreBriefModal({
           </FormField>
 
           <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.whatsappOptionalLabel}>
-            <input
+            <Input
               value={whatsapp}
               onChange={e => setWhatsapp(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.whatsappPlaceholder}
@@ -239,7 +240,7 @@ export function PreBriefModal({
           <div className="space-y-2">
             <p className="text-xs text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.preBriefModal.shareLinkLabel}</p>
             <div className="flex gap-2">
-              <input
+              <Input
                 readOnly
                 value={link}
                 className="flex-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-inset)] px-2 py-1.5 text-xs text-[var(--text-primary)]"

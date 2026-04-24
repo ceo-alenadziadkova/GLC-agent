@@ -29,6 +29,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Agents, collectors, fact-check, weights | [AGENTS.md](./AGENTS.md) |
 | Database tables, migrations, RLS | [DATABASE.md](./DATABASE.md) |
 | REST API (human contract) | [API.md](./API.md) |
+| Diagnostic Adaptive Intake (pilot contract + acceptance) | [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md) |
 | Literal `error` string inventory (generated; see [API.md](./API.md#error-responses)) | [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) |
 | Auth, roles, JWT | [AUTH.md](./AUTH.md) |
 | Threat model, rate limits, CORS, snapshot log redaction | [SECURITY.md](./SECURITY.md) |
@@ -39,6 +40,10 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Test matrix, coverage, E2E | [TESTING.md](instructions/TESTING.md) (repo root) |
 | QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](instructions/TESTING_INSTRUCTIONS.md) (repo root) |
 | Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](instructions/CMO-INSTRUCTIONS.md) (repo root) |
+| UX & conversion (CDO) instruction canon | [CDO-INSTRUCTIONS.md](instructions/CDO-INSTRUCTIONS.md) (repo root) |
+| Security & compliance (CSO) instruction canon | [CSO-INSTRUCTIONS.md](instructions/CSO-INSTRUCTIONS.md) (repo root) |
+| Automation & processes (CAO) instruction canon | [CAO-INSTRUCTIONS.md](instructions/CAO-INSTRUCTIONS.md) (repo root) |
+| GLC Orchestrator (Meta-Director) instruction canon | [ORCHESTRATOR-INSTRUCTIONS.md](instructions/ORCHESTRATOR-INSTRUCTIONS.md) (repo root) |
 | CI workflows (tests, secret scan, migration smoke) | [.github/workflows](../.github/workflows) |
 | FACT-CHECKER / Decision Layer roadmap vs code | [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) |
 | Other ADRs (decisions, future phases) | [docs/adrs/](./adrs/) — see tree under [Restructuring log](#restructuring-log) |
@@ -48,10 +53,26 @@ Selected ADR quick links:
 | Topic | Doc |
 | --- | --- |
 | Unified question bank, IntakePlan, Question Bank Studio | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
+| Diagnostic adaptive intake — roadmap vs repository (G1–G13, sprints) | [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md) |
+| Intake follow-up policy — prune vs trace semantics | [ADR-INTAKE-FOLLOWUP-POLICY-RUNTIME-V1.md](adrs/ADR-INTAKE-FOLLOWUP-POLICY-RUNTIME-V1.md) |
+| NL ingress LLM — rollout, consent, DPA hand-offs (ops) | [ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md](adrs/ADR-NL-INGRESS-LLM-OPS-CHECKLIST.md) |
 | Free snapshot scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Intake wording lifecycle + trace IA | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Frontend i18n | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
+| Director layer (two-stage deep audit pattern) | [ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md](adrs/ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md) |
+| Marketing Director (two-stage) | [ADR-MARKETING-DIRECTOR-TWO-STAGE.md](adrs/ADR-MARKETING-DIRECTOR-TWO-STAGE.md) |
+| Tech Director (two-stage) | [ADR-TECH-DIRECTOR-TWO-STAGE.md](adrs/ADR-TECH-DIRECTOR-TWO-STAGE.md) |
+| Automation Director (operations automation program engine) | [ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md](adrs/ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md) |
+| CDO Director (two-stage UX & conversion) | [ADR-CDO-DIRECTOR-TWO-STAGE.md](adrs/ADR-CDO-DIRECTOR-TWO-STAGE.md) |
+| CSO Director (security & compliance program engine) | [ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md](adrs/ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md) |
+| CTO Director orchestration (deep technical rubric) | [ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md](adrs/ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md) |
+| GLC Orchestrator v1.1 (meta orchestration) | [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md](adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md) |
+| Client unified roadmap (multi-lane timeline, lab split, pre-commit manifest) | [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) |
+| Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
+| Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |
+
+Current implementation note: persisted `glc_orchestration_pack` uses schema v2 (deterministic phase diagnostic, weighted dependency relations, routing profile) with backward read adapter for historical v1 rows.
 
 ---
 
@@ -63,13 +84,13 @@ Selected ADR quick links:
 
 **Why it matters:** Defines scope of engineering work and what clients receive, and clarifies competitive differentiation versus agencies/consulting, DIY AI workflows, and fragmented in-house tool stacks.
 
-**Where it is implemented:** Product behaviour is encoded in `audit`, `pipeline`, UI pages under ``.
+**Where it is implemented:** Product behaviour is encoded in `audit` and `pipeline` services, and in the UI under `src/app/` (see [FRONTEND.md](./FRONTEND.md)).
 
 **Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes proposition, competitive landscape, stage-based goals, Intake Experience layers, readiness contract, and mode thresholds)
 
 **Owner:** Product / Tech Lead (TBD)
 
-**Status:** Implemented (MVP)
+**Status:** **Orchestration foundation** (Phases 0–7) implemented in code; **Product MVP** (north-star client roadmap UX, backlog V1–V12) tracked in [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) and [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) (*Current UX gaps*). **Code/reality sync (DoD, paths, OQ):** [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](adrs/ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md).
 
 ---
 
@@ -306,7 +327,7 @@ Selected ADR quick links:
 3. **No new flat `docs/*.md` files** unless the team agrees to replace or merge an existing file and stay within the **20-file flat-doc quota** (see top of this file). **Do not** add a second master index (e.g. `MASTER_DOCUMENTATION.md`); keep **MASTER.md** as the only index.
 4. **API error inventory:** [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) lists route `error` literals; `./scripts/api-errors-inventory.sh` prints `rg` matches to stdout — use it to refresh grouped tables after route changes; do not drift the literal tables away from code by casual edits.
 5. **Structure rule.** Canonical topic docs stay at `docs/*.md`. **ADR archive:** `docs/adrs/*`. **Obsolete stubs only:** `docs/archive/*` (short pointer + link to replacement; no duplicate facts).
-6. **Instruction-layer dedup.** Keep root `INSTRUCTIONS.md` as a router only; canonical policy content lives in `TESTING_INSTRUCTIONS.md` and `CMO-INSTRUCTIONS.md`.
+6. **Instruction-layer dedup.** Keep root `INSTRUCTIONS.md` as a router only; canonical policy content lives in `TESTING_INSTRUCTIONS.md`, `CMO-INSTRUCTIONS.md`, `CDO-INSTRUCTIONS.md`, `CSO-INSTRUCTIONS.md`, and `CAO-INSTRUCTIONS.md`.
 
 ### Documentation PR checklist
 
@@ -351,12 +372,22 @@ docs/
  archive/
  README.md # Policy for obsolete doc stubs only
  adrs/
+ superseded/
+ README.md
+ ADR-AUTOMATION-DIRECTOR-TWO-STAGE.md
+ ADR-CSO-DIRECTOR-TWO-STAGE.md
  ADR-AUTO-LOOP-RULE-ENGINE.md
  ADR-AUTO-REMEDIATION.md
+ ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md
+ ADR-CDO-DIRECTOR-TWO-STAGE.md
+ ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md
+ ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md
  ADR-CAUSAL-DAG.md
  ADR-CONTROL-OBJECT-V1.md
  ADR-CONTROL-OBJECT-V2-FULL.md
+ ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md
  ADR-DECISION-LAYER-GATES.md
+ ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md
  ADR-DOMAIN-BENCHMARKS.md
  ADR-DOMAIN-AUTOMATION-PROCESSES-FINAL-READY.md
  ADR-DOMAIN-FINAL-READINESS-SUMMARY.md
@@ -370,15 +401,27 @@ docs/
  ADR-FEASIBILITY-RULE-ENGINE.md
  ADR-FREE-SNAPSHOT-SCANNER.md
  ADR-FRONTEND-I18N.md
+ ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md
  ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md
  ADR-INTAKE-UNIFIED-QUESTION-BANK.md
+ ADR-MARKETING-DIRECTOR-TWO-STAGE.md
  ADR-ML-BANDITS.md
  ADR-MULTIMODAL-TRUTH.md
+ ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md
+ ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md
  ADR-PHASE-PROFILES.md
  ADR-SAFETY-MODE-EXECUTION.md
+ ADR-TECH-DIRECTOR-TWO-STAGE.md
  ADR-TRUTH-REGISTRY-ASSUMPTIONS.md
  GAP-ANALYSIS-PHASE0.md
 ```
+
+### Consolidation (2026-04-23) — superseded ADR subfolder
+
+| Action | Item |
+| --- | --- |
+| ADR layout | Retired, fully superseded two-stage director ADRs moved under [`docs/adrs/superseded/`](./adrs/superseded/README.md) (CSO and Automation & Processes baselines); canonical contracts remain [`ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md`](./adrs/ADR-CSO-DIRECTOR-V1.1-THREAT-PROGRAM.md) and [`ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md`](./adrs/ADR-AUTOMATION-DIRECTOR-V1.1-OPERATIONAL-NERVOUS-SYSTEM.md). |
+| Control object | [`ADR-CONTROL-OBJECT-V1.md`](./adrs/ADR-CONTROL-OBJECT-V1.md) **Superseded by** field aligned with v2 full-schema ADR. |
 
 ### Consolidation (2026-04)
 

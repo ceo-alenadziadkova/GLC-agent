@@ -11,7 +11,7 @@ export function DataGapsSection({ domainData }: Props) {
   return (
     <div className="glc-card rounded-[var(--radius-xl)] p-5">
       <div className="flex items-center gap-2 mb-3">
-        <Question className="h-4 w-4 text-[var(--text-tertiary)]" />
+        <Question className="h-4 w-4 text-[var(--text-blue)]" />
         <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.dataGaps}</SectionLabel>
         <span className="ml-1 text-xs text-[var(--text-tertiary)]">
           {AUDIT_WORKSPACE_COPY.sections.dataGapsHint}

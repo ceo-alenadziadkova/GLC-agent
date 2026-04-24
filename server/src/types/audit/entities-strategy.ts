@@ -1,15 +1,9 @@
 import type { DomainKey } from '@glc/intake-core';
 
+import type { StrategyInitiative } from '../../schemas/domain-output.js';
 import type { PhaseStatus } from './phase-status.js';
 
-export interface StrategyInitiative {
-  id: string;
-  title: string;
-  description: string;
-  impact: 'high' | 'medium' | 'low';
-  effort: 'low' | 'medium' | 'high';
-  dependencies?: string[];
-}
+export type { StrategyInitiative } from '../../schemas/domain-output.js';
 
 export interface StrategyRoadmap {
   id: string;
@@ -21,6 +15,8 @@ export interface StrategyRoadmap {
   medium_term: StrategyInitiative[];
   strategic: StrategyInitiative[];
   scorecard: ScorecardEntry[];
+  /** 1 = legacy shape; 2 = initiative v2 fields. */
+  schema_version?: number;
 }
 
 export interface ScorecardEntry {

@@ -8,6 +8,8 @@ useDefault = true
 description = "Template env files, documented i18n identifiers, and browser localStorage ids (not secrets)"
 paths = [
   '''\.env\.example$''',
+  # Logger redaction tests use key names and strings that resemble secrets; not real credentials
+  '''server/src/tests/logger-sanitization\.test\.ts$''',
 ]
 regexes = [
   '''MARKETING_BRIEF_ROUTE_I18N_KEYS''',

@@ -9,6 +9,7 @@ export interface IntakeVersionTuple {
   policyVersion: string;
   layoutVersion: string;
   resolverVersion: string;
+  sequencingVersion: string;
 }
 
 export type BriefResponseValue = string | string[] | number | boolean | null;

@@ -2,7 +2,8 @@ import type { Variants } from 'motion/react';
 import {
   MARKETING_CARD_MOTION,
   MARKETING_LIST_STAGGER,
-  MARKETING_MOTION_EASE_PREMIUM,
+  MARKETING_SPRING_PREMIUM,
+  MARKETING_SPRING_BOUNCY,
 } from '../../../config/marketing-motion';
 
 export const homeTrustLineVariants: Variants = {
@@ -12,8 +13,7 @@ export const homeTrustLineVariants: Variants = {
     y: 0,
     transition: {
       delay: i * MARKETING_LIST_STAGGER.itemDelaySec,
-      duration: MARKETING_LIST_STAGGER.itemDurationSec,
-      ease: MARKETING_MOTION_EASE_PREMIUM,
+      ...MARKETING_SPRING_PREMIUM,
     },
   }),
 };
@@ -25,8 +25,7 @@ export const homeOutcomeCardVariants: Variants = {
     y: 0,
     transition: {
       delay: i * MARKETING_CARD_MOTION.staggerSec,
-      duration: MARKETING_CARD_MOTION.durationSec,
-      ease: MARKETING_MOTION_EASE_PREMIUM,
+      ...MARKETING_SPRING_PREMIUM,
     },
   }),
 };
@@ -39,8 +38,7 @@ export const homeHeroVisualFloatVariants: Variants = {
     scale: 1,
     transition: {
       delay: 0.2,
-      duration: 0.8,
-      ease: MARKETING_MOTION_EASE_PREMIUM,
+      ...MARKETING_SPRING_BOUNCY,
     },
   },
 };

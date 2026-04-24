@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { MarketingMeshBackdrop } from '../marketing/components/MarketingMeshBackdrop';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { AuditCompare } from '../marketing/blocks/AuditCompare';
@@ -14,6 +15,7 @@ import { LOGIN_PATH } from '../marketing/marketing-nav';
 import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
+import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 
 const L = PACKAGE_PAGE_LAYOUT.focus;
 
@@ -33,12 +35,14 @@ export function ExpressAuditPage() {
   const nextHints = pageCopy.next_steps_hints;
 
   return (
-    <MarketingLayout
-      breadcrumbs={[
-        { label: workspacePackaging.navigation.homeBreadcrumbLabel, to: '/' },
-        { label: pageCopy.breadcrumb },
-      ]}
-    >
+    <div className="dark ds-marketing-page-express">
+      <MarketingMeshBackdrop />
+      <MarketingLayout
+        breadcrumbs={[
+          { label: workspacePackaging.navigation.homeBreadcrumbLabel, to: '/' },
+          { label: pageCopy.breadcrumb },
+        ]}
+      >
       <MarketingSection className="scroll-mt-24">
         <PackageMarketingHero
           tier="focus"
@@ -56,22 +60,22 @@ export function ExpressAuditPage() {
       <MarketingSection className={L.sectionGapClass} delay={0.06}>
         <MarketingRevealMask>
           <MarketingComparisonShell>
-            <div className="grid divide-y divide-[var(--border-subtle)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-              <div className="p-6 sm:p-8">
-                <h3 className="text-foreground font-display text-lg font-bold">
+            <div className="grid divide-y divide-white/10 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+              <div className="p-6 sm:p-8 transition-colors hover:bg-white/[0.02]">
+                <h3 className="text-[var(--text-primary)] font-display text-lg font-semibold">
                   {labels.included}
                 </h3>
-                <ul className="text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm">
+                <ul className="ds-marketing-text-muted mt-4 list-disc space-y-3 pl-5 text-sm">
                   {scope.included.map(line => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
               </div>
-              <div className="p-6 sm:p-8">
-                <h3 className="text-foreground font-display text-lg font-bold">
+              <div className="p-6 sm:p-8 transition-colors hover:bg-white/[0.02]">
+                <h3 className="text-[var(--text-primary)] font-display text-lg font-semibold">
                   {labels.notIncluded}
                 </h3>
-                <ul className="text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm">
+                <ul className="ds-marketing-text-muted mt-4 list-disc space-y-3 pl-5 text-sm">
                   {scope.not_included.map(line => (
                     <li key={line}>{line}</li>
                   ))}
@@ -83,26 +87,28 @@ export function ExpressAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.07}>
-        <h2 className="text-foreground font-display text-xl font-bold sm:text-2xl">
-          {outcomeTiming.title}
-        </h2>
-        <p className="text-muted-foreground mt-3 max-w-3xl text-sm leading-relaxed">
-          {outcomeTiming.body}
-        </p>
+        <div className="text-center text-[var(--text-primary)] mx-auto max-w-[var(--marketing-max-w-content)] w-full">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">
+            {outcomeTiming.title}
+          </h2>
+          <p className="ds-marketing-text-muted mt-4 mx-auto max-w-2xl text-base leading-relaxed">
+            {outcomeTiming.body}
+          </p>
+        </div>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.08}>
-        <div className="rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-8 sm:px-6 sm:py-10">
+        <div className="ds-marketing-express-glass-grid">
           <div className="grid gap-4 md:grid-cols-3">
             {outcomeCards.map(item => (
               <article
                 key={item.title}
-                className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_88%,var(--bg-muted))] p-5 sm:p-6"
+                className="group rounded-2xl border border-white/5 bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.05]"
               >
-                <h3 className="text-foreground font-display text-base font-bold">
+                <h3 className="text-[var(--text-primary)] font-display text-lg font-semibold">
                   {item.title}
                 </h3>
-                <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                <p className="ds-marketing-text-muted mt-3 text-sm leading-relaxed">
                   {item.body}
                 </p>
               </article>
@@ -112,21 +118,23 @@ export function ExpressAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.09}>
-        <h2 className="text-foreground mb-6 font-display text-xl font-bold sm:text-2xl">
-          {signalToDecision.title}
-        </h2>
+        <div className="text-center text-[var(--text-primary)] mx-auto mb-8 max-w-[var(--marketing-max-w-content)] w-full">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">
+            {signalToDecision.title}
+          </h2>
+        </div>
         <MarketingRevealMask>
           <MarketingComparisonShell padded>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {signalToDecision.items.map(({ label, detail }) => (
                 <div
                   key={label}
-                  className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_88%,var(--bg-muted))] p-4 text-center"
+                  className="rounded-2xl border border-white/5 bg-white/[0.02] p-5 text-center transition-colors hover:bg-white/[0.05] hover:border-white/10"
                 >
-                  <p className="text-info text-xs font-bold uppercase tracking-wide">
+                  <p className="text-[var(--glc-blue)] text-xs font-semibold uppercase tracking-wider">
                     {label}
                   </p>
-                  <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                  <p className="ds-marketing-text-muted mt-3 text-sm leading-relaxed">
                     {detail}
                   </p>
                 </div>
@@ -145,14 +153,25 @@ export function ExpressAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
-        <h2 className="text-foreground mb-6 font-display text-xl font-bold sm:text-2xl">
-          {compareHeading}
-        </h2>
+        <div className="text-center text-[var(--text-primary)] mx-auto mb-8 max-w-[var(--marketing-max-w-content)] w-full">
+          <h2 className="font-display text-2xl font-semibold sm:text-3xl">
+            {compareHeading}
+          </h2>
+        </div>
         <MarketingRevealMask>
           <MarketingComparisonShell>
             <AuditCompare focusedPackage="starter" />
           </MarketingComparisonShell>
         </MarketingRevealMask>
+      </MarketingSection>
+
+      <MarketingSection className={L.sectionGapClass} delay={0.115}>
+        <MarketingComparisonShell padded>
+          <div className="text-center text-[var(--text-primary)]">
+            <h2 className="font-display text-2xl font-semibold sm:text-3xl">{ORCHESTRATION_UI_COPY.marketingTeaserTitle}</h2>
+            <p className="ds-marketing-text-muted mt-4 mx-auto max-w-2xl text-sm leading-relaxed">{ORCHESTRATION_UI_COPY.marketingTeaserBody}</p>
+          </div>
+        </MarketingComparisonShell>
       </MarketingSection>
 
       <MarketingSection className="mt-0" delay={0.12}>
@@ -194,5 +213,6 @@ export function ExpressAuditPage() {
         .
       </p>
     </MarketingLayout>
+    </div>
   );
 }

@@ -107,9 +107,11 @@ describe('alerts deep links', () => {
     await runAlertChecks();
 
     expect(fetchMock).toHaveBeenCalled();
-    const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
-    expect(firstPayload.text).toContain('[RED|CRITICAL]');
-    expect(firstPayload.text).toContain('event=alert_failure_rate_high');
+    const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string; parse_mode?: string };
+    expect(firstPayload.parse_mode).toBe('HTML');
+    expect(firstPayload.text).toContain('GLC Ops');
+    expect(firstPayload.text).toContain('Critical (RED)');
+    expect(firstPayload.text).toContain('alert_failure_rate_high');
     expect(firstPayload.text).toContain('https://sentry.example/traces/abc123');
     expect(firstPayload.text).toContain('https://trace.example/id/abc123');
   });
@@ -140,8 +142,9 @@ describe('alerts deep links', () => {
     await runAlertChecks();
 
     expect(fetchMock).toHaveBeenCalled();
-    const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
-    expect(firstPayload.text).toContain('[RED|CRITICAL]');
+    const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string; parse_mode?: string };
+    expect(firstPayload.parse_mode).toBe('HTML');
+    expect(firstPayload.text).toContain('Critical (RED)');
     expect(firstPayload.text).toContain('trace_id=fallback-trace');
   });
 });

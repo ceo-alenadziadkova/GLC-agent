@@ -101,7 +101,7 @@ describe('snapshotClassificationExplainerLine', () => {
       },
     });
     const line = snapshotClassificationExplainerLine(r);
-    expect(line).toMatch(/[Ll]ow/);
-    expect(line).toContain('full audit');
+    expect(line).toMatch(/[Ll]ow|Confidence is low/i);
+    expect(line).toMatch(/sampled|deeper workspace/i);
   });
 });

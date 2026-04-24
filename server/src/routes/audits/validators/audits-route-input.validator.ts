@@ -9,6 +9,14 @@ export const auditIdParamsSchema = z.object({
 export const listAuditsQuerySchema = z.object({
   limit: z.union([z.string(), z.number()]).optional(),
   offset: z.union([z.string(), z.number()]).optional(),
+  source: z.union([z.string(), z.array(z.string())]).optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
+  createdFrom: z.string().optional(),
+  createdTo: z.string().optional(),
+  updatedFrom: z.string().optional(),
+  updatedTo: z.string().optional(),
+  sortBy: z.enum(['created_at', 'updated_at']).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
 });
 
 export const briefPutBodySchema = z.object({

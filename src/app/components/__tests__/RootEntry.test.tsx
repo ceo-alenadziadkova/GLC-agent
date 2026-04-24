@@ -39,6 +39,7 @@ const PROFILE_STUB = {
   roleDisplayName: null as 'Admin' | 'Client' | 'Guest' | null,
   isConsultant: false,
   isAdmin: false,
+  canManagePlatformSettings: false,
   isClient: false,
   isGuest: false,
   loading: false,

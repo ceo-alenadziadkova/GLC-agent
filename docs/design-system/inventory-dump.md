@@ -166,7 +166,6 @@ Total: **386**
 - `--glc-ink-1`
 - `--glc-ink-2`
 - `--glc-ink-3`
-- `--glc-ink-4`
 - `--glc-light-home-hero-backdrop`
 - `--glc-mobile-header-height`
 - `--glc-mobile-nav-height`
@@ -282,7 +281,6 @@ Total: **386**
 - `--shadow-snapshot-cta-active`
 - `--shadow-snapshot-cta-muted`
 - `--shadow-snapshot-shell-inner-mobile`
-- `--shadow-swiss`
 - `--shadow-xl`
 - `--shadow-xs`
 - `--sidebar`
@@ -428,7 +426,6 @@ Count: **122**
 #1a1d24
 #1c2128
 #1CBDFF
-#1E345C
 #1f2937
 #222
 #22262C

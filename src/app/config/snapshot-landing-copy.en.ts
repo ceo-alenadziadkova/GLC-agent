@@ -16,7 +16,7 @@ export const SNAPSHOT_LANDING_CATEGORY_HINTS: Record<SnapshotCategoryScoreKey, s
   ai_readiness:
     'How much structured, machine-readable context we found—mainly JSON-LD (Organization, WebSite, products, offers, FAQ, breadcrumbs, etc.) that our rules expect. Higher means more of those checks passed on the sampled markup. It is not a promise about rankings or citations inside any specific AI product.',
   technical_basics:
-    'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or performance audit.',
+    'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or a full technical review.',
 };
 
 export const SNAPSHOT_LANDING_COMPETITOR_COPY = {
@@ -52,7 +52,7 @@ export const SNAPSHOT_LANDING_PHASE_LABELS = [
 
 export const SNAPSHOT_LANDING_SCORE_EXPLAINER = {
   whenHasOverall100:
-    'The score out of 100 sums every rule we ran on the pages we could fetch in this snapshot—not a separate audit.',
+    'The score out of 100 sums every rule we ran on the pages we could fetch in this snapshot—not a separate deep review.',
   fivePointSuffix:
     'It reflects rule-based checks on the pages we could access—not a full consulting review.',
   fivePointPrefix: (step: number, label: string) =>
@@ -80,7 +80,7 @@ export const SNAPSHOT_LANDING_CLASSIFICATION_EXPLAINER = {
     (chosen: string) =>
       `More than one site pattern matched closely on the pages we could load—we show "${chosen}" as the closest fit.`,
   lowConfidence:
-    'Confidence is low because we only sampled a few pages; a full audit can use more of your site and brief context.',
+    'Confidence is low because we only sampled a few pages; a deeper workspace path can use more of your site and brief context.',
 } as const;
 
 export const SNAPSHOT_LANDING_HERO_COPY = {
@@ -88,21 +88,21 @@ export const SNAPSHOT_LANDING_HERO_COPY = {
   signedInFallback: 'Signed in',
   workspaceLink: 'Workspace',
   signInLink: 'Sign in',
-  quickRuleBasedScanBadge: 'Quick rule-based scan',
+  quickRuleBasedScanBadge: 'Instant clarity check',
   websiteFieldLabel: 'Your website',
   websiteInputPlaceholder: 'yourcompany.com',
-  titleLead: 'How well does your website',
-  titleAccent: 'convert visitors?',
+  titleLead: 'Bring your business URL. Get',
+  titleAccent: 'clear ways forward',
   subtitle:
-    'Enter your site address for a quick, plain-language read on how it feels for real visitors — what works, what gets in the way, and where to focus first.',
-  ctaStart: 'Starting analysis...',
-  ctaIdle: 'Analyse my website',
+    'Get a fast, plain-language clarity read: what matters now, what blocks momentum, and where to move first.',
+  ctaStart: 'Building direction...',
+  ctaIdle: 'Get clarity on my website',
   rateLimitUsagePrefix: 'Free checks left today on this connection:',
   quotaTitle: 'Today on this connection',
   quotaFootnote: 'Rolling 24-hour limit from this connection.',
   runningHint: 'Usually takes a few seconds to about half a minute',
-  runningTitle: 'Analysing your website',
-  runningLoaderText: 'Analysing your website, please wait',
+  runningTitle: 'Understanding your website context',
+  runningLoaderText: 'Building your direction, please wait',
   accessLimitedSample: 'Preview limited — inner pages sampled',
   accessLimitedRobots: 'Preview limited — robots.txt policy',
   accessIncomplete: 'Preview incomplete — pages not loaded',
@@ -133,8 +133,8 @@ export const SNAPSHOT_LANDING_HERO_COPY = {
   neuralVisibilityTitle: 'Neural-network visibility',
   fullPictureTitle: 'Want the full picture?',
   fullPictureBody:
-    'Move from a quick scan to paid coverage: Starter (1 domain), Pro (2-3 domains), or Complete (all domains) with a prioritized action plan.',
-  analyzeAnotherUrl: 'Analyse another URL',
+    'Move from a quick check to deeper workspace paths: Focus (1 front), Context (2-3 fronts), or Strategy (all fronts) with coordinated next moves.',
+  analyzeAnotherUrl: 'Check another URL',
   viewProPackageCta: 'View Pro package',
   aiVisibilityGapsIntroParagraph:
     'For your site, how you expose crawl rules, discovery, and machine-readable facts looks like it needs improvement. Have your web or SEO owner verify the live setup—not generic best practice, but how it is wired for you:',
@@ -150,5 +150,5 @@ export const SNAPSHOT_LANDING_HERO_COPY = {
   footerSignIn: 'Sign in',
   footerNoWebsite: 'No website yet?',
   footerDiscoveryLink: 'Try our discovery flow',
-  footerDiscoverySuffix: '— get a free tech-maturity assessment without a URL.',
+  footerDiscoverySuffix: '— get a free tech-maturity check without a URL.',
 } as const;

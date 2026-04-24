@@ -20,21 +20,19 @@ export function SectionHeading({
   const h2Class = size === 'display' ? HOME_DISPLAY_H2 : HOME_DEFAULT_H2;
   const h2Combined = cn(
     h2Class,
-    'ds-text-primary',
-    size !== 'display' && 'tracking-[var(--tracking-tight)]',
+    'text-[var(--text-primary)]',
+    size === 'display' && 'text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-[var(--marketing-section-heading-track)]',
+    size !== 'display' && 'tracking-[var(--tracking-tight)] font-semibold',
   );
 
   if (variant === 'minimal') {
     return (
-      <div className={cn('max-w-3xl', className)}>
+      <div className={cn('max-w-3xl mx-auto flex flex-col items-center text-center', className)}>
         <h2 className={h2Combined}>
           {title}
         </h2>
         {description ? (
-          <p
-            className="mt-3 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size"
-            
-          >
+          <p className="ds-marketing-text-muted mt-4 max-w-[65ch] text-lg leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -44,18 +42,12 @@ export function SectionHeading({
 
   if (variant === 'rail') {
     return (
-      <div className={cn('max-w-3xl', className)}>
-        <div className="flex items-center gap-3">
-          <span className="ds-section-accent-bar h-px w-10 shrink-0 sm:w-14" aria-hidden />
-          <h2 className={h2Combined}>
-            {title}
-          </h2>
-        </div>
+      <div className={cn('max-w-3xl mx-auto flex flex-col items-center text-center', className)}>
+        <h2 className={h2Combined}>
+          {title}
+        </h2>
         {description ? (
-          <p
-            className="mt-4 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size ds-home-section-desc-rail"
-            
-          >
+          <p className="ds-marketing-text-muted mt-4 max-w-[65ch] text-lg leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -64,16 +56,12 @@ export function SectionHeading({
   }
 
   return (
-    <div className={cn('max-w-3xl', className)}>
-      <div className="ds-section-brand-gradient-bar mb-4 h-1 w-12 rounded-full sm:w-14" aria-hidden />
+    <div className={cn('max-w-3xl mx-auto flex flex-col items-center text-center', className)}>
       <h2 className={h2Combined}>
         {title}
       </h2>
       {description ? (
-        <p
-          className="mt-3 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size"
-          
-        >
+        <p className="ds-marketing-text-muted mt-4 max-w-[65ch] text-lg leading-relaxed">
           {description}
         </p>
       ) : null}

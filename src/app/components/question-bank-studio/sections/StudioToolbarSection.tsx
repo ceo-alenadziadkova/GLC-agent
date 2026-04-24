@@ -6,7 +6,7 @@ import { Switch } from '../../ui/switch';
 import { LAYOUT_SURFACE_OPTIONS, POLICY_MODE_OPTIONS } from '../config';
 
 type StudioToolbarSectionProps = {
-  viewMode: 'user' | 'logic';
+  viewMode: 'user' | 'logic' | 'dependency';
   layoutSurface: '' | StudioLayoutSurfaceKey;
   graphOrientation: 'TB' | 'LR';
   policyMode: StudioPolicyMode;
@@ -69,6 +69,10 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
     onExportSvg,
     onExportPng,
   } = props;
+
+  if (viewMode === 'dependency') {
+    return null;
+  }
 
   return (
     <div className="flex flex-wrap gap-2 items-center">

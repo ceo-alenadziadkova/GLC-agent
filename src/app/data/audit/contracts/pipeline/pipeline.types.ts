@@ -14,8 +14,23 @@ export interface PipelineEvent {
   phase: number;
   event_type: string;
   message: string | null;
-  data: Record<string, unknown>;
+  data: PipelineEventData;
   created_at: string;
+}
+
+export interface PipelineEventData extends Record<string, unknown> {
+  detail_level?: 'default' | 'debug';
+  trace_id?: string;
+  operation_id?: string;
+  call_type?: 'domain_agent' | 'strategy_execution_pack' | 'orchestration_synthesis';
+  attempt?: number;
+  max_attempts?: number;
+  latency_ms?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  cost_usd?: number;
+  provider_status?: number | null;
 }
 
 export interface QualityFlag {

@@ -14,7 +14,19 @@ export type PipelineStartResult =
   | { ok: false; error: PipelineRouteErr };
 
 export type PipelineNextResult =
-  | { ok: true; response: { status: 'running'; phase: number }; nextPhase: number; disableAutoRemediate: boolean }
+  | {
+      ok: true;
+      outcome: 'running';
+      response: { status: 'running'; phase: number };
+      nextPhase: number;
+      disableAutoRemediate: boolean;
+    }
+  | {
+      ok: true;
+      outcome: 'completed';
+      response: { status: 'completed'; phase: number };
+      disableAutoRemediate: boolean;
+    }
   | { ok: false; error: PipelineRouteErr };
 
 export type PipelineRetryResult =
@@ -23,6 +35,19 @@ export type PipelineRetryResult =
 
 export type PipelineStopResult =
   | { ok: true; response: { status: 'cancelled'; stopped: true } }
+  | { ok: false; error: PipelineRouteErr };
+
+/** Platform admin only: move audit from `cancelled` to claimable state; best-effort auto `pipeline/next` as owner. */
+export type PipelineResumeFromCancelledResult =
+  | {
+      ok: true;
+      response: {
+        current_phase: number;
+        resumed: true;
+        execution_scheduled: boolean;
+        status: 'review' | 'running' | 'completed';
+      };
+    }
   | { ok: false; error: PipelineRouteErr };
 
 export type PipelineStatusResult =
@@ -36,6 +61,11 @@ export type PipelineStatusResult =
         execution_plan: unknown;
         events: unknown[];
         reviews: unknown[];
+        event_page?: {
+          limit: number;
+          next_before: string | null;
+          detail_level: 'default' | 'debug';
+        };
       };
     }
   | { ok: false; error: PipelineRouteErr };

@@ -147,6 +147,20 @@ vi.mock('../middleware/rate-limit.js', () => ({
   pipelineLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
+vi.mock('../services/brief-validator.js', () => ({
+  evaluateBriefGates: () => ({ intakeProgress: { ready: true, missing: [] } }),
+  resolveIntakeSurfaceForPlan: () => 'client',
+  validationPerspectiveForBriefAccess: () => 'consultant',
+}));
+
+vi.mock('../config/feature-flags.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../config/feature-flags.js')>();
+  return {
+    ...actual,
+    isDiagnosticIntakePilotEnabled: () => false,
+  };
+});
+
 vi.mock('../services/pipeline.js', () => ({
   PipelineOrchestrator: class {
     startPhase() {

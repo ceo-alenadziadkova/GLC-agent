@@ -499,6 +499,40 @@
       ],
       "secondary": []
     },
+    "f_idea_1": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": [
+        "marketing_utp"
+      ]
+    },
+    "f_idea_2": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": [
+        "marketing_utp",
+        "ux_conversion"
+      ]
+    },
+    "f_idea_3": {
+      "primary": [
+        "strategy",
+        "marketing_utp"
+      ],
+      "secondary": [
+        "automation_processes"
+      ]
+    },
+    "f_idea_4": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": [
+        "automation_processes"
+      ]
+    },
     "f9": {
       "primary": [
         "strategy"

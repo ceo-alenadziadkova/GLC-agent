@@ -1,4 +1,6 @@
-import type { IntakeVersionTuple } from '../data/auditTypes';
+import { INTAKE_SEQUENCING_VERSION } from '@glc/intake-core';
+import { AUDIT_COVERAGE_PACKAGES, type AuditCoveragePackage, type DomainKey, type IntakeVersionTuple } from '../data/auditTypes';
+import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../config/new-audit-coverage-policy';
 import type { BriefResponses } from '../data/briefQuestions';
 
 export const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
@@ -10,6 +12,7 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
   const p = o.policyVersion;
   const l = o.layoutVersion;
   const r = o.resolverVersion;
+  const s = o.sequencingVersion;
   if (
     typeof q === 'string'
     && typeof p === 'string'
@@ -20,14 +23,20 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
     && l.length > 0
     && r.length > 0
   ) {
-    return { questionBankVersion: q, policyVersion: p, layoutVersion: l, resolverVersion: r };
+    return {
+      questionBankVersion: q,
+      policyVersion: p,
+      layoutVersion: l,
+      resolverVersion: r,
+      sequencingVersion: typeof s === 'string' && s.length > 0 ? s : INTAKE_SEQUENCING_VERSION,
+    };
   }
   return null;
 }
 
 export type ClientPortalNewAuditDraftV1 = {
   v: 1;
-  step: 0 | 1 | 2;
+  step: 0 | 1 | 2 | 3;
   url: string;
   noPublicWebsite: boolean;
   name: string;
@@ -39,7 +48,21 @@ export type ClientPortalNewAuditDraftV1 = {
   draftAuditId: string | null;
   /** Last known intake version tuple from server brief (analytics + parity). */
   draftIntakeVersions?: IntakeVersionTuple | null;
+  /** Portal flow: explicit coverage choice (no server default). */
+  coveragePackage?: AuditCoveragePackage;
+  selectedDomains?: DomainKey[];
 };
+
+function parseDraftCoveragePackage(raw: unknown): AuditCoveragePackage | undefined {
+  return AUDIT_COVERAGE_PACKAGES.includes(raw as AuditCoveragePackage) ? (raw as AuditCoveragePackage) : undefined;
+}
+
+function parseDraftSelectedDomains(raw: unknown): DomainKey[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const allowed = new Set<string>(NEW_AUDIT_ALL_COVERAGE_DOMAINS);
+  const out = raw.filter((x): x is DomainKey => typeof x === 'string' && allowed.has(x));
+  return out.length > 0 ? out : undefined;
+}
 
 export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
   try {
@@ -47,11 +70,13 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
     if (!o || typeof o !== 'object') return null;
     const d = o as Partial<ClientPortalNewAuditDraftV1>;
     if (d.v !== 1) return null;
-    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 2 ? (d.step as 0 | 1 | 2) : 0;
+    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 3 ? (d.step as 0 | 1 | 2 | 3) : 0;
     const bl = d.briefLayoutChoice;
     const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
       bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
     const parsedVersions = parseIntakeVersionTupleLoose(d.draftIntakeVersions);
+    const parsedPkg = parseDraftCoveragePackage(d.coveragePackage);
+    const parsedDomains = parseDraftSelectedDomains(d.selectedDomains);
     return {
       v: 1,
       step,
@@ -67,6 +92,8 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
       briefLayoutChoice,
       draftAuditId: typeof d.draftAuditId === 'string' && d.draftAuditId.length > 0 ? d.draftAuditId : null,
       ...(parsedVersions != null ? { draftIntakeVersions: parsedVersions } : {}),
+      ...(parsedPkg != null ? { coveragePackage: parsedPkg } : {}),
+      ...(parsedDomains != null ? { selectedDomains: parsedDomains } : {}),
     };
   } catch {
     return null;

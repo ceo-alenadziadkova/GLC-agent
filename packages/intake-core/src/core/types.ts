@@ -2,7 +2,13 @@
  * Intake plan types — contract for buildIntakePlan (ADR: unified question bank).
  * Phase 0: used by fixtures and snapshot tests; resolver fills these in Phase 2.
  */
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../audit-contract.js';
+import type {
+  IntakeBriefCollectionMode,
+  IntakeReadinessTraceEntry,
+  IntakeVersionTuple,
+  IntakeCriticalSignalConfidence,
+  ProductMode,
+} from '../audit-contract.js';
 
 export type { IntakeVersionTuple };
 
@@ -162,4 +168,23 @@ export interface IntakePlan {
   nextRecommended: string[];
   /** Internal runtime cache for incremental recompute paths. */
   runtimeState?: IntakePlanRuntimeState;
+  /**
+   * Pilot critical signals — `confidenceByKey` is ADR signal confidence (not `confidence.overall`).
+   */
+  criticalSignals?: {
+    satisfied: boolean;
+    confidenceByKey: Record<string, IntakeCriticalSignalConfidence>;
+    trace: IntakeReadinessTraceEntry[];
+  };
+  /** Pilot remediation: suggested unanswered bank ids (eligible ∩ allow-list), max 2. */
+  remediation?: {
+    queue: string[];
+    trace: IntakeReadinessTraceEntry[];
+  };
+  /** Adaptive case pattern overlay (Diagnostic Adaptive Intake) — when policy intelligence is enabled. */
+  casePatternMatch?: {
+    caseKeys: string[];
+    activeOverlayQuestionIds: string[];
+    stopConditionMetByCase: Record<string, boolean>;
+  };
 }

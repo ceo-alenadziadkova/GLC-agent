@@ -1,5 +1,9 @@
 import { Link } from 'react-router';
 import { Binoculars, FileText, Star } from '@phosphor-icons/react';
+import { cn } from '../../components/ui/utils';
+
+const TEASER_FOCUS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]';
 
 function TeaserCard({
   icon: Icon,
@@ -15,18 +19,15 @@ function TeaserCard({
   cta: string;
 }) {
   return (
-    <div className="glc-card ds-card-radius-elevated flex h-full flex-col p-5 sm:p-6">
-      <Icon className="h-8 w-8 ds-text-brand" aria-hidden />
-      <h3 className="mt-3 font-display text-lg font-bold tracking-tight ds-text-primary" >
+    <div className="ds-marketing-teaser-card">
+      <Icon className="h-8 w-8 text-[var(--text-primary)]" aria-hidden />
+      <h3 className="mt-4 font-display text-xl font-semibold tracking-tight text-[var(--text-primary)]/90">
         {title}
       </h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed ds-text-secondary" >
+      <p className="ds-marketing-text-muted mt-3 flex-1 text-sm leading-relaxed">
         {body}
       </p>
-      <Link
-        to={to}
-        className="ds-text-accent-orange mt-4 inline-flex text-sm font-semibold"
-      >
+      <Link to={to} className={cn('mt-6 inline-flex text-sm font-semibold text-[var(--glc-blue)]', TEASER_FOCUS)}>
         {cta}
       </Link>
     </div>

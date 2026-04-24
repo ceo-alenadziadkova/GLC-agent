@@ -25,6 +25,7 @@ import type { IntakeSurface } from '@glc/intake-core';
 import { calcDataQualityScoreFromVisible, DEFAULT_DATA_QUALITY_WEIGHTS } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '@glc/intake-core';
+import type { QuestionReason } from '@glc/intake-core';
 
 export { briefResponsesToIntakeMap };
 
@@ -83,6 +84,11 @@ export interface UseIntakeWizardOptions {
   /** Controlled: parent-owned responses map (after briefResponsesToIntakeMap). */
   value?: Record<string, unknown>;
   onChange?: (next: Record<string, unknown>) => void;
+  /**
+   * Optional server-authored visible order (from GET brief/schema).
+   * When provided, wizard rendering uses this list as primary sequence.
+   */
+  serverVisibleQuestionIds?: string[];
   /** Batched funnel analytics (ADR Phase G); requires authenticated audit context. */
   intakeAnalytics?: {
     auditId: string;
@@ -104,6 +110,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     surface,
     value,
     onChange,
+    serverVisibleQuestionIds,
     intakeAnalytics,
   } = options;
   const controlled = value !== undefined && onChange !== undefined;
@@ -137,6 +144,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     visibleStubs: IntakeQuestionStub[];
     nextRecommended: string[];
     missingForReport: string[];
+    reasonsById: Record<string, QuestionReason[]>;
   } | null>(null);
   const prevRuntimeStateRef = useRef<ReturnType<typeof buildIntakePlan>['runtimeState'] | null>(null);
 
@@ -193,6 +201,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
         visibleStubs,
         nextRecommended,
         missingForReport: derived.missingForReport,
+        reasonsById: prevOutput.reasonsById,
       };
       prevPlanInputRef.current = { responses, collectionMode, surface, productMode };
       prevPlanOutputRef.current = out;
@@ -214,21 +223,32 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
           surface,
         });
     const visible = new Set(plan.visible);
-    const visibleStubs = sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
+    const serverVisible = Array.isArray(serverVisibleQuestionIds) && serverVisibleQuestionIds.length > 0
+      ? serverVisibleQuestionIds.filter(id => visible.has(id))
+      : null;
+    const visibleStubs = serverVisible
+      ? sortStubsByBankOrder(
+          serverVisible
+            .map(id => QUESTION_BANK_V1_STUBS.find(q => q.id === id))
+            .filter((q): q is IntakeQuestionStub => Boolean(q)),
+        )
+      : sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
     const out = {
       visibleStubs,
       nextRecommended: plan.nextRecommended,
       missingForReport: plan.missingForReport,
+      reasonsById: plan.reasonsById,
     };
     prevPlanInputRef.current = { responses, collectionMode, surface, productMode };
     prevPlanOutputRef.current = out;
     prevRuntimeStateRef.current = plan.runtimeState ?? null;
     return out;
-  }, [responses, collectionMode, surface, productMode, getChangedResponseKeys]);
+  }, [responses, collectionMode, surface, productMode, getChangedResponseKeys, serverVisibleQuestionIds]);
 
   const visibleStubs = intakePlan.visibleStubs;
   const nextRecommended = intakePlan.nextRecommended;
   const missingForReport = intakePlan.missingForReport;
+  const reasonsById = intakePlan.reasonsById;
 
   const dataQuality = useMemo(
     () =>
@@ -329,6 +349,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     visibleQuestionStubs: visibleStubs,
     nextRecommended,
     missingForReport,
+    reasonsById,
     dataQuality,
     stepIndex: safeIndex,
     setStepIndex,
@@ -339,5 +360,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     goToStep,
     isFirstStep: safeIndex <= 0,
     isLastStep: totalSteps > 0 && safeIndex >= maxIndex,
+    /** Present when `intakeAnalytics` was passed into options; use for ADR diagnostic batching alongside question_* events. */
+    analyticsSink,
   };
 }

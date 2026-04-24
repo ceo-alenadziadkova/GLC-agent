@@ -47,12 +47,50 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
       error?: string;
       code?: unknown;
+      details?: unknown;
     };
     const code = typeof error.code === 'string' ? error.code : undefined;
-    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code, error.details);
   }
 
   return response.json();
+}
+
+/** GET JSON with optional `If-None-Match` — returns `not_modified` for HTTP 304 (no body). */
+export type ApiGetJsonOrNotModifiedResult<T> = { kind: 'ok'; data: T } | { kind: 'not_modified' };
+
+export async function apiGetJsonOrNotModified<T>(
+  path: string,
+  options: { ifNoneMatch?: string } = {},
+): Promise<ApiGetJsonOrNotModifiedResult<T>> {
+  const authHeaders = await getAuthHeaders();
+  const timeoutSignal = AbortSignal.timeout(API_CLIENT_TIMEOUT_MS);
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'GET',
+    signal: timeoutSignal,
+    headers: {
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
+      ...authHeaders,
+      ...(options.ifNoneMatch ? { 'If-None-Match': options.ifNoneMatch } : {}),
+    },
+  });
+
+  if (response.status === 304) {
+    return { kind: 'not_modified' };
+  }
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
+      error?: string;
+      code?: unknown;
+      details?: unknown;
+    };
+    const code = typeof error.code === 'string' ? error.code : undefined;
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code, error.details);
+  }
+
+  return { kind: 'ok', data: (await response.json()) as T };
 }
 
 /** Public intake/snapshot calls — no Authorization header. */
@@ -136,8 +174,9 @@ export async function apiPostAck(path: string, body: unknown, options: ApiPostAc
     const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
       error?: string;
       code?: unknown;
+      details?: unknown;
     };
     const code = typeof error.code === 'string' ? error.code : undefined;
-    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code, error.details);
   }
 }

@@ -14,8 +14,12 @@ import { fetchAuditForBriefById } from '../../../../repositories/audits/audits.r
 import { canAccessAudit } from '../../../../services/audits/audits-access.service.js';
 import { fetchBriefVersionByAuditId } from '../../../../repositories/audits/audit-brief.repository.js';
 import type { IntakeVersionTuple } from '../../../../types/audit.js';
-import { saveBriefWithValidation } from '../../../../services/audits/audits-brief.service.js';
+import {
+  buildBriefSchemaPayload,
+  saveBriefWithValidation,
+} from '../../../../services/audits/audits-brief.service.js';
 import { tryHandleBriefValidationError } from '../../mappers/brief-validation-error.mapper.js';
+import { isDiagnosticIntakePilotEnabled } from '../../../../config/feature-flags.js';
 
 export async function putBriefController(req: AuthRequest, res: Response) {
   try {
@@ -53,12 +57,26 @@ export async function putBriefController(req: AuthRequest, res: Response) {
       storedVersions: (versionRow?.intake_versions as IntakeVersionTuple | null) ?? null,
     });
 
-    res.json({
+    const body: Record<string, unknown> = {
       brief: result.brief,
       validation: result.validation,
       gates: result.gates,
       intakeProgress: result.gates.intakeProgress,
-    });
+    };
+
+    if (isDiagnosticIntakePilotEnabled()) {
+      const snapshot = buildBriefSchemaPayload({
+        audit,
+        brief: result.brief,
+        actorUserId: req.userId!,
+      });
+      body.trace = snapshot.readiness.trace.map(item => ({
+        code: item.code,
+        questionId: item.questionId,
+      }));
+    }
+
+    res.json(body);
   } catch (err) {
     const error = err as Error;
     logger.error('route.brief_put_failed', { component: 'audits', error: error.message, stack: error.stack });

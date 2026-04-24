@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "model": "deterministic-token-vector-v1",
+  "cosineDuplicateThreshold": 0.92,
+  "generatedAtIso": "2026-04-23T00:00:00.000Z",
+  "notes": "CI lint uses deterministic token vectors to flag near-duplicate intents for identical decisionImpact targets.",
+  "operational": {
+    "weeklyReviewCommand": "pnpm test:intake-quality-report",
+    "duplicateIntentPolicy": "INTELLIGENCE_DUPLICATE_INTENT and INTELLIGENCE_EMBEDDING_DUPLICATE in lint-intelligence-contract; fail CI on new near-duplicates without merge or semanticDomain/target differentiation."
+  }
+}

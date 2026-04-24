@@ -12,6 +12,7 @@ import { assertAuditNotCancelled, updateAuditIfNotCancelled as updateAuditIfNotC
 import { banditService, DEFAULT_VARIANT_ID } from '../../bandit.js';
 import type { BaseAgent } from '../../../agents/base.js';
 import { logger } from '../../logger.js';
+import type { PhaseId } from '../../../schemas/control-object/index.js';
 import { type DomainKey, type DomainResult, type FreeSnapshotPreview } from '../../../types/audit.js';
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
@@ -26,7 +27,7 @@ import { loadNormalizedExecutionPlanForAudit } from './execution-plan-loader.js'
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import { runParallelBlockForAudit } from './parallel-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
-import { runSinglePhaseWithLifecycle } from './run-single-phase.js';
+import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
@@ -79,7 +80,7 @@ export class PipelineOrchestrator {
     phase: number,
     controlObject: ControlObjectV1,
     evaluationCapture?: {
-      phaseId: DomainKey;
+      phaseId: PhaseId;
       rawAgentOutput: Record<string, unknown> | null;
       cleanedOutput: DomainResult;
     },
@@ -194,13 +195,28 @@ export class PipelineOrchestrator {
   }
 
   /**
+   * Retry a domain phase (1–6) using the same isolated execution path as parallel wings.
+   * If the latest `audit_domains` row for that domain is already `completed`, collectors and
+   * LLM are skipped (idempotent retry). Does not mutate `audits.status` / `current_phase`
+   * at phase start (same as parallel isolated runs).
+   *
+   * Phase 0 and 7 must use {@link startPhase} (sequential lifecycle, gates).
+   */
+  async retryDomainPhase(phase: number): Promise<void> {
+    if (!Number.isInteger(phase) || phase < 1 || phase > 6) {
+      throw new Error(`retryDomainPhase expects integer phase 1–6, got ${phase}`);
+    }
+    await this.startPhaseIsolated(phase);
+  }
+
+  /**
    * Start a specific phase (sequential, single-phase path).
    * Handles audit-level status updates, review gates, and full error propagation.
-   * Used for Phase 0 (Recon), Phase 7 (Strategy), and direct retry calls.
+   * Used for Phase 0 (Recon), Phase 7 (Strategy), and pipeline/start-style entry.
    */
-  async startPhase(phase: number): Promise<void> {
+  async startPhase(phase: number): Promise<SequentialPhaseOutcome> {
     const agentClass = agentClassForPhaseOrThrow(phase);
-    await runSinglePhaseWithLifecycle({
+    const outcome = await runSinglePhaseWithLifecycle({
       mode: 'sequential',
       auditId: this.auditId,
       phase,
@@ -212,6 +228,10 @@ export class PipelineOrchestrator {
       publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
       getExecutionPlan: () => this.getExecutionPlan(),
     });
+    if (outcome === undefined) {
+      throw new Error('Invariant: sequential phase returned no outcome');
+    }
+    return outcome;
   }
 
   private async startPhaseIsolated(phase: number): Promise<void> {

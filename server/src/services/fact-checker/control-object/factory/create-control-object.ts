@@ -47,6 +47,7 @@ export function createControlObjectV1(
       phase_id: phaseId,
       execution_mode: executionMode,
       truth_profile_id: truthProfileId,
+      governance_profile: 'full',
       risk_profile: null,
     },
     confidence: { ...CONTROL_OBJECT_DEFAULT_CONFIDENCE },

@@ -25,6 +25,17 @@ export function buildCoverage(input: ReportInput): MarkdownReportCoverage {
           String(REPORT_DOMAIN_COUNT),
         )
       : REPORT_PROFILER_CONFIG.markdown.coverageComparability.complete;
+  const isNoSiteMode = input.audit.no_public_website === true;
+  const confidenceLevel: MarkdownReportCoverage['confidence_level'] = isNoSiteMode
+    ? 'low'
+    : coverageRatio < 1
+      ? 'medium'
+      : 'high';
+  const confidenceNote = isNoSiteMode
+    ? 'No public website was available. Findings rely on intake responses and non-crawl context, so confidence is constrained.'
+    : coverageRatio < 1
+      ? 'This report is based on partial domain coverage. Treat cross-audit comparisons and broad conclusions with caution.'
+      : 'This report is based on complete domain coverage and direct website signals.';
 
   return {
     covered_domains: covered,
@@ -34,6 +45,8 @@ export function buildCoverage(input: ReportInput): MarkdownReportCoverage {
       typeof input.audit.overall_score === 'number'
         ? Number((input.audit.overall_score * coverageRatio).toFixed(2))
         : null,
+    confidence_level: confidenceLevel,
+    confidence_note: confidenceNote,
     comparability_note: comparabilityNote,
   };
 }

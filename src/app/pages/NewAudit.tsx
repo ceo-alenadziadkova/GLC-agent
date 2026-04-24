@@ -1,21 +1,22 @@
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  ArrowLeft,
-  CheckCircle,
-  Warning,
-  ClipboardText,
-  X,
-  FloppyDisk,
-  Spinner,
-} from '@phosphor-icons/react';
+import { CheckCircle, Warning, ClipboardText, X, FloppyDisk, Spinner } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '../components/ui/breadcrumb';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import {
   PreBriefModal,
   Step0Basics,
   Step1Brief,
-  Step2Confirm,
+  Step2Review,
+  Step3Launch,
   StepIndicator,
   useNewAuditWizard,
   type NewAuditVariant,
@@ -44,13 +45,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       <button
         type="button"
         disabled={wizard.draftSaving}
+        data-busy={wizard.draftSaving ? 'true' : 'false'}
         onClick={() => {
           void wizard.handleSaveClientDraft();
         }}
-        className={cn(
-          'text-foreground bg-card flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-all',
-          wizard.draftSaving ? 'cursor-wait' : 'cursor-pointer',
-        )}
+        className="ds-new-audit-draft-save-btn"
       >
         {wizard.draftSaving ? (
           <Spinner className="text-info h-4 w-4 animate-spin" />
@@ -64,6 +63,24 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       </p>
     </div>
   ) : null;
+  const clientDraftSaveInlineAction = isClientSelfServe ? (
+    <button
+      type="button"
+      disabled={wizard.draftSaving}
+      data-busy={wizard.draftSaving ? 'true' : 'false'}
+      onClick={() => {
+        void wizard.handleSaveClientDraft();
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-transparent px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30 disabled:cursor-not-allowed disabled:text-muted-foreground/60"
+    >
+      {wizard.draftSaving ? (
+        <Spinner className="h-4 w-4 animate-spin" />
+      ) : (
+        <FloppyDisk className="h-4 w-4" />
+      )}
+      {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
+    </button>
+  ) : null;
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -73,16 +90,6 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         isClientSelfServe
           ? WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleClient
           : WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleConsultant
-      }
-      actions={
-        isClientSelfServe ? (
-          <Link
-            to="/portal"
-            className="text-muted-foreground hidden text-sm no-underline sm:inline"
-          >
-            {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
-          </Link>
-        ) : undefined
       }
     >
       <div className="bg-background glc-page-content relative flex min-h-full flex-col items-center justify-center py-8 mobile:py-6">
@@ -98,15 +105,35 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           )}
         >
           {isClientSelfServe && (
-            <Link
-              to="/portal"
-              className="text-info glc-touch-target mb-4 inline-flex items-center gap-1.5 text-sm font-medium no-underline sm:hidden"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
-            </Link>
+            <Breadcrumb aria-label={WORKSPACE_PAGE_COPY.marketingLayout.breadcrumbsAriaLabel} className="ds-new-audit-client-breadcrumb">
+              <BreadcrumbList className="ds-new-audit-client-breadcrumb-list">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link
+                      to="/portal"
+                      className="glc-touch-target ds-new-audit-client-breadcrumb-link inline-flex items-center py-[length:var(--space-2)]"
+                    >
+                      {WORKSPACE_PAGE_COPY.newAudit.breadcrumbPortalParent}
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="[&>svg]:text-[var(--text-tertiary)]" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="text-[length:var(--text-sm)] text-[var(--text-tertiary)]">
+                    {WORKSPACE_PAGE_COPY.newAudit.appShellTitle}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           )}
-          <StepIndicator current={wizard.step} />
+          <StepIndicator
+            current={wizard.step}
+            onStepClick={step => {
+              if (step < wizard.step) {
+                wizard.setStep(step);
+              }
+            }}
+          />
 
           {isClientSelfServe && wizard.draftRestoredVisible && (
             <div className="bg-info/10 border-info/40 mb-5 flex items-start gap-3 rounded-xl border px-4 py-3">
@@ -137,6 +164,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
               <>
                 <Step0Basics
                   step0Valid={wizard.step0Valid}
+                  coverageValid={wizard.coverageValid}
                   isClientSelfServe={wizard.isClientSelfServe}
                   url={wizard.url}
                   setUrl={wizard.setUrl}
@@ -201,6 +229,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             {/* ── Step 1: Brief ─────────────────────────── */}
             {wizard.step === 1 && (
               <Step1Brief
+                isClientSelfServe={isClientSelfServe}
                 interviewMode={wizard.interviewMode}
                 layoutSelected={wizard.layoutSelected}
                 answeredRequired={wizard.answeredRequired}
@@ -217,6 +246,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 responses={wizard.responses}
                 briefProductMode={wizard.briefProductMode}
                 noPublicWebsite={wizard.noPublicWebsite}
+                url={wizard.url}
+                name={wizard.name}
+                industry={wizard.industry}
+                industrySpecify={wizard.industrySpecify}
+                step0PipelineAnswerSource={wizard.responseSource}
                 intakeAnalytics={wizard.briefWizardIntakeAnalytics}
                 onResponsesChange={next => wizard.setResponses(next)}
                 onResponseChange={wizard.handleResponseChange}
@@ -225,23 +259,43 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 onBackToStep0={() => wizard.setStep(0)}
                 onGoToStep2={() => wizard.setStep(2)}
                 clientDraftSaveSection={clientDraftSaveSection}
+                clientDraftSaveInlineAction={clientDraftSaveInlineAction}
+                briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
+                briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
+                briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
+                serverVisibleQuestionIds={wizard.briefWizardServerVisibleQuestionIds}
               />
             )}
 
-            {/* ── Step 2: Confirm ───────────────────────── */}
+            {/* ── Step 2: Review ───────────────────────── */}
             {wizard.step === 2 && (
-              <Step2Confirm
+              <Step2Review
                 url={wizard.url}
                 name={wizard.name}
                 industry={wizard.industry}
-                coveragePackage={wizard.coveragePackage}
+                coveragePackage={wizard.coveragePackage!}
                 selectedDomains={wizard.selectedDomains}
                 answeredRequired={wizard.answeredRequired}
                 pipelineRequiredTotal={wizard.pipelineRequiredTotal}
+                answeredQuestionIds={wizard.answeredPipelineRequiredIds}
+                pipelineGateBriefResponses={wizard.pipelineGateBriefResponses}
+                onBackToStep1={() => wizard.setStep(1)}
+                onGoToStep3={() => wizard.setStep(3)}
+                clientDraftSaveSection={clientDraftSaveSection}
+              />
+            )}
+
+            {/* ── Step 3: Launch ───────────────────────── */}
+            {wizard.step === 3 && (
+              <Step3Launch
                 error={wizard.error}
                 loading={wizard.loading}
                 isClientSelfServe={isClientSelfServe}
-                onBackToStep1={() => wizard.setStep(1)}
+                consultantDpaLoading={wizard.consultantDpaLoading}
+                consultantDpaOnFile={wizard.consultantDpaOnFile}
+                consultantDpaChecked={wizard.consultantDpaChecked}
+                onConsultantDpaCheckedChange={wizard.setConsultantDpaChecked}
+                onBackToStep2={() => wizard.setStep(2)}
                 onLaunchSubmit={wizard.handleLaunch}
                 clientDraftSaveSection={clientDraftSaveSection}
               />

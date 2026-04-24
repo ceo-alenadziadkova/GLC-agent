@@ -105,6 +105,10 @@ jobs:
 
       - name: Lint
         run: pnpm run lint
+      - name: Intake readiness vocabulary guard
+        run: pnpm run lint:intake-readiness-vocab
+      - name: Intake diagnostic contract tests
+        run: pnpm run test:intake-diagnostic-contracts
       - name: Design-system drift budget (§4.1)
         run: pnpm run audit:ds:drift-budget
       - name: Design-system enforcement

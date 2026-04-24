@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import type { BriefResponses } from '../../../data/briefQuestions';
-import type { IntakeVersionTuple } from '../../../data/auditTypes';
+import type { AuditCoveragePackage, DomainKey, IntakeVersionTuple } from '../../../data/auditTypes';
 import { NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS } from '../../../config/ui-feedback-defaults';
 import { writeClientPortalNewAuditDraft } from '../../../lib/client-portal-new-audit-draft';
 import type { BriefLayoutChoice } from '../wizard-state/useBriefLayoutState';
 
 export function useDraftAutosaveEffect(params: {
   isClientSelfServe: boolean;
-  step: 0 | 1 | 2;
+  step: 0 | 1 | 2 | 3;
   url: string;
   noPublicWebsite: boolean;
   name: string;
@@ -18,6 +18,8 @@ export function useDraftAutosaveEffect(params: {
   briefLayoutChoice: BriefLayoutChoice;
   draftAuditId: string | null;
   draftIntakeVersions: IntakeVersionTuple | null;
+  coveragePackage: AuditCoveragePackage | null;
+  selectedDomains: DomainKey[];
 }): void {
   useEffect(() => {
     if (!params.isClientSelfServe) return;
@@ -35,6 +37,9 @@ export function useDraftAutosaveEffect(params: {
         briefLayoutChoice: params.briefLayoutChoice,
         draftAuditId: params.draftAuditId,
         draftIntakeVersions: params.draftIntakeVersions,
+        ...(params.coveragePackage != null
+          ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
+          : {}),
       });
     }, NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
@@ -51,5 +56,7 @@ export function useDraftAutosaveEffect(params: {
     params.briefLayoutChoice,
     params.draftAuditId,
     params.draftIntakeVersions,
+    params.coveragePackage,
+    params.selectedDomains,
   ]);
 }

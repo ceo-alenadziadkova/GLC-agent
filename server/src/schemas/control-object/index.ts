@@ -1,5 +1,6 @@
 export type {
   DecisionHint,
+  GovernanceProfile,
   ExecutionMode,
   TruthSource,
   AssumptionSource,

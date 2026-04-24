@@ -11,7 +11,7 @@ import { getAuditViewModel } from '../../../services/audits/audits-read.service.
 
 export async function getAuditController(req: AuthRequest, res: Response) {
   try {
-    const model = await getAuditViewModel(req.params.id as string, req.userId!);
+    const model = await getAuditViewModel(req.params.id as string, req.userId!, req.userRole);
     if (!model) {
       sendApiError(res, 404, API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE);
       return;

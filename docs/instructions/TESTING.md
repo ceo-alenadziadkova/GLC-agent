@@ -2,6 +2,8 @@
 
 This document tracks coverage for main client journeys. Commands: from repo root `pnpm install` once, then `pnpm test` (Vitest + RTL), `pnpm --filter glc-audit-server test` (or `cd server && pnpm test`), E2E `pnpm run test:e2e` after `pnpm exec playwright install chromium` (see [e2e/README.md](../../e2e/README.md)). Full gate: `pnpm run check` (typecheck + lint + both test suites).
 
+**Orchestration + roadmap (post–Product MVP):** pre-PR bundle + contract for orchestration surfaces use **`pnpm run verify:orchestration-all`**; Playwright list + creds: [e2e/README.md](../../e2e/README.md) and [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](../adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md) (reconciles external “v9 full product” checklists to the current tree).
+
 ## Strategy: stability, documentation, and dead code
 
 ### Why tests exist

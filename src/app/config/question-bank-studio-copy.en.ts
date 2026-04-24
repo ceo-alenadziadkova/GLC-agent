@@ -7,6 +7,7 @@ export const QUESTION_BANK_STUDIO_COPY_EN = {
   viewModeButtons: {
     flowSimulator: 'Flow simulator',
     fullMap: 'Full map',
+    dependencyGraph: 'Dependency graph',
   },
   toolbar: {
     layoutSurface: 'Layout surface',
@@ -28,6 +29,9 @@ export const QUESTION_BANK_STUDIO_COPY_EN = {
   panels: {
     currentMode: 'Current mode',
     runtimeTrace: 'Runtime trace',
+    intelligenceContract: 'Intelligence contract (repo)',
+    sprint2GateLabel: 'Sprint 2 gate',
+    bankCoverageLabel: 'Bank required_now coverage',
   },
   search: {
     placeholder: 'Search id or label (debounced center on first match)…',

@@ -36,12 +36,14 @@ export async function postPipelineNextController(req: AuthRequest, res: Response
     }
 
     res.json(result.response);
-    void schedulePipelineExecution({
-      auditId: idParse.data.id,
-      action: 'next',
-      phase: result.nextPhase,
-      disableAutoRemediate: result.disableAutoRemediate,
-    });
+    if (result.outcome === 'running') {
+      void schedulePipelineExecution({
+        auditId: idParse.data.id,
+        action: 'next',
+        phase: result.nextPhase,
+        disableAutoRemediate: result.disableAutoRemediate,
+      });
+    }
   } catch (err) {
     logger.error('Pipeline next route failed', { error: (err as Error).message });
     sendPipelineApiError(res, 500, API_ERROR_CODES.PIPELINE_NEXT_FAILED, PIPELINE_NEXT_FAILED_MESSAGE);

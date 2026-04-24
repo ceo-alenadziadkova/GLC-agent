@@ -12,4 +12,5 @@ export const PDF_PAGE_LAYOUT = {
   coverLogoOffsetLeft: R.coverLogoOffsetLeft,
   headerInlineLogoSize: R.headerInlineLogoSize,
   documentMetaSafeNameMaxChars: R.documentMetaSafeNameMaxChars,
+  sectionPerPage: R.sectionPerPage,
 } as const;

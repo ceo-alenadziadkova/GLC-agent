@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { toast } from 'sonner';
 import { SETTINGS_UI_POLICY } from '../config/settings-ui-policy';
 import { SETTINGS_PAGE_DEFAULTS } from '../../../config/settings-page-defaults';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import {
+  GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT,
+  LEGAL_CONSENT_KEYS,
+} from '../../../config/legal-consent-client-policy';
+import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { useAuth } from '../../../hooks/useAuth';
 import { useGlcTheme } from '../../../hooks/useGlcTheme';
 import { useProfile } from '../../../hooks/useProfile';
+import { api } from '../../../data/apiService';
 import type { NotificationPrefs, SelfServePayload } from '../domain/settings.types';
 import { normalizeFullName, validateEmailChangeInput, validatePasswordChangeInput } from '../domain/settings.validation';
 import {
@@ -46,7 +53,7 @@ function isValidationError(
 
 export function useSettingsPageController() {
   const { user, signOut } = useAuth();
-  const { profile, refetch, isClient, isConsultant } = useProfile();
+  const { profile, refetch, isClient, isConsultant, isAdmin, isGuest } = useProfile();
   const { mode, setMode } = useGlcTheme();
 
   const [fullName, setFullName] = useState('');
@@ -120,6 +127,46 @@ export function useSettingsPageController() {
   useEffect(() => {
     writeNotifyPrefs(notifyPrefs);
   }, [notifyPrefs]);
+
+  useEffect(() => {
+    if (!profile?.id || isGuest) return;
+    let cancelled = false;
+    void api
+      .getLegalConsents()
+      .then(body => {
+        if (cancelled) return;
+        const m = body.effective.find(e => e.consent_key === LEGAL_CONSENT_KEYS.marketing);
+        if (m) {
+          setNotifyPrefs(prev => ({ ...prev, productUpdates: m.accepted }));
+        }
+      })
+      .catch(() => {
+        /* keep local prefs */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, isGuest]);
+
+  const setNotifyPrefsWithMarketingSync = useCallback<Dispatch<SetStateAction<NotificationPrefs>>>(action => {
+    setNotifyPrefs(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next.productUpdates !== prev.productUpdates && profile?.id && !isGuest) {
+        void api
+          .postLegalConsents({
+            source: 'settings',
+            events: [{ consent_key: LEGAL_CONSENT_KEYS.marketing, accepted: next.productUpdates }],
+          })
+          .then(() => {
+            window.dispatchEvent(new Event(GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT));
+          })
+          .catch(() => {
+            toast.error(SETTINGS_PAGE_COPY.legalConsents.saveFailed);
+          });
+      }
+      return next;
+    });
+  }, [profile?.id, isGuest]);
 
   const normalizedName = useMemo(() => normalizeFullName(fullName), [fullName]);
   const nameChanged = (profile?.full_name ?? null) !== normalizedName;
@@ -229,6 +276,7 @@ export function useSettingsPageController() {
     profile,
     isClient,
     isConsultant,
+    isAdmin,
     mode,
     setMode,
     fullName,
@@ -237,7 +285,8 @@ export function useSettingsPageController() {
     nameChanged,
     onSaveName,
     notifyPrefs,
-    setNotifyPrefs,
+    setNotifyPrefs: setNotifyPrefsWithMarketingSync,
+    isGuest,
     newPassword,
     setNewPassword,
     confirmPassword,

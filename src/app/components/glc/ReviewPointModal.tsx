@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { REVIEW_GATE_NOTES_MAX } from '@glc/intake-core';
 import { motion } from 'motion/react';
 import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, WarningCircle, Info } from '@phosphor-icons/react';
-import type { QualityGateReport } from '../../data/auditTypes';
+import type { QualityGateReport, ReconData } from '../../data/auditTypes';
+import type { PipelineMonitorCopy } from '../../config/pipeline-monitor-copy';
+import { PIPELINE_MONITOR_UI_POLICY } from '../../pages/pipeline-monitor/config/pipeline-monitor-ui-policy';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
+import { Callout } from '../../../design-system/ui';
+import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
+import { isPipelineStrategyReviewGateAfterPhase } from '../../config/pipeline-phase-policy';
+import { cn } from '../ui/utils';
 import { StatusPill } from './StatusPill';
 import { SectionLabel } from './SectionLabel';
+import { ReconReviewSummary } from './ReconReviewSummary';
 
 interface ReviewPoint {
   id: number;
@@ -24,6 +31,12 @@ export interface GovernanceRefinePhaseSummary {
   reasoning: string;
 }
 
+export type ReconReviewSummaryPayload = {
+  recon: ReconData | null;
+  copy: PipelineMonitorCopy['reviewModal']['recon'];
+  showCrawlerTruncationWarning: boolean;
+};
+
 interface ReviewPointModalProps {
   reviewPoint: ReviewPoint | null;
   open: boolean;
@@ -34,6 +47,8 @@ interface ReviewPointModalProps {
   governanceRefines?: GovernanceRefinePhaseSummary[];
   governanceRefineSectionTitle?: string;
   governanceRefineSectionIntro?: string;
+  /** After phase 0 only: persisted recon snapshot for informed approval */
+  reconReviewSummary?: ReconReviewSummaryPayload | null;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -57,6 +72,7 @@ export function ReviewPointModal({
   governanceRefines = [],
   governanceRefineSectionTitle = 'Phases flagged for manual review',
   governanceRefineSectionIntro = '',
+  reconReviewSummary = null,
 }: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
@@ -80,7 +96,12 @@ export function ReviewPointModal({
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent
-        className="max-w-[560px] overflow-hidden p-0"
+        className={cn(
+          'overflow-hidden p-0',
+          reconReviewSummary
+            ? PIPELINE_MONITOR_UI_POLICY.reviewModal.contentMaxWidthWithRecon
+            : PIPELINE_MONITOR_UI_POLICY.reviewModal.contentMaxWidthDefault,
+        )}
       >
         {/* ── Header ──────────────────────────────── */}
         <DialogHeader className="border-b bg-card px-6 pb-4 pt-5">
@@ -105,7 +126,32 @@ export function ReviewPointModal({
         </DialogHeader>
 
         {/* ── Body ────────────────────────────────── */}
-        <div className="max-h-[440px] space-y-5 overflow-y-auto bg-background px-6 py-5">
+        <div
+          className={cn(
+            'space-y-5 overflow-y-auto bg-background px-6 py-5',
+            reconReviewSummary
+              ? PIPELINE_MONITOR_UI_POLICY.reviewModal.bodyMaxHeightWithRecon
+              : PIPELINE_MONITOR_UI_POLICY.reviewModal.bodyMaxHeightDefault,
+          )}
+        >
+          {reconReviewSummary ? (
+            <>
+              <ReconReviewSummary
+                key={`${open}-${reviewPoint.after}`}
+                recon={reconReviewSummary.recon}
+                copy={reconReviewSummary.copy}
+                showCrawlerTruncationWarning={reconReviewSummary.showCrawlerTruncationWarning}
+              />
+              <Callout intent="info" className="p-3 text-xs leading-relaxed">
+                {PM.reviewModal.reconSnapshotCorrectionHint}
+              </Callout>
+            </>
+          ) : null}
+          {isPipelineStrategyReviewGateAfterPhase(reviewPoint.after) ? (
+            <Callout intent="info" className="p-3 text-xs leading-relaxed">
+              {PM.reviewModal.strategyReviseHint}
+            </Callout>
+          ) : null}
           {/* Completed phases in this block */}
           <div>
             <SectionLabel className="mb-2.5">Completed in this block</SectionLabel>
@@ -252,7 +298,7 @@ export function ReviewPointModal({
           {/* Info strip */}
           <div className="bg-info/10 text-info-foreground border-info/40 rounded-lg border px-4 py-3 text-xs leading-relaxed">
             <strong>After approving:</strong> the next wing of the pipeline will start automatically.
-            Notes are saved to the audit record and appear in the final report.
+            Notes are saved on the audit and fed to the AI context for remaining phases (they do not edit the recon table above in place).
           </div>
         </div>
 

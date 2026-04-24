@@ -1,0 +1,118 @@
+import type { Request, Response } from 'express';
+
+import {
+  API_ERROR_CODES,
+  INTAKE_INVALID_TOKEN_MESSAGE,
+  INTAKE_LINK_EXPIRED_MESSAGE,
+  INTAKE_LINK_NOT_FOUND_MESSAGE,
+  INTAKE_SAVE_RESPONSES_FAILED_MESSAGE,
+  apiErrorJson,
+  intakeResponsesSchemaInvalidMessage,
+} from '../../../config/api-error-codes.js';
+import { isDiagnosticIntakePilotEnabled } from '../../../config/feature-flags.js';
+import { logger } from '../../../services/logger.js';
+import { recordIntakeIntelligenceKpiEvent } from '../../../services/intake/intake-intelligence-kpi.service.js';
+import {
+  intakeLinkExpired,
+  isIntakeTokenFormatValid,
+  normalizePublicIntakeRouteTokenParam,
+} from '../../../services/intake/intake-token-guards.js';
+import { fetchIntakeTokenRowForRespond } from '../../../services/intake/intake-token.service.js';
+
+const KPI_KINDS = [
+  'question_shown',
+  'drop_off',
+  'fast_pass_started',
+  'fast_pass_completed',
+  'precision_pass_started',
+  'optional_details_opened',
+  'optional_details_submitted',
+] as const;
+
+type KpiKind = (typeof KPI_KINDS)[number];
+
+function parseKpiBody(body: unknown): {
+  kind: KpiKind;
+  questionId?: string;
+  clientSessionId?: string;
+  caseKeys?: string[];
+  confidenceMoved?: boolean;
+} | null {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const rec = body as Record<string, unknown>;
+  const kind = rec.event ?? rec.kind;
+  if (typeof kind !== 'string' || !KPI_KINDS.includes(kind as KpiKind)) return null;
+  const questionId = typeof rec.question_id === 'string' ? rec.question_id.trim() : undefined;
+  const clientSessionId =
+    typeof rec.client_session_id === 'string' ? rec.client_session_id.trim().slice(0, 128) : undefined;
+  const rawCaseKeys = rec.case_keys;
+  let caseKeys: string[] | undefined;
+  if (Array.isArray(rawCaseKeys)) {
+    const parsed = rawCaseKeys.filter((k): k is string => typeof k === 'string' && k.length > 0).slice(0, 20);
+    if (parsed.length > 0) caseKeys = parsed;
+  }
+  const rawMoved = rec.confidence_moved;
+  const confidenceMoved = rawMoved === true ? true : undefined;
+  if ((kind === 'question_shown' || kind === 'optional_details_opened' || kind === 'optional_details_submitted') && (!questionId || questionId.length === 0)) {
+    return null;
+  }
+  return { kind: kind as KpiKind, questionId, clientSessionId, caseKeys, confidenceMoved };
+}
+
+export async function postIntakeIntelligenceKpiController(req: Request, res: Response) {
+  try {
+    if (!isDiagnosticIntakePilotEnabled()) {
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_NOT_FOUND, 'Not found'));
+      return;
+    }
+
+    const token = normalizePublicIntakeRouteTokenParam(req.params.token);
+    if (!isIntakeTokenFormatValid(token)) {
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
+      return;
+    }
+
+    const row = await fetchIntakeTokenRowForRespond(token);
+    if (!row) {
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_NOT_FOUND, INTAKE_LINK_NOT_FOUND_MESSAGE));
+      return;
+    }
+
+    if (intakeLinkExpired(row.expires_at)) {
+      res.status(410).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_EXPIRED, INTAKE_LINK_EXPIRED_MESSAGE));
+      return;
+    }
+
+    const parsed = parseKpiBody(req.body);
+    if (!parsed) {
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.INTAKE_RESPONSES_SCHEMA_INVALID,
+            intakeResponsesSchemaInvalidMessage('invalid intelligence KPI payload'),
+          ),
+        );
+      return;
+    }
+
+    const result = await recordIntakeIntelligenceKpiEvent({
+      auditId: row.audit_id,
+      intakeTokenId: row.id,
+      consultantId: row.consultant_id,
+      kind: parsed.kind,
+      questionId: parsed.questionId,
+      clientSessionId: parsed.clientSessionId,
+      caseKeys: parsed.caseKeys,
+      confidenceMoved: parsed.confidenceMoved,
+    });
+
+    res.status(200).json({ ok: true, persisted: result.persisted });
+  } catch (err) {
+    const error = err as Error;
+    logger.error('route.intake_intelligence_kpi_failed', { component: 'intake', error: error.message });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.INTAKE_SAVE_RESPONSES_FAILED, INTAKE_SAVE_RESPONSES_FAILED_MESSAGE));
+  }
+}

@@ -37,7 +37,24 @@ What this is not:
 - Not a generic AI Q&A chat without persistent business context.
 - Not a replacement for every consultant workflow; it is a structured decision and prioritization layer that can work with consultant expertise.
 
-MVP scope note:
+**Positioning (audit-first vs. free-form “idea” ingress):** The default contract is a **URL + structured intake + pipeline evidence**; roadmaps and execution packs are downstream of that chain. Optional natural-language describe steps (public intake) add **non-authoritative** hints; they do not replace bank answers. A dedicated decision record: [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md). A **proposed** (not current scope) separate “idea-only” product line, if ever pursued, is outlined in [ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md). **Delivery OS:** pack → CSV/JSON for PM tools is documented in [operations/sprint-export-import-ops.md](./operations/sprint-export-import-ops.md); remaining GTM/tracker automation gaps stay in [IMPROVEMENTS.md](./IMPROVEMENTS.md) “Delivery OS”.
+
+### Stakeholder readiness contract
+
+Use this as the **single cross-team** summary; engineering details stay in [AGENTS.md](./AGENTS.md) (additive change gate) and the ADRs above.
+
+1. **Audit-first is the default product path.** Value at the level of a cross-lane, evidence-linked roadmap and implementation pack is anchored on **URL + structured intake (question bank) + successful pipeline / collector evidence**, not on free text alone.
+2. **Idea, voice, and NL describe are additive.** They **assist** the brief; they do **not** override question-bank semantics or ordering (`prefer_explicit_over_inferred`). New behavior ships behind flags and optional APIs so existing clients keep working when features are off.
+3. **A distinct “idea-only” SKU (if ever) is a separate product decision.** It requires a new **Accepted** ADR and its **own** success metrics — see the proposed placeholder [ADR-IDEA-ONLY-…](./adrs/ADR-IDEA-ONLY-PRODUCT-LINE-PROPOSED-V1.md). Until then, do not market parity with the full audit pipeline for pitch-only entry.
+4. **Telemetry split.** Runtime orchestration health uses `kpi_orchestration_*` (see [orchestration-telemetry-policy.ts](../server/src/config/orchestration-telemetry-policy.ts)). Hypothetical idea-SKU or GTM business outcomes are **not** represented by those keys alone; see ADR-IDEA-ONLY (draft metrics table) and [operations/client-outcome-measurement.md](./operations/client-outcome-measurement.md) where applicable.
+5. **Sprint delivery.** Export to CSV/JSON and tracker import is documented in [sprint-export-import-ops.md](./operations/sprint-export-import-ops.md). Parallel marketing / GTM / product lanes are **projections** of the same pack, not a second planning source.
+
+**Naming (product vs engineering):**
+
+- **Orchestration foundation** — the shipped **Phases 0–7** work in [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](./adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md): single plan, manifest → pack, client timeline, director merge, flags, and tests. This is **not** the same as the product’s target “MVP” (see below).
+- **Product MVP** — the **north-star** client experience: full roadmap decision UX (see [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md), including *Current UX gaps*), plus the prioritized **V1–V12** backlog in the rollout ADR. Product uses **MVP** to mean this target, not Foundation alone. A **rolling sync** of the roadmap plan vs the repo (CI DoD, file paths, open questions) lives in [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./adrs/ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md). **After** the minimal Product MVP code snapshot, **§5-style UX gap closers** (e.g. Now/Next/Later board, what-if comparison, set-level aggregators) are **implemented in the repository** behind feature flags — see the *§5 UX gap closers* section in the sync ADR. What remains for a “full product” readout is **ops observability, E2E credentials coverage, bundle verification, and product gates** — summarized in [ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md](./adrs/ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md) (v9 critical **delta**, not a duplicate build list).
+
+**Current production scope (analysis + synthesis):**
 
 - Current production scope is seven analysis areas plus strategy synthesis.
 - Domain coverage and recommendation depth can expand over time, but the control model remains: user context -> findings -> user-selected priorities -> roadmap.
@@ -45,8 +62,10 @@ MVP scope note:
 ---
 
 **Primary users:** Consultants running audits for SMB clients. 
-**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development. 
+**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal while the self-serve portal pattern is still the primary path. 
 **Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
+
+**Target client roadmap UX (with Orchestrator + Directors):** the canonical product direction is a **seasonal multi-lane timeline** (delivery, marketing/SEO when in package, processes, risk gates) fed by a **single orchestrated plan**, with **explicit user manifest** (coverage + change scenario + horizon) **before** roadmap generation, and **Strategy Lab** reframed as **deep-dive / execution detail** — not the primary timeline. See [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md). **Phased implementation (code-grounded, KISS/DRY/SOLID, no-hardcode discipline):** [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](./adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md).
 
 Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
 

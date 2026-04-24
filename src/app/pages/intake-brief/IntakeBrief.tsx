@@ -47,8 +47,13 @@ export function IntakeBrief() {
               />
             ) : (
               <IntakeBriefFormPhase
-                questionSections={c.questionSections}
+                intakeToken={c.token}
+                displayedQuestionSections={c.displayedQuestionSections}
                 responses={c.responses}
+                intakePathChoice={c.intakePathChoice}
+                nlIngress={c.nlIngress}
+                readinessPanel={c.readinessPanel}
+                intelligenceByQuestionId={c.intelligenceByQuestionId}
                 companyName={c.companyName}
                 message={c.message}
                 submittedAt={c.submittedAt}
@@ -57,11 +62,27 @@ export function IntakeBrief() {
                 answered={c.answered}
                 total={c.total}
                 formComplete={c.formComplete}
+                isCurrentStepSatisfied={c.isCurrentStepSatisfied}
+                journeyStage={c.journeyStage}
+                questionMode={c.questionMode}
+                progressiveStepIndex={c.progressiveStepIndex}
+                progressiveStepTotal={c.progressiveStepTotal}
+                skippedByConfidenceIds={c.skippedByConfidenceIds}
+                showFastPassDoneBanner={c.showFastPassDoneBanner}
+                optionalDetailsOpenById={c.optionalDetailsOpenById}
+                resumeBannerVisible={c.resumeBannerVisible}
                 submitError={c.submitError}
                 onFieldChange={c.onFieldChange}
                 onIndustryChange={c.onIndustryChange}
                 onWebsitePresenceChange={c.onWebsitePresenceChange}
                 onUnknown={c.onUnknown}
+                onOpenOptionalDetails={c.onOpenOptionalDetails}
+                onSubmitOptionalDetails={c.onSubmitOptionalDetails}
+                onAdvanceProgressive={c.onAdvanceProgressive}
+                onBackProgressive={c.onBackProgressive}
+                onSaveAndContinueLater={c.onSaveAndContinueLater}
+                onToggleQuestionMode={c.onToggleQuestionMode}
+                onDismissResumeBanner={c.onDismissResumeBanner}
                 onGoReview={() => c.setPhase('review')}
               />
             )}

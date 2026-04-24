@@ -86,6 +86,7 @@ describe('recordEvaluationDatasetIfEnabled', () => {
     state.insertPayloads = [];
     state.insertAttempt = 0;
     delete process.env.EVALUATION_DATASETS_INSERT;
+    process.env.EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT = 'false';
   });
 
   it('stores selected variant id in evaluation_datasets', async () => {
@@ -102,6 +103,8 @@ describe('recordEvaluationDatasetIfEnabled', () => {
 
     expect(state.insertPayloads.length).toBe(1);
     expect(state.insertPayloads[0].agent_variant_id).toBe('variant-a');
+    expect(typeof state.insertPayloads[0].created_at).toBe('string');
+    expect(typeof state.insertPayloads[0].expires_at).toBe('string');
   });
 
   it('retries insert on unique run_number conflict and succeeds', async () => {

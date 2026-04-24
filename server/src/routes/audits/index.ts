@@ -8,6 +8,29 @@ import {
 import { createAuditLimiter, generalLimiter } from '../../middleware/rate-limit.js';
 import { createAuditController } from './controllers/create-audit.controller.js';
 import { listAuditsController } from './controllers/list-audits.controller.js';
+import { tokenUsageSummaryController } from './controllers/token-usage-summary.controller.js';
+import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
+import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
+import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
+import { postRoadmapManifestSnapshotController } from './controllers/post-roadmap-manifest-snapshot.controller.js';
+import { getRoadmapManifestSnapshotsController } from './controllers/get-roadmap-manifest-snapshots.controller.js';
+import { getRoadmapManifestSnapshotLatestController } from './controllers/get-roadmap-manifest-snapshot-latest.controller.js';
+import { postRoadmapManifestPreviewController } from './controllers/post-roadmap-manifest-preview.controller.js';
+import { postOrchestrationPackController } from './controllers/post-orchestration-pack.controller.js';
+import { postOrchestrationPackRegenerateController } from './controllers/post-orchestration-pack-regenerate.controller.js';
+import { getOrchestrationPackController } from './controllers/get-orchestration-pack.controller.js';
+import { getOrchestrationPackDiffController } from './controllers/get-orchestration-pack-diff.controller.js';
+import { getOrchestrationPackDiffHistoryController } from './controllers/get-orchestration-pack-diff-history.controller.js';
+import { getOrchestrationSprintExportController } from './controllers/get-orchestration-sprint-export.controller.js';
+import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
+import { postOrchestratorPreviewController } from './controllers/post-orchestrator-preview.controller.js';
+import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
+import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
+import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
+import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
+import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
+import { getDirectorDeepDiveQuotaController } from './controllers/get-director-deep-dive-quota.controller.js';
+import { postSelectedInitiativeController } from './controllers/post-selected-initiative.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -26,6 +49,144 @@ const consultantGuard = [attachProfile, requireRole('consultant')] as const;
 
 auditsRouter.post('/', attachProfile, createAuditLimiter, createAuditController);
 auditsRouter.get('/', attachProfile, rejectGuestFromPortal, listAuditsController);
+auditsRouter.get(
+  '/token-usage-summary',
+  ...consultantGuard,
+  rejectGuestFromPortal,
+  tokenUsageSummaryController,
+);
+auditsRouter.post(
+  '/:id/strategy/execution-pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  postStrategyExecutionPackController,
+);
+auditsRouter.get(
+  '/:id/strategy/execution-packs',
+  attachProfile,
+  rejectGuestFromPortal,
+  getStrategyExecutionPacksController,
+);
+auditsRouter.patch(
+  '/:id/strategy/lab-context',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchStrategyLabContextController,
+);
+auditsRouter.post(
+  '/:id/roadmap/manifest-preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestPreviewController,
+);
+auditsRouter.post(
+  '/:id/roadmap/manifest-snapshots',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestSnapshotController,
+);
+auditsRouter.get(
+  '/:id/roadmap/manifest-snapshots',
+  attachProfile,
+  rejectGuestFromPortal,
+  getRoadmapManifestSnapshotsController,
+);
+auditsRouter.get(
+  '/:id/roadmap/manifest-snapshots/latest',
+  attachProfile,
+  rejectGuestFromPortal,
+  getRoadmapManifestSnapshotLatestController,
+);
+auditsRouter.post(
+  '/:id/orchestration/pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationPackController,
+);
+auditsRouter.post(
+  '/:id/orchestration/pack/regenerate',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationPackRegenerateController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack-diff',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackDiffController,
+);
+auditsRouter.get(
+  '/:id/orchestration/pack-diff-history',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationPackDiffHistoryController,
+);
+auditsRouter.get(
+  '/:id/orchestration/sprint-export',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestrationSprintExportController,
+);
+auditsRouter.post(
+  '/:id/orchestrator/preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestratorPreviewController,
+);
+auditsRouter.post(
+  '/:id/orchestrator/run',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestratorRunController,
+);
+auditsRouter.get(
+  '/:id/orchestrator/latest',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestratorLatestController,
+);
+auditsRouter.get(
+  '/:id/timeline',
+  attachProfile,
+  rejectGuestFromPortal,
+  getAuditTimelineController,
+);
+auditsRouter.get(
+  '/:id/directors/:domain/deep-dive/quota',
+  attachProfile,
+  rejectGuestFromPortal,
+  getDirectorDeepDiveQuotaController,
+);
+auditsRouter.post(
+  '/:id/directors/:domain/deep-dive',
+  attachProfile,
+  rejectGuestFromPortal,
+  postDirectorDeepDiveController,
+);
+auditsRouter.get(
+  '/:id/directors/:domain/deep-dive/:jobId',
+  attachProfile,
+  rejectGuestFromPortal,
+  getDirectorDeepDiveStatusController,
+);
+auditsRouter.post(
+  '/:id/orchestration/selected-initiative',
+  attachProfile,
+  rejectGuestFromPortal,
+  postSelectedInitiativeController,
+);
+auditsRouter.post(
+  '/:id/orchestration/commercial-offer',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationCommercialOfferController,
+);
 auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, getAuditController);
 auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPortal, upgradeFromSnapshotController);
 auditsRouter.delete('/:id', ...consultantGuard, deleteAuditController);

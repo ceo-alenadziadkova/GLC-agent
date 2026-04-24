@@ -1,0 +1,61 @@
+# Optional synthetic probe for DoD-4 (orchestration SLO) — unauthenticated /api/health only.
+# Uses the same API origin as the SPA: set repository variable VITE_API_URL (same name as
+# [DEPLOYMENT.md](../docs/DEPLOYMENT.md) / Vercel), e.g. https://api.example.com
+# Trailing slash is stripped in the step. Legacy alias: ORCH_PUBLIC_API_BASE if VITE is unset.
+# When both are empty, the scheduled job is skipped (safe for forks and new repos).
+# For authenticated timeline checks, use scripts/orchestration-synthetic-probe.example.sh with API_BASE + token from a secret runner or cron host.
+
+name: Orchestration synthetic probe
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  health-probe:
+    if: ${{ vars.VITE_API_URL != '' || vars.ORCH_PUBLIC_API_BASE != '' }}
+    name: api-health
+    runs-on: ubuntu-latest
+    steps:
+      - name: GET /api/health
+        run: |
+          set -euo pipefail
+          raw="${VITE_API_URL:-${ORCH_PUBLIC_API_BASE:-}}"
+          if [[ -z "$raw" ]]; then
+            echo "Set repository variable VITE_API_URL (or ORCH_PUBLIC_API_BASE)" >&2
+            exit 1
+          fi
+          base="${raw%/}"  # strip one trailing slash (same idea as scripts/orchestration-synthetic-probe.example.sh)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "${base}/api/health")
+          if [[ "$code" != "200" ]]; then
+            echo "expected 200, got $code" >&2
+            exit 1
+          fi
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          ORCH_PUBLIC_API_BASE: ${{ vars.ORCH_PUBLIC_API_BASE }}
+
+  timeline-canary:
+    if: ${{ (vars.VITE_API_URL != '' || vars.ORCH_PUBLIC_API_BASE != '') && secrets.ORCHESTRATION_PROBE_TOKEN != '' && secrets.ORCHESTRATION_CANARY_AUDIT_ID != '' }}
+    name: api-timeline-authenticated
+    runs-on: ubuntu-latest
+    needs: [health-probe]
+    steps:
+      - name: GET /api/audits/:id/timeline (canary)
+        run: |
+          set -euo pipefail
+          raw="${VITE_API_URL:-${ORCH_PUBLIC_API_BASE:-}}"
+          base="${raw%/}"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${ORCHESTRATION_PROBE_TOKEN}" \
+            "${base}/api/audits/${ORCHESTRATION_CANARY_AUDIT_ID}/timeline")
+          if [[ "$code" != "200" ]]; then
+            echo "timeline: expected 200, got $code" >&2
+            exit 1
+          fi
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          ORCH_PUBLIC_API_BASE: ${{ vars.ORCH_PUBLIC_API_BASE }}
+          ORCHESTRATION_PROBE_TOKEN: ${{ secrets.ORCHESTRATION_PROBE_TOKEN }}
+          ORCHESTRATION_CANARY_AUDIT_ID: ${{ secrets.ORCHESTRATION_CANARY_AUDIT_ID }}

@@ -6,8 +6,10 @@
 | **Date** | 2026-04-12 |
 | **Scope** | `server/src/schemas/control-object.ts`, `server/src/services/fact-checker.ts`, `server/src/agents/base.ts` |
 | **Supersedes** | — |
-| **Superseded by** | — |
+| **Superseded by** | [`ADR-CONTROL-OBJECT-V2-FULL.md`](./ADR-CONTROL-OBJECT-V2-FULL.md) (v1.0 **schema** superseded; this file remains the immutable v1.0 **decision** record) |
 | **Decision owners** | Tech Lead + Backend (AI Pipeline) |
+
+**Implementation note:** runtime schema and services follow **CONTROL_OBJECT v2** per the linked ADR. Read this document for the original v1.0 context and migration rationale.
 
 ### ADR lifecycle
 

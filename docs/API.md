@@ -9,7 +9,7 @@ Most `/api/*` endpoints require a valid Supabase JWT in the `Authorization: Bear
 
 Authentication exceptions (no JWT):
 
-- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/respond`, public discovery routes.
+- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/next-question` (diagnostic pilot; **F1** — feature-flagged, deterministic; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)), `POST /api/intake/:token/respond`, public discovery routes.
 - Token-protected operator routes: `/api/snapshot/operator/*` (requires `SNAPSHOT_OPERATOR_TOKEN`, not JWT).
 - Secret-header route: `POST /api/benchmarks/recompute` (cron/system secret header, not JWT).
 
@@ -57,9 +57,12 @@ Returns current authenticated user profile metadata.
  "id": "uuid",
  "role": "consultant",
  "email": "user@example.com",
- "full_name": "Jane Doe"
+ "full_name": "Jane Doe",
+ "can_manage_platform_settings": true
 }
 ```
+
+- `can_manage_platform_settings` — **`true`** only when **`role`** is **`consultant`** and the server evaluates `canManagePlatformSettings(userId)` ([`server/src/routes/profile.ts`](../server/src/routes/profile.ts); logic in [`server/src/lib/platform-admin.ts`](../server/src/lib/platform-admin.ts): open mode vs `profiles.is_platform_admin` / legacy UUID list). The client does not pass this flag; it is derived per request. **`false`** for **`client`** / **`guest`**.
 
 ### `PATCH /api/profile`
 
@@ -81,6 +84,45 @@ Notes:
 - Empty/whitespace value is normalized to `null`.
 - Max length: 200 characters.
 
+### `GET /api/profile/legal-consents`
+
+Returns published legal document version identifiers plus **effective** consent state (latest append-only row per `consent_key`).
+
+**Auth:** valid JWT.
+
+**Response `200`:** `{ "published": { "bundle", "terms_of_service", "privacy_policy", "data_processing_agreement", "legal_notice", "cookies_policy" }, "effective": [ { "consent_key", "accepted", "created_at", "document_bundle_version", "tos_version", "privacy_version", "dpa_version", "source" } ] }`
+
+### `POST /api/profile/legal-consents`
+
+Appends one or more consent / acknowledgment events (no duplicate `consent_key` in a single request).
+
+**Auth:** valid JWT.
+
+**Request body:**
+
+```json
+{
+  "source": "settings",
+  "events": [{ "consent_key": "marketing", "accepted": true }]
+}
+```
+
+**`source`:** `signup` | `settings` | `api` | `import` | **`audit_create`** (consultant DPA at audit creation).
+
+**Response `201`:** same shape as `GET /api/profile/legal-consents`.
+
+---
+
+## Public brand
+
+### `GET /api/public/legal-documents`
+
+**Auth:** none.
+
+Returns published document **version strings** and SPA **paths** for Terms, Privacy, DPA, Cookies Policy, and the LSSI **legal notice** (Aviso Legal) (for signup links, footer, and CMP wiring).
+
+**Response shape (illustrative):** `bundle`, `terms_of_service`, `privacy_policy`, `data_processing_agreement`, `legal_notice`, and `cookies_policy` — each document entry is `{ version, path }` except `bundle`, which is a single string.
+
 ---
 
 ## Frontend log ingest
@@ -98,6 +140,8 @@ Dev behavior: in local frontend dev (`import.meta.env.DEV`), logger events stay 
 **Response:** `204` No Content.
 
 **Body** (JSON): `level` (`debug`|`info`|`warn`|`error`), `source` (default `frontend`), `message`, optional `context` object, optional `timestamp` (ISO).
+
+**Ops Telegram:** when `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are configured, `source: "spa_ui_incident"` (full-screen error report from authenticated users) also sends a formatted HTML message to the ops chat. Repeated sends for the same user and `context.ref` are suppressed for `SYSTEM_DEFAULTS.alerts.spaUiIncidentTelegramCooldownMs` (per API instance).
 
 ### `POST /api/log/snapshot`
 
@@ -227,6 +271,16 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 **Errors:** `400` invalid payload, `403` not platform admin when restricted, `500` persistence failure.
 
+### `POST /api/platform/audits/:id/pipeline/resume-cancelled`
+
+**Auth:** consultant JWT and platform admin (`can_manage` — same rules as `PATCH /api/platform/self-serve-owner`).
+
+Clears a user **`stop`**: compare-and-set updates **`audits.status`** from **`cancelled`** to **`review`**, then **best-effort** runs the same advance as **`POST /api/audits/:id/pipeline/next`** on behalf of the **audit owner** (`audits.user_id`) — queues or in-process **`schedulePipelineExecution`** when allowed. Inserts **`pipeline_events.event_type = resumed_from_cancelled`**. If **`next`** is not allowed (e.g. pending review gate), the audit stays at **`review`** and the owner must **`.../pipeline/next`** or complete the gate first.
+
+**Errors:** `400` with `PIPELINE_RESUME_NOT_CANCELLED` when status is not **`cancelled`**, `PIPELINE_TOKEN_BUDGET_EXCEEDED` when over budget, `403` when not a platform admin, `404` invalid audit id, `409` with `PIPELINE_RESUME_CLAIM_CONFLICT` on stale **`updated_at`**.
+
+**Response `200`:** `{ "status": "review" | "running", "current_phase": <number>, "resumed": true, "execution_scheduled": <boolean> }` — **`execution_scheduled`** is **`true`** when work was scheduled; **`current_phase`** is the **running** phase when execution was scheduled, otherwise the phase at resume idle.
+
 ---
 
 ## Domain benchmarks
@@ -282,11 +336,17 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 
 | Endpoint pattern | Consultant (owner) | Client (`client_id`) | Notes |
 | ---------------- | ------------------ | -------------------- | ----- |
-| `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
+| `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS; `strategy` initiatives are normalized to **v2** (decision/evidence/execution_paths) when possible |
+| `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
+| `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
+| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **GET pack** is a thin read of `audit_strategy` after access check) |
+| `GET /api/audits/:id/orchestration/sprint-export` | yes | yes | Tabular **export** (JSON/CSV) of graph nodes; optional join with latest execution pack — same RLS/ownership as **GET pack**; portal **guest** rejected where pack routes reject guests |
+| `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
 | `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/stop` | yes | yes | Client may start/continue/stop only when `audits.client_id` matches. Start still requires brief gates (`status === 'created'`). **`retry`** remains consultant-only. |
-| `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only |
+| `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only: owner or platform operator (see retry section) |
+| `POST /api/platform/audits/:id/pipeline/resume-cancelled` | platform admin only | no | Clears **`cancelled`**, then best-effort owner **`pipeline/next`** (see Platform section) |
 | `POST /api/audits/:id/reviews/:phase` | yes | no | Consultant-only |
 | `POST /api/audits/:id/brief/help-request` | no | yes | Client-only: optional brief help ping (`brief_help_*` on `audits` + consultant notification). Only while `status === 'created'`. |
 | `DELETE /api/audits/:id` | yes (owner) | no | Destructive |
@@ -296,6 +356,8 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 Create a new audit.
 
 **Roles:** **Consultant** — `user_id` is the authenticated consultant, `client_id` null. **Client (self-serve)** — allowed when a valid owner consultant is resolved (stored **`platform_settings.self_serve_audit_owner_user_id`**, legacy admin list, or earliest consultant in open mode — see `GET /api/platform/self-serve-owner`). The new row uses that consultant as `user_id` (billing/ownership) and `client_id` = authenticated client profile id. **`503`** with `code: "SELF_SERVE_OWNER_UNAVAILABLE"` when resolution fails.
+
+**Consultant DPA:** **`403`** with **`AUDITS_DPA_REQUIRED`** when the caller is a **consultant** and the latest effective **`dpa_acceptance`** is not **accepted** (clients are not subject to this check on **`POST /api/audits`**). The SPA records acceptance on the new-audit confirm step or via **`POST /api/profile/legal-consents`** with **`source`: `audit_create`**. **`POST /api/audit-requests/:id/approve`** applies the same rule before creating the audit.
 
 **Request body:**
 
@@ -346,6 +408,7 @@ List audits visible to the caller (summary fields only): consultants see rows th
  "current_phase": 7,
  "overall_score": 3.8,
  "tokens_used": 120000,
+ "token_budget": 200000,
  "created_at": "2024-01-01T00:00:00Z",
  "updated_at": "2024-01-02T00:00:00Z"
  }
@@ -355,6 +418,14 @@ List audits visible to the caller (summary fields only): consultants see rows th
  "offset": 0
 }
 ```
+
+---
+
+### `GET /api/audits/token-usage-summary`
+
+**Consultant only.** Paginated audits visible to the caller (same access as `GET /api/audits`) with per-row token usage, plus aggregates. Query: `limit`, `offset` (same caps as list).
+
+**Response `200`:** `audits[]` includes `tokens_used`, `token_budget`, `tokens_remaining` (non-negative). `scopes.accessible` sums usage and remaining headroom across **all** visible audits (not only the current page). `scopes.platform` is present only when the caller may manage platform settings **and** `platform_settings.llm_token_pool_cap` is set: then it includes `pool_cap`, `global_tokens_used` (sum of `audits.tokens_used` system-wide), and `pool_tokens_remaining` (`pool_cap - global_tokens_used`).
 
 ---
 
@@ -398,12 +469,309 @@ Full audit state: audit meta + all domain results + strategy.
  "strategy": {
  "executive_summary": "...",
  "overall_score": 3.8,
- "quick_wins": [{ "id": "uuid", "title": "...", "impact": "high", "effort": "low" }],
+ "schema_version": 2,
+ "strategy_lab_context": {},
+ "effective_constraints": { "company_stage": "growth", "budget_band": "medium", "team_scale": "small" },
+ "quick_wins": [{ "id": "MKT-01", "title": "...", "domain": "marketing_utp", "decision": { "why_this": ["..."] }, "evidence": { "sources": [{ "domain_key": "marketing_utp", "issue_id": "..." }] }, "evidence_verified": true, "execution_paths": [{ "type": "fast", "description": "...", "time_estimate": "1w" }], "impact": "high", "effort": "low" }],
  "medium_term": [...],
  "strategic": [...]
  }
 }
 ```
+
+**Strategy initiatives:** New audits persist **`schema_version = 2`** rows with structured fields (scope, execution paths, decision, evidence). Older rows are **coerced** on read for API clients. **`evidence_verified`** is computed server-side against saved domain `issues` when `issue_id` references exist.
+
+**`strategy_lab_context`:** Optional persisted overrides (subset of keys). **`effective_constraints`:** Read-only merge of intake brief + overrides, used for constraint rules when normalizing initiatives.
+
+---
+
+### `PATCH /api/audits/:id/strategy/lab-context`
+
+Updates `audit_strategy.strategy_lab_context` for the audit. At least one field must be present in the JSON body. Send **`null`** for a field to remove that override and fall back to the intake brief for that axis.
+
+**Body (examples):**
+
+```json
+{ "company_stage": "scale", "budget_band": "low" }
+```
+
+```json
+{ "budget_band": null }
+```
+
+```json
+{ "director_stage2_domains": ["tech_infrastructure", "ux_conversion"] }
+```
+
+(`director_stage2_domains` is an optional product signal for stage-2 deep director follow-up; send `null` to clear.)
+
+**Response `200`:** `{ "strategy_lab_context": { "company_stage": "scale", "budget_band": "low" } }` (cleaned; omitted keys are not overrides).
+
+**Errors:** `400 AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID` (including empty body), `404 AUDITS_NOT_FOUND`, `500 AUDITS_STRATEGY_LAB_CONTEXT_FAILED`.
+
+---
+
+### `POST /api/audits/:id/strategy/execution-pack`
+
+Generates a persisted **execution pack** (tasks, architecture, optional prompts) for 1–5 selected initiative ids. **One additional Claude call** per request; token usage is logged under phase **7** like strategy.
+
+**Request `201` body (JSON):**
+
+```json
+{
+  "initiative_ids": ["MKT-01", "SEO-02"],
+  "selected_path_type": "fast"
+}
+```
+
+**Response `201`:** `{ "id": "uuid", "payload": { "packs": [ { "initiative_id": "...", "tasks": ["..."], "architecture": "..." } ] } }`
+
+**Errors:** `403 STRATEGY_EXECUTION_PACK_DISABLED`, `400 AUDITS_STRATEGY_EXECUTION_PACK_PAYLOAD_INVALID`, `409 AUDITS_STRATEGY_EXECUTION_PACK_NOT_READY` (strategy not completed), `429 AUDITS_STRATEGY_EXECUTION_PACK_FAILED` (token budget), `500` on persistence/LLM failure.
+
+---
+
+### `GET /api/audits/:id/strategy/execution-packs`
+
+Lists recent execution-pack rows for the audit (metadata only: ids, initiative ids, timestamps). Full payload is returned from the **POST** response and stored in `audit_strategy_execution_packs.payload`.
+
+---
+
+### `POST /api/audits/:id/roadmap/manifest-preview`
+
+Computes a **deterministic preview** of what the roadmap manifest implies (lanes in scope vs cut, waiting-list domains, compression/density hints, confidence callouts). Does **not** persist a snapshot. **Body** is the same JSON shape as **`POST .../manifest-snapshots`**. **`selected_domains`** must match **`audits.execution_plan.selected_domains`**.
+
+**Response `200`:** `{ "preview": { "lanes_included": [...], "lanes_cut": [...], "waiting_list_domains": [...], "execution_compression_hint": "...", "lane_density_band": "...", "confidence_callouts": ["..."] } }`
+
+**Errors:** `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED`, `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED`.
+
+---
+
+### `POST /api/audits/:id/roadmap/manifest-snapshots`
+
+Persists an immutable **roadmap input manifest** row. **`selected_domains`** must match **`audits.execution_plan.selected_domains`** (same set as the audit’s coverage contract).
+
+**Request body (JSON):**
+
+```json
+{
+  "schema_version": 2,
+  "selected_domains": ["tech_infrastructure", "ux_conversion"],
+  "change_scenario": "hybrid",
+  "season_preset": "rolling_90d",
+  "selected_action_ids": ["MKT-01", "SEO-02"],
+  "plan_horizon": {
+    "start_date": "2026-01-01",
+    "end_date": "2026-06-30"
+  }
+}
+```
+
+`sub_agent_ids` is validated against the server-side registry (`DIRECTOR_SUB_AGENTS`) and currently supports:
+- CMO: `cmo.agent_1_market` ... `cmo.agent_12_growth_loops`
+- CDO: `cdo.funnel_architect`, `cdo.friction`, `cdo.experimentation`
+- CAO: `cao.process_map`, `cao.automation_candidates`, `cao.throughput`
+- CSO: `cso.case_classifier`, `cso.threat_model`, `cso.compliance_map`
+
+- **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
+- **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
+- **`selected_action_ids`:** optional client intent (manifest-level). Used as a **soft prioritization hint** on run/regenerate when no request override is provided.
+
+**Response `201`:** `{ "id": "<uuid>" }` — use as **`manifest_snapshot_id`** when building the orchestration pack.
+
+**Errors:** `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED`.
+
+---
+
+### `GET /api/audits/:id/roadmap/manifest-snapshots`
+
+Lists recent **roadmap manifest** snapshot rows for the audit (newest first). Optional query: **`limit`** (integer, clamped between server defaults from `SYSTEM_DEFAULTS.routeQueries.orchestrationRoadmapManifestSnapshotsList`).
+
+**Response `200`:** `{ "snapshots": [ { "id": "<uuid>", "created_at": "<iso>", "payload": { ...same shape as POST body... } } ] }`
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_LIST_FAILED`.
+
+---
+
+### `GET /api/audits/:id/timeline`
+
+Returns the **client timeline read model** (seasonal buckets, lanes, truncated dependencies, top-action windows). **`version.plan_horizon`** echoes the calendar window from the manifest snapshot tied to the pack (or from the latest snapshot when the pack is missing), when **`plan_horizon`** was saved on that manifest.
+
+**Response `200`:** `{ "timeline": { "status": "...", "version": { "roadmap_version", "manifest_snapshot_id", "season_preset", "plan_horizon", ... }, "seasons", "lanes", ... } }` — see `server/src/schemas/orchestrator-timeline.ts`.
+
+`timeline.lanes[].items[]` now supports optional additive explain fields:
+- `explain.why: string[]`
+- `explain.how: { path_type?: string; description: string; time_estimate?: string }`
+- `explain.impact: { score?: number; label?: string }`
+- `explain.time: { bucket?: 'now'|'next'|'later'; target_window_days?: number; time_to_value?: string }`
+- `explain.risks?: string[]`
+- `explain.limited_context?: boolean` (deterministic fallback marker)
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` when the pack API flag is off, `404` when the audit is missing or inaccessible.
+
+**Narrative gating (milestones, top_priorities):** the server may omit `milestones` and `top_priorities` when the caller is not entitled under `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` and staged `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (allowlist; mirrors SPA `orchestration-client-feature-gates`). Legacy `top_7d` / `top_30d` remain.
+
+---
+
+### `POST /api/audits/:id/orchestration/pack`
+
+Builds and saves **`glc_orchestration_pack`** on **`audit_strategy`** from finalized strategy initiatives, optional **Director** bundles under **`audit_domains.raw_data.glc_director_execution`** (baseline/deep `actions[]` per in-scope domain), and the given manifest snapshot (deterministic graph; optional LLM pass is server-flagged separately). Pack graph nodes may include **`source`** (`strategy` \| `director`) and **`analysis_depth`** (`baseline` \| `deep`) for client badges.
+
+`glc_orchestration_pack` now uses **schema version 2** and includes deterministic PHASE 0/1 metadata:
+- `phase_diagnostic` (`dominant_constraint`, `constraint_chain`)
+- `routing_profile` (`strategy=weighted_domain_balance`, `domain_weights`)
+- `graph.edges[].relation` (`direct_blocker` \| `strong` \| `medium` \| `weak`) and `weight`
+
+Historical schema v1 rows are read through a server adapter and normalized to v2 on read.
+
+**Request body (JSON):**
+
+```json
+{
+  "manifest_snapshot_id": "<uuid from manifest-snapshots POST>",
+  "selected_action_ids": ["MKT-01", "SEO-02"]
+}
+```
+
+- **`selected_action_ids`:** optional request override for the same soft prioritization hint. Resolution order: request override → manifest `selected_action_ids` → current default behavior.
+
+**Response `200`:** `{ "pack": { ... }, "orchestration_pack_version": <number>, "roadmap_version": <number>, "last_revision_diff": <object | null> }`. **`roadmap_version`** mirrors **`orchestration_pack_version`** (ADR naming). **`last_revision_diff`** is **`null`** on the first saved pack (v1); on later versions it is the structured vN→vN+1 diff persisted on **`audit_strategy.glc_orchestration_last_revision_diff`**. Pack persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` (retry budget from server config). Subsequent **`GET /api/audits/:id`** includes **`strategy.glc_orchestration_pack`**, **`strategy.orchestration_pack_version`**, and **`strategy.glc_orchestration_last_revision_diff`** on the read model when present.
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `409 AUDITS_ORCHESTRATION_PACK_NOT_READY`, `500 AUDITS_ORCHESTRATION_PACK_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/pack`
+
+Returns the latest persisted **`glc_orchestration_pack`** and **`orchestration_pack_version`** for the audit (same JSON shape as in **`GET /api/audits/:id`** `strategy` when present). **`pack`** may be **`null`** when no pack has been saved yet.
+
+**Response `200`:** `{ "pack": <object | null>, "orchestration_pack_version": <number>, "roadmap_version": <number>, "last_revision_diff": <object | null> }` — same fields as **`POST .../orchestration/pack`** success body for the latest row.
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND` (audit missing or no access), `500 AUDITS_FETCH_FAILED` (read failure).
+
+---
+
+### `POST /api/audits/:id/orchestration/pack/regenerate`
+
+Forces pack recomputation for the provided `manifest_snapshot_id` and persists a new version when governance allows it. Request/response shape mirrors `POST /api/audits/:id/orchestration/pack`.
+
+**Request body:** `{ "manifest_snapshot_id": "<uuid>", "selected_action_ids"?: ["..."] }`
+
+**Response `200`:** same payload as `POST /api/audits/:id/orchestration/pack` (`pack`, `orchestration_pack_version`, `roadmap_version`, `last_revision_diff`, `plan_governance`).
+
+**Errors:** same family as `POST /api/audits/:id/orchestration/pack` (`*_PAYLOAD_INVALID`, `*_NOT_READY`, `*_FAILED`, `ORCHESTRATION_PACK_API_DISABLED`).
+
+---
+
+### `GET /api/audits/:id/orchestration/pack-diff`
+
+Returns one persisted version diff.
+
+**Query params (required):**
+
+- `from_version` (integer)
+- `to_version` (integer)
+
+**Response `200`:** `{ "item": { "from_version", "to_version", "diff": { ...revision diff... } } }`
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_DIFF_QUERY_INVALID`, `404 AUDITS_ORCHESTRATION_PACK_DIFF_NOT_FOUND`, `500 AUDITS_ORCHESTRATION_PACK_DIFF_FETCH_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/pack-diff-history`
+
+Lists recent persisted diff history for an audit.
+
+**Query params (optional):**
+
+- `limit` (integer, server-clamped)
+
+**Response `200`:** `{ "items": [ { "from_version", "to_version", "diff": { ... } } ], "latest_plan_governance": { ... } | null }`
+
+**Errors:** `400 AUDITS_ORCHESTRATION_PACK_DIFF_QUERY_INVALID`, `500 AUDITS_ORCHESTRATION_PACK_DIFF_FETCH_FAILED`.
+
+---
+
+### `GET /api/audits/:id/orchestration/sprint-export`
+
+Flattens the **persisted** orchestration pack graph into tabular rows for PM export. Optionally enriches rows with the latest on-demand **strategy execution pack** tasks and outcome fields per initiative. Same access as `GET /api/audits/:id/orchestration/pack` (consultant/owner; **rejects** portal guest).
+
+**Query params (optional):**
+
+- `format` — `json` (default) or `csv` (`csv` returns `text/csv; charset=utf-8` with `Content-Disposition: attachment`)
+- `execution_pack` — set to `0` to **omit** joining the latest strategy execution pack; otherwise the server best-effort joins tasks/metrics by initiative
+
+**Response `200` (`format=json`):**
+
+```json
+{
+  "audit_id": "uuid",
+  "orchestration_pack_version": 0,
+  "export_format_version": 1,
+  "importer_notes": {
+    "linear": "Import CSV as issues; use epic_id / lane as labels; see operations doc.",
+    "jira": "Map CSV columns to custom fields or import via CSV; dri column carries suggested role labels from lane (replace with named owners in your org)."
+  },
+  "rows": [
+    {
+      "epic_id": "string",
+      "epic_title": "string",
+      "lane": "string",
+      "sprint_bucket": "string",
+      "season_index": 0,
+      "task_order": 0,
+      "task_title": "string",
+      "dri": "Marketing",
+      "success_metric": "string",
+      "baseline": "string",
+      "review_cadence": "string"
+    }
+  ]
+}
+```
+
+- **`export_format_version`:** additive; clients may pin imports to this version.
+- **`dri`:** suggested **function/role** label from `lane` (e.g. `marketing_narrative` → a marketing lead label) for import; replace with named owners in the tracker. If the pack graph later stores per-node owners, the server can prefer those when present (additive).
+- **`importer_notes`:** static hints only; not environment-specific.
+
+**Response `200` (`format=csv`):** CSV with a header row; empty string cells where no task or metric is present. **Canonical import doc:** [operations/sprint-export-import-ops.md](./operations/sprint-export-import-ops.md).
+
+**Additive guarantee:** this route only **reads** the persisted pack and **projects** it to a table; it does not change orchestration state.
+
+**Errors:** `404` when the audit is missing, access denied, or no saved orchestration pack; `500` on load failure.
+
+---
+
+### `POST /api/audits/:id/orchestration/commercial-offer`
+
+Builds commercial upsell offer candidates from the current roadmap manifest context and optionally accepts one domain expansion.
+
+**Request body:** roadmap manifest body plus optional `accept_domain`.
+
+**Response `200`:**
+
+```json
+{
+  "offers": [{ "domain": "seo_digital", "value_message": "...", "estimated_incremental_effort_weeks": 2, "why_now_bullets": ["..."] }],
+  "accepted_domain": "seo_digital",
+  "base_preview": { "lanes_included": [], "lanes_cut": [], "waiting_list_domains": [], "execution_compression_hint": "balanced", "lane_density_band": "medium", "confidence_callouts": [] },
+  "recalculated_preview": null,
+  "accepted_pack_result": null
+}
+```
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED`, `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `500 AUDITS_ORCHESTRATION_COMMERCIAL_OFFER_FAILED`.
+
+---
+
+### Legacy orchestrator aliases
+
+Backward-compatible aliases remain available for one release train while clients migrate:
+
+- `POST /api/audits/:id/orchestrator/preview` -> `POST /api/audits/:id/roadmap/manifest-preview`
+- `POST /api/audits/:id/orchestrator/run` -> `POST /api/audits/:id/orchestration/pack`
+- `GET /api/audits/:id/orchestrator/latest` -> `GET /api/audits/:id/orchestration/pack`
+
+Use orchestration/roadmap endpoints for all new integrations.
 
 ---
 
@@ -439,9 +807,57 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`** 
 - **`step_plan`**, **`layout_slots`** — when a layout surface is active 
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients. 
-- **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
+- **`intelligence`** (optional per question) — emitted only when the question has complete Sprint-1 `required_now` metadata (`whyAsked`, `semanticDomain`, `decisionImpact`). Questions with incomplete metadata stay visible and rely on runtime fallback tracing instead of schema failure.
+- **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate, … }` (`confidence_overall` is a **UX / resolver aggregate**, not the ADR `signalConfidence` contract and not phase-level analysis confidence)
+- **`readiness`** — `{ flowReadinessStatus, auditReadinessStatus, signalPrioritization?, trace, caveats?, caveatDetails? }` canonical ADR Diagnostic Adaptive Intake snapshot (`flow_ready` | `blocked`, `audit_ready` | `blocked` | `ready_with_caveats`). In the current rollout slice, `blocked` is a **baseline** audit-execution status (package-aware insufficiency remains Phase-B/C), and `ready_with_caveats` is emitted for express baseline readiness when full-scope required context is still missing (caveat class `full_scope_required_gaps`) and for advisory boundaries with unknown-sourced critical signal evidence (`unknown_source_signal_evidence` with `surface_limited_context`). `signalPrioritization` is additive Phase-2 metadata (`bySignalKey`, `nextSignalKeys`) for stage-aware sequencing hints; callers may ignore it. `caveatDetails` adds stable ownership/severity metadata (`code`, `owner`, `severity`, `rolloutPhase`, `semanticIntent`) for ops tooling; **`trace`** entries include **`semanticCause`** strings for supportability
+- **`critical_signals`** — `{ by_key, summary }` pilot **signal confidence** per ADR (orthogonal to **`derived.confidence_overall`**, which remains a UX / resolver aggregate)
+- **`remediation_queue`** — ordered bank ids (max **2**) suggested when pilot remediation applies; subset of **`eligible`**
 
-Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` already returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
+**Readiness enforcement (single server authority):** `evaluateIntakeReadinessEnvelope` in `@glc/intake-core` runs on **`PUT /api/audits/:id/brief`** for structured logging (writes are **not** rejected when audit readiness is `blocked` — UX vs execution; see [INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md](./INTAKE_DIAGNOSTIC_IMPLEMENTATION_CONTRACT.md)). **`POST …/discover/.../convert`** and **`POST /api/audits/:id/pipeline/start`** apply the same envelope **only when** `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true` (default **off** in `SYSTEM_DEFAULTS`). Clients must not re-implement readiness logic locally.
+
+**`GET …/brief` parity:** the same **`readiness`**, **`critical_signals`**, and **`remediation_queue`** fields as on this endpoint are also returned on **`GET /api/audits/:id/brief`** (additive to the existing brief payload) so clients can refresh execution diagnostics without a second request.
+
+Decision-intelligence fallback contract: server/runtime must not reject or crash when non-P0 questions are still in TODO-enrichment mode; diagnostics are surfaced via trace/event code `intelligence_metadata_incomplete`.
+
+Sequencing traces may include `sequencing_ask_slot_contract_applied` when ask-slot governance metadata is active for a recommended bank id (`unlocksSignals`, `guardDomain`, transition/conflict refs).
+
+Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
+
+Illustrative `questions[].intelligence` examples:
+
+```json
+{
+  "id": "f1",
+  "label": "Main business problem to solve",
+  "section": "F",
+  "priority": "required",
+  "intelligence": {
+    "whyAsked": "Anchors strategy synthesis to the primary business constraint.",
+    "semanticDomain": "value",
+    "decisionImpact": [
+      {
+        "target": "strategy.problem_framing",
+        "weight": "high",
+        "effectDescription": "Changes initiative prioritization and quick-win ordering."
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "id": "b5",
+  "label": "Is your business seasonal?",
+  "section": "B",
+  "priority": "recommended"
+}
+```
+
+Notes for consumers:
+- If `intelligence` is absent, do not treat it as an API failure; render question normally.
+- UI should hide decision-impact helper blocks when `intelligence` is missing.
+- Operational diagnostics for missing metadata are available via readiness/trace event `intelligence_metadata_incomplete` (server-side diagnostics contract).
 
 ---
 
@@ -449,12 +865,26 @@ Use for tooling, previews, or clients that want a compact **IntakePlan** view. *
 
 **Auth:** consultant (owner) or client linked to the audit.
 
-**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** — each id is resolved against the **classic brief catalog** (same **`BRIEF_QUESTIONS`** export from `@glc/intake-core`, derived from policy **`modes.classic_brief.main`**). Only ids in **`plan.visible`** appear; **identity** bank stubs from **`identityFieldIds`** show up in **`questions`** only if they are also in **`plan.visible`**. Answer cells live in **`brief.responses`** under **bank ids** (and side keys such as **`…__other`**, **`intake_industry_specify`**). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
+**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion, sequencingVersion }`), optional **`intake_version_migration`** (see below). **Additive (ADR diagnostic pilot, same shapes as `GET …/brief/schema`):** **`readiness`**, **`critical_signals`**, **`remediation_queue`**, **`next_recommended`** (ordered bank ids after pilot sequencing when applicable). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** — each id is resolved against the **classic brief catalog** (same **`BRIEF_QUESTIONS`** export from `@glc/intake-core`, derived from policy **`modes.classic_brief.main`**). Only ids in **`plan.visible`** appear; **identity** bank stubs from **`identityFieldIds`** show up in **`questions`** only if they are also in **`plan.visible`**. Answer cells live in **`brief.responses`** under **bank ids** (and side keys such as **`…__other`**, **`intake_industry_specify`**). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
 
 **PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
 
+**PUT `200`:** `{ brief, validation, gates, intakeProgress }` and, when `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true`, additive **`trace`** with minimal public-safe entries:
+
+```json
+{
+  "trace": [
+    { "code": "critical_signal_unknown", "questionId": "f1" }
+  ]
+}
+```
+
+`trace` intentionally excludes `semanticCause` and verbose internals; full diagnostics remain in server logs / schema snapshot APIs.
+
+**G11 (readiness trace projection):** each PUT **`trace`** entry is the same **`{ code, questionId? }`** shape as the corresponding slice of **`readiness.trace`** on **`GET /api/audits/:id/brief`** (and **`GET …/brief/schema`**) for the post-save brief — a stable, public-safe mirror so clients can diff or badge without re-fetching the full readiness envelope.
+
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
-- **`intake_versions` present** — must include all four keys. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
+- **`intake_versions` present** — must include all **five** keys (`sequencingVersion` included), **or** the legacy **four** keys (`questionBankVersion`, `policyVersion`, `layoutVersion`, `resolverVersion`) only — in the four-key case the server treats **`sequencingVersion`** as the current pilot default on parse. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
 
 **Operational semantics (not bugs):** Brief rows with **`intake_versions` null** pre-date the version matrix; **GET** validation and plan assembly use the **current** resolver and artifact bundle (same idea as “unsupported stored” fallback on GET). **PUT** rules above still apply; the **server** is authoritative on what tuple and answers are stored — a client cannot force an unsupported artifact tuple (**400**), and a supported tuple still goes through normal **response validation** (the tuple is not a bypass). **Public** Discover and pre-brief routes use split rate limiters; they use **Redis** when **`RATE_LIMIT_REDIS_URL`** is set, otherwise **in-memory per process** (limits do not aggregate across horizontally scaled instances — see [ARCHITECTURE.md](./ARCHITECTURE.md#public-routes-abuse-control-and-scaling)). **Releases:** ship SPA and API together when changing `@glc/intake-core` resolver behaviour where possible; tuple validation reduces silent artifact skew between client and server but not every cross-deployment UX edge case.
 
@@ -523,7 +953,8 @@ For partial audits, `/next` advances to the next selected phase from `execution_
 
 ### `POST /api/audits/:id/pipeline/retry`
 
-Retry a failed phase. **Consultant-only.** Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
+Retry a failed phase. **Consultant-only.** Allowed for the audit owner (`audits.user_id`) or for consultants who pass the same **platform operator** check as `GET /api/platform/*` settings routes (`profiles.is_platform_admin`, `platform_settings.legacy_platform_admin_user_ids`, or any consultant when no platform admins are configured — see `server/src/lib/platform-admin.ts`). Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
+For **domain phases 1–6**, the worker uses the same **isolated** path as parallel wings: if the latest `audit_domains` row for that domain is already `completed`, collectors and the LLM call are **skipped** (idempotent retry; a `pipeline_events` `log` explains the skip). Phases **0** (recon) and **7** (strategy) still use the full sequential phase path (no skip-on-completed).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Optional field `disable_auto_remediate: true` in the same JSON body — same semantics as `pipeline/start`.
@@ -641,11 +1072,11 @@ Priority policy:
 - `medium` (YELLOW): review-required events, help requests, action requests/changes
 - `low` (GREEN): successful completion, artifact-ready, registration, successful snapshot/intake flow
 
-Telegram format is intentionally structured as a compact block:
+Telegram uses **HTML** (`parse_mode: HTML`) for readability:
 
-- header: `[COLOR|PRIORITY] [CATEGORY] title`
-- body lines: `event=...`, `audit=...`, `time=...`, free-text message
-- optional route line: `route=/path`
+- header: **`GLC Ops`** plus labeled lines (severity, area, summary)
+- fields: event code, audit id, time, optional route
+- trailing **Details** block with the free-text message body
 
 ### `GET /api/notifications`
 
@@ -695,6 +1126,17 @@ Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner
 - `format=markdown` — `Content-Type: text/markdown`
 - `format=json` — JSON with `markdown` field
 - `format=csv` — `Content-Type: text/csv` with attachment filename `audit-{id}-action-plan.csv`
+- `format=pdf` — `Content-Type: application/pdf` (attachment download). Response sets privacy/security headers:
+  - `Cache-Control: private, no-store, no-cache, must-revalidate`
+  - `Pragma: no-cache`
+  - `X-Content-Type-Options: nosniff`
+
+#### PDF layout mode (section pagination)
+
+PDF section pagination is controlled by static config `SYSTEM_DEFAULTS.reportPdf.sectionPerPage`:
+
+- `true` — each major section starts on a new page.
+- `false` — compact flow with standard wrapping (no forced section page breaks).
 
 ---
 
@@ -873,6 +1315,62 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Response `410`:** link expired.
 
+### `POST /api/intake/:token/nl-describe`
+
+**Product contract (non-overriding):** natural-language / dictation is an **assist** to the structured brief. **Explicit question-bank answers stay primary**; the API may return `prefer_explicit_over_inferred: true` and merge hints only when policy allows. This does not replace a URL + completed intake + analysis run for evidence-linked roadmaps. See [ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1](./adrs/ADR-PRODUCT-AUDIT-FIRST-VS-IDEA-INGRESS-V1.md).
+
+Notes:
+- Supports staged LLM rollout behind `FEATURE_NL_INGRESS_LLM` (`shadow|internal|pilot|ga`).
+- Optional idempotency header: `x-idempotency-key` (dedupe window: 10 minutes per token).
+- PII redaction is applied before LLM mapping (email/phone patterns).
+
+**Auth:** none. **Availability:** only when **`FEATURE_DIAGNOSTIC_INTAKE_PILOT`** is enabled on the server; otherwise **`404`** (same envelope as unknown token for clients).
+
+**Body:** `{ "text": string, "min_confidence"?: "low"|"medium", "persist_draft"?: boolean }` — non-empty after trim, max **8000** characters.
+
+**Privacy/runtime:**
+- NL text is scrubbed for common email/phone patterns before LLM mapping.
+- Raw NL text is not persisted by this endpoint.
+- Optional idempotency key is read from `x-idempotency-key`.
+
+**Response `200`:** returns authoritative merge payload:
+- `ok`, `prefer_explicit_over_inferred`
+- `llm_rollout` (`enabled`, `mode`, `geo_group`, `geo_eligible`, `llm_primary`, `llm_failed`, `fallback_used`)
+- `graphDraft` (selected mapper output)
+- `authoritative` (`merged_responses`, `applied_hints`, `skipped_hints`, `persisted`)
+- `plan_trace` (`plan`, `text`) — `plan` includes optional **`casePatternMatch`** (adaptive case overlay) when policy intelligence is enabled, same as `buildIntakePlan` elsewhere
+- **`case_keys`**: `string[]` — convenience copy of `plan_trace.plan.casePatternMatch.caseKeys` (empty when no match), aligned with the optional **`case_keys`** field on **`POST /api/intake/:token/intelligence-kpi`**
+- `message`
+
+### `POST /api/intake/:token/intelligence-kpi`
+
+### `POST /api/intake/:token/next-question`
+
+**Auth:** none. **Availability:** `404` unless `FEATURE_INTAKE_NEXT_QUESTION` and `FEATURE_DIAGNOSTIC_INTAKE_PILOT` are enabled.
+
+**Body:** same shape as plan-driving intake context — at minimum **`responses`** (required, `BriefResponsesSchema`). Optional: **`productMode`**, **`collectionMode`**, **`surface`**, **`intakeVersionTuple`**.
+
+**Behavior (F1):** runs `buildIntakePlan` and returns a **deterministic** next step from `nextRecommended[0]`, or **`stop`** when the queue is empty and `intelligence.minimumSufficientContext` in `intake-policy.v1.json` is satisfied. Emits `pipeline_events.event_type` **`intake_intelligence_next_question`** with `data.action`, `data.reason`, `data.question_id`, `data.case_keys` (no LLM; **F2** orchestration is future work — [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)).
+
+**Response `200`:** `{ ok, action: 'ask' | 'stop', questionId, reason, source, caseKeys }` — `source` is always `deterministic` for this endpoint.
+
+### `GET /api/intake/intelligence-kpi/dashboard`
+
+Consultant-only KPI summary for intake intelligence telemetry from `pipeline_events`:
+- session count
+- `question_shown` count
+- `drop_off` count and rate
+- top 5 question hotspots by visibility volume
+- optional **`case_key_distribution`** (counts per adaptive case key from telemetry)
+- **`confidence_moved_rate`**: share of sessions (with at least one `question_shown` KPI) that sent **`confidence_moved: true`** on a beacon (weakest **pilot critical-signal** tier increased vs the previous `question_shown` in the same `client_session_id`)
+- **`case_key_coverage_rate`**: share of those sessions with at least one non-empty `case_keys` on KPI
+
+**Auth:** consultant JWT (`requireAuth` + `attachProfile` + `requireRole('consultant')`).
+
+**Body:** JSON with **`event`** or **`kind`**: `question_shown` | `drop_off`. For `question_shown`, **`question_id`** (bank id) is required. Optional **`client_session_id`** (short string) correlates browser beacons with fetch calls. Optional **`case_keys`**: string[] (up to 20) — adaptive case pattern keys resolved on the client for analytics (see `intake-case-patterns.v1.json`). Optional **`confidence_moved`**: `true` when the client saw an increase in the **weakest** pilot critical-signal tier (0 = unknown … 3 = high) since the previous `question_shown` in the same session; omit when false.
+
+**Response `200`:** `{ "ok": true, "persisted": boolean }` — when the intake token has no linked **`audit_id`**, the server accepts the request but skips `pipeline_events` insert (`persisted: false`). **`sendBeacon`** from the public page uses the same path and JSON body.
+
 ### `POST /api/intake/:token/respond`
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
@@ -1036,6 +1534,117 @@ Common codes:
 - `INVALID_STATUS` — 422 (action not valid for current audit status)
 
 See [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) for the full grouped list; after route changes, run `./scripts/api-errors-inventory.sh` from the repo root to refresh it.
+
+---
+
+## Director deep-dive (Phase B/C)
+
+### `GET /api/audits/:id/directors/:domain/deep-dive/quota`
+
+Returns remaining deep-dive capacity for a domain, derived from the audit’s execution plan coverage package and `job_runs` rows for the director queue (same statuses as quota enforcement: `queued`, `running`, `completed`).
+
+**Auth:** same as other audit director routes.
+
+**Access:** returns `503` `DIRECTOR_DEEP_DIVE_DISABLED` when deep-dive is not enabled for the caller. Server evaluates base env `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND` and staged `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` together with the allowlist in `orchestration-rollout-gates.ts` (must stay aligned with the SPA’s `orchestration-client-feature-gates.ts`).
+
+**Response `200`:**
+
+```json
+{
+  "coverage_package": "pro",
+  "per_domain_limit": 2,
+  "used_count": 1,
+  "remaining": 1
+}
+```
+
+**Errors:** `404` `AUDITS_NOT_FOUND` if the audit/execution plan row is missing for this user.
+
+### `POST /api/audits/:id/directors/:domain/deep-dive`
+
+Queues an on-demand director deep-dive job.
+
+**Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
+
+**Access:** same as quota route — `503` `DIRECTOR_DEEP_DIVE_DISABLED` when not enabled. Base toggle: `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`; staged rollout: `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` + allowlist (see `server/src/config/orchestration-rollout-gates.ts`).
+
+### `POST /api/audits/:id/orchestration/selected-initiative`
+
+Lightweight initiative-selection alias for cockpit/timeline CTA (`Mark as my next step`).
+
+**Auth:** consultant owner or linked client (same guard as timeline/manifest routes).
+
+**Request body (JSON):**
+
+```json
+{
+  "action_id": "node-id-from-pack"
+}
+```
+
+**Behavior:** server resolves latest manifest snapshot for the audit and internally reuses orchestration pack persistence flow with `selected_action_ids: [action_id]`. This keeps governance, validation, and idempotency semantics aligned with `POST /api/audits/:id/orchestration/pack`.
+
+**Response `200`:** same shape as `POST /api/audits/:id/orchestration/pack` (`pack`, `orchestration_pack_version`, `roadmap_version`, `last_revision_diff`, `plan_governance`).
+
+**Errors:**
+
+- `400` `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID` when `action_id` is missing/invalid.
+- `409` `AUDITS_ORCHESTRATION_PACK_NOT_READY` when latest manifest snapshot is absent (`not_ready_reason_code: "manifest_snapshot_missing"`).
+- `400` `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID` when `action_id` is not found in pack nodes (propagated `invalid_selected_action_ids`).
+
+**Request body (JSON):**
+
+```json
+{
+  "focus_areas": ["optional"],
+  "client_context": {
+    "goals": ["required", "list"],
+    "constraints": ["optional", "list"],
+    "timeframe_days": 30
+  },
+  "idempotency_key": "required-string",
+  "operating_mode": "discovery",
+  "sub_agent_ids": ["cmo.agent_3_positioning", "cmo.agent_1_market"]
+}
+```
+
+**Response `202`:** `{ "job_id": "<string>", "status": "queued", "estimated_duration_minutes": 4 }`
+
+**Runtime notes:** idempotent by `idempotency_key` (replays return the same `job_id`), queue lifecycle runs through BullMQ worker `director_deep_dive`, and status is persisted in `job_runs` (frontend subscribes to `job_runs` realtime updates by `queue_job_id` and uses a bounded status-poll fallback to avoid stale UI). Sub-agent metadata stores stable `prompt_ref` paths (not raw prompt bodies) for deterministic traceability.
+Sub-agent execution remains domain-scoped by policy (`DIRECTOR_SUB_AGENTS_ENABLED_DOMAINS`); unsupported domains fall back to single-agent deep-wave output while preserving the same API contract.
+
+**Errors:**
+
+- `503` `DIRECTOR_DEEP_DIVE_DISABLED` when feature flag is off.
+- `400` `DIRECTOR_DEEP_DIVE_PAYLOAD_INVALID` when request body fails schema validation.
+- `409` `DIRECTOR_DEEP_DIVE_QUOTA_EXCEEDED` when per-domain quota is exhausted for the package tier.
+- `409` `IDEMPOTENCY_PAYLOAD_MISMATCH` when the same `idempotency_key` is reused with a different payload.
+- `409` `DIRECTOR_DEEP_DIVE_TOKEN_BUDGET_EXCEEDED` when selected operating mode + sub-agent depth exceeds package token budget policy.
+
+### `GET /api/audits/:id/directors/:domain/deep-dive/:jobId`
+
+Returns deep-dive job status.
+
+**Response `200`:**
+
+```json
+{
+  "job_id": "deep_dive:...",
+  "status": "queued",
+  "started_at": "2026-04-22T12:00:00.000Z",
+  "completed_at": null,
+  "error_code": "DIRECTOR_DEEP_DIVE_FAILED",
+  "qa_block": {
+    "coherence": "Selected analyses align with goals.",
+    "feasibility": "Recommendations fit package constraints.",
+    "top_3_actions": ["..."],
+    "risks": ["..."],
+    "measurement": ["..."]
+  }
+}
+```
+
+`GET` returns `404 DIRECTOR_DEEP_DIVE_JOB_NOT_FOUND` when `jobId` is missing for the same `audit_id` + `user_id` scope.
 
 ## Для разработчиков
 

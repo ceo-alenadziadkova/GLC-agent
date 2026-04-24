@@ -35,6 +35,8 @@ import {
   recordClaudeFailure,
   resetClaudeFailures,
 } from './claude-circuit-breaker.js';
+import { isLlmPromptCacheEnabled } from '../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
 
 const CLAUDE_RETRYABLE_HTTP_STATUSES = new Set<number>(SYSTEM_DEFAULTS.claudeHttp.retryableAnthropicStatuses);
 const CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES = new Set<number>(
@@ -80,6 +82,14 @@ export async function callClaudeWithRetry(
   const toolName = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME;
 
   for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
+    const callStartedAt = Date.now();
+    await emit(PIPELINE_EVENT_TYPES.llmCallStarted, 'LLM call started', {
+      detail_level: 'debug',
+      call_type: 'domain_agent',
+      attempt,
+      max_attempts: CLAUDE_MAX_RETRIES,
+      model: CLAUDE_MODEL,
+    });
     try {
       const consecutiveFailures = await getConsecutiveClaudeFailures();
       if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
@@ -88,23 +98,40 @@ export async function callClaudeWithRetry(
         );
       }
 
+      const perCallTimeoutMs =
+        domainKey === 'strategy'
+          ? SYSTEM_DEFAULTS.claudeHttp.timeoutMsStrategy
+          : CLAUDE_TIMEOUT_MS;
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(CLAUDE_API_TIMEOUT_ABORT_REASON), CLAUDE_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => controller.abort(CLAUDE_API_TIMEOUT_ABORT_REASON),
+        perCallTimeoutMs,
+      );
       let response: Awaited<ReturnType<Anthropic['messages']['create']>>;
       try {
+        const systemParam: Parameters<Anthropic['messages']['create']>[0]['system'] = isLlmPromptCacheEnabled()
+          ? [
+              {
+                type: 'text',
+                text: system,
+                cache_control: { type: 'ephemeral' },
+              },
+            ]
+          : system;
+        const toolBlockDef = {
+          name: toolName,
+          description: ev.claudeToolDescription,
+          input_schema: jsonSchema as Anthropic.Tool['input_schema'],
+          ...(isLlmPromptCacheEnabled() ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        };
         response = await anthropic.messages.create(
           {
             model: CLAUDE_MODEL,
             max_tokens: maxTokens,
-            system,
+            system: systemParam,
             messages: [{ role: 'user', content: prompt }],
-            tools: [
-              {
-                name: toolName,
-                description: ev.claudeToolDescription,
-                input_schema: jsonSchema as Anthropic.Tool['input_schema'],
-              },
-            ],
+            tools: [toolBlockDef as Anthropic.Tool],
             tool_choice: { type: 'tool', name: toolName },
           },
           {
@@ -116,6 +143,24 @@ export async function callClaudeWithRetry(
       }
       await resetClaudeFailures();
 
+      const u = response.usage as {
+        input_tokens: number;
+        output_tokens: number;
+        cache_creation_input_tokens?: number;
+        cache_read_input_tokens?: number;
+      };
+      const cacheRead = u.cache_read_input_tokens ?? 0;
+      const cacheCreate = u.cache_creation_input_tokens ?? 0;
+      const cacheDen = cacheRead + cacheCreate;
+      const cacheHitRate = isLlmPromptCacheEnabled() && cacheDen > 0 ? cacheRead / cacheDen : 0;
+      if (isLlmPromptCacheEnabled()) {
+        logger.info('domain_agent.cache_metrics', {
+          audit_id: auditId,
+          domain_key: domainKey,
+          [ORCHESTRATION_TELEMETRY_METRICS.llmCacheHitRate]: cacheHitRate,
+        });
+      }
+
       const toolBlock = response.content.find((b) => b.type === 'tool_use');
       if (!toolBlock || toolBlock.type !== 'tool_use') {
         throw new Error('Claude did not return tool_use response');
@@ -125,6 +170,20 @@ export async function callClaudeWithRetry(
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
         model: CLAUDE_MODEL,
+      }, {
+        latency_ms: Date.now() - callStartedAt,
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        status: 'completed',
+        call_type: 'domain_agent',
+        detail_level: 'debug',
+      });
+      await emit(PIPELINE_EVENT_TYPES.llmCallCompleted, 'LLM call completed', {
+        detail_level: 'debug',
+        call_type: 'domain_agent',
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        latency_ms: Date.now() - callStartedAt,
       });
 
       const parsed = schema.safeParse(toolBlock.input);
@@ -174,6 +233,14 @@ export async function callClaudeWithRetry(
         attempt,
         status: error.status ?? null,
         error: error.message,
+      });
+      await emit(PIPELINE_EVENT_TYPES.llmCallFailed, 'LLM call failed', {
+        detail_level: 'debug',
+        call_type: 'domain_agent',
+        attempt,
+        max_attempts: CLAUDE_MAX_RETRIES,
+        provider_status: status ?? null,
+        latency_ms: Date.now() - callStartedAt,
       });
       throw err;
     }
