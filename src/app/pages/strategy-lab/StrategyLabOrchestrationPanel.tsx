@@ -4,7 +4,10 @@ import { CaretDown, Path } from '@phosphor-icons/react';
 
 import type { DomainKey } from '@glc/intake-core';
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
-import type { StrategyRoadmap } from '../../data/audit/contracts/report/report-domain.types';
+import type {
+  StrategyLabContextView,
+  StrategyRoadmap,
+} from '../../data/audit/contracts/report/report-domain.types';
 import type { GlcOrchestrationPackRevisionDiffView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type {
   OrchestrationCommercialOfferResponseDto,
@@ -16,11 +19,22 @@ import type {
 import { api } from '../../data/apiService';
 import { ApiError } from '../../data/api-error';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../../design-system/ui';
 import { toast } from 'sonner';
 import {
   encodeManifestChangeSignature,
+  manifestSignatureArgsFromDraft,
   ORCHESTRATION_CHANGE_SCENARIOS,
   ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
   ORCHESTRATION_SEASON_PRESETS,
@@ -56,6 +70,8 @@ interface StrategyLabOrchestrationPanelProps {
   executionPlan: ExecutionPlan;
   strategy: StrategyRoadmap;
   onReload: () => void;
+  /** Parent-owned React Query merge (panel does not call useQueryClient — avoids stray ReferenceError across chunks). */
+  mergeStrategyLabContextInAuditCache?: (strategy_lab_context: StrategyLabContextView) => void;
 }
 
 function TimelineLinkButton({ auditId }: { auditId: string }) {
@@ -73,6 +89,7 @@ export function StrategyLabOrchestrationPanel({
   executionPlan,
   strategy,
   onReload,
+  mergeStrategyLabContextInAuditCache,
 }: StrategyLabOrchestrationPanelProps) {
   const pack = isGlcOrchestrationPackView(strategy.glc_orchestration_pack) ? strategy.glc_orchestration_pack : null;
 
@@ -97,6 +114,8 @@ export function StrategyLabOrchestrationPanel({
   const [planGovernance, setPlanGovernance] = useState<OrchestrationPlanGovernanceDto | null>(null);
   const [commercialOffer, setCommercialOffer] = useState<OrchestrationCommercialOfferResponseDto | null>(null);
   const [commercialWorking, setCommercialWorking] = useState(false);
+  const [commercialAcceptDialogOpen, setCommercialAcceptDialogOpen] = useState(false);
+  const [commercialAcceptDomain, setCommercialAcceptDomain] = useState<keyof typeof DOMAIN_LABELS | null>(null);
   const [analysisDepthFilter, setAnalysisDepthFilter] = useState<'all' | 'baseline' | 'deep'>('all');
   const [stage2Selection, setStage2Selection] = useState<DomainKey[]>(
     () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
@@ -189,6 +208,8 @@ export function StrategyLabOrchestrationPanel({
 
   useEffect(() => {
     let cancelled = false;
+    setManifestPreviewError(null);
+    setPreviewLoading(false);
     const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
     const body = {
       schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
@@ -198,6 +219,8 @@ export function StrategyLabOrchestrationPanel({
       ...(planHorizon ? { plan_horizon: planHorizon } : {}),
     };
     const t = window.setTimeout(() => {
+      if (cancelled) return;
+      setManifestPreviewError(null);
       setPreviewLoading(true);
       void (async () => {
         try {
@@ -309,13 +332,14 @@ export function StrategyLabOrchestrationPanel({
       setManifestSnapshotId(res.id);
       hydratedManifestSnapshotId.current = res.id;
       setSavedManifestSignature(
-        encodeManifestChangeSignature({
-          change_scenario: scenario,
-          season_preset: season,
-          plan_horizon: planHorizon,
-          plan_start_raw: planHorizonStart,
-          plan_end_raw: planHorizonEnd,
-        }),
+        encodeManifestChangeSignature(
+          manifestSignatureArgsFromDraft({
+            change_scenario: scenario,
+            season_preset: season,
+            plan_start_raw: planHorizonStart,
+            plan_end_raw: planHorizonEnd,
+          }),
+        ),
       );
       setManifestSnapshots(prev => [
         {
@@ -380,12 +404,8 @@ export function StrategyLabOrchestrationPanel({
     }
   }, [auditId, latestManifestSnapshotId, manifestSnapshotId, onReload]);
 
-  const handleFetchCommercialOffer = useCallback(
+  const performCommercialOfferFetch = useCallback(
     async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
-      if (accept_domain) {
-        const confirmed = window.confirm(ORCHESTRATION_UI_COPY.commercialConfirmAcceptPrompt);
-        if (!confirmed) return;
-      }
       setCommercialWorking(true);
       try {
         const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
@@ -416,6 +436,30 @@ export function StrategyLabOrchestrationPanel({
     [auditId, executionPlan.selected_domains, onReload, scenario, season, planHorizonStart, planHorizonEnd],
   );
 
+  const handleFetchCommercialOffer = useCallback(
+    async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
+      if (accept_domain) {
+        setCommercialAcceptDomain(accept_domain);
+        setCommercialAcceptDialogOpen(true);
+        return;
+      }
+      await performCommercialOfferFetch(undefined);
+    },
+    [performCommercialOfferFetch],
+  );
+
+  const handleCommercialAcceptDialogOpenChange = useCallback((open: boolean) => {
+    setCommercialAcceptDialogOpen(open);
+    if (!open) setCommercialAcceptDomain(null);
+  }, []);
+
+  const handleCommercialAcceptConfirm = useCallback(() => {
+    const d = commercialAcceptDomain;
+    setCommercialAcceptDialogOpen(false);
+    setCommercialAcceptDomain(null);
+    if (d) void performCommercialOfferFetch(d);
+  }, [commercialAcceptDomain, performCommercialOfferFetch]);
+
   const toggleStage2Domain = useCallback((d: DomainKey) => {
     setStage2Selection(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
   }, []);
@@ -423,9 +467,10 @@ export function StrategyLabOrchestrationPanel({
   const handleSaveStage2Intent = useCallback(async () => {
     setStage2Working(true);
     try {
-      await api.patchStrategyLabContext(auditId, {
+      const res = await api.patchStrategyLabContext(auditId, {
         director_stage2_domains: stage2Selection.length > 0 ? stage2Selection : null,
       });
+      mergeStrategyLabContextInAuditCache?.(res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.directorStage2Intent.saved);
       onReload();
     } catch {
@@ -433,13 +478,14 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setStage2Working(false);
     }
-  }, [auditId, onReload, stage2Selection]);
+  }, [auditId, mergeStrategyLabContextInAuditCache, onReload, stage2Selection]);
 
   const handleClearSavedStage2Intent = useCallback(async () => {
     setStage2Working(true);
     setStage2Selection([]);
     try {
-      await api.patchStrategyLabContext(auditId, { director_stage2_domains: null });
+      const res = await api.patchStrategyLabContext(auditId, { director_stage2_domains: null });
+      mergeStrategyLabContextInAuditCache?.(res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.directorStage2Intent.clearSaved);
       onReload();
     } catch {
@@ -447,7 +493,7 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setStage2Working(false);
     }
-  }, [auditId, onReload]);
+  }, [auditId, mergeStrategyLabContextInAuditCache, onReload]);
 
   const revisionDiffToShow = lastPostRevision?.diff ?? strategy.glc_orchestration_last_revision_diff ?? null;
   const revisionDiffCandidates = useMemo(() => {
@@ -476,13 +522,14 @@ export function StrategyLabOrchestrationPanel({
     typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0
       ? strategy.orchestration_pack_version
       : lastPostRevision?.roadmap_version ?? 0;
-  const currentManifestSignature = encodeManifestChangeSignature({
-    change_scenario: scenario,
-    season_preset: season,
-    plan_horizon: parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd),
-    plan_start_raw: planHorizonStart,
-    plan_end_raw: planHorizonEnd,
-  });
+  const currentManifestSignature = encodeManifestChangeSignature(
+    manifestSignatureArgsFromDraft({
+      change_scenario: scenario,
+      season_preset: season,
+      plan_start_raw: planHorizonStart,
+      plan_end_raw: planHorizonEnd,
+    }),
+  );
   const hasUnsavedManifestChanges =
     savedManifestSignature !== null && savedManifestSignature !== currentManifestSignature;
   const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
@@ -1153,6 +1200,21 @@ export function StrategyLabOrchestrationPanel({
       ) : (
         <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.noPackYet}</p>
       )}
+
+      <AlertDialog open={commercialAcceptDialogOpen} onOpenChange={handleCommercialAcceptDialogOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">{ORCHESTRATION_UI_COPY.commercialConfirmAcceptCancel}</AlertDialogCancel>
+            <AlertDialogAction type="button" onClick={handleCommercialAcceptConfirm}>
+              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

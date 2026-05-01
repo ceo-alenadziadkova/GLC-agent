@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { useParams, Link, Navigate } from 'react-router';
 import { useState } from 'react';
 import { toast } from 'sonner';

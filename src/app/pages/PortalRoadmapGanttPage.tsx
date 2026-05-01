@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../lib/tanstack-react-query';
 
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/button';

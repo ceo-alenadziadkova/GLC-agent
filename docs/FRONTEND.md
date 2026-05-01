@@ -219,7 +219,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id` | `AuditWorkspace.tsx` | Domain-by-domain results |
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
-| `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
+| `/strategy/:id` | `strategy-lab/StrategyLabPage.tsx` | Strategic roadmap |
 | `/timeline/:id` | `PortalTimelinePage.tsx` | Orchestration execution timeline (`GET /api/audits/:id/timeline`); primary surface when `orchestrationTimelinePrimaryUxEnabled` |
 | `/portal/timeline/:id` | `PortalTimelinePage.tsx` | Client portal timeline (same data model; `restricted_client_view` when applicable) |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
@@ -305,13 +305,13 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - Aggregated quick_wins across all domains
 - "View Strategy" link → `/strategy/:id` (shown only if `audit.strategy` exists)
 
-### `StrategyLab.tsx`
+### `strategy-lab/StrategyLabPage.tsx`
 - `useAudit(id)` → reads `audit.strategy`
-- Empty state with illustration if `!audit.strategy` ("No strategy generated yet")
-- Three initiative columns: Quick Wins / Core Growth / Strategic
+- Empty state if `!audit.strategy` (“Not available yet” / complete pipeline messaging)
+- Three initiative horizons (Quick wins / Core growth / Strategic); consultant orchestration panel when roadmap UI flags allow
 - Each initiative card: title, description, impact badge, effort badge
 - Effort mix visualisation (bar showing % low/medium/high effort)
-- Industry weights table (shown for transparency)
+- Domain benchmark snapshots (`api.getLatestSnapshot`) when orchestration-heavy lab features are enabled
 
 ---
 

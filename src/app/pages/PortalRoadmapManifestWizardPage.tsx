@@ -17,6 +17,7 @@ import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { toast } from 'sonner';
 import {
   encodeManifestChangeSignature,
+  manifestSignatureArgsFromDraft,
   ORCHESTRATION_CHANGE_SCENARIOS,
   ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
   ORCHESTRATION_SEASON_PRESETS,
@@ -93,13 +94,14 @@ export function PortalRoadmapManifestWizardPage() {
   );
 
   const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
-  const currentManifestSignature = encodeManifestChangeSignature({
-    change_scenario: scenario,
-    season_preset: season,
-    plan_horizon: previewPlanHorizon,
-    plan_start_raw: planHorizonStart,
-    plan_end_raw: planHorizonEnd,
-  });
+  const currentManifestSignature = encodeManifestChangeSignature(
+    manifestSignatureArgsFromDraft({
+      change_scenario: scenario,
+      season_preset: season,
+      plan_start_raw: planHorizonStart,
+      plan_end_raw: planHorizonEnd,
+    }),
+  );
   const hasUnsavedManifestChanges =
     savedManifestSignature !== null && savedManifestSignature !== currentManifestSignature;
 
@@ -191,13 +193,14 @@ export function PortalRoadmapManifestWizardPage() {
       });
       setManifestSnapshotId(res.id);
       setSavedManifestSignature(
-        encodeManifestChangeSignature({
-          change_scenario: scenario,
-          season_preset: season,
-          plan_horizon: planHorizon,
-          plan_start_raw: planHorizonStart,
-          plan_end_raw: planHorizonEnd,
-        }),
+        encodeManifestChangeSignature(
+          manifestSignatureArgsFromDraft({
+            change_scenario: scenario,
+            season_preset: season,
+            plan_start_raw: planHorizonStart,
+            plan_end_raw: planHorizonEnd,
+          }),
+        ),
       );
       toast.success(ORCHESTRATION_UI_COPY.manifestSaved);
     } catch (e) {

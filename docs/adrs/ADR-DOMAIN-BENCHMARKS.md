@@ -76,7 +76,7 @@ Cross-industry performance benchmarks are computed on demand (platform admin or 
 
 ### 5. Frontend
 
-- **Strategy Lab** (`src/app/pages/StrategyLab.tsx`): panel listing all six domain phases with latest **p50** and **n** for `last_90d` (industry-specific then `all` fallback). Uses **`api.getLatestSnapshot`** (`src/app/data/api/benchmarks.ts`).
+- **Strategy Lab** (`src/app/pages/strategy-lab/StrategyLabPage.tsx`): panel listing all six domain phases with latest **p50** and **n** for `last_90d` (industry-specific then `all` fallback). Uses **`api.getLatestSnapshot`** (`src/app/data/api/benchmarks.ts`).
 - **AuditWorkspace** percentile badge (optional in original roadmap) — deferred; Strategy Lab covers the Sprint 6 deliverable.
 
 ---

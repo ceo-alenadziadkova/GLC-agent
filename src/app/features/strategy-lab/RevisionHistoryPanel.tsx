@@ -16,6 +16,14 @@ export function RevisionHistoryPanel({
         {visible.map((row) => (
           <li
             key={`${row.from_version}-${row.to_version}`}
+            role="listitem"
+            aria-label={ORCHESTRATION_UI_COPY.revisionHistoryRowAriaTemplate
+              .replace('{from}', String(row.from_version))
+              .replace('{to}', String(row.to_version))
+              .replace('{nodesAdded}', String(row.diff.nodes_added.length))
+              .replace('{nodesRemoved}', String(row.diff.nodes_removed.length))
+              .replace('{edgesAdded}', String(row.diff.edges_added.length))
+              .replace('{edgesRemoved}', String(row.diff.edges_removed.length))}
             className="border-border flex flex-col gap-1 rounded-md border px-2 py-1"
           >
             <span className="text-foreground font-mono text-[length:var(--text-xs)]">

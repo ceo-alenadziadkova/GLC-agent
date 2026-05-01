@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 import { ArrowsClockwise, DownloadSimple, FileText, Flask } from '@phosphor-icons/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 

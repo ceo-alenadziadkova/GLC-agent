@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useId } from 'react';
+import { useQueryClient } from '../../lib/tanstack-react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import {
@@ -9,6 +10,7 @@ import {
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
 import { useAudit } from '../../hooks/useAudit';
+import { useBrowserOnline } from '../../hooks/useBrowserOnline';
 import { useProfile } from '../../hooks/useProfile';
 import type { StrategyInitiative } from '../../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
@@ -25,7 +27,6 @@ import {
   STRATEGY_LAB_PAGE_ANCHORS,
   STRATEGY_LAB_ROADMAP_EXPORT_POLICY,
   STRATEGY_LAB_SORT_MODES,
-  STRATEGY_LAB_TAB_DESCRIPTIONS,
   type StrategyLabDomainFilter,
   type StrategyLabRoadmapTimeframe,
   type StrategyLabSortMode,
@@ -42,9 +43,11 @@ import {
   ORCHESTRATION_LAB_FOCUS_QUERY_KEY,
   ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE,
   ORCHESTRATION_PANEL_DOM_ID,
+  ORCHESTRATION_UI_LIMITS,
 } from '../../config/orchestration-ui-limits';
 import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
+import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import {
   StrategyLabOrchestratorListBody,
@@ -62,6 +65,7 @@ import {
   strategyLabRoadmapExportFileName,
 } from '../../lib/strategy-lab-roadmap-export';
 import { sortStrategyInitiatives } from '../../lib/strategy-lab-sort';
+import type { StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
 import type { StrategyExecutionPackResponse } from '../../data/audit/contracts/report/strategy-lab.types';
 
 const TABS: {
@@ -71,9 +75,9 @@ const TABS: {
   toneClass: string;
   desc: string;
 }[] = [
-  { key: 'quick', label: STRATEGY_LAB_COPY.tabLabels.quick, icon: Lightning, toneClass: 'text-warning', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
-  { key: 'medium', label: STRATEGY_LAB_COPY.tabLabels.medium, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
-  { key: 'strategic', label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, toneClass: 'text-violet-500', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
+  { key: 'quick', label: STRATEGY_LAB_COPY.tabLabels.quick, icon: Lightning, toneClass: 'text-warning', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.quick },
+  { key: 'medium', label: STRATEGY_LAB_COPY.tabLabels.medium, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.medium },
+  { key: 'strategic', label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, toneClass: 'text-violet-500', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.strategic },
 ];
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
@@ -92,7 +96,11 @@ export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { audit, loading, error, reload } = useAudit(id);
+  const queryClient = useQueryClient();
+  const { audit, loading, error, reload, isFetching } = useAudit(id);
+  const online = useBrowserOnline();
+  const loadErrorSummaryId = useId();
+  const loadOfflineHintId = useId();
   const { isClient } = useProfile();
   const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
@@ -114,6 +122,14 @@ export function StrategyLab() {
     const raw = audit?.strategy?.glc_orchestration_pack;
     return isGlcOrchestrationPackView(raw) ? raw : null;
   }, [audit?.strategy?.glc_orchestration_pack]);
+
+  const mergeStrategyLabContextInAuditCache = useCallback(
+    (strategy_lab_context: StrategyLabContextView) => {
+      if (!id) return;
+      applyStrategyLabContextPatchToAuditCache(queryClient, id, strategy_lab_context);
+    },
+    [id, queryClient],
+  );
 
   const selectedPackNodeId = searchParams.get('node');
 
@@ -152,12 +168,63 @@ export function StrategyLab() {
       },
       { replace: true },
     );
-    window.setTimeout(() => {
+
+    let cancelled = false;
+    let observer: IntersectionObserver | undefined;
+    let detachTimer: ReturnType<typeof window.setTimeout> | undefined;
+
+    const scrollPanelIntoView = () => {
       document.getElementById(ORCHESTRATION_PANEL_DOM_ID)?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
-    }, 150);
+    };
+
+    window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        let locateAttempts = 0;
+        const maxLocateAttempts = 60;
+
+        const tryLocatePanel = (): void => {
+          if (cancelled) return;
+          const el = document.getElementById(ORCHESTRATION_PANEL_DOM_ID);
+          if (!el) {
+            locateAttempts += 1;
+            if (locateAttempts < maxLocateAttempts) {
+              window.requestAnimationFrame(tryLocatePanel);
+            }
+            return;
+          }
+          scrollPanelIntoView();
+          if (typeof IntersectionObserver === 'undefined') return;
+          observer = new IntersectionObserver(
+            entries => {
+              if (cancelled || !entries[0]) return;
+              if (!entries[0].isIntersecting) {
+                scrollPanelIntoView();
+              }
+            },
+            { root: null, threshold: 0.01 },
+          );
+          observer.observe(el);
+          detachTimer = window.setTimeout(() => {
+            if (cancelled) return;
+            observer?.disconnect();
+            observer = undefined;
+          }, ORCHESTRATION_UI_LIMITS.orchestrationFocusScrollIntersectionWatchMs);
+        };
+
+        tryLocatePanel();
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      if (detachTimer != null) window.clearTimeout(detachTimer);
+      observer?.disconnect();
+    };
   }, [searchParams, setSearchParams, isClient]);
 
   useEffect(() => {
@@ -266,11 +333,12 @@ export function StrategyLab() {
     if (!id) return;
     setConstraintSaving(true);
     try {
-      await api.patchStrategyLabContext(id, {
+      const res = await api.patchStrategyLabContext(id, {
         company_stage: constraintStageDraft,
         budget_band: constraintBudgetDraft,
         team_scale: constraintTeamDraft,
       });
+      applyStrategyLabContextPatchToAuditCache(queryClient, id, res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.constraints.saveOk);
       reload();
     } catch {
@@ -278,17 +346,18 @@ export function StrategyLab() {
     } finally {
       setConstraintSaving(false);
     }
-  }, [id, constraintStageDraft, constraintBudgetDraft, constraintTeamDraft, reload]);
+  }, [id, constraintStageDraft, constraintBudgetDraft, constraintTeamDraft, queryClient, reload]);
 
   const handleClearConstraintOverrides = useCallback(async () => {
     if (!id) return;
     setConstraintSaving(true);
     try {
-      await api.patchStrategyLabContext(id, {
+      const res = await api.patchStrategyLabContext(id, {
         company_stage: null,
         budget_band: null,
         team_scale: null,
       });
+      applyStrategyLabContextPatchToAuditCache(queryClient, id, res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.constraints.clearOk);
       reload();
     } catch {
@@ -296,7 +365,7 @@ export function StrategyLab() {
     } finally {
       setConstraintSaving(false);
     }
-  }, [id, reload]);
+  }, [id, queryClient, reload]);
 
   const handleGenerateExecutionPlan = useCallback(async () => {
     if (!id || selected.size === 0) return;
@@ -347,10 +416,38 @@ export function StrategyLab() {
   }
 
   if (error || !audit) {
+    const loadErrorDescribedBy = [loadErrorSummaryId, !online ? loadOfflineHintId : '']
+      .filter(Boolean)
+      .join(' ');
     return (
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.errorSubtitle}>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-destructive">{error || STRATEGY_LAB_COPY.messages.auditNotFound}</p>
+        <div
+          className="flex flex-col items-center justify-center gap-3 h-64 px-4 text-center"
+          role="alert"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <p id={loadErrorSummaryId} className="text-destructive">
+            {error || STRATEGY_LAB_COPY.messages.auditNotFound}
+          </p>
+          {!online ? (
+            <p id={loadOfflineHintId} className="text-muted-foreground text-sm">
+              {STRATEGY_LAB_COPY.messages.offlineHint}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => reload()}
+            disabled={!online || isFetching}
+            aria-busy={isFetching}
+            aria-describedby={loadErrorDescribedBy}
+          >
+            {isFetching ? (
+              <ArrowsClockwise className="text-info mr-2 h-4 w-4 shrink-0 animate-spin" aria-hidden />
+            ) : null}
+            {STRATEGY_LAB_COPY.messages.retryLoad}
+          </Button>
         </div>
       </AppShell>
     );
@@ -467,13 +564,15 @@ export function StrategyLab() {
             executionPlan={executionPlanForRoadmap}
             strategy={audit.strategy}
             onReload={reload}
+            mergeStrategyLabContextInAuditCache={mergeStrategyLabContextInAuditCache}
           />
         </div>
       ) : null}
       <ResizablePanelGroup
+        key={isMobile ? 'strategy-lab-layout-mobile' : 'strategy-lab-layout-desktop'}
         direction="horizontal"
         className="ds-audit-workspace-main-h"
-        autoSaveId={STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}
+        autoSaveId={`${STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}:${isMobile ? 'sm' : 'lg'}`}
       >
 
         {/* ── Initiative picker ─────────────────────── */}
@@ -841,8 +940,11 @@ export function StrategyLab() {
                       <button
                         key={key}
                         type="button"
+                        id={`strategy-lab-orchestrator-tab-${key}`}
                         role="tab"
                         aria-selected={orchestratorTab === key}
+                        aria-controls={`strategy-lab-orchestrator-panel`}
+                        tabIndex={orchestratorTab === key ? 0 : -1}
                         onClick={() => setOrchestratorTab(key)}
                         className={cn(
                           'flex min-w-[length:var(--strategy-lab-orchestrator-tab-min-width)] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-colors sm:min-w-0 sm:flex-none',
@@ -856,7 +958,11 @@ export function StrategyLab() {
                       </button>
                     ))}
                   </div>
-                  <div role="tabpanel" aria-label={STRATEGY_LAB_COPY.orchestratorTabs[orchestratorTab]}>
+                  <div
+                    role="tabpanel"
+                    id="strategy-lab-orchestrator-panel"
+                    aria-labelledby={`strategy-lab-orchestrator-tab-${orchestratorTab}`}
+                  >
                     <StrategyLabOrchestratorListBody
                       pack={glcPackView}
                       tab={orchestratorTab}
@@ -990,7 +1096,7 @@ export function StrategyLab() {
                 const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
                 return (
                   <div key={effort} className="flex items-center gap-2 mb-2">
-                    <span className="text-muted-foreground w-14 flex-shrink-0 text-xs capitalize">{effort}</span>
+                    <span className="text-muted-foreground w-14 flex-shrink-0 text-xs">{STRATEGY_LAB_COPY.panel.labels.effortTier[effort]}</span>
                     <div className="bg-border h-1 flex-1 overflow-hidden rounded-full">
                       <motion.div
                         className={cn('h-full rounded-full', effort === 'low' ? 'bg-success' : effort === 'medium' ? 'bg-warning' : 'bg-destructive')}

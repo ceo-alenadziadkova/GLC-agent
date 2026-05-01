@@ -37,7 +37,9 @@ function formatInitiativeBlock(
   >,
   dependenciesJoiner: string,
 ): string {
-  const lines = [`### ${init.title}`, '', init.description.trim(), ''];
+  const rawDesc = init.description;
+  const desc = typeof rawDesc === 'string' ? rawDesc.trim() : '';
+  const lines = [`### ${init.title}`, '', desc, ''];
   lines.push(`- **${labels.impactLabel}:** ${init.impact}`);
   lines.push(`- **${labels.effortLabel}:** ${init.effort}`);
   if (init.domain) lines.push(`- **Domain:** ${init.domain}`);

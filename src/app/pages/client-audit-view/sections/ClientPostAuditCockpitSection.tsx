@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../../../lib/tanstack-react-query';
 import { useMemo, useState } from 'react';
 import { ArrowsClockwise, ClipboardText, FileText, MapTrifold, Path } from '@phosphor-icons/react';
 import { toast } from 'sonner';

@@ -9,6 +9,12 @@ export const STRATEGY_LAB_COPY = {
     medium: 'Core growth',
     strategic: 'Strategic',
   },
+  /** Planner horizon subtitles on legacy roadmap timeframe tabs — keep with tab labels above. */
+  tabHorizonDescriptions: {
+    quick: 'Under 1 week horizon · minimal budget band',
+    medium: '1–3 months horizon · moderate budget band',
+    strategic: '3–6 months horizon · expanded investment band',
+  },
   depthFilter: {
     all: 'All depths',
     baseline: 'Baseline only',
@@ -50,6 +56,9 @@ export const STRATEGY_LAB_COPY = {
     emptyNext: 'No further milestones on the critical path.',
     emptyDependencies: 'No dependency edges in this pack.',
     emptyRisks: 'No planner conflict notes on this pack.',
+    risksShownOfTotal: 'Showing {shown} of {total} resolved conflicts',
+    risksShowAll: 'Show all',
+    risksShowFewer: 'Show fewer',
     pickNode: 'Select a node from the list to inspect details.',
     analysisDepth: 'Analysis depth',
     laneLabel: 'Lane',
@@ -62,6 +71,10 @@ export const STRATEGY_LAB_COPY = {
     sectionTitle: 'Plan dependency map',
     sectionHint:
       'Interactive view of the saved orchestration pack — same topology the client sees on the timeline. Use it while validating manifest scope and rebuilds.',
+    graphCanvasFallbackNote:
+      'The advanced graph canvas is turned off — showing the timeline-style dependency map instead.',
+    graphCanvasFallbackAriaDetail:
+      'Uses the same pack as the timeline: rows and simplified map remain available while the spatial graph view stays off.',
   },
   appShell: {
     title: 'Strategy Lab',
@@ -105,6 +118,11 @@ export const STRATEGY_LAB_COPY = {
     labels: {
       impact: 'Impact',
       effort: 'Effort',
+      effortTier: {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+      },
       why: 'Why this',
       outcome: 'Outcome',
       scopeIn: 'In scope',
@@ -146,6 +164,8 @@ export const STRATEGY_LAB_COPY = {
     auditNotFound: 'Audit not found',
     notGenerated: 'Strategy data not yet generated',
     completePipeline: 'Complete the pipeline to generate strategy',
+    retryLoad: 'Retry',
+    offlineHint: 'You appear to be offline. Reconnect, then try again.',
   },
   constraints: {
     sectionTitle: 'Constraint assumptions',

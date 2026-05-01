@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from './tanstack-react-query';
 import { glcKeys } from './glc-keys';
 
 export function invalidateAuditRelatedQueries(qc: QueryClient, auditId: string): void {

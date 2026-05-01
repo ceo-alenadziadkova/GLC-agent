@@ -69,6 +69,39 @@ describe('buildStrategyLabRoadmapMarkdown', () => {
     expect(md).not.toContain('### Core Growth');
   });
 
+  it('does not throw when initiative description is missing', () => {
+    const naked = init({ id: 'nd', title: 'No description field' }) as StrategyInitiative;
+    Reflect.deleteProperty(naked, 'description');
+    expect(() =>
+      buildStrategyLabRoadmapMarkdown({
+        ...labels,
+        companyName: 'Co',
+        companyUrl: '',
+        auditId: 'audit-nd',
+        executiveSummary: null,
+        selectedByTimeframe: {
+          quick: [naked],
+          medium: [],
+          strategic: [],
+        },
+      }),
+    ).not.toThrow();
+    const md = buildStrategyLabRoadmapMarkdown({
+      ...labels,
+      companyName: 'Co',
+      companyUrl: '',
+      auditId: 'audit-nd',
+      executiveSummary: null,
+      selectedByTimeframe: {
+        quick: [naked],
+        medium: [],
+        strategic: [],
+      },
+    });
+    expect(md).toContain('### No description field');
+    expect(md).toContain('- **Impact:** medium');
+  });
+
   it('omits executive summary section when empty', () => {
     const md = buildStrategyLabRoadmapMarkdown({
       ...labels,

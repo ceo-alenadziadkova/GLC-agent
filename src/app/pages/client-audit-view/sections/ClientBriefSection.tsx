@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../../../lib/tanstack-react-query';
 import { CheckCircle, Circle, ClipboardText, Spinner, Warning } from '@phosphor-icons/react';
 import { readinessBadgeFromProgress } from '@glc/intake-core';
 import { api } from '../../../data/apiService';

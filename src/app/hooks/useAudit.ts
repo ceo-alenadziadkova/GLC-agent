@@ -1,11 +1,10 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '../lib/tanstack-react-query';
 import { api, ApiError } from '../data/apiService';
 import { glcKeys } from '../lib/glc-keys';
 import { GLC_QUERY_STALE_TIME_MS_DEFAULT } from '../config/query-client-defaults';
 import { AUDIT_HOOKS_COPY } from '../config/audit-hooks-copy.en';
 
 export function useAudit(auditId: string | undefined) {
-  const queryClient = useQueryClient();
   const q = useQuery({
     queryKey: glcKeys.audit.detail(auditId ?? ''),
     queryFn: () => api.getAudit(auditId!),
@@ -24,10 +23,11 @@ export function useAudit(auditId: string | undefined) {
     audit: q.data ?? null,
     loading: q.isPending && !q.data,
     error: errorMsg,
+    isFetching: q.isFetching,
+    /** Explicit refetch (retry) for this audit; preferred over invalidate-only for user-triggered reload. */
     reload: () => {
-      if (auditId) {
-        void queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
-      }
+      if (!auditId) return;
+      void q.refetch();
     },
   };
 }

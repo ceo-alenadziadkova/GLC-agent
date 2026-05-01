@@ -152,7 +152,7 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 
 - `server/src/routes/`
 - `server/src/services/`
-- `src/app/pages/StrategyLab.tsx`
+- `src/app/pages/strategy-lab/StrategyLabPage.tsx`
 - `server/src/config/feature-flags.ts`
 - `server/src/routes/profile.ts`
 - `src/design-system/tokens/colors.ts` (semantic UI + intake trace graph via `var(--*)`)
@@ -169,10 +169,6 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 - `src/app/components/AuditNavigation.tsx:141`
 - `src/app/components/AuditNavigation.tsx:142`
 - `server/src/services/control-object-history.ts:67`
-- `src/app/pages/StrategyLab.tsx:20`
-- `src/app/pages/StrategyLab.tsx:21`
-- `src/app/pages/StrategyLab.tsx:22`
-- `src/app/pages/StrategyLab.tsx:54`
 - `src/app/components/ui/use-mobile.ts:3`
 - `server/src/lib/benchmark-recompute-secret.ts:3`
 - `server/src/config/integrations.ts:5`

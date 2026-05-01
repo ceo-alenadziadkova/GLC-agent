@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from './lib/tanstack-react-query';
 import { RouterProvider } from 'react-router';
 import { BrowserTranslateGuard } from './components/BrowserTranslateGuard';
 import { GlcToaster } from './components/GlcToaster';

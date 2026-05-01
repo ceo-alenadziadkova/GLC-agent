@@ -52,6 +52,38 @@ export function encodeManifestChangeSignature(args: {
     `${(args.plan_start_raw ?? '').trim()}::${(args.plan_end_raw ?? '').trim()}`;
   return `${args.change_scenario}::${args.season_preset}::${raw}`;
 }
+
+/** Normalizes horizon draft inputs before signing — avoids false "unsaved" when ISO dates match but raw strings differ. */
+export function manifestSignatureArgsFromDraft(draft: {
+  change_scenario: OrchestrationChangeScenario;
+  season_preset: OrchestrationSeasonPreset;
+  plan_start_raw: string;
+  plan_end_raw: string;
+}): {
+  change_scenario: OrchestrationChangeScenario;
+  season_preset: OrchestrationSeasonPreset;
+  plan_horizon?: OrchestrationPlanHorizon | null;
+  plan_start_raw?: string;
+  plan_end_raw?: string;
+} {
+  const plan_horizon = parseOptionalOrchestrationPlanHorizon(draft.plan_start_raw, draft.plan_end_raw);
+  if (plan_horizon) {
+    return {
+      change_scenario: draft.change_scenario,
+      season_preset: draft.season_preset,
+      plan_horizon,
+      plan_start_raw: plan_horizon.start_date,
+      plan_end_raw: plan_horizon.end_date,
+    };
+  }
+  return {
+    change_scenario: draft.change_scenario,
+    season_preset: draft.season_preset,
+    plan_horizon: undefined,
+    plan_start_raw: draft.plan_start_raw.trim(),
+    plan_end_raw: draft.plan_end_raw.trim(),
+  };
+}
 export const ORCHESTRATION_RISK_TOLERANCE_PRESETS = ['low', 'medium', 'high'] as const;
 export type OrchestrationRiskTolerancePreset = (typeof ORCHESTRATION_RISK_TOLERANCE_PRESETS)[number];
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { supabase } from '../lib/supabase';
 import { api } from '../data/apiService';
 import type { NotificationItem } from '../data/auditTypes';
