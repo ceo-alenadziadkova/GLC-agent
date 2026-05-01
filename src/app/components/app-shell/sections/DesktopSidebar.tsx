@@ -26,6 +26,7 @@ type DesktopSidebarProps = {
   isConsultant: boolean;
   isAuthenticated: boolean;
   pathname: string;
+  locationSearch: string;
   unreadCount: number;
   user: User | null;
   profile: { full_name: string | null } | null;
@@ -47,6 +48,7 @@ export function DesktopSidebar({
   isConsultant,
   isAuthenticated,
   pathname,
+  locationSearch,
   unreadCount,
   user,
   profile,
@@ -114,6 +116,7 @@ export function DesktopSidebar({
             <SidebarNavLink
               item={item}
               pathname={pathname}
+              locationSearch={locationSearch}
               itemKey={item.label}
               onClick={onCloseMobileMenu}
             />

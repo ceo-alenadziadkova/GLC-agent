@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { ReactNode } from 'react';
@@ -6,6 +7,7 @@ import type { ReactNode } from 'react';
 import { buildAppRoute } from '../../../config/route-paths';
 import { ORCHESTRATION_LANE_LABELS } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../../config/orchestration-contract';
+import { STRATEGY_LAB_PAGE_ANCHORS } from '../../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import type { AuditState } from '../../../data/audit/contracts/state/audit-state.types';
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
@@ -17,6 +19,21 @@ const useAuditMock = vi.fn();
 const reloadMock = vi.fn();
 
 const profileState = vi.hoisted(() => ({ isClient: false }));
+const featureFlagOverrides = vi.hoisted(() => ({ clientOrchestrationLabReadOnlyEnabled: true }));
+
+vi.mock('../../../config/app-feature-flags', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../../../config/app-feature-flags')>();
+  return {
+    APP_FEATURE_FLAGS: new Proxy(mod.APP_FEATURE_FLAGS, {
+      get(target, prop, receiver) {
+        if (prop === 'clientOrchestrationLabReadOnlyEnabled') {
+          return featureFlagOverrides.clientOrchestrationLabReadOnlyEnabled;
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }),
+  };
+});
 
 vi.mock('../StrategyLabOrchestrationPanel', () => ({
   StrategyLabOrchestrationPanel: () => <div data-testid="orchestration-panel-stub" />,
@@ -34,8 +51,8 @@ vi.mock('../../../hooks/useBrowserOnline', () => ({
   useBrowserOnline: () => true,
 }));
 
-vi.mock('../../../components/ui/use-mobile', () => ({
-  useIsMobile: () => false,
+vi.mock('../../../hooks/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
 }));
 
 vi.mock('../../../components/AppShell', () => ({
@@ -141,6 +158,7 @@ describe('StrategyLab steps strip', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     profileState.isClient = false;
+    featureFlagOverrides.clientOrchestrationLabReadOnlyEnabled = true;
   });
 
   it('renders consultant workbench segmented navigation with orchestration selected', () => {
@@ -162,15 +180,15 @@ describe('StrategyLab steps strip', () => {
       name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
     });
     const roadmap = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.roadmapLabel,
+      name: STRATEGY_LAB_COPY.workbenchSegment.planLabel,
     });
     expect(orchestration).toHaveAttribute('href', buildAppRoute.strategy('audit-steps-strip'));
-    expect(roadmap).toHaveAttribute('href', buildAppRoute.roadmap('audit-steps-strip'));
+    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-steps-strip'));
     expect(orchestration).toHaveAttribute('aria-current', 'page');
     expect(roadmap).not.toHaveAttribute('aria-current');
   });
 
-  it('renders three step links and marks step 1 as current when no progress yet', () => {
+  it('renders four journey step links and marks step 1 as current when no progress yet', () => {
     useAuditMock.mockReturnValue({
       audit: buildAuditBase(),
       loading: false,
@@ -181,22 +199,29 @@ describe('StrategyLab steps strip', () => {
 
     renderLab();
 
-    const nav = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.stepsStrip.ariaLabel });
+    const nav = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel });
     const items = within(nav).getAllByRole('listitem');
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
 
     const links = within(nav).getAllByRole('link');
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(4);
+    const strat = buildAppRoute.strategy('audit-steps-strip');
+    expect(links[0]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.reference}`);
+    expect(links[1]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`);
+    expect(links[2]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`);
+    expect(links[3]).toHaveAttribute('href', buildAppRoute.plan('audit-steps-strip'));
     expect(links[0]).toHaveAttribute('aria-current', 'step');
     expect(links[1]).not.toHaveAttribute('aria-current');
     expect(links[2]).not.toHaveAttribute('aria-current');
+    expect(links[3]).not.toHaveAttribute('aria-current');
 
-    expect(within(nav).getByText(STRATEGY_LAB_COPY.stepsStrip.step1Title)).toBeInTheDocument();
-    expect(within(nav).getByText(STRATEGY_LAB_COPY.stepsStrip.step2Title)).toBeInTheDocument();
-    expect(within(nav).getByText(STRATEGY_LAB_COPY.stepsStrip.step3Title)).toBeInTheDocument();
+    expect(within(nav).getByText(STRATEGY_LAB_COPY.journeyStrip.step1Title)).toBeInTheDocument();
+    expect(within(nav).getByText(STRATEGY_LAB_COPY.journeyStrip.step2Title)).toBeInTheDocument();
+    expect(within(nav).getByText(STRATEGY_LAB_COPY.journeyStrip.step3Title)).toBeInTheDocument();
+    expect(within(nav).getByText(STRATEGY_LAB_COPY.journeyStrip.step4Title)).toBeInTheDocument();
   });
 
-  it('marks step 3 as current and steps 1–2 as done when an orchestration pack is built', () => {
+  it('marks Plan as current when context, manifest and pack are satisfied', () => {
     const audit = buildAuditBase();
     audit.strategy = {
       ...audit.strategy!,
@@ -219,16 +244,51 @@ describe('StrategyLab steps strip', () => {
 
     renderLab();
 
-    const nav = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.stepsStrip.ariaLabel });
+    const nav = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel });
     const links = within(nav).getAllByRole('link');
-    expect(links).toHaveLength(3);
-    // Step 1 + 2 done, step 3 stays current as the review/inspect step.
-    expect(links[2]).toHaveAttribute('aria-current', 'step');
+    expect(links).toHaveLength(4);
+    expect(links[3]).toHaveAttribute('aria-current', 'step');
     expect(links[0]).not.toHaveAttribute('aria-current');
     expect(links[1]).not.toHaveAttribute('aria-current');
+    expect(links[2]).not.toHaveAttribute('aria-current');
   });
 
-  it('hides the steps strip for client (portal) profiles', () => {
+  it('updates orchestrator tabpanel polite status when switching tabs', async () => {
+    const user = userEvent.setup();
+    const audit = buildAuditBase();
+    audit.strategy = {
+      ...audit.strategy!,
+      effective_constraints: {
+        company_stage: 'growth',
+        budget_band: 'medium',
+        team_scale: 'small',
+      },
+      glc_orchestration_pack: buildMinimalPack(),
+      orchestration_pack_version: 2,
+    };
+
+    useAuditMock.mockReturnValue({
+      audit,
+      loading: false,
+      error: null,
+      reload: reloadMock,
+      isFetching: false,
+    });
+
+    renderLab();
+
+    const orchPanel = document.getElementById('strategy-lab-orchestrator-panel');
+    expect(orchPanel).toBeTruthy();
+    const live = orchPanel!.querySelector('[aria-live="polite"]');
+    expect(live).toBeTruthy();
+    const expectedNext = STRATEGY_LAB_COPY.orchestratorTabs.tabPanelStatusTemplate
+      .replace('{title}', STRATEGY_LAB_COPY.orchestratorTabs.next)
+      .replace('{desc}', STRATEGY_LAB_COPY.orchestratorTabs.nextDesc);
+    await user.click(screen.getByRole('tab', { name: new RegExp(STRATEGY_LAB_COPY.orchestratorTabs.next, 'i') }));
+    expect(live!.textContent).toBe(expectedNext);
+  });
+
+  it('shows the journey strip for client portal profiles when read-only orchestration lab is enabled', () => {
     profileState.isClient = true;
     useAuditMock.mockReturnValue({
       audit: buildAuditBase(),
@@ -240,7 +300,24 @@ describe('StrategyLab steps strip', () => {
 
     renderLab();
 
-    expect(screen.queryByRole('navigation', { name: STRATEGY_LAB_COPY.stepsStrip.ariaLabel })).toBeNull();
+    expect(screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel })).toBeNull();
+  });
+
+  it('hides the journey strip for client portal when client orchestration read-only lab flag is off', () => {
+    profileState.isClient = true;
+    featureFlagOverrides.clientOrchestrationLabReadOnlyEnabled = false;
+    useAuditMock.mockReturnValue({
+      audit: buildAuditBase(),
+      loading: false,
+      error: null,
+      reload: reloadMock,
+      isFetching: false,
+    });
+
+    renderLab();
+
+    expect(screen.queryByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel })).toBeNull();
   });
 
   it('renders the reference area as an accordion with always-visible preview line and no native <details>', () => {

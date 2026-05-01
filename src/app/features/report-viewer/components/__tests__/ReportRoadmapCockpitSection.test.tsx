@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
+import { buildAppRoute } from '../../../../config/route-paths';
 import { ReportRoadmapCockpitSection } from '../ReportRoadmapCockpitSection';
 
 describe('ReportRoadmapCockpitSection', () => {
@@ -19,9 +20,9 @@ describe('ReportRoadmapCockpitSection', () => {
             criticalIssues: [{ title: 'Top issue' }],
             coverage: { coveredDomains: ['seo_digital'] },
           } as never}
-          timelineHref="/timeline/audit-1"
-          manifestHref="/timeline/audit-1#manifest-setup"
-          compareHref="/timeline/audit-1#orchestration-panel"
+          timelineHref={buildAppRoute.plan('audit-1', 'timeline')}
+          manifestHref={`${buildAppRoute.plan('audit-1', 'timeline')}#manifest-setup`}
+          compareHref={`${buildAppRoute.plan('audit-1', 'timeline')}#orchestration-panel`}
           hasOrchestrationPack={false}
         />
       </MemoryRouter>,
@@ -29,11 +30,11 @@ describe('ReportRoadmapCockpitSection', () => {
 
     expect(screen.getByRole('link', { name: /View execution timeline/i })).toHaveAttribute(
       'href',
-      '/timeline/audit-1',
+      buildAppRoute.plan('audit-1', 'timeline'),
     );
     expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
       'href',
-      '/timeline/audit-1#manifest-setup',
+      `${buildAppRoute.plan('audit-1', 'timeline')}#manifest-setup`,
     );
   });
 });

@@ -3,6 +3,9 @@ import { ORCHESTRATION_IA_COPY } from './orchestration-roadmap-ui-copy.en';
 /** Shared typographic placeholder for empty table/export fields (copy layer). */
 const STRATEGY_LAB_EMPTY_FIELD = '—' as const;
 
+/** Single title for the roadmap / pack summary column (drawer + sidebar). */
+export const STRATEGY_LAB_PLAN_SUMMARY_TITLE = 'Plan summary' as const;
+
 export const STRATEGY_LAB_COPY = {
   depthFilter: {
     all: 'All depths',
@@ -10,28 +13,63 @@ export const STRATEGY_LAB_COPY = {
     deep: 'Deep only',
     hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
   },
-  /** Consultant switch between orchestration tooling and roadmap schedule (`/strategy` vs `/roadmap`). */
+  /** Consultant switch between orchestration tooling and plan execution surfaces (`/strategy` vs `/roadmap`). */
   workbenchSegment: {
     ariaLabel: 'Strategy Lab workspace mode',
     description:
-      'Switch between orchestration tooling in Strategy Lab and the consultant roadmap schedule. Use orchestrator tabs inside the lab to browse pack rows.',
+      'Orchestration builds the manifest and pack in Strategy Lab. Plan opens the Roadmap schedule first; on that page, switch between Roadmap and Timeline to move from lane-based schedule to the seasonal execution timeline.',
     orchestrationLabel: 'Orchestration',
-    roadmapLabel: 'Roadmap',
+    /** Entry to plan execution (`/roadmap`) — pair with Timeline under Plan tabs. */
+    planLabel: 'Plan',
+    /** Visible under the control: disambiguates Plan vs in-page Roadmap/Timeline (no second progress UI). */
+    surfaceHint:
+      'Plan opens Roadmap (schedule, dependencies, baseline). On that page, pick Timeline for the seasonal lanes view.',
   },
-  /** Top-of-page three-step path that anchors the consultant inside Strategy Lab. */
-  stepsStrip: {
-    ariaLabel: 'Strategy Lab progress',
+  /** Cross-surface journey: Strategy Lab preparation then Plan execution (consultant-facing header). */
+  journeyStrip: {
+    ariaLabel: 'Planning journey',
     description:
-      'Three steps from audit context to initiative configuration and a built orchestration pack. Links jump to sections on this page; use Roadmap in the toolbar for the consultant schedule.',
+      'Four checkpoints from audit context to manifest, built pack, and plan execution on Roadmap and Timeline. Links jump to Strategy Lab anchors or open the Plan surface.',
     step1Title: 'Context',
     step1Hint: 'Audit scope, constraints and benchmarks pinned.',
-    step2Title: 'Initiatives',
-    step2Hint: 'Tune scenario, horizons and snapshots so the orchestration pack matches priorities.',
-    step3Title: 'Pack & roadmap',
-    step3Hint: 'Inspect the pack dependency map on this page · use Roadmap mode for consultant schedule lanes.',
+    step2Title: 'Manifest',
+    step2Hint: 'Scenario, horizon and snapshots aligned before pack build.',
+    step3Title: 'Pack',
+    step3Hint: 'Built orchestration pack — inspect dependency map below.',
+    step4Title: 'Plan',
+    step4Hint: 'Roadmap schedule and seasonal Timeline — switch tabs on the Plan surface.',
     statusDone: 'Done',
     statusCurrent: 'Now',
     statusPending: 'Next',
+  },
+  /** Helper text under breadcrumb when Plan tabs are omitted (manifest wizard surface). */
+  manifestWizardChrome: {
+    contextHint:
+      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Roadmap or Timeline from Strategy Lab once the pack is ready.',
+  },
+  /** Nested Plan view tabs (schedule lanes vs timeline). */
+  planViewSegment: {
+    ariaLabel: 'Plan presentation',
+    description: 'Switch between the multi-lane schedule and the seasonal execution timeline.',
+    roadmapTabLabel: 'Roadmap',
+    timelineTabLabel: 'Timeline',
+    /** Visible under the segment control: how the two surfaces differ. */
+    differentiationIntro:
+      'Roadmap is the lane-based Gantt schedule with dependencies, search, and baseline comparison. Timeline is the seasonal execution view with pack narrative and read-focused lane stories.',
+    /** Shown when Roadmap is active. */
+    roadmapContextHint:
+      'You are on the schedule: navigate tasks and lanes, inspect dependency paths, and compare to a saved baseline. Use keyboard shortcuts for the grid; lane changes are available from the task menu when applicable.',
+    /** Shown when Timeline is active. */
+    timelineContextHint:
+      'You are on the execution timeline: seasonal buckets, lane stories and read-focused navigation — not the interactive Gantt.',
+  },
+  /** Breadcrumb above Plan chrome (Roadmap / Timeline pages). */
+  planSurfaceBreadcrumb: {
+    navAriaLabel: 'Plan location',
+    strategyLabCrumb: 'Strategy Lab',
+    planCrumb: 'Plan',
+    /** Current page in client manifest-first wizard (`/portal/audit/:id/roadmap-manifest`). */
+    manifestWizardCrumb: 'Manifest setup',
   },
   referenceDisclosure: {
     summary: 'Reference: peer benchmarks and constraint overrides',
@@ -71,6 +109,10 @@ export const STRATEGY_LAB_COPY = {
   },
   orchestratorTabs: {
     tablistAriaLabel: 'Orchestrator: critical path, dependencies, and risks',
+    /** Composed into a polite aria-live region when the orchestrator tab changes (single shared tabpanel). */
+    tabPanelStatusTemplate: '{title}. {desc}',
+    tablistAriaDescription:
+      'One panel below switches content by tab; your screen reader announces the active view when it changes.',
     now: 'Now',
     next: 'Next',
     dependencies: 'Dependencies',
@@ -125,7 +167,7 @@ export const STRATEGY_LAB_COPY = {
     domainBenchmarksHint:
       'Median confidence (p50) vs peer runs in the last 90 days. Uses your audit industry when set, otherwise the cross-industry pool.',
     emptyBenchmarksValue: STRATEGY_LAB_EMPTY_FIELD,
-    yourRoadmap: 'Plan summary',
+    yourRoadmap: STRATEGY_LAB_PLAN_SUMMARY_TITLE,
     summaryHint:
       'Pick a node in the orchestrator tabs to inspect lane, domain and analysis depth here.',
     viewReport: 'View Report',
@@ -137,7 +179,7 @@ export const STRATEGY_LAB_COPY = {
      * lives at the bottom of the main column and auto-opens once a node is picked.
      */
     summaryDrawerTriggerLabel: 'Open plan summary',
-    summaryDrawerTitle: 'Plan summary',
+    summaryDrawerTitle: STRATEGY_LAB_PLAN_SUMMARY_TITLE,
     summaryDrawerNodeSelectedHint: 'Node selected — open to inspect detail',
     summaryDrawerNoSelectionHint: 'Open after picking a node from the orchestrator tabs',
   },
@@ -199,4 +241,28 @@ export const STRATEGY_LAB_COPY = {
     saveFailed: 'Could not save intent',
     selectedSummary: 'Marked for deep follow-up',
   },
+} as const;
+
+/**
+ * Logical groupings over {@link STRATEGY_LAB_COPY} (references only — no duplicated strings).
+ * Use for tooling, docs navigation, or future role-scoped loaders without breaking existing imports.
+ */
+export const STRATEGY_LAB_COPY_CONTEXT = {
+  consultantWorkbench: STRATEGY_LAB_COPY.workbenchSegment,
+  journey: STRATEGY_LAB_COPY.journeyStrip,
+  planSurfaces: {
+    segmentedNav: STRATEGY_LAB_COPY.planViewSegment,
+    breadcrumb: STRATEGY_LAB_COPY.planSurfaceBreadcrumb,
+    manifestWizardChrome: STRATEGY_LAB_COPY.manifestWizardChrome,
+  },
+  orchestrationLab: STRATEGY_LAB_COPY.orchestrationDisclosure,
+  orchestrator: STRATEGY_LAB_COPY.orchestratorTabs,
+  planSummary: STRATEGY_LAB_COPY.panel,
+  benchmarksAndReference: STRATEGY_LAB_COPY.referenceDisclosure,
+  constraints: STRATEGY_LAB_COPY.constraints,
+  packDependencyMap: STRATEGY_LAB_COPY.packDependencyMap,
+  depthFilter: STRATEGY_LAB_COPY.depthFilter,
+  directorStage2: STRATEGY_LAB_COPY.directorStage2Intent,
+  errorsLoading: STRATEGY_LAB_COPY.messages,
+  appChrome: STRATEGY_LAB_COPY.appShell,
 } as const;

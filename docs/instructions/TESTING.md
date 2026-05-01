@@ -83,7 +83,7 @@ Unit and RTL tests with **mocked** Supabase cover logic and contracts but **do n
 | --- | --- | --- |
 | `ProtectedRoute` | Yes | Role, guest, blocked roles |
 | `RootRedirect` | Yes | Pure helper `rootRedirectTarget` + component |
-| Router map | Partial | `e2e/protected-routes.spec.ts` — unauthenticated hits on consultant/admin + client portal paths → `/login` |
+| Router map | Partial | `e2e/protected-routes.spec.ts` — unauthenticated hits on consultant/admin + client portal paths (incl. plan + legacy roadmap/timeline) → `/login`; authenticated legacy→`/plan` URL replace covered by `e2e/orchestration-plan-legacy-canonical.spec.ts` when creds env is set ([e2e/README.md](../../e2e/README.md)) |
 
 ## D. Sign out
 

@@ -2,7 +2,9 @@ import dayjs from 'dayjs';
 
 import type { AuditTimelineDto } from '../data/api/audits-orchestration';
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
+import { ROADMAP_GANTT_DAY_MS } from '../config/roadmap-gantt-view-preferences';
 import { ORCHESTRATION_LANE_LABELS, type OrchestrationLaneId } from '../config/orchestration-roadmap-ui-copy.en';
+import { estimatedTimelineItemWindowWithinThirds, timelineHorizonThirdBoundaries } from './time-bucket-normalization';
 
 export const ROADMAP_GANTT_MILESTONE_LANE_ID = '__roadmap_milestones__' as const;
 
@@ -81,7 +83,6 @@ export type BuildRoadmapGanttProjectionOpts = {
   nowMs?: number;
 };
 
-const DAY_MS = 86_400_000;
 const MILESTONE_BAR_MS = 60_000;
 const CANONICAL_LANE_ORDER = Object.keys(ORCHESTRATION_LANE_LABELS) as OrchestrationLaneId[];
 
@@ -100,47 +101,11 @@ function dependencyKindFromRelation(
   return 'FF';
 }
 
-function getBucketBoundaries(timeline: AuditTimelineDto): Array<{ start: number; end: number }> {
-  const horizon = timeline.version.plan_horizon;
-  const now = dayjs().startOf('day').valueOf();
-  const fallbackStart = now;
-  const fallbackEnd = dayjs().add(180, 'day').endOf('day').valueOf();
-
-  const start = horizon?.start_date ? dayjs(horizon.start_date).startOf('day').valueOf() : fallbackStart;
-  const end = horizon?.end_date ? dayjs(horizon.end_date).endOf('day').valueOf() : fallbackEnd;
-  const safeStart = Number.isFinite(start) ? start : fallbackStart;
-  const safeEnd = Number.isFinite(end) && end > safeStart ? end : fallbackEnd;
-  const span = Math.max(safeEnd - safeStart, 3 * DAY_MS);
-  const slice = Math.floor(span / 3);
-
-  return [
-    { start: safeStart, end: safeStart + slice },
-    { start: safeStart + slice, end: safeStart + 2 * slice },
-    { start: safeStart + 2 * slice, end: safeEnd },
-  ];
-}
-
 function estimateTaskWindow(
   item: AuditTimelineDto['lanes'][number]['items'][number],
   buckets: Array<{ start: number; end: number }>,
 ): { start: number; end: number; isEstimated: boolean } {
-  const bySeason =
-    typeof item.season_index === 'number' && item.season_index >= 0 && item.season_index < buckets.length
-      ? buckets[item.season_index]
-      : null;
-  if (bySeason) {
-    return {
-      start: bySeason.start,
-      end: Math.max(bySeason.start + 7 * DAY_MS, bySeason.end),
-      isEstimated: true,
-    };
-  }
-
-  if (item.time_bucket === 'now') return { start: buckets[0]!.start, end: buckets[0]!.end, isEstimated: true };
-  if (item.time_bucket === 'next') return { start: buckets[1]!.start, end: buckets[1]!.end, isEstimated: true };
-  if (item.time_bucket === 'later') return { start: buckets[2]!.start, end: buckets[2]!.end, isEstimated: true };
-
-  return { start: buckets[1]!.start, end: buckets[1]!.end, isEstimated: true };
+  return estimatedTimelineItemWindowWithinThirds(item, buckets);
 }
 
 function isOrchestrationLaneId(value: string): value is OrchestrationLaneId {
@@ -439,7 +404,7 @@ export function buildRoadmapGanttProjection(
 ): RoadmapGanttProjection {
   const pack = opts?.pack ?? null;
   const nowMs = opts?.nowMs ?? Date.now();
-  const buckets = getBucketBoundaries(timeline);
+  const buckets = timelineHorizonThirdBoundaries(timeline, { nowMs });
   const defaultTimeStart = buckets[0]!.start;
   const defaultTimeEnd = buckets[2]!.end;
 
@@ -528,7 +493,7 @@ export function buildRoadmapGanttProjection(
   });
 
   const milestonesMeta: RoadmapGanttMilestone[] = (timeline.milestones ?? []).map((m) => {
-    const raw = defaultTimeStart + Math.max(0, m.target_window_days) * DAY_MS;
+    const raw = defaultTimeStart + Math.max(0, m.target_window_days) * ROADMAP_GANTT_DAY_MS;
     const date = Math.min(Math.max(raw, defaultTimeStart), defaultTimeEnd);
     return {
       id: m.id,

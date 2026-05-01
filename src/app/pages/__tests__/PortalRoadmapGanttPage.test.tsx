@@ -8,7 +8,11 @@ import type { ReactNode } from 'react';
 import { PortalRoadmapGanttPage } from '../PortalRoadmapGanttPage';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../config/route-paths';
-import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import {
+  ORCHESTRATION_LANE_LABELS,
+  ORCHESTRATION_UI_COPY,
+} from '../../config/orchestration-roadmap-ui-copy.en';
+import * as RoadmapMapper from '../../lib/roadmap-gantt-mapper';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 
@@ -18,6 +22,7 @@ const useProfileMock = vi.fn();
 const apiMocks = vi.hoisted(() => ({
   getAuditTimelineMock: vi.fn(),
   getOrchestrationPackMock: vi.fn(),
+  getOrchestrationPackConditionalMock: vi.fn(),
   downloadOrchestrationSprintExportCsvMock: vi.fn(),
 }));
 
@@ -37,6 +42,7 @@ vi.mock('../../data/apiService', () => ({
   api: {
     getAuditTimeline: (...args: unknown[]) => apiMocks.getAuditTimelineMock(...args),
     getOrchestrationPack: (...args: unknown[]) => apiMocks.getOrchestrationPackMock(...args),
+    getOrchestrationPackConditional: (...args: unknown[]) => apiMocks.getOrchestrationPackConditionalMock(...args),
     downloadOrchestrationSprintExportCsv: (...args: unknown[]) => apiMocks.downloadOrchestrationSprintExportCsvMock(...args),
   },
 }));
@@ -48,6 +54,12 @@ function renderWithProviders(node: ReactNode) {
     },
   });
   return render(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
+}
+
+/** Open the More options popover (analysis, filters, actions, filtered task counts). */
+async function expandRoadmapMoreControls(user: ReturnType<typeof userEvent.setup>) {
+  const btn = screen.queryByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttToolbarMoreExpand });
+  if (btn) await user.click(btn);
 }
 
 describe('PortalRoadmapGanttPage', () => {
@@ -70,13 +82,15 @@ describe('PortalRoadmapGanttPage', () => {
       confidence_map: { node_confidence: { a: 'high' } },
     };
     apiMocks.downloadOrchestrationSprintExportCsvMock.mockResolvedValue('id,title\n');
-    apiMocks.getOrchestrationPackMock.mockResolvedValue({
+    const packGetBody = {
       pack: minimalPack,
       orchestration_pack_version: 1,
       roadmap_version: 1,
       last_revision_diff: null,
       plan_governance: null,
-    });
+    };
+    apiMocks.getOrchestrationPackMock.mockResolvedValue(packGetBody);
+    apiMocks.getOrchestrationPackConditionalMock.mockResolvedValue({ kind: 'ok' as const, data: packGetBody });
     apiMocks.getAuditTimelineMock.mockResolvedValue({
       timeline: {
         status: 'ready',
@@ -123,15 +137,50 @@ describe('PortalRoadmapGanttPage', () => {
 
     const wb = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel });
     const roadmap = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.roadmapLabel,
+      name: STRATEGY_LAB_COPY.workbenchSegment.planLabel,
     });
     const orchestration = within(wb).getByRole('link', {
       name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
     });
-    expect(roadmap).toHaveAttribute('href', buildAppRoute.roadmap('audit-1'));
+    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-1'));
     expect(orchestration).toHaveAttribute('href', buildAppRoute.strategy('audit-1'));
     expect(roadmap).toHaveAttribute('aria-current', 'page');
     expect(orchestration).not.toHaveAttribute('aria-current');
+
+    const planBc = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.navAriaLabel });
+    expect(
+      within(planBc).getByRole('link', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.strategyLabCrumb }),
+    ).toHaveAttribute('href', buildAppRoute.strategy('audit-1'));
+  });
+
+  it('shows mapper-empty guidance when lanes have rows but projection is empty', async () => {
+    const spy = vi.spyOn(RoadmapMapper, 'buildRoadmapGanttProjection').mockReturnValue({
+      lanes: [],
+      tasks: [],
+      dependencies: [],
+      defaultTimeStart: 0,
+      defaultTimeEnd: 1,
+      milestones: [],
+      upstreamByTask: new Map(),
+      downstreamByTask: new Map(),
+    });
+    useProfileMock.mockReturnValue({ isClient: false });
+    try {
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/roadmap/audit-1']}>
+          <Routes>
+            <Route path="/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+            <Route path="/timeline/:id" element={<div>Timeline stub</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(await screen.findByText(ORCHESTRATION_UI_COPY.planRoadmapMapperEmptyTasksTitle)).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: ORCHESTRATION_UI_COPY.planRoadmapOpenTimelineFromEmptyCta }),
+      ).toHaveAttribute('href', buildAppRoute.plan('audit-1', 'timeline'));
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('renders roadmap schedule and opens task details', async () => {
@@ -152,6 +201,33 @@ describe('PortalRoadmapGanttPage', () => {
     expect(within(drawer).getByText('tech_infrastructure')).toBeInTheDocument();
   });
 
+  it('opens lane focus menu from timeline grid via M shortcut (keyboard path)', async () => {
+    const user = userEvent.setup();
+    useProfileMock.mockReturnValue({ isClient: false });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const grid = await screen.findByTestId('roadmap-timeline-grid');
+    const coreBar = grid.querySelector('[data-roadmap-task-id="a"]') as HTMLElement | null;
+    expect(coreBar).not.toBeNull();
+    await user.click(coreBar!);
+
+    coreBar!.focus();
+    await user.keyboard('m');
+
+    expect(await screen.findByRole('menu')).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitem', {
+        name: ORCHESTRATION_LANE_LABELS.tech_delivery,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('opens target task details when dependency arrow is clicked', async () => {
     const user = userEvent.setup();
     const view = renderWithProviders(
@@ -163,7 +239,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
     await screen.findByText('Dependency graph');
     const dependencyArrow = view.container.querySelector('svg path.cursor-pointer');
     expect(dependencyArrow).not.toBeNull();
@@ -182,15 +258,18 @@ describe('PortalRoadmapGanttPage', () => {
       </MemoryRouter>,
     );
 
+    await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     const filter = await screen.findByLabelText('Dependency type');
     await user.selectOptions(filter, 'SS');
-    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
-    await user.click(screen.getByRole('button', { name: 'Table' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel }));
     expect(await screen.findByText('No dependencies match current filters. Clear filters.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Timeline' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabTimelineLabel }));
+    await expandRoadmapMoreControls(user);
     await user.selectOptions(screen.getByLabelText('Dependency type'), 'FS');
-    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
-    await user.click(screen.getByRole('button', { name: 'Table' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel }));
     expect(await screen.findByText('Finish -> Start')).toBeInTheDocument();
   });
 
@@ -222,8 +301,8 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
-    await user.click(screen.getByRole('button', { name: 'Table' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel }));
     const typeHeader = screen.getByRole('button', { name: /^Type/ });
     await user.click(typeHeader);
 
@@ -241,18 +320,22 @@ describe('PortalRoadmapGanttPage', () => {
       </MemoryRouter>,
     );
 
-    const dayHorizonGroup = await screen.findByRole('group', { name: 'Day horizon' });
+    await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
+
+    const dayHorizonGroup = await screen.findByRole('group', { name: ORCHESTRATION_UI_COPY.roadmapGanttHorizonAriaLabel });
     expect(within(dayHorizonGroup).getByRole('button', { name: '30d' })).toBeInTheDocument();
     const range60 = within(dayHorizonGroup).getByRole('button', { name: '60d' });
     expect(range60).toHaveAttribute('aria-pressed', 'true');
     await user.click(within(dayHorizonGroup).getByRole('button', { name: '90d' }));
     expect(within(dayHorizonGroup).getByRole('button', { name: '90d' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(screen.getByRole('button', { name: 'Months' }));
-    expect(screen.queryByRole('group', { name: 'Day horizon' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttScaleMonthsToggle }));
+    expect(screen.queryByRole('group', { name: ORCHESTRATION_UI_COPY.roadmapGanttHorizonAriaLabel })).not.toBeInTheDocument();
   });
 
   it('restores timeline scale and day horizon from localStorage', async () => {
+    const user = userEvent.setup();
     window.localStorage.setItem('roadmap-gantt-time-scale', 'day');
     window.localStorage.setItem('roadmap-gantt-day-range', '90');
     window.localStorage.setItem('roadmap-gantt-density', 'compact');
@@ -265,7 +348,10 @@ describe('PortalRoadmapGanttPage', () => {
       </MemoryRouter>,
     );
 
-    const dayHorizonGroup = await screen.findByRole('group', { name: 'Day horizon' });
+    await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
+
+    const dayHorizonGroup = await screen.findByRole('group', { name: ORCHESTRATION_UI_COPY.roadmapGanttHorizonAriaLabel });
     expect(within(dayHorizonGroup).getByRole('button', { name: '90d' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByLabelText('Density')).toHaveValue('compact');
   });
@@ -280,13 +366,17 @@ describe('PortalRoadmapGanttPage', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole('button', { name: 'Dependencies' });
-    expect(screen.getByRole('button', { name: 'Dependencies' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
-    await user.click(screen.getByRole('button', { name: 'Timeline' }));
-    const scaleGroup = screen.getByLabelText('Timeline scale');
-    expect(within(scaleGroup).getByText('Months')).toHaveAttribute('aria-pressed', 'true');
+    await screen.findByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel });
+    expect(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabTimelineLabel }));
+    const scaleGroup = screen.getByRole('group', { name: ORCHESTRATION_UI_COPY.roadmapGanttScaleAriaLabel });
+    expect(within(scaleGroup).getByText(ORCHESTRATION_UI_COPY.roadmapGanttScaleMonthsToggle)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByLabelText('Density')).toHaveValue('compact');
+    await expandRoadmapMoreControls(user);
     expect(screen.getByLabelText('Dependency view')).toHaveValue('selected');
     expect(screen.getByLabelText('Owner')).toHaveValue('marketing_utp');
     expect(screen.getByLabelText('Blocked only')).toBeChecked();
@@ -303,15 +393,18 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    await user.click(screen.getByRole('button', { name: 'Advanced' }));
+    await expandRoadmapMoreControls(user);
+    await user.click(screen.getByRole('button', { name: /^Advanced/ }));
     await user.selectOptions(screen.getByLabelText('Owner'), 'marketing_utp');
-    expect(screen.getByText('Tasks 1')).toBeInTheDocument();
+    const metricsQuick = await screen.findByTestId('roadmap-toolbar-metrics');
+    expect(within(metricsQuick).getByText('Tasks 1')).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Dependency view'), 'selected');
-    expect(screen.getByText('Dependencies 0')).toBeInTheDocument();
+    expect(within(metricsQuick).getByText('Dependencies 0')).toBeInTheDocument();
+    await expandRoadmapMoreControls(user);
     await user.click(screen.getByRole('checkbox', { name: 'Blocked only' }));
     expect(screen.getByRole('checkbox', { name: 'Blocked only' })).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Reset view' }));
-    expect(screen.getByText('Tasks 3')).toBeInTheDocument();
+    expect(within(await screen.findByTestId('roadmap-toolbar-metrics')).getByText('Tasks 3')).toBeInTheDocument();
   });
 
   it('renders timeline scroll controls and jump-to-today button', async () => {
@@ -356,12 +449,11 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
-    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
-    expect(metrics).toBeTruthy();
-    expect(within(metrics as HTMLElement).getByText('Tasks 3')).toBeInTheDocument();
+    await expandRoadmapMoreControls(user);
+    const metrics = await screen.findByTestId('roadmap-toolbar-metrics');
+    expect(within(metrics).getByText('Tasks 3')).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: /Critical path only/i }));
-    expect(within(metrics as HTMLElement).getByText('Tasks 1')).toBeInTheDocument();
+    expect(within(metrics).getByText('Tasks 1')).toBeInTheDocument();
     expect(screen.queryByText('Launch campaign')).not.toBeInTheDocument();
   });
 
@@ -401,7 +493,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
+    await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
     await screen.findByText('Dependency graph');
     expect(view.container.querySelector('.roadmap-dependency-arrow-cross-lane')).not.toBeNull();
   });
@@ -417,15 +509,15 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
-    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
-    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
-    expect(metrics).toBeTruthy();
-    expect(within(metrics as HTMLElement).getByText('Tasks 3')).toBeInTheDocument();
+    await expandRoadmapMoreControls(user);
+    const metrics = await screen.findByTestId('roadmap-toolbar-metrics');
+    expect(within(metrics).getByText('Tasks 3')).toBeInTheDocument();
     await user.type(screen.getByLabelText(ORCHESTRATION_UI_COPY.roadmapGanttSearchAriaLabel), 'launch');
-    expect(within(metrics as HTMLElement).getByText('Tasks 2')).toBeInTheDocument();
+    expect(within(metrics).getByText('Tasks 1')).toBeInTheDocument();
   });
 
   it('restores title filter from URL query q', async () => {
+    const user = userEvent.setup();
     renderWithProviders(
       <MemoryRouter initialEntries={['/portal/roadmap/audit-1?q=Core']}>
         <Routes>
@@ -435,10 +527,10 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     expect(screen.getByLabelText(ORCHESTRATION_UI_COPY.roadmapGanttSearchAriaLabel)).toHaveValue('Core');
-    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
-    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
-    expect(within(metrics as HTMLElement).getByText('Tasks 2')).toBeInTheDocument();
+    const metrics = await screen.findByTestId('roadmap-toolbar-metrics');
+    expect(within(metrics).getByText('Tasks 1')).toBeInTheDocument();
   });
 
   it('calls sprint CSV export API when download button is clicked', async () => {
@@ -453,6 +545,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.sprintExportCsvCta }));
     expect(apiMocks.downloadOrchestrationSprintExportCsvMock).toHaveBeenCalledWith('audit-1');
     anchorClickSpy.mockRestore();
@@ -469,8 +562,9 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     expect(screen.getByText(ORCHESTRATION_UI_COPY.roadmapGanttWeekendLegendLabel)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Months' }));
+    await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttScaleMonthsToggle }));
     expect(screen.queryByText(ORCHESTRATION_UI_COPY.roadmapGanttWeekendLegendLabel)).not.toBeInTheDocument();
   });
 
@@ -501,6 +595,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttIcalExportCta }));
     expect(anchorClickSpy).toHaveBeenCalled();
     anchorClickSpy.mockRestore();
@@ -517,6 +612,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttBaselineSetCta }));
     expect(screen.getByText(new RegExp(ORCHESTRATION_UI_COPY.roadmapGanttBaselineTakenAtPrefix))).toBeInTheDocument();
   });
@@ -532,6 +628,7 @@ describe('PortalRoadmapGanttPage', () => {
     );
 
     await screen.findByText('Roadmap timeline');
+    await expandRoadmapMoreControls(user);
     expect(screen.getByRole('checkbox', { name: ORCHESTRATION_UI_COPY.roadmapGanttScheduleProgressToggleLabel })).toBeChecked();
     const bars = view.container.querySelectorAll('.rct-item');
     const coreBar = [...bars].find((el) => el.textContent?.includes('Core API'));

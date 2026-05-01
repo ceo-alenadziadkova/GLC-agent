@@ -4,7 +4,8 @@ import {
   ORCHESTRATION_UI_COPY,
   formatRoadmapGanttUnlocksCopy,
 } from '../../config/orchestration-roadmap-ui-copy.en';
-import type { RoadmapGanttDependency, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
+import type { RoadmapGanttDependency, RoadmapGanttLaneId, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
+import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../ui/drawer';
 
 type TaskDetailsDrawerProps = {
@@ -14,6 +15,7 @@ type TaskDetailsDrawerProps = {
   dependencies: RoadmapGanttDependency[];
   taskTitleById: Map<string, string>;
   downstreamTaskCount: number;
+  onFilterToLane?: (laneId: RoadmapGanttLaneId) => void;
 };
 
 export function TaskDetailsDrawer({
@@ -23,6 +25,7 @@ export function TaskDetailsDrawer({
   dependencies,
   taskTitleById,
   downstreamTaskCount,
+  onFilterToLane,
 }: TaskDetailsDrawerProps) {
   const incomingDependencies = task ? dependencies.filter((dep) => dep.to === task.id) : [];
   const isBlocked = incomingDependencies.some((dep) => dep.blocking);
@@ -83,6 +86,18 @@ export function TaskDetailsDrawer({
               <div className="font-medium text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.roadmapGanttUnlocksLabel}</div>
               <div className="mt-1 text-[var(--text-secondary)]">{formatRoadmapGanttUnlocksCopy(downstreamTaskCount)}</div>
             </div>
+            {task.kind === 'task' && task.group !== ROADMAP_GANTT_MILESTONE_LANE_ID && onFilterToLane ? (
+              <button
+                type="button"
+                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-xs font-medium ds-text-primary hover:bg-[var(--surface-base)]"
+                onClick={() => {
+                  onFilterToLane(task.group);
+                  onOpenChange(false);
+                }}
+              >
+                {ORCHESTRATION_UI_COPY.roadmapGanttFilterToLaneCta}
+              </button>
+            ) : null}
             <div className="rounded-md border border-[var(--border-default)] p-3">
               <div className="font-medium text-[var(--text-primary)]">Owner</div>
               <div className="text-[var(--text-secondary)]">{task.owner || '—'}</div>

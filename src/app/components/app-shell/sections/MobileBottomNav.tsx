@@ -5,10 +5,11 @@ import { cn } from '../../ui/utils';
 type MobileBottomNavProps = {
   items: AppShellNavItem[];
   pathname: string;
+  locationSearch: string;
   navAriaLabel: string;
 };
 
-export function MobileBottomNav({ items, pathname, navAriaLabel }: MobileBottomNavProps) {
+export function MobileBottomNav({ items, pathname, locationSearch, navAriaLabel }: MobileBottomNavProps) {
   if (items.length === 0) return null;
 
   return (
@@ -17,7 +18,7 @@ export function MobileBottomNav({ items, pathname, navAriaLabel }: MobileBottomN
       aria-label={navAriaLabel}
     >
       {items.map(({ to, icon: Icon, label }) => {
-        const active = to ? isNavItemActive(pathname, to) : false;
+        const active = to ? isNavItemActive(pathname, to, locationSearch) : false;
         if (!to) return null;
         return (
           <NavLink

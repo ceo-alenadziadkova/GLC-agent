@@ -42,6 +42,18 @@ export const buildAppRoute = {
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
   portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
   portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
+  /**
+   * Canonical plan URL (`/plan/:id`). Legacy `/roadmap/:id` and `/timeline/:id` redirect here (query merged).
+   * Use `view: 'timeline'` for the seasonal execution surface.
+   */
+  plan: (auditId: string, view: 'roadmap' | 'timeline' = 'roadmap'): string =>
+    view === 'timeline'
+      ? `/${P.planById.replace(':id', auditId)}?view=timeline`
+      : `/${P.planById.replace(':id', auditId)}`,
+  portalPlan: (auditId: string, view: 'roadmap' | 'timeline' = 'roadmap'): string =>
+    view === 'timeline'
+      ? `/${P.portalPlanById.replace(':id', auditId)}?view=timeline`
+      : `/${P.portalPlanById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>
     `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
@@ -56,8 +68,8 @@ export const buildAppRoute = {
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'strategy'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'plan', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'plan', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),

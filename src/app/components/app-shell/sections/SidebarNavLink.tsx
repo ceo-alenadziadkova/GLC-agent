@@ -5,11 +5,12 @@ import { cn } from '../../ui/utils';
 type SidebarNavLinkProps = {
   item: AppShellNavItem;
   pathname: string;
+  locationSearch: string;
   itemKey: string;
   onClick: () => void;
 };
 
-export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavLinkProps) {
+export function SidebarNavLink({ item, pathname, locationSearch, itemKey, onClick }: SidebarNavLinkProps) {
   const { to, icon: Icon, label, badge } = item;
   if (!to) {
     return (
@@ -23,7 +24,7 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
     );
   }
 
-  const active = isNavItemActive(pathname, to);
+  const active = isNavItemActive(pathname, to, locationSearch);
   return (
     <NavLink
       key={itemKey}

@@ -6,6 +6,7 @@ import type { AuditState, IntakeBrief } from '../../data/auditTypes';
 import { ClientAuditView } from '../ClientAuditView';
 import { ClientPortalPipelineProvider } from '../../context/ClientPortalPipelineContext';
 import * as apiService from '../../data/apiService';
+import { buildAppRoute } from '../../config/route-paths';
 
 vi.mock('../../components/AppShell', () => ({
   AppShell: ({ children, title }: { children: React.ReactNode; title?: string }) => (
@@ -317,8 +318,9 @@ describe('ClientAuditView', () => {
 
     const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
     expect(timelineLinks.length).toBeGreaterThan(0);
+    const expectedTimeline = buildAppRoute.portalPlan('audit-cockpit-1', 'timeline');
     for (const link of timelineLinks) {
-      expect(link).toHaveAttribute('href', '/portal/timeline/audit-cockpit-1');
+      expect(link).toHaveAttribute('href', expectedTimeline);
     }
     expect(screen.getByRole('link', { name: /Full domain report/i })).toHaveAttribute(
       'href',

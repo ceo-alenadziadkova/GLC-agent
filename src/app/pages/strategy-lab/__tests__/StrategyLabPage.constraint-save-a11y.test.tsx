@@ -32,8 +32,8 @@ vi.mock('../../../hooks/useBrowserOnline', () => ({
   useBrowserOnline: () => true,
 }));
 
-vi.mock('../../../components/ui/use-mobile', () => ({
-  useIsMobile: () => false,
+vi.mock('../../../hooks/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
 }));
 
 vi.mock('../../../components/AppShell', () => ({

@@ -36,8 +36,12 @@ export const APP_ROUTE_SEGMENTS = {
   /** Consultant-only: internal design system index (not linked for clients). */
   adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
+  /** Legacy; router redirects to `plan/:id?view=timeline`. */
   timelineById: 'timeline/:id',
+  /** Legacy; router redirects to `plan/:id`. */
   roadmapById: 'roadmap/:id',
+  /** Unified plan shell (Roadmap default; `?view=timeline` for Timeline). */
+  planById: 'plan/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
   /** Consultant-only orchestration cockpit (read model + governance). */
@@ -46,8 +50,12 @@ export const APP_ROUTE_SEGMENTS = {
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
+  /** Legacy; redirects to `portal/plan/:id?view=timeline`. */
   portalTimelineById: 'portal/timeline/:id',
+  /** Legacy; redirects to `portal/plan/:id`. */
   portalRoadmapById: 'portal/roadmap/:id',
+  /** Client unified plan shell. */
+  portalPlanById: 'portal/plan/:id',
   portalStrategyById: 'portal/strategy/:id',
   /** Client manifest-first wizard (V2): guided roadmap inputs before pack build. */
   portalRoadmapManifestByAuditId: 'portal/audit/:id/roadmap-manifest',

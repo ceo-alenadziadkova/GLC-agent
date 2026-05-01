@@ -1,4 +1,4 @@
-import { ROADMAP_GANTT_BASELINE_STORAGE_PREFIX } from '../config/roadmap-gantt-view-preferences';
+import { ROADMAP_GANTT_BASELINE_STORAGE_PREFIX, ROADMAP_GANTT_DAY_MS } from '../config/roadmap-gantt-view-preferences';
 import type { RoadmapGanttProjection } from './roadmap-gantt-mapper';
 
 const BASELINE_SCHEMA_VERSION = 1 as const;
@@ -42,6 +42,19 @@ export function readRoadmapGanttBaseline(auditId: string): RoadmapGanttBaselineS
   return parseStored(window.localStorage.getItem(storageKey(auditId)));
 }
 
+/**
+ * If persisted JSON exists but fails validation / schema pin, clears the key so UI does not flap.
+ * Used on Gantt mount to pair with user-visible toast (`ORCHESTRATION_UI_COPY.roadmapGanttBaselineStoredFormatResetNotice`).
+ */
+export function purgeInvalidRoadmapGanttBaselineIfNeeded(auditId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const raw = window.localStorage.getItem(storageKey(auditId));
+  if (raw == null || raw === '') return false;
+  if (readRoadmapGanttBaseline(auditId) != null) return false;
+  clearRoadmapGanttBaseline(auditId);
+  return true;
+}
+
 /** Persist current projection windows as baseline snapshot. */
 export function writeRoadmapGanttBaseline(auditId: string, projection: RoadmapGanttProjection): void {
   if (typeof window === 'undefined') return;
@@ -65,6 +78,5 @@ export function clearRoadmapGanttBaseline(auditId: string): void {
 
 /** Calendar-day delta (rounded toward zero for small skew). */
 export function baselineDeltaDays(currentMs: number, baselineMs: number): number {
-  const DAY_MS = 86_400_000;
-  return Math.round((currentMs - baselineMs) / DAY_MS);
+  return Math.round((currentMs - baselineMs) / ROADMAP_GANTT_DAY_MS);
 }

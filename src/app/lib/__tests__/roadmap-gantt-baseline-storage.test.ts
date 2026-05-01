@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuditTimelineDto } from '../../data/api/audits-orchestration';
+import { ROADMAP_GANTT_BASELINE_STORAGE_PREFIX } from '../../config/roadmap-gantt-view-preferences';
 import {
   baselineDeltaDays,
   clearRoadmapGanttBaseline,
+  purgeInvalidRoadmapGanttBaselineIfNeeded,
   readRoadmapGanttBaseline,
   writeRoadmapGanttBaseline,
 } from '../roadmap-gantt-baseline-storage';
@@ -83,5 +85,47 @@ describe('roadmap-gantt-baseline-storage', () => {
   it('baselineDeltaDays rounds to whole days', () => {
     expect(baselineDeltaDays(86_400_000, 0)).toBe(1);
     expect(baselineDeltaDays(0, 86_400_000)).toBe(-1);
+  });
+
+  it('purgeInvalidRoadmapGanttBaselineIfNeeded removes persisted JSON when schema mismatches', () => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal(
+      'localStorage',
+      {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => {
+          store[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete store[k];
+        },
+      } satisfies Storage,
+    );
+
+    const key = `${ROADMAP_GANTT_BASELINE_STORAGE_PREFIX}${auditId}`;
+    window.localStorage.setItem(key, JSON.stringify({ schemaVersion: 999, takenAtMs: 1, tasks: {} }));
+    expect(purgeInvalidRoadmapGanttBaselineIfNeeded(auditId)).toBe(true);
+    expect(window.localStorage.getItem(key)).toBeNull();
+  });
+
+  it('purgeInvalidRoadmapGanttBaselineIfNeeded is a no-op when baseline is valid', () => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal(
+      'localStorage',
+      {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => {
+          store[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete store[k];
+        },
+      } satisfies Storage,
+    );
+
+    const projection = buildRoadmapGanttProjection(minimalTimeline());
+    writeRoadmapGanttBaseline(auditId, projection);
+    expect(purgeInvalidRoadmapGanttBaselineIfNeeded(auditId)).toBe(false);
+    expect(readRoadmapGanttBaseline(auditId)).not.toBeNull();
   });
 });

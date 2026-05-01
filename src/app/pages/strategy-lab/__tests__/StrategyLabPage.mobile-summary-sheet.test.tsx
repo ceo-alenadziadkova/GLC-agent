@@ -16,7 +16,8 @@ import { QueryClient, QueryClientProvider } from '../../../lib/tanstack-react-qu
 const useAuditMock = vi.fn();
 const reloadMock = vi.fn();
 
-const mobileState = vi.hoisted(() => ({ isMobile: false }));
+/** Mirrors `StrategyLab`: pack summary Sheet when `(max-width: 1023px)`; stacked main when `(max-width: 767px)`. */
+const mobileState = vi.hoisted(() => ({ packSummaryStacked: false, narrowMobile: false }));
 
 vi.mock('../StrategyLabOrchestrationPanel', () => ({
   StrategyLabOrchestrationPanel: () => <div data-testid="orchestration-panel-stub" />,
@@ -34,8 +35,13 @@ vi.mock('../../../hooks/useBrowserOnline', () => ({
   useBrowserOnline: () => true,
 }));
 
-vi.mock('../../../components/ui/use-mobile', () => ({
-  useIsMobile: () => mobileState.isMobile,
+vi.mock('../../../hooks/useMediaQuery', () => ({
+  useMediaQuery: (q: string) => {
+    const s = String(q);
+    if (s.includes(String(1024 - 1))) return mobileState.packSummaryStacked;
+    if (s.includes(String(768 - 1))) return mobileState.narrowMobile;
+    return false;
+  },
 }));
 
 vi.mock('../../../components/AppShell', () => ({
@@ -147,7 +153,8 @@ function renderLab(initialEntries: readonly string[]) {
 describe('StrategyLab mobile plan summary Sheet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mobileState.isMobile = false;
+    mobileState.packSummaryStacked = false;
+    mobileState.narrowMobile = false;
     useAuditMock.mockReturnValue({
       audit: buildAuditWithPack(),
       loading: false,
@@ -158,7 +165,8 @@ describe('StrategyLab mobile plan summary Sheet', () => {
   });
 
   it('shows a resizable handle on desktop instead of the mobile summary drawer trigger', () => {
-    mobileState.isMobile = false;
+    mobileState.packSummaryStacked = false;
+    mobileState.narrowMobile = false;
 
     renderLab(['/strategy/audit-mobile-sheet']);
 
@@ -169,8 +177,8 @@ describe('StrategyLab mobile plan summary Sheet', () => {
     ).toBeNull();
   });
 
-  it('shows the Sheet trigger instead of resize on mobile consultants with a saved pack', () => {
-    mobileState.isMobile = true;
+  it('shows the Sheet trigger instead of resize on stacked-layout consultants with a saved pack', () => {
+    mobileState.packSummaryStacked = true;
 
     renderLab(['/strategy/audit-mobile-sheet']);
 
@@ -182,7 +190,7 @@ describe('StrategyLab mobile plan summary Sheet', () => {
   });
 
   it('opens the Sheet when the sticky trigger is pressed', async () => {
-    mobileState.isMobile = true;
+    mobileState.packSummaryStacked = true;
     const user = userEvent.setup();
 
     renderLab(['/strategy/audit-mobile-sheet']);
@@ -199,8 +207,8 @@ describe('StrategyLab mobile plan summary Sheet', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
   });
 
-  it('auto-opens the Sheet on mobile when URL already selects a node', async () => {
-    mobileState.isMobile = true;
+  it('auto-opens the Sheet on stacked-layout when URL already selects a node', async () => {
+    mobileState.packSummaryStacked = true;
 
     renderLab(['/strategy/audit-mobile-sheet?node=node-main']);
 

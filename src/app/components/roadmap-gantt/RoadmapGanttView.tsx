@@ -1,5 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { ArrowsClockwise, Diamond, DownloadSimple } from '@phosphor-icons/react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type Key,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+import { Diamond } from '@phosphor-icons/react';
 import { Link, useSearchParams } from 'react-router';
 import Timeline, {
   TimelineHeaders,
@@ -17,27 +28,91 @@ import dayjs from 'dayjs';
 import { toast } from 'sonner';
 
 import {
+  ROADMAP_GANTT_DAY_MS,
+  ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD,
   ROADMAP_GANTT_STORAGE_SHOW_SCHEDULE_PROGRESS,
   ROADMAP_GANTT_STORAGE_SHOW_SLACK,
+  ROADMAP_GANTT_TIMELINE_LINE_HEIGHT_PX,
+  ROADMAP_GANTT_TIMELINE_MAX_ZOOM_DAY_MS,
+  ROADMAP_GANTT_TIMELINE_MAX_ZOOM_MONTH_MS,
+  ROADMAP_GANTT_TIMELINE_MIN_ZOOM_MS,
   ROADMAP_SEARCH_PARAM_SCHED,
   ROADMAP_SEARCH_PARAM_SLACK,
 } from '../../config/roadmap-gantt-view-preferences';
+import {
+  ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY,
+  ROADMAP_TIMELINE_DAY_RANGE_STORAGE_KEY,
+  ROADMAP_TIMELINE_DENSITY_STORAGE_KEY,
+  ROADMAP_TIMELINE_SCALE_STORAGE_KEY,
+  ROADMAP_SEARCH_PARAM_BLOCKED,
+  ROADMAP_SEARCH_PARAM_CHAIN,
+  ROADMAP_SEARCH_PARAM_CRITICAL_PATH_ONLY,
+  ROADMAP_SEARCH_PARAM_DAY_RANGE,
+  ROADMAP_SEARCH_PARAM_DENSITY,
+  ROADMAP_SEARCH_PARAM_DEP_TAB,
+  ROADMAP_SEARCH_PARAM_DEP_VIEW,
+  ROADMAP_SEARCH_PARAM_DEPENDENCY_TYPE,
+  ROADMAP_SEARCH_PARAM_LANE,
+  ROADMAP_SEARCH_PARAM_OWNER,
+  ROADMAP_SEARCH_PARAM_PANEL,
+  ROADMAP_SEARCH_PARAM_QUERY,
+  ROADMAP_SEARCH_PARAM_SCALE,
+  ROADMAP_SEARCH_PARAM_SORT_DIR,
+  ROADMAP_SEARCH_PARAM_SORT_KEY,
+  ROADMAP_SEARCH_PARAM_STATUS,
+  ROADMAP_SEARCH_PARAM_TASK,
+  ROADMAP_SEARCH_PARAM_TOOLBAR_MORE,
+  readChainHighlightFromSearchParams,
+  readCriticalPathOnlyFromSearchParams,
+  readDayRangeFromSearchParams,
+  readDensityFromSearchParams,
+  readDependencyTypeFromSearchParams,
+  readRoadmapToolbarExpandedFromSearchParams,
+  readScaleFromSearchParams,
+  readShowScheduleProgressFromSearchParams,
+  readShowSlackFromSearchParams,
+} from '../../lib/roadmap-gantt-url-params';
+import { DEPENDENCY_KIND_LABEL } from '../../lib/roadmap-gantt-dep-kind-labels';
+import { RoadmapGanttDependencyTable } from './RoadmapGanttDependencyTable';
+import { RoadmapGanttToolbar } from './RoadmapGanttToolbar';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { api } from '../../data/apiService';
 import {
   baselineDeltaDays,
   clearRoadmapGanttBaseline,
+  purgeInvalidRoadmapGanttBaselineIfNeeded,
   readRoadmapGanttBaseline,
   writeRoadmapGanttBaseline,
   type RoadmapGanttBaselineSnapshot,
 } from '../../lib/roadmap-gantt-baseline-storage';
 import { buildIcalFromProjection, icsFilenameForAudit } from '../../lib/roadmap-gantt-ical';
+import {
+  roadmapGanttOverviewKeyboardStepPx,
+  roadmapGanttOverviewPageStepPx,
+  roadmapGanttToolbarScrollDeltaPx,
+} from '../../lib/roadmap-gantt-scroll-math';
 import type { RoadmapGanttDependency, RoadmapGanttProjection, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
 import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';
+import { RoadmapGanttDependencyGraphSvg } from './RoadmapGanttDependencyGraphSvg';
+import { RoadmapGanttOverviewStrip } from './RoadmapGanttOverviewStrip';
 import { TaskDetailsDrawer } from './TaskDetailsDrawer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-
-const DAY_MS = 86_400_000;
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuTrigger,
+} from '../ui/context-menu';
+import { useRoadmapGanttFilteredTasks } from '../../hooks/useRoadmapGanttFilteredTasks';
+import { useRoadmapGanttDependencySvgPaths } from '../../hooks/useRoadmapGanttDependencySvgPaths';
 
 type GanttTaskItem = TimelineItemBase<number> & {
   id: string;
@@ -58,142 +133,11 @@ type RoadmapGanttViewProps = {
   strategyHref: string;
 };
 
-const ROADMAP_TIMELINE_SCALE_STORAGE_KEY = 'roadmap-gantt-time-scale';
-const ROADMAP_TIMELINE_DAY_RANGE_STORAGE_KEY = 'roadmap-gantt-day-range';
-const ROADMAP_TIMELINE_DENSITY_STORAGE_KEY = 'roadmap-gantt-density';
-const ROADMAP_SEARCH_PARAM_SCALE = 'scale';
-const ROADMAP_SEARCH_PARAM_DAY_RANGE = 'range';
-const ROADMAP_SEARCH_PARAM_DENSITY = 'density';
-const ROADMAP_SEARCH_PARAM_DEPENDENCY_TYPE = 'depType';
-const ROADMAP_SEARCH_PARAM_OWNER = 'owner';
-const ROADMAP_SEARCH_PARAM_STATUS = 'status';
-const ROADMAP_SEARCH_PARAM_LANE = 'lane';
-const ROADMAP_SEARCH_PARAM_BLOCKED = 'blocked';
-const ROADMAP_SEARCH_PARAM_DEP_VIEW = 'depView';
-const ROADMAP_SEARCH_PARAM_SORT_KEY = 'depSort';
-const ROADMAP_SEARCH_PARAM_SORT_DIR = 'depDir';
-const ROADMAP_SEARCH_PARAM_TASK = 'task';
-const ROADMAP_SEARCH_PARAM_PANEL = 'panel';
-const ROADMAP_SEARCH_PARAM_DEP_TAB = 'depTab';
-const ROADMAP_SEARCH_PARAM_CRITICAL_PATH_ONLY = 'cp';
-const ROADMAP_SEARCH_PARAM_CHAIN = 'chain';
-const ROADMAP_SEARCH_PARAM_QUERY = 'q';
-const ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY = 'roadmap-gantt-critical-path-only';
-
-function readStoredShowSlack(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(ROADMAP_GANTT_STORAGE_SHOW_SLACK) === '1';
-}
-
-function readStoredShowScheduleProgress(): boolean {
-  if (typeof window === 'undefined') return true;
-  const v = window.localStorage.getItem(ROADMAP_GANTT_STORAGE_SHOW_SCHEDULE_PROGRESS);
-  if (v === '0') return false;
-  return true;
-}
-
-function readShowSlackFromSearchParams(searchParams: URLSearchParams): boolean {
-  const v = searchParams.get(ROADMAP_SEARCH_PARAM_SLACK);
-  if (v === '1') return true;
-  if (v === '0') return false;
-  return readStoredShowSlack();
-}
-
-function readShowScheduleProgressFromSearchParams(searchParams: URLSearchParams): boolean {
-  const v = searchParams.get(ROADMAP_SEARCH_PARAM_SCHED);
-  if (v === '1') return true;
-  if (v === '0') return false;
-  return readStoredShowScheduleProgress();
-}
-
-function readStoredScale(): 'day' | 'month' {
-  if (typeof window === 'undefined') return 'day';
-  const value = window.localStorage.getItem(ROADMAP_TIMELINE_SCALE_STORAGE_KEY);
-  return value === 'month' ? 'month' : 'day';
-}
-
-function readStoredDayRange(): 30 | 60 | 90 {
-  if (typeof window === 'undefined') return 60;
-  const value = window.localStorage.getItem(ROADMAP_TIMELINE_DAY_RANGE_STORAGE_KEY);
-  if (value === '30') return 30;
-  if (value === '90') return 90;
-  return 60;
-}
-
-function readStoredDensity(): 'compact' | 'comfortable' {
-  if (typeof window === 'undefined') return 'comfortable';
-  const value = window.localStorage.getItem(ROADMAP_TIMELINE_DENSITY_STORAGE_KEY);
-  return value === 'compact' ? 'compact' : 'comfortable';
-}
-
-function readScaleFromSearchParams(searchParams: URLSearchParams): 'day' | 'month' {
-  const value = searchParams.get(ROADMAP_SEARCH_PARAM_SCALE);
-  if (value === 'month') return 'month';
-  if (value === 'day') return 'day';
-  return readStoredScale();
-}
-
-function readDayRangeFromSearchParams(searchParams: URLSearchParams): 30 | 60 | 90 {
-  const value = searchParams.get(ROADMAP_SEARCH_PARAM_DAY_RANGE);
-  if (value === '30') return 30;
-  if (value === '90') return 90;
-  if (value === '60') return 60;
-  return readStoredDayRange();
-}
-
-function readDensityFromSearchParams(searchParams: URLSearchParams): 'compact' | 'comfortable' {
-  const value = searchParams.get(ROADMAP_SEARCH_PARAM_DENSITY);
-  if (value === 'compact' || value === 'comfortable') return value;
-  return readStoredDensity();
-}
-
-function readStoredCriticalPathOnly(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY) === '1';
-}
-
-function readCriticalPathOnlyFromSearchParams(searchParams: URLSearchParams): boolean {
-  const value = searchParams.get(ROADMAP_SEARCH_PARAM_CRITICAL_PATH_ONLY);
-  if (value === '1') return true;
-  if (value === '0') return false;
-  return readStoredCriticalPathOnly();
-}
-
-function readChainHighlightFromSearchParams(searchParams: URLSearchParams): boolean {
-  return searchParams.get(ROADMAP_SEARCH_PARAM_CHAIN) !== '0';
-}
-
-function readDependencyTypeFromSearchParams(searchParams: URLSearchParams): 'all' | 'FS' | 'SS' | 'FF' | 'SF' {
-  const value = searchParams.get(ROADMAP_SEARCH_PARAM_DEPENDENCY_TYPE);
-  if (value === 'FS' || value === 'SS' || value === 'FF' || value === 'SF') return value;
-  return 'all';
-}
-
-const DEPENDENCY_KIND_LABEL: Record<'FS' | 'SS' | 'FF' | 'SF', string> = {
-  FS: 'Finish -> Start',
-  SS: 'Start -> Start',
-  FF: 'Finish -> Finish',
-  SF: 'Start -> Finish',
-};
-const DEPENDENCY_KIND_SHORT_LABEL: Record<'FS' | 'SS' | 'FF' | 'SF', string> = {
-  FS: 'FS',
-  SS: 'SS',
-  FF: 'FF',
-  SF: 'SF',
-};
-
-const DEPENDENCY_KIND_HINT: Record<'FS' | 'SS' | 'FF' | 'SF', string> = {
-  FS: 'Task B starts after Task A is completed.',
-  SS: 'Task B starts after Task A starts.',
-  FF: 'Task B finishes after Task A is completed.',
-  SF: 'Task B finishes after Task A starts.',
-};
-const DEPENDENCY_KIND_ORDER: Array<'FS' | 'SS' | 'FF' | 'SF'> = ['FS', 'SS', 'FF', 'SF'];
-
 export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapGanttViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => searchParams.get(ROADMAP_SEARCH_PARAM_TASK));
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [laneMoveMenuOpen, setLaneMoveMenuOpen] = useState(false);
   const [hoveredDependencyId, setHoveredDependencyId] = useState<string | null>(null);
   const [timeScale, setTimeScale] = useState<'day' | 'month'>(() => readScaleFromSearchParams(searchParams));
   const [dayRangeDays, setDayRangeDays] = useState<30 | 60 | 90>(() => readDayRangeFromSearchParams(searchParams));
@@ -235,6 +179,9 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     max: 0,
     clientWidth: 0,
   });
+  /** Coalesce rapid scroll/wheel updates so overview positioning does not rerender entire Gantt each event. */
+  const scrollMetricsRafRef = useRef<number | null>(null);
+  const pendingScrollMetricsRef = useRef<{ left: number; max: number; clientWidth: number } | null>(null);
   const [isOverviewDragging, setIsOverviewDragging] = useState(false);
   const [showAdvancedControls, setShowAdvancedControls] = useState<boolean>(() => {
     return (
@@ -252,6 +199,11 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
   const [dependenciesTab, setDependenciesTab] = useState<'graph' | 'table'>(() =>
     searchParams.get(ROADMAP_SEARCH_PARAM_DEP_TAB) === 'table' ? 'table' : 'graph',
   );
+  const [gridNavAnnouncement, setGridNavAnnouncement] = useState('');
+  const [mainPanelTabAnnouncement, setMainPanelTabAnnouncement] = useState('');
+  const [roadmapToolbarMoreOpen, setRoadmapToolbarMoreOpen] = useState(() =>
+    readRoadmapToolbarExpandedFromSearchParams(searchParams),
+  );
   const [showRestoredViewNotice, setShowRestoredViewNotice] = useState<boolean>(() => {
     const hasScaleQuery = searchParams.get(ROADMAP_SEARCH_PARAM_SCALE) != null;
     const hasRangeQuery = searchParams.get(ROADMAP_SEARCH_PARAM_DAY_RANGE) != null;
@@ -265,31 +217,31 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
   const timelineShellRef = useRef<HTMLDivElement | null>(null);
   const timelineScrollRef = useRef<HTMLElement | null>(null);
   const overviewTrackRef = useRef<HTMLDivElement | null>(null);
+  const mainTabTimelineId = useId();
+  const mainTabDependenciesId = useId();
+  const mainPanelTimelineId = useId();
+  const mainPanelDependenciesId = useId();
+  const depsTabGraphId = useId();
+  const depsTabTableId = useId();
+  const depsPanelGraphId = useId();
+  const depsPanelTableId = useId();
+  const roadmapOverviewMapDescriptionId = useId();
 
-  const blockedTaskIds = useMemo(() => {
-    const taskIds = new Set<string>();
-    for (const dep of projection.dependencies) {
-      if (!dep.blocking) continue;
-      taskIds.add(dep.to);
-      taskIds.add(dep.from);
+  useEffect(() => {
+    if (purgeInvalidRoadmapGanttBaselineIfNeeded(auditId)) {
+      toast.info(ORCHESTRATION_UI_COPY.roadmapGanttBaselineStoredFormatResetNotice);
+      setBaselineSnapshot(null);
     }
-    return taskIds;
-  }, [projection.dependencies]);
+  }, [auditId]);
 
-  const filteredTasks = useMemo(() => {
-    const q = titleQuery.trim().toLowerCase();
-    return projection.tasks.filter((task) => {
-      if (criticalPathOnly && !task.onCriticalPath) return false;
-      if (q.length > 0 && task.kind === 'task' && !task.title.toLowerCase().includes(q)) return false;
-      if (ownerFilter !== 'all' && task.owner !== ownerFilter) return false;
-      if (statusFilter !== 'all' && task.status !== statusFilter) return false;
-      if (laneFilter !== 'all' && task.group !== laneFilter) return false;
-      if (blockedOnly && !blockedTaskIds.has(task.id)) return false;
-      return true;
-    });
-  }, [blockedOnly, blockedTaskIds, criticalPathOnly, laneFilter, ownerFilter, projection.tasks, statusFilter, titleQuery]);
-
-  const filteredTaskIds = useMemo(() => new Set(filteredTasks.map((task) => task.id)), [filteredTasks]);
+  const { filteredTasks, filteredTaskIds } = useRoadmapGanttFilteredTasks(projection, {
+    titleQuery,
+    criticalPathOnly,
+    ownerFilter,
+    statusFilter,
+    laneFilter,
+    blockedOnly,
+  });
 
   const chainTaskIds = useMemo(() => {
     if (!highlightDependencyChain || !selectedTaskId) return null;
@@ -365,33 +317,31 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     () => filteredTasks.find((task) => task.id === focusedTaskId) ?? null,
     [filteredTasks, focusedTaskId],
   );
+  const selectableLanesForJump = useMemo(
+    () => projection.lanes.filter((lane) => lane.id !== ROADMAP_GANTT_MILESTONE_LANE_ID),
+    [projection.lanes],
+  );
+  const laneMoveMenuEligible =
+    selectableLanesForJump.length > 0 &&
+    focusedTask != null &&
+    focusedTask.kind === 'task' &&
+    focusedTask.group !== ROADMAP_GANTT_MILESTONE_LANE_ID;
+
+  const applyLaneFocusFilter = useCallback((lane: { id: string; title: string }) => {
+    setLaneFilter(String(lane.id));
+    setLaneMoveMenuOpen(false);
+    setGridNavAnnouncement(
+      ORCHESTRATION_UI_COPY.roadmapGanttKeyboardLaneFilterAnnouncement.replace('{lane}', lane.title),
+    );
+  }, []);
 
   const taskTitleById = useMemo(() => new Map(projection.tasks.map((task) => [task.id, task.title] as const)), [projection.tasks]);
   const taskByIdFull = useMemo(
     () => new Map(projection.tasks.map((task) => [task.id, task] as const)),
     [projection.tasks],
   );
-  const taskById = useMemo(
-    () => new Map(filteredTasks.map((task) => [task.id, task] as const)),
-    [filteredTasks],
-  );
-  const laneIndexById = useMemo(() => new Map(groups.map((lane, index) => [String(lane.id), index] as const)), [groups]);
-  const laneHeight = 54;
-  const timelineRange = Math.max(projection.defaultTimeEnd - projection.defaultTimeStart, 1);
-  const dependencyCanvasHeight = Math.max(groups.length * laneHeight + 24, 120);
-  const mapX = (ts: number) => ((ts - projection.defaultTimeStart) / timelineRange) * 100;
-  const mapY = (laneId: string) => (laneIndexById.get(laneId) ?? 0) * laneHeight + laneHeight * 0.5 + 12;
-  const pathForDependency = (fromId: string, toId: string, kind: string): string | null => {
-    const from = taskById.get(fromId);
-    const to = taskById.get(toId);
-    if (!from || !to) return null;
-    const startX = kind === 'SS' || kind === 'SF' ? mapX(from.start_time) : mapX(from.end_time);
-    const endX = kind === 'SS' || kind === 'FS' ? mapX(to.start_time) : mapX(to.end_time);
-    const y1 = mapY(from.group);
-    const y2 = mapY(to.group);
-    const controlX = startX + (endX - startX) * 0.4;
-    return `M ${startX} ${y1} C ${controlX} ${y1}, ${controlX} ${y2}, ${endX} ${y2}`;
-  };
+  const isHeavyTaskLoad = filteredTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
+
   const strokeForKind = (kind: string): string => {
     if (kind === 'FS') return 'var(--score-5)';
     if (kind === 'SS') return 'var(--glc-blue)';
@@ -415,6 +365,15 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
       return true;
     });
   }, [blockedOnly, dependencyTypeFilter, dependencyView, filteredTaskIds, projection.dependencies, selectedTaskId]);
+
+  const { dependencySvgPathsByDepId, mapX, mapY, dependencyCanvasHeight, timelineRangeMs } = useRoadmapGanttDependencySvgPaths({
+    filteredTasks,
+    groups,
+    projection: { defaultTimeStart: projection.defaultTimeStart, defaultTimeEnd: projection.defaultTimeEnd },
+    visibleDependencies,
+    freezeGeometry: isOverviewDragging,
+  });
+
   const overviewTasks = filteredTasks.length > 0 ? filteredTasks : projection.tasks;
   const hasScrollableTimeline = scrollMetrics.max > 2 && scrollMetrics.clientWidth > 0;
   const overviewWindowWidth = hasScrollableTimeline
@@ -479,21 +438,36 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     if (!scrollNode) return;
     timelineScrollRef.current = scrollNode;
 
+    const flushScrollMetrics = () => {
+      scrollMetricsRafRef.current = null;
+      const next = pendingScrollMetricsRef.current;
+      if (next) setScrollMetrics(next);
+    };
+
     const updateScrollState = () => {
       const maxScroll = scrollNode.scrollWidth - scrollNode.clientWidth;
-      setCanScrollLeft(scrollNode.scrollLeft > 2);
-      setCanScrollRight(maxScroll - scrollNode.scrollLeft > 2);
-      setScrollMetrics({
-        left: scrollNode.scrollLeft,
+      const left = scrollNode.scrollLeft;
+      setCanScrollLeft(left > 2);
+      setCanScrollRight(maxScroll - left > 2);
+      pendingScrollMetricsRef.current = {
+        left,
         max: Math.max(maxScroll, 1),
         clientWidth: Math.max(scrollNode.clientWidth, 1),
-      });
+      };
+      if (scrollMetricsRafRef.current === null) {
+        scrollMetricsRafRef.current = window.requestAnimationFrame(flushScrollMetrics);
+      }
     };
 
     updateScrollState();
     scrollNode.addEventListener('scroll', updateScrollState, { passive: true });
     window.addEventListener('resize', updateScrollState);
     return () => {
+      if (scrollMetricsRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollMetricsRafRef.current);
+        scrollMetricsRafRef.current = null;
+      }
+      pendingScrollMetricsRef.current = null;
       scrollNode.removeEventListener('scroll', updateScrollState);
       window.removeEventListener('resize', updateScrollState);
       if (timelineScrollRef.current === scrollNode) {
@@ -537,11 +511,6 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY, criticalPathOnly ? '1' : '0');
   }, [criticalPathOnly]);
-
-  useEffect(() => {
-    const q = searchParams.get(ROADMAP_SEARCH_PARAM_QUERY) ?? '';
-    setTitleQuery((prev) => (prev === q ? prev : q));
-  }, [searchParams]);
 
   useEffect(() => {
     setBaselineSnapshot(readRoadmapGanttBaseline(auditId));
@@ -599,6 +568,8 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         } else {
           next.delete(ROADMAP_SEARCH_PARAM_DEP_TAB);
         }
+        if (roadmapToolbarMoreOpen) next.set(ROADMAP_SEARCH_PARAM_TOOLBAR_MORE, '1');
+        else next.delete(ROADMAP_SEARCH_PARAM_TOOLBAR_MORE);
         if (next.toString() === prev.toString()) return prev;
         return next;
       },
@@ -616,6 +587,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     highlightDependencyChain,
     laneFilter,
     ownerFilter,
+    roadmapToolbarMoreOpen,
     activePanel,
     dependenciesTab,
     selectedTaskId,
@@ -626,6 +598,18 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     timeScale,
     titleQuery,
   ]);
+
+  const focusTaskBarEl = useCallback((taskId: string) => {
+    window.requestAnimationFrame(() => {
+      const outer = timelineShellRef.current;
+      if (!outer) return;
+      const node = outer.querySelector(`[data-roadmap-task-id="${CSS.escape(taskId)}"]`) as HTMLElement | null;
+      node?.focus({ preventScroll: false });
+      if (node && typeof node.scrollIntoView === 'function') {
+        node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    });
+  }, []);
 
   const pickNearestTaskForTime = (targetTs: number) => {
     if (filteredTasks.length === 0) return null;
@@ -669,6 +653,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     }
     if (event.key.toLowerCase() === 'a') {
       event.preventDefault();
+      setRoadmapToolbarMoreOpen(true);
       setShowAdvancedControls((prev) => !prev);
       return;
     }
@@ -677,31 +662,52 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
       resetView();
       return;
     }
+    if (event.key.toLowerCase() === 'm') {
+      const t = focusedTask ?? filteredTasks[0] ?? null;
+      if (
+        t &&
+        t.kind === 'task' &&
+        t.group !== ROADMAP_GANTT_MILESTONE_LANE_ID &&
+        projection.lanes.some((lane) => lane.id !== ROADMAP_GANTT_MILESTONE_LANE_ID)
+      ) {
+        event.preventDefault();
+        setLaneMoveMenuOpen(true);
+        setGridNavAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuOpenedAnnouncement);
+      }
+      return;
+    }
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(event.key)) return;
     const anchorTask = focusedTask ?? filteredTasks[0] ?? null;
     if (!anchorTask) return;
 
-    const DAY = 24 * 60 * 60 * 1000;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (anchorTask.kind === 'milestone') return;
       setSelectedTaskId(anchorTask.id);
+      const laneLabel =
+        projection.lanes.find((l) => l.id === anchorTask.group)?.title ?? String(anchorTask.group);
+      setGridNavAnnouncement(
+        ORCHESTRATION_UI_COPY.roadmapGanttKeyboardTaskOpenedAnnouncement.replace('{title}', anchorTask.title).replace('{lane}', laneLabel),
+      );
       return;
     }
 
     let delta = 0;
-    if (event.key === 'ArrowLeft') delta = -DAY;
-    if (event.key === 'ArrowRight') delta = DAY;
-    if (event.key === 'ArrowUp') delta = -7 * DAY;
-    if (event.key === 'ArrowDown') delta = 7 * DAY;
+    if (event.key === 'ArrowLeft') delta = -ROADMAP_GANTT_DAY_MS;
+    if (event.key === 'ArrowRight') delta = ROADMAP_GANTT_DAY_MS;
+    if (event.key === 'ArrowUp') delta = -7 * ROADMAP_GANTT_DAY_MS;
+    if (event.key === 'ArrowDown') delta = 7 * ROADMAP_GANTT_DAY_MS;
     if (delta === 0) return;
 
     event.preventDefault();
     const anchorTime = Math.floor((anchorTask.start_time + anchorTask.end_time) / 2);
     const nextTask = pickNearestTaskForTime(anchorTime + delta);
-    if (nextTask) {
-      setFocusedTaskId(nextTask.id);
+    if (!nextTask || nextTask.id === anchorTask.id) {
+      setGridNavAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttKeyboardNavigationBoundaryAnnouncement);
+      return;
     }
+    setFocusedTaskId(nextTask.id);
+    focusTaskBarEl(nextTask.id);
   };
 
   const toggleDependencySort = (key: 'from' | 'to' | 'type') => {
@@ -754,14 +760,86 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     }
   }, [auditId, projection]);
 
+  const focusedTaskLiveRegionSig = useMemo(() => {
+    const task = projection.tasks.find((t) => t.id === focusedTaskId);
+    if (!task || !focusedTaskId) return '';
+    return `${task.title}\u001f${task.group}\u001f${task.start_time}\u001f${task.end_time}`;
+  }, [focusedTaskId, projection.tasks]);
+
+  useEffect(() => {
+    if (!focusedTaskId || !focusedTaskLiveRegionSig) {
+      setGridNavAnnouncement('');
+      return;
+    }
+    const task = projection.tasks.find((t) => t.id === focusedTaskId);
+    if (!task) {
+      setGridNavAnnouncement('');
+      return;
+    }
+    const laneLabel = projection.lanes.find((l) => l.id === task.group)?.title ?? String(task.group);
+    setGridNavAnnouncement(
+      ORCHESTRATION_UI_COPY.roadmapGanttKeyboardFocusAnnouncement.replace('{title}', task.title).replace('{lane}', laneLabel),
+    );
+  }, [focusedTaskId, focusedTaskLiveRegionSig, projection.lanes, projection.tasks]);
+
+  useEffect(() => {
+    if (!mainPanelTabAnnouncement) return;
+    const t = window.setTimeout(() => setMainPanelTabAnnouncement(''), 2000);
+    return () => window.clearTimeout(t);
+  }, [mainPanelTabAnnouncement]);
+
+  const handleMainPanelTablistKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') {
+      return;
+    }
+    const rawTarget = event.target as HTMLElement | null;
+    const tabEl = rawTarget?.closest('[role="tab"]');
+    if (!(tabEl instanceof HTMLElement) || !event.currentTarget.contains(tabEl)) {
+      return;
+    }
+    event.preventDefault();
+    const panels = ['timeline', 'dependencies'] as const;
+    const idx = panels.indexOf(activePanel);
+    const focusTabByIndex = (i: number) => {
+      const id = i === 0 ? mainTabTimelineId : mainTabDependenciesId;
+      window.requestAnimationFrame(() => document.getElementById(id)?.focus());
+    };
+    if (event.key === 'Home') {
+      setActivePanel('timeline');
+      setMainPanelTabAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementTimeline);
+      focusTabByIndex(0);
+      return;
+    }
+    if (event.key === 'End') {
+      setActivePanel('dependencies');
+      setMainPanelTabAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementDependencies);
+      focusTabByIndex(1);
+      return;
+    }
+    const nextIdx =
+      event.key === 'ArrowRight' ? Math.min(idx + 1, panels.length - 1) : Math.max(idx - 1, 0);
+    const next = panels[nextIdx]!;
+    setActivePanel(next);
+    setMainPanelTabAnnouncement(
+      next === 'timeline'
+        ? ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementTimeline
+        : ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementDependencies,
+    );
+    focusTabByIndex(nextIdx);
+  };
+
   const renderTimelineItem: NonNullable<ReactCalendarTimelineProps<GanttTaskItem>['itemRenderer']> = useCallback(
     ({ item, getItemProps }) => {
       const tooltipSource = taskByIdFull.get(String(item.id));
-      const rootProps = getItemProps({
+      const rawItemRootProps = getItemProps({
         className: [item.className, tooltipSource?.kind === 'milestone' ? 'roadmap-gantt-milestone-root' : '']
           .filter(Boolean)
           .join(' '),
       });
+      const {
+        key: timelineItemReactKey,
+        ...itemRootAttrs
+      } = rawItemRootProps as HTMLAttributes<HTMLDivElement> & { key?: Key };
 
       const blocksDirect =
         tooltipSource != null && tooltipSource.kind === 'task'
@@ -773,7 +851,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
           : 0;
 
       const durationDays =
-        tooltipSource != null ? Math.max(1, Math.ceil((tooltipSource.end_time - tooltipSource.start_time) / DAY_MS)) : 1;
+        tooltipSource != null ? Math.max(1, Math.ceil((tooltipSource.end_time - tooltipSource.start_time) / ROADMAP_GANTT_DAY_MS)) : 1;
 
       const nowMs = Date.now();
       let scheduleElapsedPct = 0;
@@ -810,22 +888,32 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
       if (tooltipSource?.kind === 'milestone') {
         const bRow = baselineSnapshot?.tasks[tooltipSource.id];
         tooltipBody = (
-          <div className="space-y-1 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)]">
+          <div className="space-y-1 text-left text-xs font-normal leading-relaxed text-foreground">
             <div className="font-medium">{tooltipSource.title}</div>
             <div>{dayjs(tooltipSource.start_time).format('YYYY-MM-DD')}</div>
             {bRow ? (
-              <div className="ds-text-tertiary">
-                {`${ORCHESTRATION_UI_COPY.roadmapGanttBaselineDeltaStartLabel}: ${baselineDeltaDays(tooltipSource.start_time, bRow.startMs)}${ORCHESTRATION_UI_COPY.roadmapGanttDurationDaysSuffix}`}
-              </div>
+              <>
+                <div className="ds-text-tertiary">
+                  {`${ORCHESTRATION_UI_COPY.roadmapGanttBaselineDeltaStartLabel}: ${baselineDeltaDays(tooltipSource.start_time, bRow.startMs)}${ORCHESTRATION_UI_COPY.roadmapGanttDurationDaysSuffix}`}
+                </div>
+                {baselineSnapshot ? (
+                  <div className="ds-text-tertiary">
+                    {ORCHESTRATION_UI_COPY.roadmapGanttBaselineTooltipCapturedLine.replace(
+                      '{datetime}',
+                      dayjs(baselineSnapshot.takenAtMs).format('YYYY-MM-DD HH:mm'),
+                    )}
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </div>
         );
       } else if (tooltipSource) {
         const floatDays =
-          tooltipSource.totalFloatMs != null ? Math.max(0, Math.round(tooltipSource.totalFloatMs / DAY_MS)) : null;
+          tooltipSource.totalFloatMs != null ? Math.max(0, Math.round(tooltipSource.totalFloatMs / ROADMAP_GANTT_DAY_MS)) : null;
         const bRow = baselineSnapshot?.tasks[tooltipSource.id];
         tooltipBody = (
-          <div className="space-y-1 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)]">
+          <div className="space-y-1 text-left text-xs font-normal leading-relaxed text-foreground">
             <div className="font-medium">{tooltipSource.title}</div>
             <div>
               {dayjs(tooltipSource.start_time).format('YYYY-MM-DD')}
@@ -859,6 +947,14 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
               <>
                 <div>{`${ORCHESTRATION_UI_COPY.roadmapGanttBaselineDeltaStartLabel}: ${baselineDeltaDays(tooltipSource.start_time, bRow.startMs)}${ORCHESTRATION_UI_COPY.roadmapGanttDurationDaysSuffix}`}</div>
                 <div>{`${ORCHESTRATION_UI_COPY.roadmapGanttBaselineDeltaEndLabel}: ${baselineDeltaDays(tooltipSource.end_time, bRow.endMs)}${ORCHESTRATION_UI_COPY.roadmapGanttDurationDaysSuffix}`}</div>
+                {baselineSnapshot ? (
+                  <div className="ds-text-tertiary">
+                    {ORCHESTRATION_UI_COPY.roadmapGanttBaselineTooltipCapturedLine.replace(
+                      '{datetime}',
+                      dayjs(baselineSnapshot.takenAtMs).format('YYYY-MM-DD HH:mm'),
+                    )}
+                  </div>
+                ) : null}
               </>
             ) : null}
             <div>{`${ORCHESTRATION_UI_COPY.roadmapGanttBlocksLabel}: ${blocksDirect}`}</div>
@@ -867,16 +963,27 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         );
       }
 
-      return (
+      const isKeyboardFocus = focusedTaskId === String(item.id);
+
+      const taskBar = (
         <Tooltip>
           <TooltipTrigger asChild>
-            <div {...rootProps}>
+            <div
+              key={timelineItemReactKey}
+              {...itemRootAttrs}
+              data-roadmap-task-id={String(item.id)}
+              tabIndex={isKeyboardFocus ? 0 : -1}
+            >
               <div className="roadmap-gantt-item-visual-stack">
                 {baselineGhost ? (
-                  <div className="roadmap-gantt-baseline-ghost-track" aria-hidden>
+                  <div
+                    className="roadmap-gantt-baseline-ghost-track"
+                    aria-label={ORCHESTRATION_UI_COPY.roadmapGanttBaselineGhostBarAria}
+                  >
                     <span
                       className="roadmap-gantt-baseline-ghost"
                       style={{ left: `${baselineGhost.leftPct}%`, width: `${baselineGhost.widthPct}%` }}
+                      aria-hidden
                     />
                   </div>
                 ) : null}
@@ -926,20 +1033,59 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
           <TooltipContent
             side="top"
             sideOffset={6}
-            className="border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
+            className="border border-border bg-popover px-3 py-2 text-foreground shadow-lg [&>svg]:hidden"
           >
             {tooltipBody}
           </TooltipContent>
         </Tooltip>
       );
+
+      if (
+        tooltipSource?.kind === 'task' &&
+        tooltipSource.group !== ROADMAP_GANTT_MILESTONE_LANE_ID &&
+        selectableLanesForJump.length > 0
+      ) {
+        return (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>{taskBar}</ContextMenuTrigger>
+            <ContextMenuContent className="max-h-72 min-w-[12rem] overflow-y-auto">
+              <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
+                {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuLabel}
+              </ContextMenuLabel>
+              {selectableLanesForJump.map((lane) => (
+                <ContextMenuItem
+                  key={lane.id}
+                  className="text-xs"
+                  onSelect={() => {
+                    applyLaneFocusFilter(lane);
+                  }}
+                >
+                  {lane.title}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuContent>
+          </ContextMenu>
+        );
+      }
+
+      return taskBar;
     },
-    [baselineSnapshot, projection.dependencies, showScheduleProgress, showSlack, taskByIdFull],
+    [
+      applyLaneFocusFilter,
+      baselineSnapshot,
+      focusedTaskId,
+      projection.dependencies,
+      selectableLanesForJump,
+      showScheduleProgress,
+      showSlack,
+      taskByIdFull,
+    ],
   );
 
   const scrollTimelineByDirection = (direction: 'left' | 'right') => {
     const scrollNode = timelineScrollRef.current;
     if (!scrollNode) return;
-    const amount = Math.max(Math.floor(scrollNode.clientWidth * 0.72), 240);
+    const amount = roadmapGanttToolbarScrollDeltaPx(scrollNode.clientWidth);
     const delta = direction === 'left' ? -amount : amount;
     scrollNode.scrollBy({ left: delta, behavior: 'smooth' });
   };
@@ -951,7 +1097,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     const scrollNode = timelineScrollRef.current;
     if (!scrollNode) return;
     const now = Date.now();
-    const ratio = (now - projection.defaultTimeStart) / timelineRange;
+    const ratio = (now - projection.defaultTimeStart) / timelineRangeMs;
     const clampedRatio = Math.min(Math.max(ratio, 0), 1);
     const maxScroll = Math.max(scrollNode.scrollWidth - scrollNode.clientWidth, 0);
     const target = Math.floor(maxScroll * clampedRatio - scrollNode.clientWidth / 2);
@@ -963,6 +1109,44 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
     const clamped = Math.min(Math.max(ratio, 0), 1);
     const maxScroll = Math.max(scrollNode.scrollWidth - scrollNode.clientWidth, 0);
     scrollNode.scrollTo({ left: maxScroll * clamped, behavior: isOverviewDragging ? 'auto' : 'smooth' });
+  };
+
+  const handleOverviewKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (filteredTasks.length === 0) return;
+    const scrollNode = timelineScrollRef.current;
+    if (!scrollNode) return;
+    const maxScroll = Math.max(scrollNode.scrollWidth - scrollNode.clientWidth, 0);
+    const step = roadmapGanttOverviewKeyboardStepPx(scrollNode.clientWidth);
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      scrollNode.scrollBy({ left: -step, behavior: 'smooth' });
+      return;
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      scrollNode.scrollBy({ left: step, behavior: 'smooth' });
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      scrollNode.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      scrollNode.scrollTo({ left: maxScroll, behavior: 'smooth' });
+      return;
+    }
+    const pageStep = roadmapGanttOverviewPageStepPx(scrollNode.clientWidth, step);
+    if (event.key === 'PageDown') {
+      event.preventDefault();
+      scrollNode.scrollBy({ left: pageStep, behavior: 'smooth' });
+      return;
+    }
+    if (event.key === 'PageUp') {
+      event.preventDefault();
+      scrollNode.scrollBy({ left: -pageStep, behavior: 'smooth' });
+    }
   };
 
   const handleOverviewPointer = (clientX: number) => {
@@ -1093,436 +1277,169 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
 
   return (
     <section className="space-y-4">
-      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-base)] p-2 shadow-[var(--shadow-xs)]">
-        <div className="flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-card p-2 shadow-sm">
+        <div
+          className="flex items-center gap-2"
+          role="tablist"
+          aria-orientation="horizontal"
+          aria-label={ORCHESTRATION_UI_COPY.roadmapGanttMainPanelsTablistAriaLabel}
+          onKeyDown={handleMainPanelTablistKeyDown}
+        >
           <button
             type="button"
-            onClick={() => setActivePanel('timeline')}
-            aria-pressed={activePanel === 'timeline'}
+            role="tab"
+            id={mainTabTimelineId}
+            aria-selected={activePanel === 'timeline'}
+            aria-controls={mainPanelTimelineId}
+            tabIndex={activePanel === 'timeline' ? 0 : -1}
+            onClick={() => {
+              setActivePanel('timeline');
+              setMainPanelTabAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementTimeline);
+            }}
             className={[
               'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               activePanel === 'timeline'
-                ? 'bg-[var(--surface-raised)] ds-text-primary'
-                : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
+                ? 'bg-muted ds-text-primary'
+                : 'ds-text-secondary hover:bg-muted',
             ].join(' ')}
           >
-            Timeline
+            {ORCHESTRATION_UI_COPY.roadmapGanttMainTabTimelineLabel}
           </button>
           <button
             type="button"
-            onClick={() => setActivePanel('dependencies')}
-            aria-pressed={activePanel === 'dependencies'}
+            role="tab"
+            id={mainTabDependenciesId}
+            aria-selected={activePanel === 'dependencies'}
+            aria-controls={mainPanelDependenciesId}
+            tabIndex={activePanel === 'dependencies' ? 0 : -1}
+            onClick={() => {
+              setActivePanel('dependencies');
+              setMainPanelTabAnnouncement(ORCHESTRATION_UI_COPY.roadmapGanttMainTabPanelAnnouncementDependencies);
+            }}
             className={[
               'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               activePanel === 'dependencies'
-                ? 'bg-[var(--surface-raised)] ds-text-primary'
-                : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
+                ? 'bg-muted ds-text-primary'
+                : 'ds-text-secondary hover:bg-muted',
             ].join(' ')}
           >
-            Dependencies
+            {ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel}
           </button>
         </div>
       </div>
       {activePanel === 'timeline' ? (
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-base)] p-4 shadow-[var(--shadow-xs)]">
+        <div
+          id={mainPanelTimelineId}
+          role="tabpanel"
+          aria-labelledby={mainTabTimelineId}
+          className="rounded-xl border border-border bg-card p-4 shadow-sm"
+        >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold ds-text-primary">Roadmap timeline</h3>
-            <p className="mt-1 text-xs ds-text-tertiary">Multi-lane schedule with dependency context and keyboard control.</p>
+            <h3 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.roadmapGanttTimelinePanelTitle}</h3>
+            <p className="mt-1 text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttTimelinePanelHint}</p>
+            {baselineSnapshot == null ? (
+              <p className="mt-2 max-w-prose text-[length:var(--text-2xs)] ds-text-secondary">
+                {ORCHESTRATION_UI_COPY.roadmapGanttBaselinePanelOnboarding}
+              </p>
+            ) : (
+              <p className="mt-2 max-w-prose text-[length:var(--text-2xs)] ds-text-secondary">
+                {ORCHESTRATION_UI_COPY.roadmapGanttBaselineStripeLegendCaption}
+              </p>
+            )}
           </div>
-          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-2.5 py-1 text-xs font-medium ds-text-secondary">
-            {`Lanes ${projection.lanes.length} · Tasks ${projection.tasks.length}`}
-          </div>
-        </div>
-        <div className="roadmap-controls-bar mb-3 space-y-2">
-          {showRestoredViewNotice ? (
-            <div className="roadmap-restore-notice">
-              <span>View restored from your previous session.</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setTimeScale('day');
-                  setDayRangeDays(60);
-                  setDensityMode('comfortable');
-                  setShowRestoredViewNotice(false);
-                }}
-                className="underline underline-offset-2"
-              >
-                Use default view
-              </button>
-              <button type="button" onClick={() => setShowRestoredViewNotice(false)} className="underline underline-offset-2">
-                Dismiss
-              </button>
-            </div>
-          ) : null}
-          <div className="roadmap-controls-section">
-            <div className="roadmap-controls-section-title">View</div>
-            <label htmlFor="densityMode" className="text-xs font-medium ds-text-primary">
-              Density
-            </label>
-            <select
-              id="densityMode"
-              value={densityMode}
-              onChange={(event) => setDensityMode(event.target.value as 'compact' | 'comfortable')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="compact">Compact</option>
-              <option value="comfortable">Comfortable</option>
-            </select>
-            <div className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] p-1" role="group" aria-label="Timeline scale">
-            <button
-              type="button"
-              onClick={() => setTimeScale('day')}
-              aria-pressed={!isMonthScale}
-              className={[
-                'rounded px-2 py-1 text-xs transition-colors',
-                !isMonthScale ? 'bg-[var(--surface-raised)] ds-text-primary' : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
-              ].join(' ')}
-            >
-              Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeScale('month')}
-              aria-pressed={isMonthScale}
-              className={[
-                'rounded px-2 py-1 text-xs transition-colors',
-                isMonthScale ? 'bg-[var(--surface-raised)] ds-text-primary' : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
-              ].join(' ')}
-            >
-              Months
-            </button>
-            </div>
-            {!isMonthScale ? (
-              <div className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] p-1" role="group" aria-label="Day horizon">
-                {[30, 60, 90].map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    onClick={() => setDayRangeDays(days as 30 | 60 | 90)}
-                    aria-pressed={dayRangeDays === days}
-                    className={[
-                      'rounded px-2 py-1 text-xs transition-colors',
-                      dayRangeDays === days ? 'bg-[var(--surface-raised)] ds-text-primary' : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
-                    ].join(' ')}
-                    title={`Show approximately ${days} days`}
-                  >
-                    {`${days}d`}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={jumpTimelineToToday}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-              title="Jump timeline to today"
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => jumpTimelineRangeByDirection('previous')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-              title="Scroll to previous date range"
-              aria-label="Previous range"
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              onClick={() => jumpTimelineRangeByDirection('next')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-              title="Scroll to next date range"
-              aria-label="Next range"
-            >
-              Next
-            </button>
-            <label className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary">
-              <input
-                id="roadmapCriticalPathOnly"
-                type="checkbox"
-                checked={criticalPathOnly}
-                onChange={(event) => setCriticalPathOnly(event.target.checked)}
-              />
-              {ORCHESTRATION_UI_COPY.roadmapGanttCriticalPathFilterLabel}
-            </label>
-            <label
-              className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary"
-              title={ORCHESTRATION_UI_COPY.roadmapGanttChainHighlightToggleHint}
-            >
-              <input
-                id="roadmapChainHighlight"
-                type="checkbox"
-                checked={highlightDependencyChain}
-                onChange={(event) => setHighlightDependencyChain(event.target.checked)}
-              />
-              {ORCHESTRATION_UI_COPY.roadmapGanttChainHighlightLabel}
-            </label>
-            <input
-              id="roadmapTitleSearch"
-              type="search"
-              value={titleQuery}
-              onChange={(event) => setTitleQuery(event.target.value)}
-              placeholder={ORCHESTRATION_UI_COPY.roadmapGanttSearchPlaceholder}
-              aria-label={ORCHESTRATION_UI_COPY.roadmapGanttSearchAriaLabel}
-              className="min-w-[8rem] max-w-[14rem] rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary"
-            />
-            <label className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary">
-              <input
-                id="roadmapShowSlack"
-                type="checkbox"
-                checked={showSlack}
-                onChange={(event) => setShowSlack(event.target.checked)}
-              />
-              {ORCHESTRATION_UI_COPY.roadmapGanttSlackToggleLabel}
-            </label>
-            <label className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary">
-              <input
-                id="roadmapShowScheduleProgress"
-                type="checkbox"
-                checked={showScheduleProgress}
-                onChange={(event) => setShowScheduleProgress(event.target.checked)}
-              />
-              {ORCHESTRATION_UI_COPY.roadmapGanttScheduleProgressToggleLabel}
-            </label>
-          </div>
-          <div className="roadmap-controls-section">
-            <div className="roadmap-controls-section-title">Filters</div>
-            <label htmlFor="dependencyTypeFilter" className="text-xs font-medium ds-text-primary">
-              Dependency type
-            </label>
-            <select
-              id="dependencyTypeFilter"
-              value={dependencyTypeFilter}
-              onChange={(event) => setDependencyTypeFilter(event.target.value as 'all' | 'FS' | 'SS' | 'FF' | 'SF')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="all">All dependency types</option>
-              <option value="FS">{`${DEPENDENCY_KIND_SHORT_LABEL.FS} (Finish -> Start)`}</option>
-              <option value="SS">{`${DEPENDENCY_KIND_SHORT_LABEL.SS} (Start -> Start)`}</option>
-              <option value="FF">{`${DEPENDENCY_KIND_SHORT_LABEL.FF} (Finish -> Finish)`}</option>
-              <option value="SF">{`${DEPENDENCY_KIND_SHORT_LABEL.SF} (Start -> Finish)`}</option>
-            </select>
-            <label className="inline-flex items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary">
-              <input type="checkbox" checked={blockedOnly} onChange={(event) => setBlockedOnly(event.target.checked)} />
-              Blocked only
-            </label>
-            <button type="button" onClick={applyPresetBlocked} className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]">
-              Preset: Blocked 30d
-            </button>
-            <button type="button" onClick={applyPresetExecution} className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]">
-              Preset: Execution
-            </button>
-            <button
-              type="button"
-              onClick={applyPresetCriticalPath}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-            >
-              {ORCHESTRATION_UI_COPY.roadmapGanttCriticalPathPresetLabel}
-            </button>
-          </div>
-          <div className="roadmap-controls-section roadmap-controls-section-actions">
-            <div className="roadmap-controls-section-title">Actions</div>
-            <button
-              type="button"
-              onClick={() => setShowAdvancedControls((prev) => !prev)}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-              aria-expanded={showAdvancedControls}
-            >
-              {`Advanced${advancedFiltersCount > 0 ? ` (${advancedFiltersCount})` : ''}`}
-            </button>
-            <button
-              type="button"
-              onClick={resetView}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-            >
-              Reset view
-            </button>
-            <button
-              type="button"
-              disabled={sprintExportBusy}
-              onClick={() => void downloadSprintPlanCsv()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)] disabled:opacity-60"
-            >
-              {sprintExportBusy ? (
-                <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-              ) : (
-                <DownloadSimple className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              )}
-              {sprintExportBusy ? ORCHESTRATION_UI_COPY.sprintExportCsvBusy : ORCHESTRATION_UI_COPY.sprintExportCsvCta}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                writeRoadmapGanttBaseline(auditId, projection);
-                setBaselineSnapshot(readRoadmapGanttBaseline(auditId));
-              }}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
-            >
-              {ORCHESTRATION_UI_COPY.roadmapGanttBaselineSetCta}
-            </button>
-            <button
-              type="button"
-              disabled={baselineSnapshot == null}
-              onClick={() => {
-                clearRoadmapGanttBaseline(auditId);
-                setBaselineSnapshot(null);
-              }}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)] disabled:opacity-60"
-            >
-              {ORCHESTRATION_UI_COPY.roadmapGanttBaselineClearCta}
-            </button>
-            <button
-              type="button"
-              disabled={icalExportBusy}
-              onClick={() => downloadIcal()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)] disabled:opacity-60"
-            >
-              {icalExportBusy ? (
-                <ArrowsClockwise className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-              ) : (
-                <DownloadSimple className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              )}
-              {icalExportBusy ? ORCHESTRATION_UI_COPY.roadmapGanttIcalExportBusy : ORCHESTRATION_UI_COPY.roadmapGanttIcalExportCta}
-            </button>
-            {baselineSnapshot ? (
-              <span className="text-xs ds-text-secondary">
-                {`${ORCHESTRATION_UI_COPY.roadmapGanttBaselineTakenAtPrefix}: ${dayjs(baselineSnapshot.takenAtMs).format('YYYY-MM-DD HH:mm')}`}
-              </span>
-            ) : null}
-            <span className="max-w-md text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttBaselineLocalNotice}</span>
-            <span className="text-xs ds-text-tertiary">Reset clears filters, panel, and selected task.</span>
-          </div>
-          <div className="roadmap-controls-metrics text-xs ds-text-tertiary">
-            <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-medium ds-text-secondary">
-              {`Lanes ${groups.length}`}
-            </span>
-            <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-medium ds-text-secondary">
-              {`Tasks ${filteredTasks.length}`}
-            </span>
-            <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-medium ds-text-secondary">
-              {`Dependencies ${visibleDependencies.length}`}
-            </span>
-            {!isMonthScale ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-medium ds-text-secondary">
-                <span className="roadmap-weekend-legend-swatch shrink-0" aria-hidden />
-                {ORCHESTRATION_UI_COPY.roadmapGanttWeekendLegendLabel}
-              </span>
-            ) : null}
-            <TooltipProvider delayDuration={180}>
-              {DEPENDENCY_KIND_ORDER.map((kind) => (
-                <span key={kind} className="inline-flex items-center gap-1 rounded-full border border-transparent bg-[var(--surface-base)] px-2 py-1">
-                  <span className="roadmap-dep-kind-dot h-2 w-2 rounded-full" data-kind={kind} />
-                  {DEPENDENCY_KIND_LABEL[kind]}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="roadmap-kind-help" aria-label={`${kind} definition`}>
-                        ?
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      sideOffset={6}
-                      className="border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
-                    >
-                      {DEPENDENCY_KIND_HINT[kind]}
-                    </TooltipContent>
-                  </Tooltip>
-                </span>
-              ))}
-            </TooltipProvider>
+          <div className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium ds-text-secondary">
+            {ORCHESTRATION_UI_COPY.roadmapGanttTimelineHeaderCountsTemplate
+              .replace('{lanes}', String(groups.length))
+              .replace('{tasks}', String(filteredTasks.length))}
           </div>
         </div>
-        {showAdvancedControls ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-2">
-            <label htmlFor="ownerFilter" className="text-xs font-medium ds-text-primary">
-              Owner
-            </label>
-            <select
-              id="ownerFilter"
-              value={ownerFilter}
-              onChange={(event) => setOwnerFilter(event.target.value)}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="all">All owners</option>
-              {ownerOptions.map((owner) => (
-                <option key={owner} value={owner}>
-                  {owner}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="statusFilter" className="text-xs font-medium ds-text-primary">
-              Status
-            </label>
-            <select
-              id="statusFilter"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as 'all' | 'planned' | 'in-progress' | 'done')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="all">All statuses</option>
-              <option value="planned">Planned</option>
-              <option value="in-progress">In progress</option>
-              <option value="done">Done</option>
-            </select>
-            <label htmlFor="laneFilter" className="text-xs font-medium ds-text-primary">
-              Lane
-            </label>
-            <select
-              id="laneFilter"
-              value={laneFilter}
-              onChange={(event) => setLaneFilter(event.target.value)}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="all">All lanes</option>
-              {projection.lanes
-                .filter((lane) => lane.id !== ROADMAP_GANTT_MILESTONE_LANE_ID)
-                .map((lane) => (
-                  <option key={lane.id} value={lane.id}>
-                    {lane.title}
-                  </option>
-                ))}
-            </select>
-            <label htmlFor="dependencyView" className="text-xs font-medium ds-text-primary">
-              Dependency view
-            </label>
-            <select
-              id="dependencyView"
-              value={dependencyView}
-              onChange={(event) => setDependencyView(event.target.value as 'all' | 'selected' | 'hide-weak')}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs"
-            >
-              <option value="all">All</option>
-              <option value="selected">Selected task only</option>
-              <option value="hide-weak">Hide weak</option>
-            </select>
+        {isHeavyTaskLoad ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs ds-text-secondary"
+          >
+            {ORCHESTRATION_UI_COPY.roadmapGanttHeavyTaskLoadTimelineNotice.replace('{count}', String(filteredTasks.length)).replace(
+              '{threshold}',
+              String(ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD),
+            )}
           </div>
         ) : null}
-        {hasActiveFilters ? (
-          <div className="mb-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs ds-text-secondary">
-              <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-1">Filtered view</span>
-              {activeFilterTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={tag.clear}
-                  className="inline-flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 ds-text-secondary hover:bg-[var(--surface-raised)]"
-                  title={`Clear ${tag.label}`}
-                >
-                  <span>{tag.label}</span>
-                  <span aria-hidden>×</span>
-                </button>
-              ))}
-              <button type="button" onClick={resetView} className="underline underline-offset-2">
-                Clear all filters
-              </button>
-            </div>
-            <p className="text-xs ds-text-tertiary">Current filter logic: {activeFilterReason}</p>
-          </div>
-        ) : null}
-        {filteredTasks.length > 0 ? (
+        <RoadmapGanttToolbar
+          projection={projection}
+          groups={groups}
+          filteredTasksCount={filteredTasks.length}
+          visibleDependenciesCount={visibleDependencies.length}
+          showRestoredViewNotice={showRestoredViewNotice}
+          onDismissRestoredDefaults={() => {
+            setTimeScale('day');
+            setDayRangeDays(60);
+            setDensityMode('comfortable');
+            setShowRestoredViewNotice(false);
+          }}
+          onDismissRestoredNotice={() => setShowRestoredViewNotice(false)}
+          densityMode={densityMode}
+          onDensityChange={setDensityMode}
+          isMonthScale={isMonthScale}
+          onTimeScaleDay={() => setTimeScale('day')}
+          onTimeScaleMonth={() => setTimeScale('month')}
+          dayRangeDays={dayRangeDays}
+          onDayRangeChange={setDayRangeDays}
+          onJumpToToday={jumpTimelineToToday}
+          baselineSnapshot={baselineSnapshot}
+          titleQuery={titleQuery}
+          onTitleQueryChange={setTitleQuery}
+          roadmapToolbarMoreOpen={roadmapToolbarMoreOpen}
+          onRoadmapToolbarMoreOpenChange={setRoadmapToolbarMoreOpen}
+          onJumpRangePrevious={() => jumpTimelineRangeByDirection('previous')}
+          onJumpRangeNext={() => jumpTimelineRangeByDirection('next')}
+          criticalPathOnly={criticalPathOnly}
+          onCriticalPathOnlyChange={setCriticalPathOnly}
+          highlightDependencyChain={highlightDependencyChain}
+          onHighlightDependencyChainChange={setHighlightDependencyChain}
+          showSlack={showSlack}
+          onShowSlackChange={setShowSlack}
+          showScheduleProgress={showScheduleProgress}
+          onShowScheduleProgressChange={setShowScheduleProgress}
+          dependencyTypeFilter={dependencyTypeFilter}
+          onDependencyTypeFilterChange={setDependencyTypeFilter}
+          blockedOnly={blockedOnly}
+          onBlockedOnlyChange={setBlockedOnly}
+          onPresetBlocked={applyPresetBlocked}
+          onPresetExecution={applyPresetExecution}
+          onPresetCriticalPath={applyPresetCriticalPath}
+          showAdvancedControls={showAdvancedControls}
+          onToggleAdvancedControls={() => setShowAdvancedControls((prev) => !prev)}
+          advancedFiltersCount={advancedFiltersCount}
+          onResetView={resetView}
+          sprintExportBusy={sprintExportBusy}
+          onDownloadSprintCsv={() => void downloadSprintPlanCsv()}
+          onCaptureBaseline={() => {
+            writeRoadmapGanttBaseline(auditId, projection);
+            setBaselineSnapshot(readRoadmapGanttBaseline(auditId));
+          }}
+          onClearBaseline={() => {
+            clearRoadmapGanttBaseline(auditId);
+            setBaselineSnapshot(null);
+          }}
+          baselineClearDisabled={baselineSnapshot == null}
+          icalExportBusy={icalExportBusy}
+          onDownloadIcal={() => downloadIcal()}
+          ownerFilter={ownerFilter}
+          ownerOptions={ownerOptions}
+          statusFilter={statusFilter}
+          laneFilter={laneFilter}
+          dependencyView={dependencyView}
+          onOwnerFilterChange={setOwnerFilter}
+          onStatusFilterChange={setStatusFilter}
+          onLaneFilterChange={setLaneFilter}
+          onDependencyViewChange={setDependencyView}
+          hasActiveFilters={hasActiveFilters}
+          activeFilterTags={activeFilterTags}
+          activeFilterReason={activeFilterReason}
+        />
+{filteredTasks.length > 0 ? (
         <div className="roadmap-grid-area">
           <div
             className="roadmap-grid-scroll-controls"
@@ -1548,50 +1465,63 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
               →
             </button>
           </div>
-          <p className="roadmap-grid-hint" aria-live="polite">
-            Use arrows to move focus, Enter to open, T for Timeline, D for Dependencies, G/B for Graph/Table, A for Advanced, R to reset.
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="roadmap-grid-hint m-0">{ORCHESTRATION_UI_COPY.roadmapGanttTimelineKeyboardShortcutsHint}</p>
+            {laneMoveMenuEligible ? (
+              <DropdownMenu open={laneMoveMenuOpen} onOpenChange={setLaneMoveMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  >
+                    {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuTrigger}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[12rem]">
+                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                    {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuLabel}
+                  </DropdownMenuLabel>
+                  {selectableLanesForJump.map((lane) => (
+                    <DropdownMenuItem
+                      key={lane.id}
+                      className="text-xs"
+                      onSelect={() => {
+                        applyLaneFocusFilter(lane);
+                      }}
+                    >
+                      {lane.title}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {gridNavAnnouncement}
+          </span>
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {mainPanelTabAnnouncement}
+          </span>
+          <p id={roadmapOverviewMapDescriptionId} className="sr-only">
+            {ORCHESTRATION_UI_COPY.roadmapGanttOverviewMapLongDescription}
           </p>
-          {filteredTasks.length === 0 ? (
-            <div className="roadmap-overview-strip roadmap-overview-strip-empty" role="presentation" data-empty="true">
-              <span className="roadmap-overview-empty-label">No tasks in current filters</span>
-            </div>
-          ) : (
-            <div
-              ref={overviewTrackRef}
-              className="roadmap-overview-strip"
-              role="presentation"
-              data-empty="false"
-              onMouseDown={(event) => {
-                setIsOverviewDragging(true);
-                handleOverviewPointer(event.clientX);
-              }}
-              onMouseMove={(event) => {
-                if ((event.buttons & 1) !== 1) return;
-                handleOverviewPointer(event.clientX);
-              }}
-              onMouseUp={() => setIsOverviewDragging(false)}
-              onMouseLeave={() => setIsOverviewDragging(false)}
-            >
-              {overviewTasks.map((task) => {
-                const left = mapX(task.start_time);
-                const width = Math.max(mapX(task.end_time) - left, 0.8);
-                return (
-                  <span
-                    key={`${task.id}-overview`}
-                    className="roadmap-overview-task"
-                    style={{ left: `${left}%`, width: `${width}%` }}
-                  />
-                );
-              })}
-              <span
-                className="roadmap-overview-window"
-                style={{
-                  width: `${overviewWindowWidth}%`,
-                  left: `${overviewWindowLeft}%`,
-                }}
-              />
-            </div>
-          )}
+          <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttOverviewKeyboardHint}</p>
+          <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttOverviewPointerHint}</p>
+          <RoadmapGanttOverviewStrip
+            filteredTasksLength={filteredTasks.length}
+            emptyFilteredLabel={ORCHESTRATION_UI_COPY.roadmapGanttOverviewEmptyFilteredLabel}
+            overviewTasks={overviewTasks}
+            mapX={mapX}
+            isOverviewDragging={isOverviewDragging}
+            onOverviewDraggingChange={setIsOverviewDragging}
+            onOverviewPointer={handleOverviewPointer}
+            onOverviewKeyDown={handleOverviewKeyDown}
+            overviewWindowWidthPct={overviewWindowWidth}
+            overviewWindowLeftPct={overviewWindowLeft}
+            trackRef={overviewTrackRef}
+            descriptionId={roadmapOverviewMapDescriptionId}
+            ariaLabel={ORCHESTRATION_UI_COPY.roadmapGanttOverviewMapAriaLabel}
+          />
           <div
             ref={timelineShellRef}
             className={[
@@ -1602,7 +1532,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
             ].join(' ')}
             tabIndex={0}
             role="grid"
-            aria-label="Roadmap timeline keyboard grid"
+            aria-label={ORCHESTRATION_UI_COPY.roadmapGanttTimelineGridAriaLabel}
             data-testid="roadmap-timeline-grid"
             onKeyDown={handleTimelineGridKeyDown}
           >
@@ -1622,7 +1552,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
             }))}
             defaultTimeStart={defaultViewportStart}
             defaultTimeEnd={defaultViewportEnd}
-            lineHeight={52}
+            lineHeight={ROADMAP_GANTT_TIMELINE_LINE_HEIGHT_PX}
             itemHeightRatio={0.72}
             sidebarWidth={220}
             rightSidebarWidth={0}
@@ -1630,8 +1560,8 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
             canResize={false}
             stackItems
             itemRenderer={renderTimelineItem}
-            minZoom={3 * 24 * 60 * 60 * 1000}
-            maxZoom={isMonthScale ? 3 * 366 * 24 * 60 * 60 * 1000 : 366 * 24 * 60 * 60 * 1000}
+            minZoom={ROADMAP_GANTT_TIMELINE_MIN_ZOOM_MS}
+            maxZoom={isMonthScale ? ROADMAP_GANTT_TIMELINE_MAX_ZOOM_MONTH_MS : ROADMAP_GANTT_TIMELINE_MAX_ZOOM_DAY_MS}
             verticalLineClassNamesForTime={(start) => {
               const date = dayjs(start);
               const classes = ['roadmap-day-divider'];
@@ -1700,93 +1630,128 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         </div>
         ) : null}
         {filteredTasks.length === 0 ? (
-          <div className="mt-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--surface-raised)] p-4 text-sm ds-text-secondary">
-            {hasActiveFilters
-              ? `No tasks match current filters. Current combination: ${activeFilterReason || 'active filters'}.`
-              : 'No tasks available for this roadmap yet.'}
+          <div className="mt-3 rounded-lg border border-dashed border-border bg-muted p-4 text-sm ds-text-secondary">
+            {hasActiveFilters ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="m-0 max-w-prose">
+                  {ORCHESTRATION_UI_COPY.roadmapEmptyFilteredBodyPrefix}{' '}
+                  {ORCHESTRATION_UI_COPY.roadmapGanttEmptyFilteredActiveReasonPrefix}{' '}
+                  {activeFilterReason || ORCHESTRATION_UI_COPY.roadmapGanttFilterLogicFallback}.{' '}
+                  {ORCHESTRATION_UI_COPY.roadmapEmptyFilteredBodySuffix}
+                </p>
+                <button
+                  type="button"
+                  onClick={resetView}
+                  className="shrink-0 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium ds-text-primary hover:bg-muted"
+                >
+                  {ORCHESTRATION_UI_COPY.roadmapGanttClearAllFilters}
+                </button>
+              </div>
+            ) : (
+              ORCHESTRATION_UI_COPY.roadmapEmptyNoTasksBody
+            )}
           </div>
         ) : null}
       </div>
       ) : null}
       {activePanel === 'dependencies' ? (
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-base)] p-4 shadow-[var(--shadow-xs)]">
+        <div
+          id={mainPanelDependenciesId}
+          role="tabpanel"
+          aria-labelledby={mainTabDependenciesId}
+          className="rounded-xl border border-border bg-card p-4 shadow-sm"
+        >
           <div className="mb-2 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold ds-text-primary">Dependencies</h3>
-              <p className="mt-1 text-xs ds-text-tertiary">
-                Graph helps investigate flows, table helps audit exact pairs and types.
-              </p>
+              <h3 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.roadmapGanttDependenciesPanelTitle}</h3>
+              <p className="mt-1 text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapDepsPanelIntro}</p>
             </div>
             <button
               type="button"
               onClick={resetView}
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-xs ds-text-primary hover:bg-[var(--surface-raised)]"
+              className="rounded-md border border-border bg-card px-2 py-1 text-xs ds-text-primary hover:bg-muted"
             >
-              Reset view
+              {ORCHESTRATION_UI_COPY.roadmapGanttResetViewCta}
             </button>
           </div>
-          <div className="mb-3 flex items-center gap-2">
+          <div
+            className="mb-3 flex flex-wrap items-center gap-2"
+            role="tablist"
+            aria-label={ORCHESTRATION_UI_COPY.roadmapGanttDepsViewTablistAriaLabel}
+          >
             <button
               type="button"
+              role="tab"
+              id={depsTabGraphId}
+              aria-selected={dependenciesTab === 'graph'}
+              aria-controls={depsPanelGraphId}
+              tabIndex={dependenciesTab === 'graph' ? 0 : -1}
               onClick={() => setDependenciesTab('graph')}
-              aria-pressed={dependenciesTab === 'graph'}
               className={[
                 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                 dependenciesTab === 'graph'
-                  ? 'bg-[var(--surface-raised)] ds-text-primary'
-                  : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
+                  ? 'bg-muted ds-text-primary'
+                  : 'ds-text-secondary hover:bg-muted',
               ].join(' ')}
             >
-              Graph
+              {ORCHESTRATION_UI_COPY.roadmapGanttDepsGraphTabLabel}
             </button>
             <button
               type="button"
+              role="tab"
+              id={depsTabTableId}
+              aria-selected={dependenciesTab === 'table'}
+              aria-controls={depsPanelTableId}
+              tabIndex={dependenciesTab === 'table' ? 0 : -1}
               onClick={() => setDependenciesTab('table')}
-              aria-pressed={dependenciesTab === 'table'}
               className={[
                 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                 dependenciesTab === 'table'
-                  ? 'bg-[var(--surface-raised)] ds-text-primary'
-                  : 'ds-text-secondary hover:bg-[var(--surface-raised)]',
+                  ? 'bg-muted ds-text-primary'
+                  : 'ds-text-secondary hover:bg-muted',
               ].join(' ')}
             >
-              Table
+              {ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel}
             </button>
-            <span className="ml-auto rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-1 text-xs ds-text-secondary">
+            <span className="ml-auto rounded-full border border-border bg-muted px-2 py-1 text-xs ds-text-secondary">
               {`Dependencies ${visibleDependencies.length}`}
             </span>
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs ds-text-secondary">
-            <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1">
+            <span className="rounded-full border border-border bg-card px-2 py-1">
               {dependenciesTab === 'graph'
-                ? 'Graph mode: investigate flow and bottlenecks'
-                : 'Table mode: audit exact dependency pairs'}
+                ? ORCHESTRATION_UI_COPY.roadmapGanttDepsModeGraphHint
+                : ORCHESTRATION_UI_COPY.roadmapGanttDepsModeTableHint}
             </span>
             {dependenciesTab === 'table' ? (
-              <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1">
+              <span className="rounded-full border border-border bg-card px-2 py-1">
                 {`Sorted by ${dependencySort.key} (${dependencySort.direction})`}
               </span>
             ) : null}
           </div>
-          <div className="mb-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
-            <p className="text-xs ds-text-secondary">
-              Missing links in the dependency matrix?
-            </p>
+          <div className="mb-3 rounded-lg border border-border bg-muted p-3">
+            <p className="text-xs ds-text-secondary">{ORCHESTRATION_UI_COPY.roadmapGanttDepsMissingLinksHint}</p>
             <Link
               to={strategyHref}
-              className="roadmap-deps-cta mt-1 inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--surface-base)] px-3 py-1"
+              className="roadmap-deps-cta mt-1 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1"
             >
               <span aria-hidden>+</span>
-              Build strategy to populate this dependency map
+              {ORCHESTRATION_UI_COPY.roadmapGanttDepsBuildStrategyLinkCta}
             </Link>
           </div>
-          {dependenciesTab === 'graph' ? (
-            <div>
+          <div
+            id={depsPanelGraphId}
+            role="tabpanel"
+            aria-labelledby={depsTabGraphId}
+            hidden={dependenciesTab !== 'graph'}
+          >
+            {dependenciesTab === 'graph' ? (
+              <div>
               <h4 className="text-sm font-semibold ds-text-primary">Dependency graph</h4>
               <p className="mt-1 text-xs ds-text-tertiary">
                 FS means the target task starts after the source task finishes. Other types follow the same initial letters.
               </p>
-              <div className="mt-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-base)] p-2">
+              <div className="mt-2 rounded-md border border-border bg-card p-2">
                 <div className="roadmap-dependency-legend">
                   <span className="roadmap-legend-item">
                     <span className="roadmap-legend-line roadmap-legend-line-fs" />
@@ -1814,66 +1779,26 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
                   </span>
                 </div>
               </div>
-              <div className="mt-3 overflow-x-auto rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-2">
-                <svg
-                  width="100%"
-                  height={dependencyCanvasHeight}
-                  viewBox={`0 0 100 ${dependencyCanvasHeight}`}
-                  preserveAspectRatio="none"
-                  role="img"
-                  aria-label="Roadmap dependency arrow map"
-                >
-                  <defs>
-                    <marker id="arrowHead" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
-                      <path d="M0,0 L8,4 L0,8 z" fill="currentColor" />
-                    </marker>
-                  </defs>
-                  {projection.lanes.filter((lane) => groups.some((group) => group.id === lane.id)).map((lane) => {
-                    const y = mapY(lane.id);
-                    return (
-                      <g key={lane.id}>
-                        <line x1={0} y1={y} x2={100} y2={y} stroke="var(--border-default)" strokeDasharray="2 2" />
-                      </g>
-                    );
-                  })}
-                  {visibleDependencies.map((dep) => {
-                    const path = pathForDependency(dep.from, dep.to, dep.kind);
-                    if (!path) return null;
-                    const fromTitle = taskTitleById.get(dep.from) ?? dep.from;
-                    const toTitle = taskTitleById.get(dep.to) ?? dep.to;
-                    const isHovered = hoveredDependencyId === dep.id;
-                    const chainDimmed = dependencyChainShouldDim(dep);
-                    return (
-                      <path
-                        key={dep.id}
-                        d={path}
-                        fill="none"
-                        stroke={strokeForDependencySeg(dep)}
-                        strokeWidth={isHovered ? 2 : dep.crossLane || dep.onCriticalPath ? 1.9 : 1.2}
-                        strokeDasharray={dep.strength === 'weak' ? '2 2' : undefined}
-                        markerEnd="url(#arrowHead)"
-                        className={[
-                          'cursor-pointer roadmap-dependency-arrow',
-                          dep.crossLane ? 'roadmap-dependency-arrow-cross-lane' : '',
-                          dep.onCriticalPath ? 'roadmap-dependency-arrow-critical' : '',
-                          chainDimmed ? 'roadmap-dependency-arrow-dimmed' : '',
-                          isHovered ? 'roadmap-dependency-arrow-hovered' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        onClick={() => {
-                          setSelectedTaskId(dep.to);
-                          setFocusedTaskId(dep.to);
-                        }}
-                        onMouseEnter={() => setHoveredDependencyId(dep.id)}
-                        onMouseLeave={() => setHoveredDependencyId(null)}
-                      >
-                        <title>{`${fromTitle} -> ${toTitle} (${DEPENDENCY_KIND_LABEL[dep.kind]})`}</title>
-                      </path>
-                    );
-                  })}
-                </svg>
-              </div>
+              <RoadmapGanttDependencyGraphSvg
+                groups={groups}
+                projectionLanes={projection.lanes}
+                visibleDependencies={visibleDependencies}
+                dependencySvgPathsByDepId={dependencySvgPathsByDepId}
+                dependencyCanvasHeight={dependencyCanvasHeight}
+                mapY={mapY}
+                isHeavyTaskLoad={isHeavyTaskLoad}
+                filteredTasksCount={filteredTasks.length}
+                heavyTaskThreshold={ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD}
+                taskTitleById={taskTitleById}
+                hoveredDependencyId={hoveredDependencyId}
+                onHoveredDependencyChange={setHoveredDependencyId}
+                onSelectTask={(taskId) => {
+                  setSelectedTaskId(taskId);
+                  setFocusedTaskId(taskId);
+                }}
+                strokeForDependencySeg={strokeForDependencySeg}
+                dependencyChainShouldDim={dependencyChainShouldDim}
+              />
               {hoveredDependency ? (
                 <p className="mt-2 text-xs ds-text-secondary">
                   {`${taskTitleById.get(hoveredDependency.from) ?? hoveredDependency.from} -> ${
@@ -1883,68 +1808,28 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
               ) : null}
             </div>
           ) : null}
+          </div>
+          <div
+            id={depsPanelTableId}
+            role="tabpanel"
+            aria-labelledby={depsTabTableId}
+            hidden={dependenciesTab !== 'table'}
+          >
           {dependenciesTab === 'table' ? (
-            <div>
-              <h4 className="text-sm font-semibold ds-text-primary">Dependency table</h4>
-              <div className="mt-3 max-h-80 overflow-auto rounded-lg border border-[var(--border-default)]">
-                <table className="roadmap-deps-table w-full text-sm">
-            <thead>
-              <tr>
-                <th scope="col" aria-sort={dependencySort.key === 'from' ? (dependencySort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" className="roadmap-deps-sort-btn" onClick={() => toggleDependencySort('from')}>
-                    {`From${sortArrow('from')}`}
-                  </button>
-                </th>
-                <th scope="col" aria-sort={dependencySort.key === 'to' ? (dependencySort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" className="roadmap-deps-sort-btn" onClick={() => toggleDependencySort('to')}>
-                    {`To${sortArrow('to')}`}
-                  </button>
-                </th>
-                <th scope="col" aria-sort={dependencySort.key === 'type' ? (dependencySort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                  <button type="button" className="roadmap-deps-sort-btn" onClick={() => toggleDependencySort('type')}>
-                    {`Type${sortArrow('type')}`}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedVisibleDependencies.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="roadmap-deps-table-empty">
-                    {hasActiveFilters ? (
-                      <button type="button" onClick={resetView} className="roadmap-deps-empty-action">
-                        No dependencies match current filters. Clear filters.
-                      </button>
-                    ) : (
-                      'No dependencies available yet.'
-                    )}
-                  </td>
-                </tr>
-              ) : null}
-              {sortedVisibleDependencies.map((dep) => (
-                <tr
-                  key={dep.id}
-                  onMouseEnter={() => setHoveredDependencyId(dep.id)}
-                  onMouseLeave={() => setHoveredDependencyId(null)}
-                  className={hoveredDependencyId === dep.id ? 'roadmap-deps-row-hovered' : ''}
-                >
-                  <td>{taskTitleById.get(dep.from) ?? dep.from}</td>
-                  <td>{taskTitleById.get(dep.to) ?? dep.to}</td>
-                  <td>
-                    <span
-                      className="ml-0 rounded-full border border-[var(--border-default)] px-2 py-0.5 text-xs"
-                      title={DEPENDENCY_KIND_HINT[dep.kind]}
-                    >
-                      {DEPENDENCY_KIND_LABEL[dep.kind]}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-                </table>
-              </div>
-            </div>
+            <RoadmapGanttDependencyTable
+              sortedDeps={sortedVisibleDependencies}
+              dependencySortKey={dependencySort.key}
+              dependencySortDirection={dependencySort.direction}
+              onToggleDependencySort={toggleDependencySort}
+              sortArrow={sortArrow}
+              taskTitleById={taskTitleById}
+              hoveredDependencyId={hoveredDependencyId}
+              onHoveredDependencyChange={setHoveredDependencyId}
+              hasActiveFilters={hasActiveFilters}
+              onResetView={resetView}
+            />
           ) : null}
+          </div>
         </div>
       ) : null}
       <TaskDetailsDrawer
@@ -1956,6 +1841,11 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         dependencies={projection.dependencies}
         taskTitleById={taskTitleById}
         downstreamTaskCount={downstreamTaskCount}
+        onFilterToLane={(laneId) => {
+          setLaneFilter(String(laneId));
+          setRoadmapToolbarMoreOpen(true);
+          setActivePanel('timeline');
+        }}
       />
     </section>
   );

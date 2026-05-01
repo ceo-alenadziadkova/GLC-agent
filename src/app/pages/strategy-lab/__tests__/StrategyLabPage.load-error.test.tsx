@@ -11,8 +11,6 @@ import { StrategyLab } from '../StrategyLabPage';
 const reloadMock = vi.fn();
 const useAuditMock = vi.fn();
 const useProfileMock = vi.fn(() => ({ isClient: false }));
-const useIsMobileMock = vi.fn(() => false);
-
 const onlineState = vi.hoisted(() => ({ value: true }));
 
 vi.mock('../../../hooks/useBrowserOnline', () => ({
@@ -27,8 +25,8 @@ vi.mock('../../../hooks/useProfile', () => ({
   useProfile: () => useProfileMock(),
 }));
 
-vi.mock('../../../components/ui/use-mobile', () => ({
-  useIsMobile: () => useIsMobileMock(),
+vi.mock('../../../hooks/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
 }));
 
 vi.mock('../../../components/AppShell', () => ({

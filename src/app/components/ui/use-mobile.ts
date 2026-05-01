@@ -4,22 +4,22 @@ import { UI_BREAKPOINTS } from '../../config/ui-breakpoints';
 
 const MOBILE_BREAKPOINT = UI_BREAKPOINTS.mobile;
 
-function readViewportIsMobile(): boolean {
+function readMediaMatchesMobile(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.innerWidth < MOBILE_BREAKPOINT;
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches;
 }
 
-/** Tracks `(max-width: mobile-1)`. Initial read is synchronous so first paint matches breakpoint (SSR: false until hydrated). */
+/** Tracks `(max-width: mobile-1)` via matchMedia (`matches`), aligned with resize/zoom semantics. SSR: false until hydrated. */
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(readViewportIsMobile);
+  const [isMobile, setIsMobile] = React.useState(readMediaMatchesMobile);
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = () => {
-      setIsMobile(readViewportIsMobile());
+      setIsMobile(mql.matches);
     };
     mql.addEventListener('change', onChange);
-    setIsMobile(readViewportIsMobile());
+    setIsMobile(mql.matches);
     return () => mql.removeEventListener('change', onChange);
   }, []);
 

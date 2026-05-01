@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { ReactNode } from 'react';
+import { buildAppRoute } from '../../config/route-paths';
 import { ReportViewer } from '../ReportViewer';
 
 const useAuditMock = vi.fn();
@@ -82,10 +83,12 @@ describe('ReportViewer navigation targets', () => {
     );
 
     const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
-    expect(timelineLinks.some(link => link.getAttribute('href') === '/portal/timeline/audit-1')).toBe(true);
+    expect(timelineLinks.some(link => link.getAttribute('href') === buildAppRoute.portalPlan('audit-1', 'timeline'))).toBe(
+      true,
+    );
     expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
       'href',
-      '/portal/timeline/audit-1#manifest-setup',
+      `${buildAppRoute.portalPlan('audit-1', 'timeline')}#manifest-setup`,
     );
   });
 
@@ -99,10 +102,10 @@ describe('ReportViewer navigation targets', () => {
     );
 
     const timelineLinks = screen.getAllByRole('link', { name: /Open timeline|View execution timeline/i });
-    expect(timelineLinks.some(link => link.getAttribute('href') === '/timeline/audit-1')).toBe(true);
+    expect(timelineLinks.some(link => link.getAttribute('href') === buildAppRoute.plan('audit-1', 'timeline'))).toBe(true);
     expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
       'href',
-      '/timeline/audit-1#manifest-setup',
+      `${buildAppRoute.plan('audit-1', 'timeline')}#manifest-setup`,
     );
   });
 });

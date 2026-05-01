@@ -35,7 +35,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | File | Role |
 | --- | --- |
 | `smoke.spec.ts` | Public marketing, auth redirects, discovery wizard UX (step-by-step, f9) |
-| `protected-routes.spec.ts` | Extra protected deep links (pipeline, reports, strategy, settings, admin\*, portal\*) → `/login` |
+| `protected-routes.spec.ts` | Extra protected deep links (pipeline, reports, strategy, plan/roadmap/timeline, settings, admin\*, portal\*) → `/login` |
 | `snapshot-public-mocked.spec.ts` | Snapshot POST → poll → done with **Playwright network mocks** (guest cookie + pending token) |
 | `intake-public-mocked.spec.ts` | `IntakeBrief` shell with mocked `GET /api/intake/:token` |
 | `discovery-ui-fragment.spec.ts` | `GET /api/discover/ui-fragment` contract + both discovery URLs |
@@ -51,6 +51,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | `orchestration-revision-history.spec.ts` | Revision panel (UI; `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-cockpit-stale-banner.spec.ts` | Consultant cockpit: stale pack banner after govern `POST` 409 (needs `E2E_CONSULTANT_E2E_*` + `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-consultant-cockpit-ui.spec.ts` | Login → open cockpit: heading + settled state (no pack, error, or critical path) — `E2E_ORCHESTRATION_UI=1` + consultant + audit id |
+| `orchestration-plan-legacy-canonical.spec.ts` | Consultant: `/roadmap/:id` and `/timeline/:id` → `/plan/:id` (+ `view=timeline`, query merge). Portal: `/portal/roadmap|timeline/:id` → `/portal/plan/:id`. Needs `E2E_ORCHESTRATION_UI=1` + `E2E_ORCHESTRATION_AUDIT_ID`; consultant gate uses `E2E_CONSULTANT_E2E_*`; portal gate uses `E2E_PORTAL_E2E_*` and optional `E2E_PORTAL_PLAN_AUDIT_ID` |
 | `orchestration-deep-dive.spec.ts` | `GET` quota for `marketing_utp` and `ux_conversion` deep-dive API; optional `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` runs the marketing quota check under a mobile viewport project |
 
 ## Scope
@@ -94,6 +95,12 @@ Optional (consultant browser UI, including stale-banner spec):
 
 - `E2E_CONSULTANT_E2E_EMAIL`
 - `E2E_CONSULTANT_E2E_PASSWORD`
+
+Optional (client portal plan redirect checks in `orchestration-plan-legacy-canonical.spec.ts`):
+
+- `E2E_PORTAL_E2E_EMAIL`
+- `E2E_PORTAL_E2E_PASSWORD`
+- `E2E_PORTAL_PLAN_AUDIT_ID` (otherwise uses `E2E_ORCHESTRATION_AUDIT_ID` when set)
 
 `E2E_VITE_API_PROXY_TARGET` (CI: from `VITE_API_URL` var) — API origin for the Vite `/api` proxy when not using a local server on 3001.
 

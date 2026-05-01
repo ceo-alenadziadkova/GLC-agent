@@ -1,10 +1,10 @@
-import { useMemo, useEffect, useCallback, useId } from 'react';
+import { useMemo, useEffect, useCallback, useId, useState, type KeyboardEvent } from 'react';
 import { useQueryClient } from '../../lib/tanstack-react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
 import {
   MapTrifold, ArrowRight,
   ArrowsClockwise, SlidersHorizontal,
-  Path, Check,
+  Path,
 } from '@phosphor-icons/react';
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
@@ -37,7 +37,8 @@ import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
-import { StrategyLabWorkbenchSegmentedNav } from './StrategyLabWorkbenchSegmentedNav';
+import { StrategyPlanningChrome } from './StrategyPlanningChrome';
+import { useStrategyJourneyStepStatuses } from '../../hooks/useStrategyJourneyStepStatuses';
 import {
   StrategyLabOrchestratorListBody,
   type StrategyLabOrchestratorTabId,
@@ -60,11 +61,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '../../components/ui/sheet';
-import { useIsMobile } from '../../components/ui/use-mobile';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { UI_BREAKPOINTS } from '../../config/ui-breakpoints';
 import { toast } from 'sonner';
 import { ApiError } from '../../data/api-error';
 import type { StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
-import { useState } from 'react';
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
   if (raw == null) return null;
@@ -72,30 +73,22 @@ function normalizeAuditIndustryKey(raw: string | null | undefined): string | nul
   return t.length > 0 ? t : null;
 }
 
-/** Three-step path that anchors the user inside Strategy Lab. */
-type StepStatus = 'done' | 'current' | 'pending';
-
-interface StepDefinition {
-  id: 'context' | 'initiatives' | 'packRoadmap';
-  label: string;
-  hint: string;
-  href: string;
-  status: StepStatus;
-}
-
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
-  const isMobile = useIsMobile();
+  const isNarrowMobileLayout = useMediaQuery(`(max-width: ${UI_BREAKPOINTS.mobile - 1}px)`);
+  const packSummaryStackedLayout = useMediaQuery(
+    `(max-width: ${STRATEGY_LAB_LAYOUT_POLICY.packSummarySheetMaxWidthPx - 1}px)`,
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { audit, loading, error, reload, isFetching } = useAudit(id);
   const online = useBrowserOnline();
   const loadErrorSummaryId = useId();
   const loadOfflineHintId = useId();
-  const stepsStripDescriptionId = useId();
   const constraintOverridesErrorRegionId = useId();
   const { isClient } = useProfile();
   const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
+  const orchestratorTablistOverviewId = useId();
   const [domainBenchmarks, setDomainBenchmarks] = useState<
     Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>
   >({});
@@ -113,6 +106,22 @@ export function StrategyLab() {
     return isGlcOrchestrationPackView(raw) ? raw : null;
   }, [audit?.strategy?.glc_orchestration_pack]);
 
+  const journeySteps = useStrategyJourneyStepStatuses(audit);
+
+  const orchestratorPanelAnnouncement = useMemo(() => {
+    const meta: Record<StrategyLabOrchestratorTabId, readonly [string, string]> = {
+      now: [STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
+      next: [STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
+      dependencies: [
+        STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
+        STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
+      ],
+      risks: [STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
+    };
+    const [title, desc] = meta[orchestratorTab];
+    return STRATEGY_LAB_COPY.orchestratorTabs.tabPanelStatusTemplate.replace('{title}', title).replace('{desc}', desc);
+  }, [orchestratorTab]);
+
   const mergeStrategyLabContextInAuditCache = useCallback(
     (strategy_lab_context: StrategyLabContextView) => {
       if (!id) return;
@@ -124,16 +133,16 @@ export function StrategyLab() {
   const selectedPackNodeId = searchParams.get('node');
 
   /**
-   * Mobile UX: when a node is picked from the orchestrator tabs, the Plan summary
-   * lives in a Sheet and is otherwise invisible — auto-open it so the detail card
-   * reaches the consultant without an extra tap. Desktop keeps the side panel
-   * always visible, so this effect is a no-op there.
+   * Stacked layouts (narrow phone / tablet): Plan summary Sheet is easy to miss — auto-open
+   * when the URL picks a pack node so the detail card reaches the consultant without extra taps.
    */
   useEffect(() => {
-    if (!isMobile) return;
+    if (!packSummaryStackedLayout || isClient) return;
+    const rawPack = audit?.strategy?.glc_orchestration_pack;
+    if (!isGlcOrchestrationPackView(rawPack)) return;
     if (!selectedPackNodeId) return;
     setIsSummarySheetOpen(true);
-  }, [isMobile, selectedPackNodeId]);
+  }, [audit?.strategy?.glc_orchestration_pack, isClient, packSummaryStackedLayout, selectedPackNodeId]);
 
   const setSelectedPackNodeId = useCallback(
     (nextId: string | null) => {
@@ -245,7 +254,7 @@ export function StrategyLab() {
 
   useEffect(() => {
     if (!audit?.strategy || isClient) return;
-    let cancelled = false;
+    const ac = new AbortController();
     const ind = normalizeAuditIndustryKey(audit.meta?.industry);
     void (async () => {
       const entries = await Promise.all(
@@ -263,14 +272,55 @@ export function StrategyLab() {
           return [dk, snap] as const;
         }),
       );
-      if (!cancelled) {
+      if (!ac.signal.aborted) {
         setDomainBenchmarks(Object.fromEntries(entries) as Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>);
       }
     })();
     return () => {
-      cancelled = true;
+      ac.abort();
     };
   }, [audit?.strategy, audit?.meta?.industry, isClient]);
+
+  const handleOrchestratorTabListKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const order: StrategyLabOrchestratorTabId[] = ['now', 'next', 'dependencies', 'risks'];
+      const idx = order.indexOf(orchestratorTab);
+      if (idx < 0) return;
+      const focusTabButton = (key: StrategyLabOrchestratorTabId) => {
+        window.requestAnimationFrame(() => {
+          document.getElementById(`strategy-lab-orchestrator-tab-${key}`)?.focus();
+        });
+      };
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        const next = order[(idx + 1) % order.length]!;
+        setOrchestratorTab(next);
+        focusTabButton(next);
+        return;
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const next = order[(idx - 1 + order.length) % order.length]!;
+        setOrchestratorTab(next);
+        focusTabButton(next);
+        return;
+      }
+      if (event.key === 'Home') {
+        event.preventDefault();
+        const next = order[0]!;
+        setOrchestratorTab(next);
+        focusTabButton(next);
+        return;
+      }
+      if (event.key === 'End') {
+        event.preventDefault();
+        const next = order[order.length - 1]!;
+        setOrchestratorTab(next);
+        focusTabButton(next);
+      }
+    },
+    [orchestratorTab],
+  );
 
   const formatConstraintOverridesSaveErrorMessage = useCallback((e: unknown) => {
     const base = STRATEGY_LAB_COPY.constraints.saveFailed;
@@ -398,8 +448,8 @@ export function StrategyLab() {
       : '/reports';
   const timelineHref = id
     ? isClient
-      ? buildAppRoute.portalTimeline(id)
-      : buildAppRoute.timeline(id)
+      ? buildAppRoute.portalPlan(id, 'timeline')
+      : buildAppRoute.plan(id, 'timeline')
     : reportHref;
 
   if (!audit.strategy) {
@@ -416,55 +466,9 @@ export function StrategyLab() {
     );
   }
 
-  // Steps strip status: derived from real audit signals (no UI-only flags).
-  const hasContextDone =
-    !!audit.strategy.effective_constraints &&
-    (executionPlanForRoadmap?.selected_domains.length ?? 0) > 0;
-  const hasConfigureDone =
-    !!glcPackView?.manifest_snapshot_id ||
-    (typeof audit.strategy.orchestration_pack_version === 'number' &&
-      audit.strategy.orchestration_pack_version > 0);
-  const hasBuildDone =
-    typeof audit.strategy.orchestration_pack_version === 'number' &&
-    audit.strategy.orchestration_pack_version > 0;
-
-  // First non-done step is the current one; if all done, step 3 stays "current" so the user lands on Inspect pack.
-  const stepStatuses: ReadonlyArray<StepStatus> = [
-    hasContextDone ? 'done' : 'current',
-    hasContextDone ? (hasConfigureDone ? 'done' : 'current') : 'pending',
-    hasContextDone && hasConfigureDone ? (hasBuildDone ? 'done' : 'current') : 'pending',
-  ];
-  // If all done, keep step 3 “current” (review state on Inspect pack).
-  const allDone = stepStatuses.every(s => s === 'done');
-  const stepsResolved: ReadonlyArray<StepStatus> = allDone
-    ? (['done', 'done', 'current'] as const)
-    : stepStatuses;
-
-  const steps: ReadonlyArray<StepDefinition> = [
-    {
-      id: 'context',
-      label: STRATEGY_LAB_COPY.stepsStrip.step1Title,
-      hint: STRATEGY_LAB_COPY.stepsStrip.step1Hint,
-      href: `#${STRATEGY_LAB_PAGE_ANCHORS.reference}`,
-      status: stepsResolved[0],
-    },
-    {
-      id: 'initiatives',
-      label: STRATEGY_LAB_COPY.stepsStrip.step2Title,
-      hint: STRATEGY_LAB_COPY.stepsStrip.step2Hint,
-      href: `#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`,
-      status: stepsResolved[1],
-    },
-    {
-      id: 'packRoadmap',
-      label: STRATEGY_LAB_COPY.stepsStrip.step3Title,
-      hint: STRATEGY_LAB_COPY.stepsStrip.step3Hint,
-      href: `#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`,
-      status: stepsResolved[2],
-    },
-  ];
-
-  const stepsStripVisible = !isClient && orchestrationUiEnabled;
+  /** Consultants: always when orchestration UI is on. Clients: same journey IA when read-only orchestration lab is enabled (portal Plan already uses matching chrome). */
+  const journeyStripVisible =
+    orchestrationUiEnabled && (!isClient || clientOrchestrationLabReadOnlyEnabled);
 
   // Reference accordion preview: count benchmarks with data and describe constraint state.
   // Both lines are always-visible in the trigger so consultants can decide whether to expand without clicking.
@@ -658,10 +662,15 @@ export function StrategyLab() {
           <div className="p-4">
             {glcPackView && !isClient ? (
               <div className="space-y-4">
+                <p id={orchestratorTablistOverviewId} className="sr-only">
+                  {STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaDescription}
+                </p>
                 <div
                   role="tablist"
                   aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
+                  aria-describedby={orchestratorTablistOverviewId}
                   className="flex flex-wrap gap-2 border-b border-border pb-3"
+                  onKeyDown={handleOrchestratorTabListKeyDown}
                 >
                   {(
                     [
@@ -701,6 +710,9 @@ export function StrategyLab() {
                   id="strategy-lab-orchestrator-panel"
                   aria-labelledby={`strategy-lab-orchestrator-tab-${orchestratorTab}`}
                 >
+                  <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                    {orchestratorPanelAnnouncement}
+                  </span>
                   <StrategyLabOrchestratorListBody
                     pack={glcPackView}
                     tab={orchestratorTab}
@@ -778,8 +790,10 @@ export function StrategyLab() {
     </>
   );
 
-  /** Narrow viewports squeeze the roadmap summary — move it into a Sheet so the orchestrator owns full width. */
-  const consultantMobilePackSummarySheet = isMobile && !isClient && !!glcPackView;
+  /** Narrow / tablet widths (< packSummary breakpoint): roadmap summary Sheet so the orchestrator owns full width (avoids cramped ResizablePanel). */
+  /** Tablet / narrow desktop: stacked sheet when audit strategy exists (summary still reachable without ResizablePanel quirks). */
+  const consultantMobilePackSummarySheet =
+    packSummaryStackedLayout && !isClient && Boolean(audit?.strategy);
 
   return (
     <AppShell
@@ -799,77 +813,14 @@ export function StrategyLab() {
         </div>
       ) : null}
 
-      {stepsStripVisible && id ? (
-        <div className="bg-card border-border divide-border sticky top-0 z-[15] divide-y border-b">
-          <div className="px-4 py-3">
-            <StrategyLabWorkbenchSegmentedNav auditId={id} active="orchestration" />
-          </div>
-          <nav aria-label={STRATEGY_LAB_COPY.stepsStrip.ariaLabel} className="px-4 py-3">
-          <p id={stepsStripDescriptionId} className="sr-only">
-            {STRATEGY_LAB_COPY.stepsStrip.description}
-          </p>
-          <ol
-            className="flex flex-wrap items-stretch gap-3 sm:flex-nowrap"
-            aria-describedby={stepsStripDescriptionId}
-          >
-            {steps.map((step, index) => {
-              const isDone = step.status === 'done';
-              const isCurrent = step.status === 'current';
-              const statusLabel = isDone
-                ? STRATEGY_LAB_COPY.stepsStrip.statusDone
-                : isCurrent
-                  ? STRATEGY_LAB_COPY.stepsStrip.statusCurrent
-                  : STRATEGY_LAB_COPY.stepsStrip.statusPending;
-              return (
-                <li key={step.id} className="min-w-[length:var(--strategy-lab-steps-strip-min-width,12rem)] flex-1">
-                  <a
-                    href={step.href}
-                    aria-current={isCurrent ? 'step' : undefined}
-                    className={cn(
-                      'group flex h-full items-start gap-3 rounded-lg border px-3 py-2 transition-colors',
-                      isCurrent
-                        ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                        : isDone
-                          ? 'border-border bg-card'
-                          : 'border-dashed border-border bg-card opacity-80',
-                    )}
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
-                        isDone
-                          ? 'bg-success text-white'
-                          : isCurrent
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      {isDone ? <Check className="h-3.5 w-3.5" weight="bold" /> : index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline gap-2">
-                        <span className="text-foreground text-sm font-semibold">{step.label}</span>
-                        <span
-                          className={cn(
-                            'text-[length:var(--text-2xs)] font-mono uppercase tracking-wide',
-                            isDone ? 'text-success' : isCurrent ? 'text-primary' : 'text-muted-foreground',
-                          )}
-                        >
-                          {statusLabel}
-                        </span>
-                      </span>
-                      <span className="text-muted-foreground mt-0.5 block max-w-prose text-xs leading-snug">
-                        {step.hint}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-        </div>
+      {journeyStripVisible && id ? (
+        <StrategyPlanningChrome
+          auditId={id}
+          isClient={isClient}
+          audit={audit}
+          variant={{ kind: 'strategy-lab' }}
+          steps={journeySteps}
+        />
       ) : null}
 
       {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
@@ -924,7 +875,7 @@ export function StrategyLab() {
             </Sheet>
           </div>
         </div>
-      ) : isMobile ? (
+      ) : isNarrowMobileLayout ? (
         <div className="bg-background ds-audit-workspace-main-h">
           <div
             id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}

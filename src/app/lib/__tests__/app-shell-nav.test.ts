@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { APP_SHELL_COPY } from '../../config/app-shell-copy';
+import { buildAppRoute } from '../../config/route-paths';
 import {
   buildConsultantNav,
   buildClientNav,
@@ -29,7 +30,7 @@ describe('app-shell-nav', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id, { timelinePrimaryUx: true });
     expect(nav[5]?.to).toBe(`/audit/${id}`);
-    expect(nav[6]?.to).toBe(`/timeline/${id}`);
+    expect(nav[6]?.to).toBe(buildAppRoute.plan(id, 'timeline'));
     expect(nav[7]?.to).toBe(`/pipeline/${id}`);
     expect(nav[8]?.to).toBe(`/reports/${id}`);
     expect(nav[9]?.to).toBe(`/strategy/${id}`);
@@ -40,7 +41,7 @@ describe('app-shell-nav', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
     expect(nav[6]?.to).toBe(`/pipeline/${id}`);
-    expect(nav[7]?.to).toBe(`/timeline/${id}`);
+    expect(nav[7]?.to).toBe(buildAppRoute.plan(id, 'timeline'));
   });
 
   it('buildConsultantNav uses Strategy Lab label when timeline-first UX is off', () => {
@@ -54,7 +55,7 @@ describe('app-shell-nav', () => {
     const nav = buildConsultantNav(id, { timelinePrimaryUx: true, orchestrationRoadmapUiEnabled: false });
     expect(nav[6]?.to).toBe(`/pipeline/${id}`);
     expect(nav[7]?.to).toBe(`/reports/${id}`);
-    expect(nav.map(i => i.to).includes(`/timeline/${id}`)).toBe(false);
+    expect(nav.some(i => i.to === buildAppRoute.plan(id, 'timeline'))).toBe(false);
   });
 
   it('buildMobileBottomNavItems takes first four linked consultant destinations', () => {
@@ -86,7 +87,7 @@ describe('app-shell-nav', () => {
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,
-      `/portal/timeline/${id}`,
+      buildAppRoute.portalPlan(id, 'timeline'),
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
       `/portal/strategy/${id}`,
@@ -107,7 +108,7 @@ describe('app-shell-nav', () => {
       '/portal',
       `/portal/audit/${id}`,
       `/portal/pipeline/${id}`,
-      `/portal/timeline/${id}`,
+      buildAppRoute.portalPlan(id, 'timeline'),
       `/portal/reports/${id}`,
       `/portal/strategy/${id}`,
     ]);
@@ -139,5 +140,20 @@ describe('app-shell-nav', () => {
     expect(isNavItemActive('/portal', '/portal')).toBe(true);
     expect(isNavItemActive('/admin/requests', '/admin/requests')).toBe(true);
     expect(isNavItemActive('/admin/snapshots', '/admin/requests')).toBe(false);
+  });
+
+  it('isNavItemActive distinguishes plan roadmap vs timeline tab via search', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const plan = buildAppRoute.plan(id, 'roadmap');
+    const planTl = buildAppRoute.plan(id, 'timeline');
+    expect(isNavItemActive(`/plan/${id}`, planTl, '?view=timeline')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}`, planTl, '')).toBe(false);
+    expect(isNavItemActive(`/plan/${id}`, plan, '')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}`, plan, '?view=timeline')).toBe(false);
+  });
+
+  it('isNavItemActive treats legacy timeline path as timeline tab nav target', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    expect(isNavItemActive(`/timeline/${id}`, buildAppRoute.plan(id, 'timeline'), '')).toBe(true);
   });
 });

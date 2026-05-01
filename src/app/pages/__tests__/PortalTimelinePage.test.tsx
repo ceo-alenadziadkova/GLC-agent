@@ -14,6 +14,7 @@ import { PortalTimelinePage } from '../PortalTimelinePage';
 const useAuditMock = vi.fn();
 const useProfileMock = vi.fn();
 const getAuditTimelineMock = vi.fn();
+const getOrchestrationPackConditionalMock = vi.fn();
 const useIsMobileMock = vi.fn(() => false);
 const useAuthEmailMock = vi.fn(() => null);
 
@@ -31,6 +32,11 @@ vi.mock('../../hooks/useProfile', () => ({
 
 vi.mock('../../components/ui/use-mobile', () => ({
   useIsMobile: () => useIsMobileMock(),
+}));
+
+/** PortalTimelinePage uses `useMediaQuery` for the mobile breakpoint, not `useIsMobile`; keep mocks aligned for dependency card rows. */
+vi.mock('../../hooks/useMediaQuery', () => ({
+  useMediaQuery: () => useIsMobileMock(),
 }));
 
 vi.mock('../../components/AppShell', () => ({
@@ -52,6 +58,7 @@ const postOrchestrationPackMock = vi.fn();
 vi.mock('../../data/apiService', () => ({
   api: {
     getAuditTimeline: (...args: unknown[]) => getAuditTimelineMock(...args),
+    getOrchestrationPackConditional: (...args: unknown[]) => getOrchestrationPackConditionalMock(...args),
     listStrategyExecutionPacks: (...args: unknown[]) => listStrategyExecutionPacksMock(...args),
     postStrategyExecutionPack: (...args: unknown[]) => postStrategyExecutionPackMock(...args),
     postOrchestrationPack: (...args: unknown[]) => postOrchestrationPackMock(...args),
@@ -79,6 +86,16 @@ describe('PortalTimelinePage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    getOrchestrationPackConditionalMock.mockResolvedValue({
+      kind: 'ok',
+      data: {
+        pack: null,
+        orchestration_pack_version: 0,
+        roadmap_version: 0,
+        last_revision_diff: null,
+        plan_governance: null,
+      },
+    });
     useIsMobileMock.mockReturnValue(false);
     useAuthEmailMock.mockReturnValue(null);
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
@@ -257,11 +274,11 @@ describe('PortalTimelinePage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('status')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Timeline not populated yet/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/Your consultant confirms the roadmap manifest in Strategy Lab/i),
+      await screen.findByRole('heading', { name: /Timeline not populated yet/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.timelineStateMissingPack)).toBeInTheDocument();
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.timelineEmptyCalloutClientHint)).toBeInTheDocument();
     expect(screen.queryByText(/Timeline API status/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/missing_pack/i)).not.toBeInTheDocument();
   });

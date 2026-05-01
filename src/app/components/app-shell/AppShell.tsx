@@ -89,6 +89,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         isConsultant={isConsultant}
         isAuthenticated={isAuthenticated}
         pathname={location.pathname}
+        locationSearch={location.search}
         unreadCount={unreadCount}
         user={user}
         profile={profile}
@@ -131,6 +132,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         <MobileBottomNav
           items={mobileBottomNav}
           pathname={location.pathname}
+          locationSearch={location.search}
           navAriaLabel={APP_SHELL_COPY.aria.primaryNav}
         />
       </div>
@@ -144,6 +146,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         isClient={isClient}
         isAuthenticated={isAuthenticated}
         pathname={location.pathname}
+        locationSearch={location.search}
         onClose={() => setMobileMenuOpen(false)}
         onSignOut={() => {
           setMobileMenuOpen(false);

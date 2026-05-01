@@ -97,7 +97,7 @@ export function ReportViewer() {
   const maxItems = REPORT_VIEWER_CONSTANTS.profileMaxItems[profile];
   const isPortalReport = pathname.startsWith('/portal/reports/');
   const strategyPath = isPortalReport ? buildAppRoute.portalStrategy(id ?? '') : buildAppRoute.strategy(id ?? '');
-  const timelinePath = isPortalReport ? buildAppRoute.portalTimeline(id ?? '') : buildAppRoute.timeline(id ?? '');
+  const timelinePath = isPortalReport ? buildAppRoute.portalPlan(id ?? '', 'timeline') : buildAppRoute.plan(id ?? '', 'timeline');
   const timelineManifestPath = `${timelinePath}#${ORCHESTRATION_MANIFEST_SETUP_DOM_ID}`;
   const timelineComparePath = `${timelinePath}#${ORCHESTRATION_PANEL_DOM_ID}`;
   const hasOrchestrationPack = isGlcOrchestrationPackView(audit.strategy?.glc_orchestration_pack);

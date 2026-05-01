@@ -31,9 +31,10 @@ const PACK_FIXTURE: GlcOrchestrationPackView = {
 
 describe('strategy lab orchestrator ui', () => {
   it('exposes the orchestration-first copy keys in the SSOT (no legacy initiative tabs)', () => {
-    expect(STRATEGY_LAB_COPY.stepsStrip.step1Title.length).toBeGreaterThan(0);
-    expect(STRATEGY_LAB_COPY.stepsStrip.step2Title.length).toBeGreaterThan(0);
-    expect(STRATEGY_LAB_COPY.stepsStrip.step3Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step1Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step2Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step3Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step4Title.length).toBeGreaterThan(0);
     expect(STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary.length).toBeGreaterThan(0);
     expect(STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary.length).toBeGreaterThan(0);
     expect(

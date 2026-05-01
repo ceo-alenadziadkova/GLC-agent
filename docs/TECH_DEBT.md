@@ -44,6 +44,7 @@
 | TD-019 | open | P3 | `benchmark_recompute_secret` | Hardcoded custom security header name (`x-benchmark-recompute-secret`). | Move header name to server config (with stable default) and reuse from one source. | Hardcode audit 2026-04 |
 | TD-020 | open | P3 | `integrations` | Telegram base URL fallback hardcoded (`https://api.telegram.org`). | Keep as documented fallback, but prefer explicit infra env in production (`TELEGRAM_API_BASE`). | Hardcode audit 2026-04 |
 | TD-021 | open | P2 | Audits / intake / DB | **Legacy `product_mode` (`express` / `full` / `free_snapshot`) coexists with canonical `execution_plan.coverage_package`.** | **Does not block main pipeline execution:** `PipelineOrchestrator` resolves phases via `getExecutionPlan()` → `normalizeExecutionPlan` + `executionPlanToPhases` only (`pipeline`). Remaining uses: persisted `audits.product_mode` column, `audit_requests` CHECK (`express`\|`full`), public snapshot filters (`free_snapshot`), intake SLA gates via `full` vs `express` corridor in `@glc/intake-core`, legacy API fields/copy. | Centralize in `audit_coverage_bridge`; align new surfaces on `coverage_package`; later: intake-core gates keyed by package, trim `product_mode` from API responses, optional DB migration. | 2026-04-13 |
+| TD-022 | done | P2 | Strategy Lab / Plan / Gantt | **Post-audit UX follow-up (2026-05)** — progressive disclosure on Gantt toolbar, empty-state differentiation on Roadmap page, shared planning chrome layout, iCal line folding, dead `stepsStrip` copy. | **Done:** minimal primary Gantt toolbar row; `StrategyPlanningChrome`; `countTimelineLaneItems` + copy for mapper-empty vs API-empty; DESCRIPTION folding in `roadmap-gantt-ical.ts`; `stepsStrip` removed from copy SSOT (tests use `journeyStrip`). | Landed 2026-05 |
 
 ---
 
@@ -145,6 +146,20 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 | --- | --- |
 | 2026-04-13 | Initial register; doc quota raised to 20 in MASTER / README / CLAUDE; merged findings from hardcode-hardening work and code-design-standards review. |
 | 2026-04-13 | Implemented hardcode externalization pass: backend retry/copy/env enforcement, frontend settings constants + copy centralization, intake-core policy JSON extraction, and new Cursor no-hardcode guardrail rule. |
+| 2026-05-01 | **Strategy Lab + Roadmap + Timeline audit closure delta:** Journey strip + `PortalPlanChrome` (Roadmap \| Timeline + workbench); manifest signing unified via `manifest-change-signature.ts`; bucket helpers shared (`time-bucket-normalization.ts`); baseline snapshots versioned (`schemaVersion`); no `window.confirm` in app source; orchestrator tabs and Gantt deps sub-tabs use `aria-controls`; `useIsMobile` uses `matchMedia`; dependency SVG paths memoized (`canMove={false}` on timeline). Remaining backlog: iCal hardening, plan layout DRY, copy structure — see subsection below. |
+| 2026-05-01 | **TD-022:** Gantt primary toolbar tucks zoom/density into More; overview strip `grab`/`grabbing` cursors; Portal Roadmap page distinguishes timeline rows present but Gantt projection empty vs true empty timeline; RFC 5545-style folding for long iCal text; `StrategyPlanningChrome` dedupes Strategy Lab vs Plan sticky headers; manifest preview already uses `AbortController` via `useDebouncedOrchestratorManifestPreview`; governance errors use `coerceOrchestrationPlanGovernance`. |
+
+## Strategy Lab + Roadmap + Timeline — audit closure delta (2026-05)
+
+External audit scores referenced a **prior** codebase snapshot. Against the current tree, treat these as **already addressed** unless regressed:
+
+- Сквозная IA: `src/app/pages/strategy-lab/StrategyJourneyHeader.tsx` (+ `StrategyJourneyStrip.tsx` совместимый реэкспорт), `src/app/pages/portal-plan/PortalPlanChrome.tsx`, `src/app/pages/strategy-lab/PlanViewSegmentedNav.tsx`.
+- Manifest signature: `src/app/lib/manifest-change-signature.ts` (wizard + orchestration panel).
+- Time buckets: `src/app/lib/time-bucket-normalization.ts` + orchestration buckets module.
+- Baseline persistence: `src/app/lib/roadmap-gantt-baseline-storage.ts` with schema pin + purge toast.
+- Gantt toolbar split: `src/app/components/roadmap-gantt/RoadmapGanttToolbar.tsx`.
+
+Remaining work stays as normal P1/P2 engineering (tablet summary visibility edge cases, heavy monolith splits beyond chrome + toolbar, optional row virtualization at very large task counts). **Plan URL:** canonical `/plan/:id` and `/portal/plan/:id` render `PortalPlanPage` under `PortalPlanOrchestrationProvider` (`useOrchestrationReadModel` for conditional pack GET + timeline); each tab tree mounts on first visit then stays in the DOM (`hidden` + `inert` when inactive) so later `view` toggles keep local UI state; orchestration UI E2E optionally checks legacy → `/plan` URL replace after login (`orchestration-plan-legacy-canonical.spec.ts`); `protected-routes` includes plan + legacy roadmap/timeline; segmented nav prefers `buildAppRoute.plan` / `portalPlan`; legacy paths redirect via `LegacyPlanPathRedirect`.
 
 ## Для разработчиков
 

@@ -148,6 +148,7 @@ describe('PortalRoadmapManifestWizardPage', () => {
           change_scenario: 'hybrid',
           season_preset: 'rolling_90d',
         }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
       );
     });
     expect(screen.getByRole('heading', { name: PORTAL_MANIFEST_WIZARD_COPY.stepPreviewTitle })).toBeInTheDocument();

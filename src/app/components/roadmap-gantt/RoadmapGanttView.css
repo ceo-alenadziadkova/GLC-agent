@@ -10,12 +10,25 @@
   background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   margin: 0 0 10px;
   overflow: hidden;
-  cursor: ew-resize;
+  cursor: grab;
+}
+
+.roadmap-overview-strip:active {
+  cursor: grabbing;
+}
+
+/* Keeps grabbing cursor while dragging after pointer leaves the strip (button still held). */
+.roadmap-overview-strip--dragging {
+  cursor: grabbing;
 }
 
 .roadmap-overview-strip-empty {
   cursor: default;
   justify-content: center;
+}
+
+.roadmap-overview-strip-empty:active {
+  cursor: default;
 }
 
 .roadmap-overview-task {
@@ -383,6 +396,15 @@ html.dark .roadmap-weekend-legend-swatch {
   border-radius: 1px;
   background: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
   pointer-events: none;
+}
+
+.roadmap-baseline-legend-swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.45rem;
+  border-radius: 2px;
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
 }
 
 .roadmap-gantt-milestone-inner {

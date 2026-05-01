@@ -224,17 +224,18 @@ export const auditsOrchestrationApi = {
     });
   },
 
-  async getRoadmapManifestSnapshots(auditId: string, query?: { limit?: number }) {
+  async getRoadmapManifestSnapshots(auditId: string, query?: { limit?: number; signal?: AbortSignal }) {
+    const { signal, ...pathQuery } = query ?? {};
     return apiFetch<{ snapshots: RoadmapManifestSnapshotListItem[] }>(
-      apiAuditsRoadmapManifestSnapshots(auditId, query),
-      { method: 'GET' },
+      apiAuditsRoadmapManifestSnapshots(auditId, pathQuery),
+      { method: 'GET', ...(signal ? { signal } : {}) },
     );
   },
 
-  async getRoadmapManifestSnapshotLatest(auditId: string) {
+  async getRoadmapManifestSnapshotLatest(auditId: string, init?: Pick<RequestInit, 'signal'>) {
     return apiFetch<{ snapshot: { id: string; payload: RoadmapManifestRequestBody } | null }>(
       apiAuditsRoadmapManifestSnapshotsLatest(auditId),
-      { method: 'GET' },
+      { method: 'GET', ...(init?.signal ? { signal: init.signal } : {}) },
     );
   },
 
@@ -322,11 +323,15 @@ export const auditsOrchestrationApi = {
     });
   },
 
-  async getOrchestrationPackDiffHistory(auditId: string, query?: { limit?: number }) {
+  async getOrchestrationPackDiffHistory(auditId: string, query?: { limit?: number; signal?: AbortSignal }) {
+    const { signal, ...pathQuery } = query ?? {};
     return apiFetch<{
       items: OrchestrationPackRevisionHistoryItemDto[];
       latest_plan_governance: OrchestrationPlanGovernanceDto | null;
-    }>(apiAuditsOrchestrationPackDiffHistory(auditId, query), { method: 'GET' });
+    }>(apiAuditsOrchestrationPackDiffHistory(auditId, pathQuery), {
+      method: 'GET',
+      ...(signal ? { signal } : {}),
+    });
   },
 
   async getOrchestrationPackDiff(auditId: string, query: { from_version: number; to_version: number }) {
@@ -346,10 +351,11 @@ export const auditsOrchestrationApi = {
   },
 
   /** Compatibility aliases for Orchestrator v1 endpoint names. */
-  async postOrchestratorPreview(auditId: string, body: RoadmapManifestRequestBody) {
+  async postOrchestratorPreview(auditId: string, body: RoadmapManifestRequestBody, init?: Pick<RequestInit, 'signal'>) {
     return apiFetch<{ preview: RoadmapManifestPreviewDto }>(apiAuditsOrchestratorPreview(auditId), {
       method: 'POST',
       body: JSON.stringify(body),
+      ...(init?.signal ? { signal: init.signal } : {}),
     });
   },
 

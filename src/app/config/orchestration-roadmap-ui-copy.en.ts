@@ -14,18 +14,6 @@ export const ORCHESTRATION_UI_COPY = {
   sectionTitle: 'Roadmap input',
   sectionHint:
     'Confirm how you want to execute changes and the planning window. Coverage must match this audit’s execution plan.',
-  /** Strategy Lab — short steps shown once at the top of the orchestration panel. */
-  strategyLabQuickStartTitle: 'Typical flow',
-  strategyLabQuickStartStep1: 'Adjust scenario, planning window, and optional dates; confirm the preview.',
-  strategyLabQuickStartStep2: 'Save a manifest snapshot.',
-  strategyLabQuickStartStep3: 'Build the execution pack, then inspect nodes below or open the execution timeline.',
-  flowTitle: 'Roadmap flow',
-  flowScope: 'Scope',
-  flowPreview: 'Preview',
-  flowConfirm: 'Confirm',
-  flowVersion: 'Version',
-  flowDone: 'Done',
-  flowPending: 'Pending',
   coverageLabel: 'Coverage (from audit)',
   scenarioLabel: 'Change scenario',
   seasonLabel: 'Planning window',
@@ -86,6 +74,28 @@ export const ORCHESTRATION_UI_COPY = {
   timelineLoadFailed: 'Could not load execution timeline',
   timelineTitle: 'Execution timeline',
   timelineHint: 'Critical path grouped into planning buckets; lanes show parallel tracks.',
+  /** Consultant / client Plan surface — roadmap (Gantt) AppShell chrome */
+  planRoadmapShellTitle: 'Plan · Roadmap',
+  planRoadmapShellSubtitle: 'Multi-lane schedule with dependencies and task detail.',
+  planRoadmapLoadingSubtitle: 'Loading plan data…',
+  /** Roadmap shell — audit row not ready yet */
+  planRoadmapLoadingAuditSubtitle: 'Loading audit…',
+  /** Roadmap shell — audit present, timeline API still in flight */
+  planRoadmapLoadingTimelineSubtitle: 'Loading schedule data…',
+  /** Shared loading detail under icon — Roadmap + Timeline plan surfaces */
+  planSurfaceLoadingDetail: 'Fetching execution timeline for this audit…',
+  planSurfaceMissingAuditId: 'Missing audit id.',
+  planRoadmapErrorSubtitle: 'Plan data unavailable',
+  planRoadmapLoadErrorBody: 'Could not load timeline data for this audit. Check your connection or return to Strategy Lab.',
+  planRoadmapTimelineQueryFailedBody:
+    'The timeline request failed before we could render the schedule. Retry from Strategy Lab after checking your connection.',
+  planRoadmapBackToStrategyCta: 'Open Strategy Lab',
+  /** Timeline / Plan chrome — audit refetch failed but cached audit row is still shown */
+  planAuditStaleDataBanner:
+    'Audit data could not be refreshed. You are seeing the last loaded information. Try again or reload the page.',
+  /** Single-line “next” hint replacing numbered quick-start + flow mini tiles in Strategy Lab */
+  strategyLabNextActionInline:
+    'Next: tune scenario and planning window, save a manifest snapshot, then build the pack. Open Plan when you need lanes or the seasonal timeline.',
   /** Execution realism — plan sequencing vs people/calendar capacity. */
   timelineExecutionRealismNote:
     'This view sequences work by dependencies and lanes — it does not replace team capacity planning, FTE load, or your real sprint calendar.',
@@ -321,6 +331,22 @@ export const ORCHESTRATION_UI_COPY = {
   consultantCockpitRefinePlan: 'Refine plan',
   consultantCockpitStaleBanner: 'The plan was updated elsewhere. Refresh the page, then continue.',
   consultantCockpitGovernanceDisabled: 'Governance actions are disabled in this build.',
+  consultantCockpitAppShellTitle: 'Orchestration cockpit',
+  consultantCockpitAppShellSubtitle: 'Read-only pack, governance, and critical path (same API as the client portal).',
+  consultantCockpitLoadingLabel: 'Loading…',
+  consultantCockpitLoadError: 'Could not load orchestration data.',
+  consultantCockpitNoPackBody: 'No pack persisted for this audit yet.',
+  consultantCockpitCriticalPathHeading: 'Critical path',
+  consultantCockpitInitiativesHeading: 'Initiatives',
+  consultantCockpitTimelineLinkLabel: 'Timeline',
+  consultantCockpitManifestWizardLinkLabel: 'Manifest wizard',
+  consultantCockpitTableColTitle: 'Title',
+  consultantCockpitTableColLane: 'Lane',
+  consultantCockpitTableColDomain: 'Domain',
+  consultantCockpitGovernanceStatusLabel: 'status',
+  consultantCockpitGovernanceRefineBanner:
+    'Plan gate suggests refinement — use Manifest wizard or Strategy Lab, then rebuild.',
+  consultantCockpitGovernanceRecordedToast: 'Governance action recorded',
   setAggregatorTitle: 'Selection summary',
   setAggregatorEffort: 'Effort range (days)',
   setAggregatorImpact: 'Expected impact',
@@ -603,9 +629,170 @@ export const ORCHESTRATION_UI_COPY = {
   roadmapGanttScheduleProgressToggleLabel: 'Show schedule progress',
   roadmapGanttScheduleElapsedTooltipPrefix: 'Schedule elapsed',
   roadmapGanttScheduleElapsedHint: 'Time-based along the plan window, not task completion %.',
+  roadmapGanttTimelinePanelTitle: 'Roadmap timeline',
+  roadmapGanttTimelinePanelHint: 'Multi-lane schedule with dependency context and keyboard control.',
+  /** Shown under the timeline panel hint until a baseline is captured locally */
+  roadmapGanttBaselinePanelOnboarding:
+    'To compare drift later: open More options → Set baseline — a grey stripe on each bar shows overlap with that saved snapshot.',
+  roadmapGanttMainPanelsTablistAriaLabel: 'Roadmap schedule panels',
+  roadmapGanttMainTabTimelineLabel: 'Timeline',
+  roadmapGanttMainTabDependenciesLabel: 'Dependencies',
+  roadmapGanttDependenciesPanelTitle: 'Dependencies',
+  roadmapGanttDepsGraphTabLabel: 'Graph',
+  roadmapGanttDepsTableTabLabel: 'Table',
+  roadmapGanttDepsViewTablistAriaLabel: 'Dependency visualization',
+  roadmapGanttDepsModeGraphHint: 'Graph mode: investigate flow and bottlenecks',
+  roadmapGanttDepsModeTableHint: 'Table mode: audit exact dependency pairs',
+  roadmapGanttDepsMissingLinksHint: 'Missing links in the dependency matrix?',
+  roadmapGanttDepsBuildStrategyLinkCta: 'Build strategy to populate this dependency map',
+  roadmapGanttTimelineKeyboardShortcutsHint:
+    'Arrow keys move focus across tasks; Enter opens details; M opens a lane picker to narrow the sidebar, or right-click a task bar for the same menu (schedule changes are not persisted from the client). T or D Timeline or Dependencies; G or B dependency Graph or Table; A expands advanced lane filters in the toolbar; R reset.',
+  roadmapGanttTimelineGridAriaLabel: 'Roadmap timeline keyboard grid',
+  /** aria-label for dependency graph SVG (dependencies tab). */
+  roadmapGanttDependencyGraphSvgAriaLabel: 'Roadmap dependency arrow map',
+  roadmapGanttOverviewMapAriaLabel: 'Roadmap overview map; drag to scroll the timeline',
+  /** Linked from overview strip via aria-describedby (screen readers). */
+  roadmapGanttOverviewMapLongDescription:
+    'Press Home or End to jump to the start or end of the scrollable timeline. Arrow Left and Right move the visible window. Page Up and Page Down scroll by a larger step.',
+  roadmapGanttOverviewKeyboardHint:
+    'When this overview strip is focused: Arrow Left and Right scroll; Page Up and Page Down scroll farther; Home and End jump to the ends.',
+  /** Mouse / pointer users — complements grab cursor on the overview strip */
+  roadmapGanttOverviewPointerHint: 'Drag the strip to reposition the visible timeline range.',
+  /** Shown on the timeline panel when many tasks are visible (heavy render path). */
+  roadmapGanttHeavyTaskLoadTimelineNotice:
+    'Large plan: showing {count} visible tasks (heavy load from {threshold}+). Narrow with search or filters if scrolling feels slow.',
+  /** Shown on the dependency graph when arrow geometry is skipped for performance. */
+  roadmapGanttHeavyTaskLoadGraphNotice:
+    'Dependency arrows are paused: {count} visible tasks (heavy load from {threshold}+). Use the Table tab or narrow filters to restore the arrow map.',
+  /** Announced when moving between main Timeline / Dependencies tabs from the tab list (keyboard). */
+  roadmapGanttMainTabPanelAnnouncementTimeline: 'Timeline panel',
+  roadmapGanttMainTabPanelAnnouncementDependencies: 'Dependencies panel',
+  roadmapGanttOverviewEmptyFilteredLabel: 'No tasks in current filters',
+  roadmapGanttEmptyFilteredActiveReasonPrefix: 'Current combination:',
+  roadmapGanttResetViewCta: 'Reset view',
+  roadmapGanttBlockedOnlyLabel: 'Blocked only',
+  roadmapGanttPresetBlocked30Label: 'Preset: Blocked 30d',
+  roadmapGanttPresetExecutionLabel: 'Preset: Execution',
+  roadmapGanttDepsTableHeading: 'Dependency table',
+  roadmapGanttDepsVirtualTableAria: 'Dependency pairs virtual list',
+  roadmapGanttDepsColFrom: 'From',
+  roadmapGanttDepsColTo: 'To',
+  roadmapGanttDepsColType: 'Type',
+  roadmapGanttDepsTableEmptyFilteredCta: 'No dependencies match current filters. Clear filters.',
+  roadmapGanttDepsTableEmptyPlain: 'No dependencies available yet.',
+  roadmapGanttFilterToLaneCta: 'Focus this lane on the roadmap',
+  roadmapGanttScaleAriaLabel: 'Timeline scale',
+  roadmapGanttHorizonAriaLabel: 'Day horizon',
+  roadmapGanttBaselineStoredFormatResetNotice:
+    'The saved baseline in this browser used an older format and was cleared. Set baseline again to compare.',
+  roadmapGanttKeyboardFocusAnnouncement: 'Focused task {title}. Lane {lane}.',
+  roadmapGanttKeyboardTaskOpenedAnnouncement: 'Task details opened for {title}. Lane {lane}.',
+  roadmapGanttLaneMoveMenuTrigger: 'Focus lane…',
+  roadmapGanttLaneMoveMenuLabel: 'Focus timeline on lane',
+  /** Announced when opening the lane picker from the keyboard (M). */
+  roadmapGanttLaneMoveMenuOpenedAnnouncement: 'Lane picker opened. Choose a lane to filter the sidebar, or press Escape to close.',
+  roadmapGanttKeyboardLaneFilterAnnouncement: 'Lane filter: {lane}.',
+  roadmapGanttKeyboardNavigationBoundaryAnnouncement:
+    'No further task in that direction — try another lane filter or widen the visible range.',
+  /** Legend caption for baseline comparison stripe shown on timeline bars after Set baseline */
+  roadmapGanttBaselineStripeLegendCaption: 'Grey stripe matches the saved baseline on that portion of each bar.',
+  roadmapGanttToolbarPrimarySectionTitle: 'Roadmap essentials',
+  /** Announced once for the compact first toolbar row (view + Today + search). */
+  roadmapGanttToolbarPrimaryRowScreenReaderTitle: 'View density and time scale',
+  /** Shown inside More options — clarifies horizon / analysis vs primary row */
+  roadmapGanttToolbarMoreHintSecondary:
+    'Day window chips, baseline legend, dependency analysis and exports stay here so the timeline stays readable.',
+  /** Baseline chip group heading inside More popover */
+  roadmapGanttBaselineMoreSectionTitle: 'Baseline snapshot',
+  roadmapGanttToolbarMoreViewTitle: 'Zoom and layout',
+  /** Day-scale horizon chips (30 / 60 / 90) — lives in More options by default */
+  roadmapGanttToolbarMoreHorizonTitle: 'Day window',
+  roadmapGanttToolbarMoreHorizonMonthScaleNote: 'Month scale uses the full plan horizon; switch to Days to pick a 30 / 60 / 90 window.',
+  roadmapGanttDensityLabel: 'Density',
+  roadmapGanttDensityCompact: 'Compact',
+  roadmapGanttDensityComfortable: 'Comfortable',
+  roadmapGanttScaleDaysToggle: 'Days',
+  roadmapGanttScaleMonthsToggle: 'Months',
+  roadmapGanttHorizonDayChipSuffix: 'd',
+  roadmapGanttToolbarMoreExpand: 'More options',
+  roadmapGanttToolbarMoreCollapse: 'Close more options',
+  roadmapGanttToolbarLegendSummary: 'Counts, weekends, and dependency colors',
+  roadmapGanttToolbarMoreHint:
+    'Navigate, analysis toggles, presets, exports, baseline capture, lane filters and dependency options. Density and time scale stay on the primary row. Shared URLs can include ?more=1 so this panel opens for others.',
+  /** Minimal strip when timeline has tasks but baseline not captured yet */
+  roadmapGanttBaselinePrimaryStripHint: 'No baseline yet — open More options to capture one for the grey comparison stripe.',
+  roadmapGanttToolbarSearchSectionTitle: 'Search',
+  roadmapGanttToolbarMoreNavigateTitle: 'Navigate timeline',
+  roadmapGanttHorizonDayButtonTitleTemplate: 'Show approximately {days} days',
+  roadmapGanttJumpTodayTitle: 'Jump timeline to today',
+  roadmapGanttJumpTodayLabel: 'Today',
+  roadmapGanttPrevRangeTitle: 'Scroll to previous date range',
+  roadmapGanttPrevRangeAriaLabel: 'Previous range',
+  roadmapGanttPrevRangeLabel: 'Prev',
+  roadmapGanttNextRangeTitle: 'Scroll to next date range',
+  roadmapGanttNextRangeAriaLabel: 'Next range',
+  roadmapGanttNextRangeLabel: 'Next',
+  roadmapGanttToolbarMoreAnalysisTitle: 'Analysis',
+  roadmapGanttToolbarMoreFiltersTitle: 'Filters',
+  roadmapGanttToolbarMoreActionsTitle: 'Actions',
+  roadmapGanttDependencyTypeLabel: 'Dependency type',
+  roadmapGanttDependencyTypeAll: 'All dependency types',
+  roadmapGanttAdvancedLabel: 'Advanced',
+  roadmapGanttToolbarResetHint: 'Reset clears filters, panel, and selected task.',
+  roadmapGanttOwnerFilterLabel: 'Owner',
+  roadmapGanttOwnerAll: 'All owners',
+  roadmapGanttStatusFilterLabel: 'Status',
+  roadmapGanttStatusAll: 'All statuses',
+  roadmapGanttStatusPlanned: 'Planned',
+  roadmapGanttStatusInProgress: 'In progress',
+  roadmapGanttStatusDone: 'Done',
+  roadmapGanttLaneFilterLabel: 'Lane',
+  roadmapGanttLaneAll: 'All lanes',
+  roadmapGanttDependencyViewLabel: 'Dependency view',
+  roadmapGanttDependencyViewAll: 'All',
+  roadmapGanttDependencyViewSelected: 'Selected task only',
+  roadmapGanttDependencyViewHideWeak: 'Hide weak',
+  roadmapGanttFilteredViewBadge: 'Filtered view',
+  roadmapGanttClearFilterChipTitleTemplate: 'Clear {label}',
+  roadmapGanttClearAllFilters: 'Clear all filters',
+  roadmapGanttFilterLogicPrefix: 'Current filter logic: ',
+  roadmapGanttFilterLogicFallback: 'active filters',
+  roadmapGanttDependencyKindHelpAriaTemplate: '{kind} definition',
+  roadmapRestoreSessionNoticeLead: 'View restored from your previous session.',
+  roadmapRestoreSessionUseDefault: 'Use default view',
+  roadmapRestoreSessionDismiss: 'Dismiss',
+  roadmapEmptyNoTasksBody: 'No tasks available for this roadmap yet.',
+  planRoadmapEmptyTasksTitle: 'Roadmap has no tasks yet',
+  planRoadmapEmptyTasksHint: 'Add initiatives and build the execution pack in Strategy Lab — this schedule fills in automatically after the pack is saved.',
+  planRoadmapEmptyTasksClientHint: 'Your consultant builds the execution pack in Strategy Lab. This view updates when tasks are available.',
+  planRoadmapMapperEmptyTasksTitle: 'Roadmap schedule could not be built from timeline data',
+  planRoadmapMapperEmptyTasksHint:
+    'The API returned lanes with work items but the Gantt mapped zero tasks—a version skew or malformed row. Compare the Timeline view and retry after refresh; if this persists, report it.',
+  planRoadmapMapperEmptyTasksClientHint:
+    'Work items appear on other plan views but the schedule view could not interpret them yet. Ask your consultant to refresh or regenerate the timeline.',
+  planRoadmapOpenTimelineFromEmptyCta: 'Open Timeline',
+  planTimelineEmptyLaneItemsTitle: 'This timeline has no work items yet',
+  planTimelineEmptyLaneItemsHint:
+    'Add initiatives and build the execution pack in Strategy Lab — lanes and seasons populate after the pack is saved.',
+  planTimelineEmptyLaneItemsClientHint:
+    'Your consultant builds the execution pack in Strategy Lab. This view updates when work items are published.',
+  roadmapEmptyFilteredBodyPrefix: 'No tasks match current filters.',
+  roadmapEmptyFilteredBodySuffix: 'Clear or relax filters to see work again.',
+  roadmapDepsPanelIntro: 'Graph investigates flow; table audits exact pairs.',
+  roadmapGanttToolbarMetricsLanesTemplate: 'Lanes {count}',
+  roadmapGanttToolbarMetricsTasksTemplate: 'Tasks {count}',
+  roadmapGanttToolbarMetricsDependenciesTemplate: 'Dependencies {count}',
+  roadmapGanttTimelineHeaderCountsTemplate: 'Lanes {lanes} · Tasks {tasks}',
+  roadmapGanttBaselineGhostLegend: 'Grey overlay: baseline window saved in this browser.',
+  /** Announced on the task bar for screen readers (complements toolbar legend). */
+  roadmapGanttBaselineGhostBarAria:
+    'Baseline comparison: grey segment shows the portion of this task that overlapped with the saved baseline.',
+  roadmapGanttBaselineBeforeSetHint:
+    'Set baseline once to compare task bars later—the shaded stripe marks saved timing versus live projections.',
   roadmapGanttBaselineSetCta: 'Set baseline',
   roadmapGanttBaselineClearCta: 'Clear baseline',
   roadmapGanttBaselineTakenAtPrefix: 'Baseline saved',
+  roadmapGanttBaselineTooltipCapturedLine: 'Captured {datetime} (this browser)',
   roadmapGanttBaselineLocalNotice: 'Baseline is stored only in this browser.',
   roadmapGanttBaselineDeltaStartLabel: 'Start delta vs baseline',
   roadmapGanttBaselineDeltaEndLabel: 'End delta vs baseline',

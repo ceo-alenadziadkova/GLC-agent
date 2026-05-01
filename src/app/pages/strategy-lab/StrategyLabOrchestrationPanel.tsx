@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { Path } from '@phosphor-icons/react';
 
 import type { DomainKey } from '@glc/intake-core';
@@ -13,7 +12,7 @@ import type {
   OrchestrationCommercialOfferResponseDto,
   OrchestrationPlanGovernanceDto,
   OrchestrationPackRevisionHistoryItemDto,
-  RoadmapManifestPreviewDto,
+  RoadmapManifestRequestBody,
   RoadmapManifestSnapshotListItem,
 } from '../../data/api/audits-orchestration';
 import { api } from '../../data/apiService';
@@ -26,14 +25,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../../components/ui/accordion';
-import { Input } from '../../../design-system/ui';
 import { toast } from 'sonner';
+import { useManifestSavedSignatureBaseline } from '../../hooks/useManifestSavedSignatureBaseline';
+import { useDebouncedOrchestratorManifestPreview } from '../../hooks/useDebouncedOrchestratorManifestPreview';
 import {
-  encodeManifestChangeSignature,
-  manifestSignatureArgsFromDraft,
-  ORCHESTRATION_CHANGE_SCENARIOS,
   ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
-  ORCHESTRATION_SEASON_PRESETS,
   parseOptionalOrchestrationPlanHorizon,
   type OrchestrationChangeScenario,
   type OrchestrationSeasonPreset,
@@ -41,8 +37,6 @@ import {
 import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
 import {
   ORCHESTRATION_LANE_LABELS,
-  ORCHESTRATION_PREVIEW_COMPRESSION_LABELS,
-  ORCHESTRATION_PREVIEW_DENSITY_LABELS,
   ORCHESTRATION_SCENARIO_LABELS,
   ORCHESTRATION_SEASON_LABELS,
   ORCHESTRATION_UI_COPY,
@@ -52,12 +46,16 @@ import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS } from '../../config/orchest
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
-import { formatOrchestrationPackRunErrorMessage } from '../../lib/orchestration-pack-api-error';
+import {
+  extractPlanGovernanceFromPackApiError,
+  formatOrchestrationPackRunErrorMessage,
+} from '../../lib/orchestration-pack-api-error';
 import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-projection';
 import { formatAppMediumDateTime } from '../../lib/date-format';
-import { useProfile } from '../../hooks/useProfile';
-import { buildAppRoute } from '../../config/route-paths';
-import { RevisionHistoryPanel } from '../../features/strategy-lab/RevisionHistoryPanel';
+import { OrchestrationManifestCoreFields } from './orchestration-panel/OrchestrationManifestCoreFields';
+import { OrchestrationPanelDiagnosticsSection } from './orchestration-panel/OrchestrationPanelDiagnosticsSection';
+import { StrategyLabOrchestrationManifestPreview } from './StrategyLabOrchestrationManifestPreview';
+import { TimelineLinkButton } from './TimelineLinkButton';
 
 type ExecutionPlan = NonNullable<AuditMeta['execution_plan']>;
 
@@ -68,16 +66,6 @@ interface StrategyLabOrchestrationPanelProps {
   onReload: () => void;
   /** Parent-owned React Query merge (panel does not call useQueryClient — avoids stray ReferenceError across chunks). */
   mergeStrategyLabContextInAuditCache?: (strategy_lab_context: StrategyLabContextView) => void;
-}
-
-function TimelineLinkButton({ auditId }: { auditId: string }) {
-  const { isClient } = useProfile();
-  const to = isClient ? buildAppRoute.portalTimeline(auditId) : buildAppRoute.timeline(auditId);
-  return (
-    <Button asChild variant="outline" size="sm" className="no-underline">
-      <Link to={to}>{ORCHESTRATION_UI_COPY.commercialAcceptedOpenTimeline}</Link>
-    </Button>
-  );
 }
 
 export function StrategyLabOrchestrationPanel({
@@ -102,11 +90,7 @@ export function StrategyLabOrchestrationPanel({
   const [manifestSnapshotId, setManifestSnapshotId] = useState<string | null>(null);
   const hydratedManifestSnapshotId = useRef<string | null>(null);
   const [manifestSnapshots, setManifestSnapshots] = useState<RoadmapManifestSnapshotListItem[]>([]);
-  const [savedManifestSignature, setSavedManifestSignature] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
-  const [manifestPreview, setManifestPreview] = useState<RoadmapManifestPreviewDto | null>(null);
-  const [manifestPreviewError, setManifestPreviewError] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
   const [lastPostRevision, setLastPostRevision] = useState<{
     roadmap_version: number;
     diff: GlcOrchestrationPackRevisionDiffView | null;
@@ -123,6 +107,14 @@ export function StrategyLabOrchestrationPanel({
     () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
   );
   const [stage2Working, setStage2Working] = useState(false);
+
+  const { hasUnsavedManifestChanges, applySignatureFromManifestPayload, markDraftAsSavedBaseline } =
+    useManifestSavedSignatureBaseline({
+    scenario,
+    season,
+    planHorizonStart,
+    planHorizonEnd,
+  });
 
   /** Newest-first list from API; server only accepts this id for POST orchestrator run. */
   const latestManifestSnapshotId = useMemo(
@@ -143,15 +135,17 @@ export function StrategyLabOrchestrationPanel({
   }, [strategy.glc_orchestration_pack]);
 
   useEffect(() => {
-    let cancelled = false;
     if (isGlcOrchestrationPackView(strategy.glc_orchestration_pack)) return;
+    const controller = new AbortController();
+    const { signal } = controller;
     void (async () => {
       try {
-        const latest = await api.getRoadmapManifestSnapshotLatest(auditId);
+        const latest = await api.getRoadmapManifestSnapshotLatest(auditId, { signal });
         const { snapshots } = await api.getRoadmapManifestSnapshots(auditId, {
           limit: ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems,
+          signal,
         });
-        if (cancelled) return;
+        if (signal.aborted) return;
         setManifestSnapshots(snapshots);
         if (manifestSnapshotId) return;
         const row = latest.snapshot ?? snapshots[0] ?? null;
@@ -160,32 +154,34 @@ export function StrategyLabOrchestrationPanel({
         setManifestSnapshotId(row.id);
         toast.success(ORCHESTRATION_UI_COPY.snapshotAutoSelected);
       } catch {
-        if (!cancelled) {
-          setManifestSnapshots([]);
-        }
+        if (signal.aborted) return;
+        setManifestSnapshots([]);
       }
     })();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [auditId, manifestSnapshotId, strategy.glc_orchestration_pack]);
 
   useEffect(() => {
     if (!isGlcOrchestrationPackView(strategy.glc_orchestration_pack)) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     void (async () => {
       try {
         const { snapshots } = await api.getRoadmapManifestSnapshots(auditId, {
           limit: ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems,
+          signal,
         });
-        if (cancelled) return;
+        if (signal.aborted) return;
         setManifestSnapshots(snapshots);
       } catch {
-        if (!cancelled) setManifestSnapshots([]);
+        if (signal.aborted) return;
+        setManifestSnapshots([]);
       }
     })();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [auditId, strategy.glc_orchestration_pack]);
 
@@ -199,59 +195,25 @@ export function StrategyLabOrchestrationPanel({
     setSeason(row.payload.season_preset);
     setPlanHorizonStart(row.payload.plan_horizon?.start_date ?? '');
     setPlanHorizonEnd(row.payload.plan_horizon?.end_date ?? '');
-    setSavedManifestSignature(
-      encodeManifestChangeSignature({
-        change_scenario: row.payload.change_scenario,
-        season_preset: row.payload.season_preset,
-        plan_horizon: row.payload.plan_horizon,
-      }),
-    );
-  }, [manifestSnapshotId, manifestSnapshots]);
+    applySignatureFromManifestPayload(row.payload);
+  }, [manifestSnapshotId, manifestSnapshots, applySignatureFromManifestPayload]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setManifestPreviewError(null);
-    setPreviewLoading(false);
+  const orchestratorPreviewBody = useMemo((): RoadmapManifestRequestBody | null => {
     const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
-    const body = {
+    return {
       schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
       selected_domains: executionPlan.selected_domains,
       change_scenario: scenario,
       season_preset: season,
       ...(planHorizon ? { plan_horizon: planHorizon } : {}),
     };
-    const t = window.setTimeout(() => {
-      if (cancelled) return;
-      setManifestPreviewError(null);
-      setPreviewLoading(true);
-      void (async () => {
-        try {
-          const { preview } = await api.postOrchestratorPreview(auditId, body);
-          if (!cancelled) {
-            setManifestPreview(preview);
-            setManifestPreviewError(null);
-          }
-        } catch (e) {
-          if (!cancelled) {
-            setManifestPreview(null);
-            const detail =
-              e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null && 'detail' in e.details
-                ? String((e.details as { detail?: unknown }).detail ?? '')
-                : '';
-            setManifestPreviewError(detail || ORCHESTRATION_UI_COPY.previewFailed);
-          }
-        } finally {
-          if (!cancelled) {
-            setPreviewLoading(false);
-          }
-        }
-      })();
-    }, ORCHESTRATION_UI_LIMITS.manifestPreviewDebounceMs);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, [auditId, executionPlan.selected_domains, scenario, season, planHorizonStart, planHorizonEnd]);
+  }, [executionPlan.selected_domains, planHorizonEnd, planHorizonStart, scenario, season]);
+
+  const { manifestPreview, manifestPreviewError, previewLoading } = useDebouncedOrchestratorManifestPreview({
+    auditId,
+    body: orchestratorPreviewBody,
+    enabled: executionPlan.selected_domains.length > 0,
+  });
 
   useEffect(() => {
     if (
@@ -264,26 +226,27 @@ export function StrategyLabOrchestrationPanel({
   }, [strategy.orchestration_pack_version, lastPostRevision]);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     void (async () => {
       try {
         const { items } = await api.getOrchestrationPackDiffHistory(auditId, {
           limit: ORCHESTRATION_UI_LIMITS.maxRevisionDiffHistoryItems,
+          signal,
         });
-        if (cancelled) return;
+        if (signal.aborted) return;
         setRevisionHistory(items);
         if (items.length > 0) {
           const firstKey = `${items[0].from_version}:${items[0].to_version}`;
           setSelectedRevisionDiffKey(prev => prev ?? firstKey);
         }
       } catch {
-        if (!cancelled) {
-          setRevisionHistory([]);
-        }
+        if (signal.aborted) return;
+        setRevisionHistory([]);
       }
     })();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [auditId, strategy.orchestration_pack_version]);
 
@@ -306,7 +269,9 @@ export function StrategyLabOrchestrationPanel({
   }, [pack]);
   const governanceHints = useMemo(() => {
     if (!planGovernance) return [];
-    return planGovernance.reason_codes.map((code) => ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS[code]);
+    return planGovernance.reason_codes
+      .map(code => ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS[code])
+      .filter((hint): hint is string => Boolean(hint));
   }, [planGovernance]);
 
   const depthFilteredNodes = useMemo(() => {
@@ -333,16 +298,7 @@ export function StrategyLabOrchestrationPanel({
       });
       setManifestSnapshotId(res.id);
       hydratedManifestSnapshotId.current = res.id;
-      setSavedManifestSignature(
-        encodeManifestChangeSignature(
-          manifestSignatureArgsFromDraft({
-            change_scenario: scenario,
-            season_preset: season,
-            plan_start_raw: planHorizonStart,
-            plan_end_raw: planHorizonEnd,
-          }),
-        ),
-      );
+      markDraftAsSavedBaseline();
       setManifestSnapshots(prev => [
         {
           id: res.id,
@@ -367,7 +323,15 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setWorking(false);
     }
-  }, [auditId, executionPlan.selected_domains, scenario, season, planHorizonStart, planHorizonEnd]);
+  }, [
+    auditId,
+    executionPlan.selected_domains,
+    scenario,
+    season,
+    planHorizonStart,
+    planHorizonEnd,
+    markDraftAsSavedBaseline,
+  ]);
 
   const handleBuildPack = useCallback(async () => {
     if (!manifestSnapshotId) return;
@@ -395,10 +359,8 @@ export function StrategyLabOrchestrationPanel({
       toast.success(ORCHESTRATION_UI_COPY.packBuilt);
       onReload();
     } catch (e) {
-      if (e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null) {
-        const pg = (e.details as { plan_governance?: OrchestrationPlanGovernanceDto }).plan_governance;
-        if (pg) setPlanGovernance(pg);
-      }
+      const pg = extractPlanGovernanceFromPackApiError(e);
+      if (pg) setPlanGovernance(pg);
       const { message, description } = formatOrchestrationPackRunErrorMessage(e, ORCHESTRATION_UI_COPY.packBuildFailed);
       toast.error(message, description ? { description, duration: 14_000 } : { duration: 6_000 });
     } finally {
@@ -429,7 +391,9 @@ export function StrategyLabOrchestrationPanel({
           toast.success(ORCHESTRATION_UI_COPY.packBuilt);
           onReload();
         }
-      } catch {
+      } catch (e) {
+        const pg = extractPlanGovernanceFromPackApiError(e);
+        if (pg) setPlanGovernance(pg);
         setCommercialOffer(null);
       } finally {
         setCommercialWorking(false);
@@ -522,27 +486,7 @@ export function StrategyLabOrchestrationPanel({
     typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0
       ? strategy.orchestration_pack_version
       : lastPostRevision?.roadmap_version ?? 0;
-  const currentManifestSignature = encodeManifestChangeSignature(
-    manifestSignatureArgsFromDraft({
-      change_scenario: scenario,
-      season_preset: season,
-      plan_start_raw: planHorizonStart,
-      plan_end_raw: planHorizonEnd,
-    }),
-  );
-  const hasUnsavedManifestChanges =
-    savedManifestSignature !== null && savedManifestSignature !== currentManifestSignature;
   const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
-  const flowSteps = [
-    { id: 'scope', label: ORCHESTRATION_UI_COPY.flowScope, done: executionPlan.selected_domains.length > 0 },
-    { id: 'preview', label: ORCHESTRATION_UI_COPY.flowPreview, done: manifestPreview !== null && !manifestPreviewError },
-    { id: 'confirm', label: ORCHESTRATION_UI_COPY.flowConfirm, done: savedManifestSignature === currentManifestSignature },
-    {
-      id: 'version',
-      label: ORCHESTRATION_UI_COPY.flowVersion,
-      done: (typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0) || !!lastPostRevision,
-    },
-  ] as const;
 
   /** Whether we have any diagnostics to render flat (governance, revision diff, or pack inspection content). */
   const hasPlanDiagnostics = !!planGovernance || revisionHistory.length > 0 || pack !== null;
@@ -586,164 +530,33 @@ export function StrategyLabOrchestrationPanel({
         <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.sectionHint}</p>
       </div>
 
-      {/* Quick start hint */}
-      <div className="bg-background rounded-lg border p-3">
-        <div className="text-muted-foreground mb-2 text-xs font-semibold">{ORCHESTRATION_UI_COPY.strategyLabQuickStartTitle}</div>
-        <ol className="text-muted-foreground list-inside list-decimal space-y-1 text-xs leading-relaxed max-w-prose">
-          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep1}</li>
-          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep2}</li>
-          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep3}</li>
-        </ol>
-      </div>
-
-      {/* Manifest mini progress */}
-      <div className="bg-background space-y-2 rounded-lg border p-3">
-        <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.flowTitle}</div>
-        <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-          {flowSteps.map(step => (
-            <li key={step.id} className="rounded-md border border-border px-2 py-1">
-              <div className="text-foreground font-medium">{step.label}</div>
-              <div className="text-muted-foreground">{step.done ? ORCHESTRATION_UI_COPY.flowDone : ORCHESTRATION_UI_COPY.flowPending}</div>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <p className="text-muted-foreground bg-background rounded-lg border px-3 py-2 text-xs leading-relaxed max-w-prose">
+        {ORCHESTRATION_UI_COPY.strategyLabNextActionInline}
+      </p>
 
       {/* Core flow controls (always visible) */}
-      <div className="space-y-3">
-        <div>
-          <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.coverageLabel}</span>
-          <p className="text-foreground mt-1 text-sm max-w-prose">{domainLabels}</p>
-        </div>
-        <label className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.scenarioLabel}</span>
-          <select
-            className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
-            value={scenario}
-            onChange={e => setScenario(e.target.value as OrchestrationChangeScenario)}
-          >
-            {ORCHESTRATION_CHANGE_SCENARIOS.map(s => (
-              <option key={s} value={s}>
-                {ORCHESTRATION_SCENARIO_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.seasonLabel}</span>
-          <select
-            className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
-            value={season}
-            onChange={e => setSeason(e.target.value as OrchestrationSeasonPreset)}
-          >
-            {ORCHESTRATION_SEASON_PRESETS.map(s => (
-              <option key={s} value={s}>
-                {ORCHESTRATION_SEASON_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="space-y-2">
-          <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.planHorizonLabel}</span>
-          <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed max-w-prose">{ORCHESTRATION_UI_COPY.planHorizonHint}</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonStartLabel}</span>
-              <Input
-                type="date"
-                className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={planHorizonStart}
-                onChange={e => setPlanHorizonStart(e.target.value)}
-              />
-            </label>
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonEndLabel}</span>
-              <Input
-                type="date"
-                className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={planHorizonEnd}
-                onChange={e => setPlanHorizonEnd(e.target.value)}
-              />
-            </label>
-          </div>
-        </div>
-      </div>
+      <OrchestrationManifestCoreFields
+        domainLabels={domainLabels}
+        scenario={scenario}
+        season={season}
+        planHorizonStart={planHorizonStart}
+        planHorizonEnd={planHorizonEnd}
+        onScenarioChange={setScenario}
+        onSeasonChange={setSeason}
+        onPlanHorizonStartChange={setPlanHorizonStart}
+        onPlanHorizonEndChange={setPlanHorizonEnd}
+      />
 
       {/* Live manifest preview */}
-      <div className="bg-background space-y-2 rounded-lg border p-3">
-        <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.previewTitle}</div>
-        {previewLoading && <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.previewLoading}</p>}
-        {manifestPreviewError && <p className="text-danger text-xs max-w-prose">{manifestPreviewError}</p>}
-        <ul className="text-foreground space-y-1 text-xs">
-          <li>
-            <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewDomains}: </span>
-            {domainLabels}
-          </li>
-          <li>
-            <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewScenario}: </span>
-            {ORCHESTRATION_SCENARIO_LABELS[scenario]}
-          </li>
-          <li>
-            <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewSeason}: </span>
-            {ORCHESTRATION_SEASON_LABELS[season]}
-          </li>
-          {previewPlanHorizon ? (
-            <li>
-              <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.planHorizonLabel}: </span>
-              {previewPlanHorizon.start_date} – {previewPlanHorizon.end_date}
-            </li>
-          ) : null}
-          {manifestPreview && (
-            <>
-              <li>
-                <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewCompression}: </span>
-                {ORCHESTRATION_PREVIEW_COMPRESSION_LABELS[manifestPreview.execution_compression_hint]}
-              </li>
-              <li>
-                <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewDensity}: </span>
-                {ORCHESTRATION_PREVIEW_DENSITY_LABELS[manifestPreview.lane_density_band]}
-              </li>
-            </>
-          )}
-        </ul>
-        {manifestPreview && (
-          <div className="border-border space-y-2 border-t pt-2">
-            <div>
-              <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.previewLanesIncluded}</div>
-              <ul className="text-foreground list-inside list-disc text-xs">
-                {manifestPreview.lanes_included.map(lane => (
-                  <li key={lane}>{ORCHESTRATION_LANE_LABELS[lane]}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.previewLanesCut}</div>
-              <ul className="text-foreground list-inside list-disc text-xs">
-                {manifestPreview.lanes_cut.length === 0 && <li>—</li>}
-                {manifestPreview.lanes_cut.map(lane => (
-                  <li key={lane}>{ORCHESTRATION_LANE_LABELS[lane]}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.previewWaitingList}</div>
-              <ul className="text-foreground list-inside list-disc text-xs">
-                {manifestPreview.waiting_list_domains.length === 0 && <li>—</li>}
-                {manifestPreview.waiting_list_domains.map(d => (
-                  <li key={d}>{DOMAIN_LABELS[d] ?? d}</li>
-                ))}
-              </ul>
-            </div>
-            {manifestPreview.confidence_callouts.length > 0 && (
-              <ul className="text-muted-foreground list-inside list-disc text-xs max-w-prose">
-                {manifestPreview.confidence_callouts.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+      <StrategyLabOrchestrationManifestPreview
+        previewLoading={previewLoading}
+        manifestPreviewError={manifestPreviewError}
+        manifestPreview={manifestPreview}
+        domainLabels={domainLabels}
+        scenario={scenario}
+        season={season}
+        previewPlanHorizon={previewPlanHorizon}
+      />
 
       {/* CTA hierarchy: Build pack (primary, lg, with icon) + Save snapshot (outline, secondary). */}
       <div className="space-y-2">
@@ -786,264 +599,23 @@ export function StrategyLabOrchestrationPanel({
 
       {/* Plan diagnostics (flat, no <details>). Visible whenever there's something to inspect. */}
       {hasPlanDiagnostics ? (
-        <section
-          aria-labelledby="strategy-lab-orch-diagnostics-heading"
-          className="space-y-4 border-t border-border pt-4"
-        >
-          <div className="space-y-1">
-            <h3 id="strategy-lab-orch-diagnostics-heading" className="text-foreground text-sm font-semibold">
-              {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsGroupTitle}
-            </h3>
-            <p className="text-muted-foreground text-xs max-w-prose">
-              {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsGroupHint}
-            </p>
-          </div>
-
-          {planGovernance ? (
-            <div className="bg-background space-y-2 rounded-lg border p-3">
-              <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.governanceTitle}</div>
-              <p className="text-muted-foreground text-xs max-w-prose">
-                {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
-              </p>
-              {pack?.input_quality ? (
-                <p className="text-muted-foreground text-xs max-w-prose">
-                  {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
-                  {pack.input_quality.input_mode})
-                </p>
-              ) : null}
-              <p className="text-muted-foreground text-xs">
-                Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {ORCHESTRATION_UI_COPY.governanceScoresLabel}{' '}
-                {Math.round(planGovernance.dependency_integrity_score * 100)}% /{' '}
-                {Math.round(planGovernance.confidence_coverage_score * 100)}% /{' '}
-                {Math.round(planGovernance.risk_coverage_score * 100)}%
-              </p>
-              <p className="text-muted-foreground text-xs">
-                Plan scores: {Math.round(planGovernance.integrity_score * 100)}% /{' '}
-                {Math.round(planGovernance.coverage_score * 100)}% /{' '}
-                {Math.round(planGovernance.confidence_score * 100)}%
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {ORCHESTRATION_UI_COPY.governanceCriticalPathCoverageLabel}:{' '}
-                {Math.round(planGovernance.critical_path_node_ratio * 100)}%
-              </p>
-              {planGovernance.warnings.length > 0 ? (
-                <ul className="text-foreground list-inside list-disc text-xs max-w-prose">
-                  {planGovernance.warnings.map(line => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              ) : null}
-              {governanceHints.length > 0 ? (
-                <div>
-                  <div className="text-muted-foreground mb-1 text-xs font-medium">
-                    {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
-                  </div>
-                  <ul className="text-foreground list-inside list-disc text-xs max-w-prose">
-                    {governanceHints.map(hint => (
-                      <li key={hint}>{hint}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {showRevisionHistorySubsection ? (
-            <div className="bg-background space-y-3 rounded-lg border p-3">
-              <div className="text-foreground text-xs font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.versionHistorySummary}
-              </div>
-              {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
-                <RevisionHistoryPanel items={revisionHistory} />
-              ) : null}
-              {selectedRevisionDiff && roadmapVersionToShow > 1 ? (
-                <div className="space-y-3">
-                  <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.revisionDiffTitle}</div>
-                  {revisionDiffCandidates.length > 0 && (
-                    <label className="flex flex-col gap-1">
-                      <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionCompareLabel}</span>
-                      <select
-                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                        value={selectedRevisionDiffKey ?? revisionDiffCandidates[0]?.key ?? ''}
-                        onChange={e => setSelectedRevisionDiffKey(e.target.value)}
-                      >
-                        {revisionDiffCandidates.map(item => (
-                          <option key={item.key} value={item.key}>
-                            v{item.from_version} → v{item.to_version}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  <p className="text-muted-foreground text-xs">
-                    v{selectedRevisionDiff.from_version} → v{selectedRevisionDiff.to_version}
-                  </p>
-                  <ul className="text-foreground space-y-1 text-xs">
-                    {selectedRevisionDiff.nodes_added.length > 0 && (
-                      <li>
-                        <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesAdded}: </span>
-                        {selectedRevisionDiff.nodes_added.join(', ')}
-                      </li>
-                    )}
-                    {selectedRevisionDiff.nodes_removed.length > 0 && (
-                      <li>
-                        <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesRemoved}: </span>
-                        {selectedRevisionDiff.nodes_removed.join(', ')}
-                      </li>
-                    )}
-                    <li>
-                      {selectedRevisionDiff.critical_path_changed
-                        ? ORCHESTRATION_UI_COPY.revisionCriticalPathChanged
-                        : ORCHESTRATION_UI_COPY.revisionCriticalPathUnchanged}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionConflictsResolvedCounts}: </span>
-                      {selectedRevisionDiff.conflicts_resolved_before} → {selectedRevisionDiff.conflicts_resolved_after}
-                    </li>
-                  </ul>
-                  {selectedRevisionDiff.nodes_lane_changed.length > 0 && (
-                    <div>
-                      <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionLaneChanges}</div>
-                      <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
-                        {selectedRevisionDiff.nodes_lane_changed
-                          .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed)
-                          .map(row => {
-                            const fromL =
-                              row.from_lane in ORCHESTRATION_LANE_LABELS
-                                ? ORCHESTRATION_LANE_LABELS[row.from_lane as OrchestrationLaneId]
-                                : row.from_lane;
-                            const toL =
-                              row.to_lane in ORCHESTRATION_LANE_LABELS
-                                ? ORCHESTRATION_LANE_LABELS[row.to_lane as OrchestrationLaneId]
-                                : row.to_lane;
-                            return (
-                              <li key={row.id}>
-                                {titleById.get(row.id) ?? row.id}{' '}
-                                <span className="text-muted-foreground">
-                                  ({ORCHESTRATION_UI_COPY.revisionLaneChangeRow}: {fromL} → {toL})
-                                </span>
-                              </li>
-                            );
-                          })}
-                      </ul>
-                      {selectedRevisionDiff.nodes_lane_changed.length >
-                        ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed && (
-                        <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-                      )}
-                    </div>
-                  )}
-                  {(selectedRevisionDiff.edges_added.length > 0 || selectedRevisionDiff.edges_removed.length > 0) && (
-                    <div className="space-y-2 border-t border-border pt-2">
-                      {selectedRevisionDiff.edges_added.length > 0 && (
-                        <div>
-                          <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesAdded}</div>
-                          <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
-                            {selectedRevisionDiff.edges_added
-                              .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
-                              .map((e, i) => (
-                                <li key={`a-${e.from}-${e.to}-${i}`}>
-                                  {titleById.get(e.from) ?? e.from}
-                                  <span className="text-muted-foreground"> → </span>
-                                  {titleById.get(e.to) ?? e.to}
-                                </li>
-                              ))}
-                          </ul>
-                          {selectedRevisionDiff.edges_added.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
-                            <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-                          )}
-                        </div>
-                      )}
-                      {selectedRevisionDiff.edges_removed.length > 0 && (
-                        <div>
-                          <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesRemoved}</div>
-                          <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
-                            {selectedRevisionDiff.edges_removed
-                              .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
-                              .map((e, i) => (
-                                <li key={`r-${e.from}-${e.to}-${i}`}>
-                                  {titleById.get(e.from) ?? e.from}
-                                  <span className="text-muted-foreground"> → </span>
-                                  {titleById.get(e.to) ?? e.to}
-                                </li>
-                              ))}
-                          </ul>
-                          {selectedRevisionDiff.edges_removed.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
-                            <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {pack ? (
-            <div className="bg-background space-y-3 rounded-lg border p-3">
-              <div className="text-foreground text-xs font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.packInspectionSummary}
-              </div>
-              <div className="space-y-2">
-                <div className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.orchestratorTabs.analysisDepth}</div>
-                <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">{STRATEGY_LAB_COPY.depthFilter.hint}</p>
-                <div className="flex flex-wrap gap-2">
-                  {(['all', 'baseline', 'deep'] as const).map(mode => (
-                    <Button
-                      key={mode}
-                      type="button"
-                      size="sm"
-                      variant={analysisDepthFilter === mode ? 'default' : 'outline'}
-                      onClick={() => setAnalysisDepthFilter(mode)}
-                    >
-                      {mode === 'all'
-                        ? STRATEGY_LAB_COPY.depthFilter.all
-                        : mode === 'baseline'
-                          ? STRATEGY_LAB_COPY.depthFilter.baseline
-                          : STRATEGY_LAB_COPY.depthFilter.deep}
-                    </Button>
-                  ))}
-                </div>
-                <ul className="text-muted-foreground list-inside list-disc text-xs max-w-prose">
-                  {depthFilteredNodes.length === 0 && <li>—</li>}
-                  {depthFilteredNodes.map(n => (
-                    <li key={n.id}>
-                      {n.title}{' '}
-                      <span className="text-[length:var(--text-2xs)]">
-                        ({n.analysis_depth === 'deep' ? ORCHESTRATION_UI_COPY.nodeBadgeDeep : ORCHESTRATION_UI_COPY.nodeBadgeBaseline})
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.labDetailLayerHint}</p>
-              {synthesisConflicts.length > 0 && (
-                <div className="border-t pt-3">
-                  <div className="text-foreground mb-1 text-xs font-semibold">{ORCHESTRATION_UI_COPY.synthesisSectionTitle}</div>
-                  <p className="text-muted-foreground mb-2 text-xs max-w-prose">{ORCHESTRATION_UI_COPY.synthesisSectionHint}</p>
-                  <ul className="text-foreground space-y-2 text-xs">
-                    {synthesisConflicts.map(row => (
-                      <li key={row.id} className="bg-card rounded-md border px-3 py-2 max-w-prose">
-                        <span className="text-muted-foreground font-medium">
-                          {row.resolution === 'synthesis_applied'
-                            ? ORCHESTRATION_UI_COPY.synthesisResolutionApplied
-                            : ORCHESTRATION_UI_COPY.synthesisResolutionPending}
-                          {': '}
-                        </span>
-                        {row.summary}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.noPackYet}</p>
-          )}
-        </section>
+        <OrchestrationPanelDiagnosticsSection
+          planGovernance={planGovernance}
+          governanceHints={governanceHints}
+          pack={pack}
+          showRevisionHistorySubsection={showRevisionHistorySubsection}
+          revisionHistory={revisionHistory}
+          selectedRevisionDiff={selectedRevisionDiff}
+          roadmapVersionToShow={roadmapVersionToShow}
+          revisionDiffCandidates={revisionDiffCandidates}
+          selectedRevisionDiffKey={selectedRevisionDiffKey}
+          setSelectedRevisionDiffKey={setSelectedRevisionDiffKey}
+          titleById={titleById}
+          analysisDepthFilter={analysisDepthFilter}
+          setAnalysisDepthFilter={setAnalysisDepthFilter}
+          depthFilteredNodes={depthFilteredNodes}
+          synthesisConflicts={synthesisConflicts}
+        />
       ) : null}
 
       {/* Advanced settings: single accordion grouping Stage-2 intent + snapshot history + commercial offers.
@@ -1145,13 +717,7 @@ export function StrategyLabOrchestrationPanel({
                       setSeason(next.payload.season_preset);
                       setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
                       setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
-                      setSavedManifestSignature(
-                        encodeManifestChangeSignature({
-                          change_scenario: next.payload.change_scenario,
-                          season_preset: next.payload.season_preset,
-                          plan_horizon: next.payload.plan_horizon,
-                        }),
-                      );
+                      applySignatureFromManifestPayload(next.payload);
                       hydratedManifestSnapshotId.current = nextId;
                     }
                   }}

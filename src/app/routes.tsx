@@ -18,9 +18,9 @@ import { Login }            from './pages/Login';
 import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
-import { PortalTimelinePage } from './pages/PortalTimelinePage';
-import { PortalRoadmapGanttPage } from './pages/PortalRoadmapGanttPage';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
+import { LegacyPlanPathRedirect } from './pages/portal-plan/LegacyPlanPathRedirect';
+import { PortalPlanPage } from './pages/portal-plan/PortalPlanPage';
 import { ConsultantOrchestrationCockpitPage } from './pages/ConsultantOrchestrationCockpitPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
@@ -144,8 +144,9 @@ export const router = createBrowserRouter([
       { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
       { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
-      { path: P.timelineById, element: <Consultant><PortalTimelinePage /></Consultant> },
-      { path: P.roadmapById, element: <Consultant><PortalRoadmapGanttPage /></Consultant> },
+      { path: P.timelineById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="timeline" /></Consultant> },
+      { path: P.roadmapById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="roadmap" /></Consultant> },
+      { path: P.planById, element: <Consultant><PortalPlanPage /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
       { path: P.auditOrchestrationById, element: <Consultant><ConsultantOrchestrationCockpitPage /></Consultant> },
@@ -155,8 +156,9 @@ export const router = createBrowserRouter([
       { path: P.portalAuditNew, element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
       { path: P.portalPipelineById, element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
-      { path: P.portalTimelineById, element: <ClientPortalShell><PortalTimelinePage /></ClientPortalShell> },
-      { path: P.portalRoadmapById, element: <ClientPortalShell><PortalRoadmapGanttPage /></ClientPortalShell> },
+      { path: P.portalTimelineById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="timeline" /></ClientPortalShell> },
+      { path: P.portalRoadmapById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="roadmap" /></ClientPortalShell> },
+      { path: P.portalPlanById, element: <ClientPortalShell><PortalPlanPage /></ClientPortalShell> },
       { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
       { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },

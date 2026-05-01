@@ -5,7 +5,14 @@ import type { RoadmapGanttProjection } from './roadmap-gantt-mapper';
 const CRLF = '\r\n';
 
 function escapeIcalText(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
+  return s
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,');
 }
 
 /** DTSTAMP in UTC (`YYYYMMDDTHHmmssZ`) without extra dayjs plugins. */
@@ -33,9 +40,38 @@ function exclusiveEndLocalDate(startMs: number, endMs: number): string {
   return first.add(inclusiveDays, 'day').format('YYYYMMDD');
 }
 
+/**
+ * Produce a deterministic, host-shaped UID with strict sanitation (RFC 5545 tolerant).
+ * Replaces disallowed chars; guarantees non-empty host and local-part.
+ */
 function uidFor(taskId: string, auditId: string): string {
-  const safe = `${auditId}-${taskId}`.replace(/[^a-zA-Z0-9@-]/g, '-');
-  return `${safe}@glc-roadmap.local`;
+  const rawLocal = `${auditId}-${taskId}`.trim() || 'task-item';
+  const safeLocal =
+    rawLocal
+      .replace(/[^A-Za-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 200) || 'item';
+  return `${safeLocal}@invalid`;
+}
+
+/** Fold iCal content lines longer than 75 octets per RFC 5545 (continuation = CRLF + single space). */
+export function foldIcalContent(blob: string): string {
+  const physicalLines = blob.split(/\r?\n/);
+  const out: string[] = [];
+  for (const logical of physicalLines) {
+    let line = logical;
+    if (line === '') {
+      out.push('');
+      continue;
+    }
+    while (line.length > 75) {
+      out.push(line.slice(0, 75));
+      line = ` ${line.slice(75)}`;
+    }
+    out.push(line);
+  }
+  return out.join(CRLF);
 }
 
 function veventBlock(opts: {
@@ -117,7 +153,7 @@ export function buildIcalFromProjection(projection: RoadmapGanttProjection, opts
   }
 
   blocks.push('END:VCALENDAR');
-  return blocks.join(CRLF) + CRLF;
+  return foldIcalContent(blocks.join(CRLF)) + CRLF;
 }
 
 export function icsFilenameForAudit(auditId: string): string {

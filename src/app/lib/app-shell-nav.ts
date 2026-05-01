@@ -56,7 +56,7 @@ export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePri
   const timelineFirst = resolveTimelinePrimaryUx(opts);
   const consultantTimelineEnabled = resolveConsultantTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId && consultantTimelineEnabled ? buildAppRoute.timeline(auditId) : null,
+    to: auditId && consultantTimelineEnabled ? buildAppRoute.plan(auditId, 'timeline') : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -101,7 +101,7 @@ export function buildClientNav(
   const timelineFirst = resolveTimelinePrimaryUx(opts);
   const clientTimelineEnabled = resolveClientTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId && clientTimelineEnabled ? buildAppRoute.portalTimeline(auditId) : null,
+    to: auditId && clientTimelineEnabled ? buildAppRoute.portalPlan(auditId, 'timeline') : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -135,10 +135,66 @@ export function buildGuestNav(): AppShellNavItem[] {
   return [{ to: APP_ROUTE_PATHS.snapshot, icon: Lightning, label: APP_SHELL_COPY.nav.guest.freeSnapshot, badge: null }];
 }
 
-export function isNavItemActive(pathname: string, to: string): boolean {
-  return pathname === to ||
-    (!to.startsWith('/admin/') && to !== APP_ROUTE_PATHS.dashboard && to !== APP_ROUTE_PATHS.portal &&
-      pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+function splitHrefPathQuery(href: string): { path: string; query: string } {
+  const idx = href.indexOf('?');
+  if (idx === -1) return { path: href, query: '' };
+  return { path: href.slice(0, idx), query: href.slice(idx + 1) };
+}
+
+function navLocationPlanView(search: string): 'roadmap' | 'timeline' {
+  const qs = search.startsWith('?') ? search.slice(1) : search;
+  return new URLSearchParams(qs).get('view') === 'timeline' ? 'timeline' : 'roadmap';
+}
+
+function auditIdFromCanonicalPlanPath(path: string): string | null {
+  const main = path.match(/^\/plan\/([^/]+)$/);
+  const portal = path.match(/^\/portal\/plan\/([^/]+)$/);
+  return main?.[1] ?? portal?.[1] ?? null;
+}
+
+function legacyPlanSurface(
+  pathname: string,
+  auditId: string,
+  portalSurface: boolean,
+): 'roadmap' | 'timeline' | null {
+  if (portalSurface) {
+    if (pathname === `/portal/roadmap/${auditId}`) return 'roadmap';
+    if (pathname === `/portal/timeline/${auditId}`) return 'timeline';
+  }
+  if (pathname === `/roadmap/${auditId}`) return 'roadmap';
+  if (pathname === `/timeline/${auditId}`) return 'timeline';
+  return null;
+}
+
+/**
+ * Sidebar / bottom-nav active styling. Pass `location.search` so `/plan/:id?view=timeline` differs from roadmap default.
+ */
+export function isNavItemActive(pathname: string, to: string, search = ''): boolean {
+  const { path: toPath, query: toQueryRaw } = splitHrefPathQuery(to);
+  const toPlanView =
+    new URLSearchParams(toQueryRaw).get('view') === 'timeline' ? 'timeline' : 'roadmap';
+
+  const planAuditId = auditIdFromCanonicalPlanPath(toPath);
+  if (planAuditId) {
+    const locPlanView = navLocationPlanView(search);
+    const portal = toPath.startsWith('/portal/');
+    const legacy = legacyPlanSurface(pathname, planAuditId, portal);
+    if (pathname === toPath) {
+      return locPlanView === toPlanView;
+    }
+    if (toPlanView === 'timeline') {
+      return legacy === 'timeline';
+    }
+    return legacy === 'roadmap';
+  }
+
+  return (
+    pathname === toPath ||
+    (!to.startsWith('/admin/') &&
+      toPath !== APP_ROUTE_PATHS.dashboard &&
+      toPath !== APP_ROUTE_PATHS.portal &&
+      pathname.startsWith(toPath.split('/').slice(0, 2).join('/')))
+  );
 }
 
 /**

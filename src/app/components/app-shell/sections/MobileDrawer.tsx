@@ -12,6 +12,7 @@ type MobileDrawerProps = {
   isClient: boolean;
   isAuthenticated: boolean;
   pathname: string;
+  locationSearch: string;
   onClose: () => void;
   onSignOut: () => void;
   shellCopy: import('../../../config/app-shell-copy').AppShellCopy;
@@ -26,6 +27,7 @@ export function MobileDrawer({
   isClient,
   isAuthenticated,
   pathname,
+  locationSearch,
   onClose,
   onSignOut,
   shellCopy,
@@ -70,6 +72,7 @@ export function MobileDrawer({
               key={`drawer-${item.label}`}
               item={item}
               pathname={pathname}
+              locationSearch={locationSearch}
               itemKey={`drawer-${item.label}`}
               onClick={onClose}
             />
