@@ -10,6 +10,7 @@
 - **Sprint-2 / bank coverage:** CI enforces **78/78** questions with full `IntakeIntelligenceSprint2` contract shape via `enrichWave2Metadata` + `intake-intelligence-contract.test.ts` (`fullyCoveredQuestions === 78`). The **47** figure is the **Sprint-2 gate subset** size (`INTAKE_INTELLIGENCE_SPRINT2_GATE_IDS`), not “uncontracted” rows.
 - **Case pattern catalog:** `packages/intake-core/src/artifacts/intake-case-patterns.v1.json` (adaptive overlay + stop conditions; lint: `lint-case-patterns.ts`). `antiPatternExemptions` (when present) are defined in the intelligence contract layer — see `lint-intelligence-contract.ts` and §16 in this file.
 - **Sprint C expansion rule:** add net-new rows to `question-bank.v1.json` + full intelligence contract only when an overlay cannot reuse existing bank ids and KPI/semantic analysis shows a gap; prefer new `overlayQuestionIds` entries pointing at existing ids first. See [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md) § “Sprint C — Bank expansion”.
+- **Personalization scope (pre-brief *operational* baseline vs full discovery vs F2, `IntakePlan` → two-phase UX, ordered Sprint C focus):** [ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md](./adrs/ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md) §3 — `INTAKE_MINIMUM_CONTEXT_BANK_IDS` = **link-capture minimum** (not a “fully revealed” client; depth is full intake + overlays + live session). All other questions are **personalized** in the product sense (branches, overlays, optional depth, express-only `c3`/`c5` when visible). **Mechanism:** same ADR **§5**.
 
 ---
 
@@ -68,7 +69,8 @@ Per bank question id, **`packages/intake-core/src/question-bank-legal-meta.v1.ts
 
 **Pre-brief (публичная ссылка) и policy:**
 
-- Узкий список вопросов на экране задаётся только `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity). Текущий набор bank id: **`f1`**, **`f2`**, **`f8`**, **`a7`**, **`b1`**, **`a10`**, **`a6`** (без **`c5`** / **`c3`** — они остаются в express/full intake, но не в публичном pre-brief по ссылке). В коде тот же срез доступен как **`PRE_BRIEF_BANK_INCLUDED_IDS`** из `@glc/intake-core` (см. `intake_brief_policy_sync.test`).
+- Узкий список вопросов на экране задаётся только `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity `**identityFieldIds**`: `a5`, `a11`, `a12`, `a2`; уточнение отрасли — `intake_industry_specify` при `a2 === Other`). **Текущий** набор bank id в `bankIncluded` дублирует JSON-артефакт; в коде срез доступен как **`PRE_BRIEF_BANK_INCLUDED_IDS`**, полный портрет фазы 1 (identity ∪ bankIncluded) как **`PRE_BRIEF_PARTICIPATION_IDS`** из `@glc/intake-core` (`intake-brief-catalog-meta.ts`; см. `intake_brief_policy_sync.test`).
+- **Фаза 1 (консультант, `/audit/new`, публичный URL):** перед полным банком показывается тот же pre-brief portrait; **минимум для раннего** `POST /api/audits/:id/brief/intelligence-snapshot` с телом `{ "early_capture": true }` (при включённом флаге) — только заполненные **identity** слоты: **`getEarlyBriefCaptureSubmitSlotIds`** / **`areEarlyBriefCaptureSlotsSatisfied`** в `@glc/intake-core` (без прохода всего `getPreBriefSubmitSlotIds`).
 - Линт политики: `syntheticRequired` не должен случайно дублировать произвольные bank id; **исключение** — канонический revenue **`a10`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` в `lint_bank_policy`), чтобы full/discovery могли держать тот же id, что и в банке.
 - В **замороженных** снимках policy поле `bankIncluded` может отсутствовать (legacy): тогда pre-brief eligible шире, чем у текущей policy — сервер подгружает артефакты по сохранённому `**intake_versions`** tuple (`resolveIntakeArtifacts`, реестр в `resolve-intake-artifacts.ts`).
 - Поле `**slaVisibleBankIds**` в `IntakePlan` — это набор bank-stub id, по которому считается **required** для express/full SLA; для `collection_mode === 'pre_brief'` он шире, чем то, что показывается в узком pre-brief UI (см. `buildIntakePlan`).
@@ -434,21 +436,16 @@ English contract for decision-oriented metadata (see [ADR-DECISION-IMPACT-METADA
 
 ## 4. Layer Composition
 
-### Pre-brief (ссылка перед встречей, ~5 мин)
+### Pre-brief (`modes.pre_brief` — ссылка, портал, **консультант `/audit/new` фаза 1**)
 
-| Order | ID | Question |
-|-------|----|----------|
-| 1 | a1 | Describe your business |
-| 2 | a2 | Industry |
-| 3 | a7 | Where the business is right now (stage) |
-| 4 | a5 | Do you have a website? (+ URL) |
-| 5 | a6 | Online payments today? (ранний commercial/security gate) |
-| 6 | b1 | Ideal customer |
-| 7 | f2 | Areas of interest (**перед** f1 — сужаем фокус) |
-| 8 | f1 | главная **business problem** (solve with audit) |
-| 9 | b3 | main **value promise** vs competitors |
+**Источник:** `intake-policy.v1.json` (v1.5.0) — `identityFieldIds` + `bankIncluded` (**портрет бизнеса** до LLM: без детальных операционных вопросов; они после `intelligence-wording` / вторая фаза плана).
 
-**Результат:** консультант видит стадию бизнеса, риск-профиль платежей, фокус аудита и дифференциацию до созвона. Recon уже прокраулил сайт (если есть).
+| Block | ID | Notes |
+|-------|----|--------|
+| Identity (policy) | a5, a11, a12, a2 | + `intake_industry_specify` если отрасль «Other» |
+| Bank slice (policy) | a1, a3, a7, f1, b1, d2, a10 | Описание в одно предложение, локация, стадия, проблема, ICP, главный ручной затор, модель монетизации (`a6` **не** в фазе 1 — вторая фаза) |
+
+**Результат:** портрет и боль; для консалтанта с URL дальше — site recon / Lighthouse, затем `intelligence-snapshot` + `intelligence-wording`, затем полный план (в т.ч. **a6** онлайн-платежи, f2, f8, ветки C/D).
 
 ### Quick Intake — Layer 1 (~12 мин)
 
@@ -458,7 +455,7 @@ Pre-brief + дополнительно:
 |-------|----|----------|
 | 10 | a3 | Location |
 | 11 | a4 | Team size |
-| 12 | a7 | Business stage (если не был в pre-brief) |
+| 12 | a7 | Business stage (если не был в pre-brief / legacy срез) |
 | 13 | b2 | How customers find you |
 | 14 | c5 | Главное действие на сайте (if has_website) |
 | 15 | c6 | Главное раздражение сайтом (**required** при has_website) |

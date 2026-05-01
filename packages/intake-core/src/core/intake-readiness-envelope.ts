@@ -470,9 +470,15 @@ export function buildHypothesisCrossCheckFromReconPrefills(
   if (!reconPrefills || typeof reconPrefills !== 'object' || Array.isArray(reconPrefills)) {
     return out;
   }
+  const suggested =
+    reconPrefills.suggested_brief_answers &&
+    typeof reconPrefills.suggested_brief_answers === 'object' &&
+    !Array.isArray(reconPrefills.suggested_brief_answers)
+      ? (reconPrefills.suggested_brief_answers as Record<string, unknown>)
+      : null;
   for (const id of PILOT_CROSS_CHECK_BANK_IDS) {
-    if (!(id in reconPrefills)) continue;
-    const v = reconPrefills[id];
+    const v =
+      id in reconPrefills ? reconPrefills[id] : suggested && id in suggested ? suggested[id] : undefined;
     if (v === undefined) continue;
     out[id] = { value: v, source: 'recon_confirmed' };
   }

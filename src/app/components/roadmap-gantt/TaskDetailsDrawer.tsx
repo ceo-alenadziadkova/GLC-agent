@@ -1,5 +1,11 @@
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../ui/drawer';
+import dayjs from 'dayjs';
+
+import {
+  ORCHESTRATION_UI_COPY,
+  formatRoadmapGanttUnlocksCopy,
+} from '../../config/orchestration-roadmap-ui-copy.en';
 import type { RoadmapGanttDependency, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../ui/drawer';
 
 type TaskDetailsDrawerProps = {
   open: boolean;
@@ -7,12 +13,18 @@ type TaskDetailsDrawerProps = {
   task: RoadmapGanttTask | null;
   dependencies: RoadmapGanttDependency[];
   taskTitleById: Map<string, string>;
+  downstreamTaskCount: number;
 };
 
-export function TaskDetailsDrawer({ open, onOpenChange, task, dependencies, taskTitleById }: TaskDetailsDrawerProps) {
-  const incomingDependencies = task
-    ? dependencies.filter((dep) => dep.to === task.id)
-    : [];
+export function TaskDetailsDrawer({
+  open,
+  onOpenChange,
+  task,
+  dependencies,
+  taskTitleById,
+  downstreamTaskCount,
+}: TaskDetailsDrawerProps) {
+  const incomingDependencies = task ? dependencies.filter((dep) => dep.to === task.id) : [];
   const isBlocked = incomingDependencies.some((dep) => dep.blocking);
 
   return (
@@ -26,6 +38,33 @@ export function TaskDetailsDrawer({ open, onOpenChange, task, dependencies, task
         </DrawerHeader>
         {task ? (
           <div className="space-y-4 px-4 pb-4 text-sm">
+            <div className="flex flex-wrap gap-2">
+              {task.onCriticalPath ? (
+                <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 text-xs font-medium ds-text-secondary">
+                  {ORCHESTRATION_UI_COPY.roadmapGanttCriticalPathBadge}
+                </span>
+              ) : null}
+              {task.isOverdue ? (
+                <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 text-xs font-medium ds-text-score-1">
+                  {ORCHESTRATION_UI_COPY.roadmapGanttOverdueBadge}
+                </span>
+              ) : null}
+              {task.topPriorityBucket === '7d' ? (
+                <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 text-xs font-medium ds-text-secondary">
+                  {ORCHESTRATION_UI_COPY.roadmapGanttTopPriority7dBadge}
+                </span>
+              ) : null}
+              {task.topPriorityBucket === '30d' ? (
+                <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 py-0.5 text-xs font-medium ds-text-secondary">
+                  {ORCHESTRATION_UI_COPY.roadmapGanttTopPriority30dBadge}
+                </span>
+              ) : null}
+            </div>
+            {task.isOverdue ? (
+              <p className="text-xs ds-text-tertiary">
+                {ORCHESTRATION_UI_COPY.roadmapGanttOverdueEndedPrefix} {dayjs(task.end_time).format('YYYY-MM-DD')}.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
               <div>
                 <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-tertiary)]">Summary</div>
@@ -41,8 +80,12 @@ export function TaskDetailsDrawer({ open, onOpenChange, task, dependencies, task
               </div>
             </div>
             <div className="rounded-md border border-[var(--border-default)] p-3">
+              <div className="font-medium text-[var(--text-primary)]">{ORCHESTRATION_UI_COPY.roadmapGanttUnlocksLabel}</div>
+              <div className="mt-1 text-[var(--text-secondary)]">{formatRoadmapGanttUnlocksCopy(downstreamTaskCount)}</div>
+            </div>
+            <div className="rounded-md border border-[var(--border-default)] p-3">
               <div className="font-medium text-[var(--text-primary)]">Owner</div>
-              <div className="text-[var(--text-secondary)]">{task.owner}</div>
+              <div className="text-[var(--text-secondary)]">{task.owner || '—'}</div>
             </div>
             <div className="rounded-md border border-[var(--border-default)] p-3">
               <div className="font-medium text-[var(--text-primary)]">Status</div>

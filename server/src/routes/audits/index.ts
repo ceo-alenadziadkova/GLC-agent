@@ -38,7 +38,12 @@ import { getBriefSchemaController } from './controllers/brief/get-brief-schema.c
 import { postBriefAnalyticsController } from './controllers/brief/post-brief-analytics.controller.js';
 import { getBriefController } from './controllers/brief/get-brief.controller.js';
 import { postBriefHelpRequestController } from './controllers/brief/post-brief-help-request.controller.js';
+import { postBriefCloneFromController } from './controllers/brief/post-brief-clone-from.controller.js';
 import { putBriefController } from './controllers/brief/put-brief.controller.js';
+import { postBriefIntelligenceSnapshotController } from './controllers/brief/post-brief-intelligence-snapshot.controller.js';
+import { postBriefIntelligenceWordingController } from './controllers/brief/post-brief-intelligence-wording.controller.js';
+import { getClientProjectContextController } from './controllers/get-client-project-context.controller.js';
+import { getIntakeFollowupSuggestionsController } from './controllers/get-intake-followup-suggestions.controller.js';
 
 export const auditsRouter = Router();
 
@@ -193,5 +198,35 @@ auditsRouter.delete('/:id', ...consultantGuard, deleteAuditController);
 auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, getBriefSchemaController);
 auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromPortal, postBriefAnalyticsController);
 auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, getBriefController);
+auditsRouter.post(
+  '/:id/brief/intelligence-snapshot',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefIntelligenceSnapshotController,
+);
+auditsRouter.post(
+  '/:id/brief/intelligence-wording',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefIntelligenceWordingController,
+);
+auditsRouter.get(
+  '/:id/client-project-context',
+  attachProfile,
+  rejectGuestFromPortal,
+  getClientProjectContextController,
+);
+auditsRouter.get(
+  '/:id/intake-followup-suggestions',
+  attachProfile,
+  rejectGuestFromPortal,
+  getIntakeFollowupSuggestionsController,
+);
 auditsRouter.post('/:id/brief/help-request', attachProfile, postBriefHelpRequestController);
+auditsRouter.post(
+  '/:id/brief/clone-from',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefCloneFromController,
+);
 auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, putBriefController);

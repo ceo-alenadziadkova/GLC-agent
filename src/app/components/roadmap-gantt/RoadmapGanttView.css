@@ -337,6 +337,136 @@
   border-left: 1px solid color-mix(in srgb, var(--glc-blue) 62%, var(--border-default));
 }
 
+.roadmap-gantt-shell .rct-vl.roadmap-weekend-shade {
+  background-color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-weekend-shade {
+  background-color: color-mix(in srgb, var(--surface-raised) 32%, transparent);
+}
+
+.roadmap-weekend-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+
+html.dark .roadmap-weekend-legend-swatch {
+  background-color: color-mix(in srgb, var(--surface-raised) 32%, transparent);
+}
+
+.roadmap-gantt-item-visual-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  min-width: 0;
+}
+
+.roadmap-gantt-baseline-ghost-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 3px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.roadmap-gantt-baseline-ghost {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
+  pointer-events: none;
+}
+
+.roadmap-gantt-milestone-inner {
+  justify-content: center;
+}
+
+.roadmap-gantt-task-bar-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.roadmap-gantt-task-bar-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.roadmap-gantt-schedule-elapsed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--surface-muted) 65%, var(--glc-blue));
+  opacity: 0.38;
+  pointer-events: none;
+  max-width: 100%;
+}
+
+.roadmap-gantt-schedule-elapsed--overdue {
+  background: color-mix(in srgb, var(--status-error-bg) 55%, var(--surface-base));
+  opacity: 0.55;
+}
+
+.roadmap-gantt-task-bar-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.roadmap-gantt-task-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roadmap-gantt-slack-tail {
+  align-self: stretch;
+  border-radius: 0 0.25rem 0.25rem 0;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface-muted) 62%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+  opacity: 0.52;
+  min-height: 100%;
+}
+
+.roadmap-gantt-confidence-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.roadmap-gantt-confidence-dot[data-level='high'] {
+  background: var(--status-success-fg);
+}
+
+.roadmap-gantt-confidence-dot[data-level='medium'] {
+  background: var(--score-3);
+}
+
+.roadmap-gantt-confidence-dot[data-level='low'] {
+  background: var(--score-1);
+}
+
 .roadmap-gantt-shell .rct-dateHeader {
   border-left: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
   color: var(--text-secondary);
@@ -511,6 +641,103 @@
 .roadmap-dependency-arrow-hovered {
   opacity: 1;
   filter: none;
+}
+
+.roadmap-dependency-arrow-cross-lane {
+  stroke-dasharray: 4 3;
+}
+
+.roadmap-dependency-arrow-critical {
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--glc-blue) 55%, transparent));
+}
+
+.roadmap-dependency-arrow-dimmed {
+  opacity: 0.28;
+}
+
+.roadmap-gantt-rct-item-content {
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.roadmap-gantt-milestone-root {
+  justify-content: center;
+}
+
+.roadmap-gantt-milestone-item {
+  min-width: 12px;
+  border-radius: 2px;
+}
+
+.roadmap-gantt-milestone-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.roadmap-gantt-milestone-icon {
+  color: var(--glc-blue);
+}
+
+.roadmap-gantt-item-critical {
+  border-left-width: 4px !important;
+  border-left-color: color-mix(in srgb, var(--glc-blue) 72%, var(--border-default)) !important;
+}
+
+.roadmap-gantt-item-overdue {
+  border-left-color: color-mix(in srgb, var(--score-1) 72%, var(--border-default)) !important;
+}
+
+.roadmap-gantt-item-overdue::after {
+  content: 'Overdue';
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--score-1) 85%, var(--text-primary));
+  pointer-events: none;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-overdue {
+  position: relative;
+}
+
+.roadmap-gantt-item-priority-7d::before,
+.roadmap-gantt-item-priority-30d::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--glc-blue) 70%, var(--surface-raised));
+  pointer-events: none;
+}
+
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-priority-7d,
+.roadmap-gantt-shell .rct-item.roadmap-gantt-item-priority-30d {
+  position: relative;
+}
+
+.roadmap-gantt-item-dimmed {
+  opacity: 0.35;
+}
+
+.roadmap-legend-line-cross-lane {
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--glc-blue) 72%, transparent) 0 4px,
+    transparent 4px 8px
+  );
 }
 
 /* Status accents inspired by GitHub Roadmap issue pills. */

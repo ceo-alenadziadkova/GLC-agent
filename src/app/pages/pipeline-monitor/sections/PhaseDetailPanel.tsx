@@ -26,6 +26,7 @@ import {
   buildPortalStrategyLabPath,
   getPhaseResultViewPath,
 } from '../utils/pipeline-monitor-format';
+import { hasVisiblyRunningUpstreamPhase, isPipelineAuditActiveStatus } from '../../../lib/pipeline-monitor-helpers';
 import { STRATEGY_PHASE_ID } from '../phase-meta';
 import { ParallelWingBanner } from '../PipelineMonitorPhaseUi';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
@@ -39,6 +40,8 @@ import { Button } from '../../../components/ui/button';
 export function PhaseDetailPanel(props: {
   selectedPhase: PhaseView;
   phases: PhaseView[];
+  /** Phases included in `execution_plan` coverage; null = show all (legacy). */
+  plannedExecutionPhaseIds?: ReadonlySet<number> | null;
   pipelineState: PipelineStateLite | null;
   pipeError: string | null;
   isCreated: boolean;
@@ -74,6 +77,7 @@ export function PhaseDetailPanel(props: {
   const {
     selectedPhase,
     phases,
+    plannedExecutionPhaseIds = null,
     pipelineState,
     pipeError,
     isCreated,
@@ -100,6 +104,41 @@ export function PhaseDetailPanel(props: {
   );
 
   const currentPhase = pipelineState?.current_phase ?? -1;
+
+  const blockingPendingReview = useMemo(() => {
+    const revs = pipelineState?.reviews;
+    if (!revs?.length || selectedPhase.skipped) return null;
+    return revs.find(r => {
+      if (r.status !== 'pending') return false;
+      if (r.after_phase >= selectedPhase.id) return false;
+      if (
+        plannedExecutionPhaseIds != null &&
+        plannedExecutionPhaseIds.size > 0 &&
+        !plannedExecutionPhaseIds.has(r.after_phase)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [plannedExecutionPhaseIds, pipelineState?.reviews, selectedPhase.id, selectedPhase.skipped]);
+
+  const upstreamPhaseVisiblyRunning = hasVisiblyRunningUpstreamPhase(phases, selectedPhase.id);
+
+  const upstreamOrchestratorBusy =
+    !selectedPhase.skipped &&
+    auditStatus !== PIPELINE_MONITOR_UI_POLICY.status.failed &&
+    isPipelineAuditActiveStatus(auditStatus) &&
+    currentPhase >= 0 &&
+    currentPhase < selectedPhase.id &&
+    !blockingPendingReview &&
+    upstreamPhaseVisiblyRunning;
+
+  /** Skipped rows from partial domain selection (`execution_plan`). */
+  const isSkippedForCoveragePlan =
+    selectedPhase.skipped &&
+    plannedExecutionPhaseIds != null &&
+    plannedExecutionPhaseIds.size > 0 &&
+    !plannedExecutionPhaseIds.has(selectedPhase.id);
   /** Mirrors server `fetchPendingReviewAfterPhase(auditId, current_phase)` — blocks Continue until this gate is approved. */
   const pendingReviewForCurrentPhase = pipelineState?.reviews?.find(
     r => r.after_phase === currentPhase && r.status === 'pending',
@@ -114,6 +153,16 @@ export function PhaseDetailPanel(props: {
   /** Agent finished this phase (`completed`), or pipeline paused at a review gate (`review`) — show outputs and workspace link. */
   const phaseHasAgentOutput =
     selectedPhase.status === 'completed' || selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.review;
+
+  const canManualRerunPhase =
+    !isClient &&
+    !selectedPhase.skipped &&
+    !isPipelineAuditActiveStatus(auditStatus) &&
+    auditStatus !== PIPELINE_MONITOR_UI_POLICY.status.cancelled &&
+    auditStatus !== PIPELINE_MONITOR_UI_POLICY.status.created &&
+    (selectedPhase.status === 'completed' ||
+      selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.review ||
+      selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.failed);
 
   const phaseResultPath = getPhaseResultViewPath({
     phaseId: selectedPhase.id,
@@ -347,6 +396,22 @@ export function PhaseDetailPanel(props: {
               </motion.div>
             )}
 
+            {selectedPhase.status === 'skipped' && (
+              <div className="glc-card rounded-xl border-dashed p-10 text-center">
+                <Info className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
+                <p className="text-foreground text-sm font-medium">
+                  {isSkippedForCoveragePlan
+                    ? detailCopy.phaseSkippedCoverageTitle
+                    : detailCopy.phaseSkippedBundleTitle}
+                </p>
+                <p className="text-muted-foreground mx-auto mt-2 max-w-md text-xs leading-relaxed">
+                  {isSkippedForCoveragePlan
+                    ? detailCopy.phaseSkippedCoverageSubtitle
+                    : detailCopy.phaseSkippedBundleSubtitle}
+                </p>
+              </div>
+            )}
+
             {selectedPhase.status === 'pending' && (
               <div className="glc-card rounded-xl border-dashed p-10 text-center">
                 {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.failed ? (
@@ -369,6 +434,26 @@ export function PhaseDetailPanel(props: {
                         <ArrowsClockwise className="w-4 h-4" /> {PM.header.retryFailedPipeline}
                       </motion.button>
                     )}
+                  </>
+                ) : blockingPendingReview ? (
+                  <>
+                    <Clock className="text-warning mx-auto mb-3 h-8 w-8" />
+                    <p className="text-foreground text-sm font-medium">
+                      {detailCopy.waitingBlockedByReviewTitle}
+                    </p>
+                    <p className="text-muted-foreground mx-auto mt-2 max-w-md text-xs leading-relaxed">
+                      {detailCopy.waitingBlockedByReviewSubtitle}
+                    </p>
+                  </>
+                ) : upstreamOrchestratorBusy ? (
+                  <>
+                    <ArrowsClockwise className="text-info mx-auto mb-3 h-8 w-8 animate-spin" />
+                    <p className="text-foreground text-sm font-medium">
+                      {detailCopy.waitingUpstreamActiveTitle}
+                    </p>
+                    <p className="text-muted-foreground mx-auto mt-2 max-w-md text-xs leading-relaxed">
+                      {detailCopy.waitingUpstreamActiveSubtitle}
+                    </p>
                   </>
                 ) : (
                   <>
@@ -555,6 +640,19 @@ export function PhaseDetailPanel(props: {
                 >
                   <ArrowsClockwise className="w-4 h-4" /> {detailCopy.retryFailedPhase}
                 </motion.button>
+              )}
+              {selectedPhase.status !== PIPELINE_MONITOR_UI_POLICY.status.failed && canManualRerunPhase && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={resumeCancelledBusy || runNextPhaseBusy}
+                  title={detailCopy.rerunPhaseManualHint}
+                  onClick={() => void onRetryPhase(selectedPhase.id)}
+                >
+                  <ArrowsClockwise className="mr-2 h-4 w-4" aria-hidden />
+                  {detailCopy.rerunPhaseManual}
+                </Button>
               )}
               {showContinuePipeline && (
                 <motion.button

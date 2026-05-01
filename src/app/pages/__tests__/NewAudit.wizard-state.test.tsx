@@ -28,6 +28,11 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     saveBrief: vi.fn(),
     startPipeline: vi.fn(),
     linkIntakeTokenToAudit: vi.fn(),
+    postAuditsBriefIntelligenceSnapshot: vi.fn(),
+    postAuditsBriefIntelligenceWording: vi.fn(),
+    postAuditsBriefCloneFrom: vi.fn(),
+    getClientProjectContext: vi.fn(),
+    getLegalConsents: vi.fn(),
     getBrief: vi.fn(),
     postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
     getDiscoverySession: vi.fn(),
@@ -58,6 +63,17 @@ vi.mock('../../hooks/useIntakeWizard', () => ({
     visibleRecommendedAnswered: 0,
     visibleRecommendedTotal: 1,
     missingForReport: [],
+  }),
+}));
+
+vi.mock('../new-audit/wizard-state/useCoverageSelectionState', () => ({
+  useCoverageSelectionState: () => ({
+    coveragePackage: 'complete',
+    setCoveragePackage: vi.fn(),
+    selectedDomains: [...NEW_AUDIT_ALL_COVERAGE_DOMAINS],
+    setSelectedDomains: vi.fn(),
+    recommendedDomains: [...NEW_AUDIT_ALL_COVERAGE_DOMAINS],
+    toggleDomainSelection: vi.fn(),
   }),
 }));
 
@@ -127,6 +143,27 @@ vi.mock('../../lib/logger', () => ({
   logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('../new-audit/newAuditValidation', async importOriginal => {
+  const actual = await importOriginal<typeof import('../new-audit/newAuditValidation')>();
+  return {
+    ...actual,
+    validateNewAuditStep0Input: () => ({
+      step1Valid: true,
+      coverageValid: true,
+      step0Valid: true,
+    }),
+    computeNewAuditWizardProgress: () => ({
+      answeredRequired: 8,
+      pipelineRequiredTotal: 8,
+      step2Complete: true,
+      progressPct: 100,
+      readinessBadge: 'high' as const,
+      nextBestAction: 'none' as const,
+    }),
+    listAnsweredPipelineRequiredIds: () => ['a2', 'a5', 'a11', 'a12', 'f1', 'b1', 'd2', 'a10'],
+  };
+});
+
 const navigate = vi.fn();
 vi.mock('react-router', async importOriginal => {
   const mod = await importOriginal<typeof import('react-router')>();
@@ -156,6 +193,36 @@ describe('NewAudit wizard state wiring', () => {
     apiMock.saveBrief.mockResolvedValue({ brief: { intake_versions: null } });
     apiMock.startPipeline.mockResolvedValue({});
     apiMock.linkIntakeTokenToAudit.mockResolvedValue({});
+    apiMock.postAuditsBriefIntelligenceSnapshot.mockResolvedValue({
+      questions: [],
+      question_ids: [],
+      case_keys: [],
+      next_recommended: [],
+      deterministic_question_ids: [],
+      narrative: null,
+      inferred_preview: [],
+      merge_would_apply_count: 0,
+      snapshot_no_new_inferred: true,
+      label_overrides: {},
+      f2_source: 'deterministic',
+      kpi: { invalid_f2_ids_filtered: 0, f2_suggestion_length: 0 },
+    });
+    apiMock.postAuditsBriefIntelligenceWording.mockResolvedValue({
+      label_overrides: {},
+      hint_overrides: {},
+      option_display_overrides: {},
+      kpi: {
+        allowed_wording_id_count: 0,
+        label_override_key_count: 0,
+        hint_override_key_count: 0,
+        option_display_id_count: 0,
+      },
+    });
+    apiMock.postAuditsBriefCloneFrom.mockResolvedValue({ brief: {}, gates: {}, validation: {} });
+    apiMock.getClientProjectContext.mockResolvedValue({ context: null, precheck: {} });
+    apiMock.getLegalConsents.mockResolvedValue({
+      effective: [{ consent_key: 'dpa_acceptance', accepted: true }],
+    });
     apiMock.getBrief.mockResolvedValue({
       brief: { responses: {}, intake_versions: null },
       questions: [],
@@ -269,4 +336,5 @@ describe('NewAudit wizard state wiring', () => {
       ).toBeInTheDocument();
     });
   });
+
 });

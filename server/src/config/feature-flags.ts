@@ -349,6 +349,34 @@ export function isNlIngressLlmEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_NL_INGRESS_LLM, FF.nlIngressLlmEnabled);
 }
 
+/** Intelligence snapshot LLM (intake `POST /intelligence-snapshot`). Env: FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM */
+export function isIntakeIntelligenceSnapshotLlmEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM,
+    FF.intakeIntelligenceSnapshotLlmEnabled,
+  );
+}
+
+/** B1 wording pass (`POST /brief/intelligence-wording`). Env: FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM */
+export function isIntakeIntelligenceWordingLlmEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM,
+    FF.intakeIntelligenceWordingLlmEnabled,
+  );
+}
+
+const DEFAULT_INTAKE_WORDING_VOICE =
+  'Voice: clear, professional, empathetic, concise. Never invent a new question; only rephrase the label for the given id.';
+
+/** Extra copy-hint appended to the wording system prompt. Env: FEATURE_INTAKE_WORDING_VOICE_HINT */
+export function getIntakeIntelligenceWordingVoiceSystemLine(): string {
+  const hint = process.env.FEATURE_INTAKE_WORDING_VOICE_HINT?.trim();
+  if (hint && hint.length > 0) {
+    return `${DEFAULT_INTAKE_WORDING_VOICE} ${hint}`;
+  }
+  return DEFAULT_INTAKE_WORDING_VOICE;
+}
+
 /** Rollout mode for NL ingress LLM mapper. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE */
 export function getNlIngressLlmRolloutMode(): FeatureRolloutMode {
   return readFeatureRolloutMode(
@@ -432,4 +460,32 @@ export function isPlanControlObjectEnabled(): boolean {
 /** Anthropic prompt cache (ephemeral) on stable prefixes. Env: FEATURE_LLM_PROMPT_CACHE */
 export function isLlmPromptCacheEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_LLM_PROMPT_CACHE, FF.llmPromptCacheEnabled);
+}
+
+/**
+ * Fire-and-forget Lighthouse on new-audit create + prefill bank hints. Env: FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP
+ */
+export function isNewAuditLighthouseBootstrapEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP,
+    FF.newAuditLighthouseBootstrapEnabled,
+  );
+}
+
+/** Deterministic new-audit site scrape (recon pre-seed). Env: FEATURE_NEW_AUDIT_SITE_SCRAPE */
+export function isNewAuditSiteScrapeEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_NEW_AUDIT_SITE_SCRAPE, FF.newAuditSiteScrapeEnabled);
+}
+
+/** Sparse LLM readout (`early_capture`) on authenticated brief snapshot. Env: FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT */
+export function isBriefEarlyIntelligenceSnapshotEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT,
+    FF.briefEarlyIntelligenceSnapshotEnabled,
+  );
+}
+
+/** Copy brief responses from another audit. Env: FEATURE_BRIEF_CLONE_FROM_AUDIT */
+export function isBriefCloneFromAuditEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_BRIEF_CLONE_FROM_AUDIT, FF.briefCloneFromAuditEnabled);
 }

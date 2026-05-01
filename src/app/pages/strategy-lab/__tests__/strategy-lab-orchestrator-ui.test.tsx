@@ -29,6 +29,12 @@ const PACK_FIXTURE: GlcOrchestrationPackView = {
 };
 
 describe('strategy lab orchestrator ui', () => {
+  it('uses plain-language initiative horizon labels in copy SSOT', () => {
+    expect(STRATEGY_LAB_COPY.tabLabels.quick.toLowerCase()).not.toContain('legacy');
+    expect(STRATEGY_LAB_COPY.pageNav.planSetup.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary.length).toBeGreaterThan(0);
+  });
+
   it('renders now-tab nodes and selects a node on click', () => {
     const onSelectNode = vi.fn<(id: string | null) => void>();
     render(

@@ -4,7 +4,7 @@ import {
   CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE,
   CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY,
   consultantBriefLayoutStorageKey,
-  resolveConsultantBriefLayout,
+  readConsultantNewAuditBriefLayout,
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
   CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
@@ -28,7 +28,7 @@ export function useBriefLayoutState(params: {
     if (params.isClientSelfServe) {
       return BRIEF_LAYOUT_WIZARD;
     }
-    return resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET;
+    return readConsultantNewAuditBriefLayout() ?? BRIEF_LAYOUT_UNSET;
   });
 
   const briefLayoutSyncKeys = useMemo(
@@ -44,7 +44,7 @@ export function useBriefLayoutState(params: {
       setBriefLayoutChoice(BRIEF_LAYOUT_WIZARD);
       return;
     }
-    setBriefLayoutChoice(resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? BRIEF_LAYOUT_UNSET);
+    setBriefLayoutChoice(readConsultantNewAuditBriefLayout() ?? BRIEF_LAYOUT_UNSET);
   });
 
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {

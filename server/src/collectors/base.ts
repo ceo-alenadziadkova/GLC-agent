@@ -6,7 +6,7 @@ export interface CollectorResult {
   data: Record<string, unknown>;
 }
 
-export type CollectorCollectContext = { noPublicWebsite?: boolean };
+export type CollectorCollectContext = { noPublicWebsite?: boolean; forceLighthouseRefresh?: boolean };
 
 /**
  * BaseCollector — collects raw data WITHOUT using AI.
@@ -62,7 +62,7 @@ export abstract class BaseCollector {
     }
 
     // Collect fresh data
-    const data = await this.collect(auditId, companyUrl, { noPublicWebsite });
+    const data = await this.collect(auditId, companyUrl, { noPublicWebsite, forceLighthouseRefresh: forceRefresh });
 
     // Cache result (upsert)
     await supabase

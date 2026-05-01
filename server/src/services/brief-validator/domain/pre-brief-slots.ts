@@ -1,8 +1,8 @@
 import {
+  arePreBriefSubmitSlotsSatisfied as sharedArePreBriefSubmitSlotsSatisfied,
   getPreBriefSubmitSlotIds as resolveSharedPreBriefSubmitSlotIds,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple } from '../../../types/audit.js';
-import { isPreBriefIdSatisfied } from './answer-state.js';
 
 export function effectiveBriefForSla(responses: Record<string, unknown>): Record<string, unknown> {
   return { ...responses };
@@ -24,5 +24,5 @@ export function getPreBriefSubmitSlotIds(
 /** All pre-brief questions satisfied (used by public intake submit). */
 export function arePreBriefSlotsSatisfied(responses: Record<string, unknown>): boolean {
   const effective = effectiveBriefForSla(responses);
-  return getPreBriefSubmitSlotIds(effective).every((id) => isPreBriefIdSatisfied(id, effective));
+  return sharedArePreBriefSubmitSlotsSatisfied(effective);
 }

@@ -115,6 +115,12 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
           afterPhase: 7,
           phasesToCheck: allDomainPhases,
         });
+      } else {
+        /** No strategy phase: leave analytic so `pipeline/next` can finalize to completed. */
+        const setReview = await updateAuditIfNotCancelled({
+          status: PIPELINE_AUDIT_ORCHESTRATOR_STATUS.review,
+        });
+        if (!setReview) throw cancelledErrorFactory();
       }
       return;
     }

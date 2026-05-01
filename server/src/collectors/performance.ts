@@ -5,8 +5,10 @@ import { COLLECTOR_FETCH_TIMEOUT_MS } from '../config/collector-http.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import type { CollectorCollectContext } from './base.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { auditLighthouseBudgetMs, auditLighthouseEnabled } from '../lib/audit-deep-scan-env.js';
 import { runLighthouseAuditSummary } from '../lib/lighthouse-audit.js';
+import { loadFreshLighthouseBootstrapForReuse } from '../services/audits/new-audit-lighthouse-bootstrap.service.js';
 import { logger } from '../services/logger.js';
 
 export class PerformanceCollector extends BaseCollector {
@@ -77,7 +79,7 @@ export class PerformanceCollector extends BaseCollector {
         page_weights: { avg_content_length_bytes: 0, avg_load_time_ms: 0, heaviest_page: null, slowest_page: null, total_images: 0, lazy_loaded_images: 0, lazy_load_coverage: 100 },
         total_pages_analyzed: 0,
       };
-      return this.attachLighthouseIfEnabled(auditId, companyUrl, emptyCrawl);
+      return this.attachLighthouseIfEnabled(auditId, companyUrl, emptyCrawl, ctx);
     }
 
     // Check response headers for caching/compression
@@ -92,16 +94,35 @@ export class PerformanceCollector extends BaseCollector {
       total_pages_analyzed: pages.length,
     };
 
-    return this.attachLighthouseIfEnabled(auditId, companyUrl, base);
+    return this.attachLighthouseIfEnabled(auditId, companyUrl, base, ctx);
   }
 
   private async attachLighthouseIfEnabled(
     auditId: string,
     companyUrl: string,
     base: Record<string, unknown>,
+    ctx?: CollectorCollectContext,
   ): Promise<Record<string, unknown>> {
     if (!auditLighthouseEnabled()) {
       return base;
+    }
+
+    if (!ctx?.forceLighthouseRefresh) {
+      const reuse = await loadFreshLighthouseBootstrapForReuse(
+        auditId,
+        SYSTEM_DEFAULTS.collectorCacheTtlMs,
+      );
+      if (reuse) {
+        logger.info('collector.performance.lighthouse_reused_bootstrap', { auditId, companyUrl });
+        return {
+          ...base,
+          lighthouse: {
+            enabled: true,
+            ...reuse.summary,
+            reused_from_bootstrap: true,
+          },
+        };
+      }
     }
 
     logger.info('collector.performance.lighthouse_start', { auditId, companyUrl });

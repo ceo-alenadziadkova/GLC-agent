@@ -112,6 +112,15 @@ export const APP_FEATURE_FLAGS = {
    */
   intakePublicNlDescribeEnabled: false,
   /**
+   * Public intake: after pre-brief slots, load `GET .../tailored-questions` and show planner-driven follow-ups (full `nextRecommended` minus baseline).
+   * Default off; enable with staged QA.
+   */
+  intakeTwoPhasePublicEnabled: false,
+  /**
+   * When true with `intakeTwoPhasePublicEnabled`, load follow-ups via `POST .../intelligence-snapshot` (F2 + optional narrative) instead of `GET .../tailored-questions` alone.
+   */
+  intakeIntelligenceSnapshotEnabled: true,
+  /**
    * Portal timeline: Now / Next / Later board (grouped by `time_bucket`). Client-only; see `orchestration-contract-parity` for other pairs.
    */
   nowNextLaterBoardEnabled: true,
@@ -131,4 +140,23 @@ export const APP_FEATURE_FLAGS = {
    * Plan control object panel (ADR V4). Server: `FEATURE_PLAN_CONTROL_OBJECT`.
    */
   planControlObjectUiEnabled: false,
+  /**
+   * New Audit step 1: show **Project context** side readout (`GET /api/audits/:id/client-project-context`) when `draftAuditId` exists.
+   */
+  newAuditClientProjectContextPanelEnabled: true,
+  /**
+   * Consultant New Audit: after required brief, **save** + `POST /api/audits/:id/brief/intelligence-snapshot` and a short confirm screen
+   * (bank + F2/narrative preview; same contract as public intake — not B2 generative).
+   */
+  newAuditIntelligenceSnapshotStepEnabled: true,
+  /**
+   * Early `POST …/brief/intelligence-snapshot` with `{ early_capture: true }` (Basics + Lighthouse only).
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled` — `orchestration-contract-parity.test.ts`.
+   */
+  briefEarlyIntelligenceSnapshotEnabled: true,
+  /**
+   * `POST …/brief/clone-from` — copy brief answers from a sibling audit (same `client_id`, including both null).
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.briefCloneFromAuditEnabled`.
+   */
+  briefCloneFromAuditEnabled: true,
 } as const;

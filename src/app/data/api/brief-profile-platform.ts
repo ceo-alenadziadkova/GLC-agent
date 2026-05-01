@@ -1,4 +1,12 @@
-import { API_PATHS, apiPlatformAuditPipelineResumeCancelled } from '../../config/api-paths';
+import {
+  API_PATHS,
+  apiAuditsBriefCloneFrom,
+  apiAuditsBriefIntelligenceSnapshot,
+  apiAuditsBriefIntelligenceWording,
+  apiAuditsClientProjectContext,
+  apiAuditsIntakeFollowupSuggestions,
+  apiPlatformAuditPipelineResumeCancelled,
+} from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
 import type { AuditCoveragePackage } from '../audit/contracts/core/audit-meta.types';
@@ -8,6 +16,45 @@ import type {
   IntakeVersionTuple,
 } from '../audit/contracts/intake/intake-brief.types';
 import type { BriefQuestion } from '../briefQuestions';
+import type {
+  ClientProjectAuditEnrichmentV1,
+  ClientProjectContextV1,
+} from '../audit/contracts/client-project-context.types';
+
+/** Response of `postAuditsBriefIntelligenceSnapshot` (mirrors public intake intelligence snapshot). */
+export type AuditBriefIntelligenceSnapshotResponse = {
+  questions: BriefQuestion[];
+  question_ids: string[];
+  case_keys: string[];
+  next_recommended: string[];
+  deterministic_question_ids: string[];
+  narrative: string | null;
+  inferred_preview: Array<{
+    questionId: string;
+    confidence: 'low' | 'medium';
+    rationale: string;
+    suggestedValue: string | boolean;
+  }>;
+  merge_would_apply_count: number;
+  snapshot_no_new_inferred: boolean;
+  label_overrides: Record<string, string>;
+  f2_source: 'llm' | 'deterministic' | 'llm_mixed';
+  kpi: { invalid_f2_ids_filtered: number; f2_suggestion_length: number };
+};
+
+/** `POST /api/audits/:id/brief/intelligence-wording` — B1 client-facing phrasing (second LLM pass). */
+export type AuditBriefIntelligenceWordingResponse = {
+  label_overrides: Record<string, string>;
+  hint_overrides: Record<string, string>;
+  /** Parallel to canonical `options` per id; same length and order; persisted values stay canonical. */
+  option_display_overrides: Record<string, string[]>;
+  kpi: {
+    allowed_wording_id_count: number;
+    label_override_key_count: number;
+    hint_override_key_count: number;
+    option_display_id_count: number;
+  };
+};
 
 /** `GET /api/audits/:id/brief/schema` — compact IntakePlan + bank labels (ADR Phase D). */
 export type BriefSchemaSnapshot = {
@@ -125,6 +172,63 @@ export type BriefIntakeAnalyticsBatchPayload = {
 export const briefProfilePlatformApi = {
   async getBriefSchema(auditId: string) {
     return apiFetch<BriefSchemaSnapshot>(`${API_PATHS.audits}/${auditId}/brief/schema`);
+  },
+
+  /**
+   * Composed rolling context (intake + optional `collected_data` e.g. Lighthouse). `context` is null
+   * if there is no `intake_brief` row. `precheck` is always built from `collected_data` (Lighthouse / site
+   * scrape) for polling on New Audit before the first brief save. Use on New Audit / audit workspace when `auditId` is known.
+   */
+  async getClientProjectContext(auditId: string) {
+    return apiFetch<{
+      context: ClientProjectContextV1 | null;
+      precheck: ClientProjectAuditEnrichmentV1;
+    }>(apiAuditsClientProjectContext(auditId));
+  },
+
+  /**
+   * Deterministic follow-up bank ids + labels (same engine as public tailored-questions; uses stored brief + `product_mode`).
+   */
+  async getIntakeFollowupSuggestions(auditId: string) {
+    return apiFetch<{
+      suggestions: {
+        question_ids: string[];
+        case_keys: string[];
+        next_recommended: string[];
+        questions: BriefQuestion[];
+      } | null;
+    }>(apiAuditsIntakeFollowupSuggestions(auditId));
+  },
+
+  /**
+   * After pre-brief: optional LLM + F2 order for an authenticated audit (same body/response as public `POST .../intelligence-snapshot`).
+   * Requires a prior `saveBrief` so `intake_brief.responses` is up to date.
+   */
+  async postAuditsBriefIntelligenceSnapshot(
+    auditId: string,
+    body?: { skip_llm?: boolean; early_capture?: boolean },
+  ): Promise<AuditBriefIntelligenceSnapshotResponse> {
+    return apiFetch<AuditBriefIntelligenceSnapshotResponse>(apiAuditsBriefIntelligenceSnapshot(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    });
+  },
+
+  async postAuditsBriefCloneFrom(
+    auditId: string,
+    body: { source_audit_id: string },
+  ): Promise<{ brief: unknown; gates: unknown; validation: unknown }> {
+    return apiFetch<{ brief: unknown; gates: unknown; validation: unknown }>(apiAuditsBriefCloneFrom(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postAuditsBriefIntelligenceWording(auditId: string): Promise<AuditBriefIntelligenceWordingResponse> {
+    return apiFetch<AuditBriefIntelligenceWordingResponse>(apiAuditsBriefIntelligenceWording(auditId), {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   },
 
   async getBrief(auditId: string) {

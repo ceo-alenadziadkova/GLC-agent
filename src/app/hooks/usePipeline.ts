@@ -198,10 +198,15 @@ export function usePipeline(
     }
   }, [auditId, load]);
 
-  const approveReview = useCallback(async (phase: number, consultantNotes?: string, interviewNotes?: string) => {
+  const approveReview = useCallback(async (
+    phase: number,
+    consultantNotes?: string,
+    interviewNotes?: string,
+    action: 'approve' | 'request_missing_data' = 'approve',
+  ) => {
     if (!auditId) return false;
     try {
-      await api.approveReview(auditId, phase, consultantNotes, interviewNotes);
+      await api.approveReview(auditId, phase, consultantNotes, interviewNotes, action);
       const qc = getGlcQueryClient();
       invalidateAuditRelatedQueries(qc, auditId);
       invalidateAuditsListsAndDashboard(qc);

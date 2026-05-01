@@ -42,6 +42,7 @@ interface ReviewPointModalProps {
   open: boolean;
   onClose: () => void;
   onApprove: (id: number, consultantNotes: string, interviewNotes: string) => void;
+  onRequestMissingData?: (id: number, consultantNotes: string, interviewNotes: string) => void;
   qualityGate?: QualityGateReport | null;
   /** Decision Layer `refine_recommended` events for domain phases in this review block */
   governanceRefines?: GovernanceRefinePhaseSummary[];
@@ -68,6 +69,7 @@ export function ReviewPointModal({
   open,
   onClose,
   onApprove,
+  onRequestMissingData,
   qualityGate,
   governanceRefines = [],
   governanceRefineSectionTitle = 'Phases flagged for manual review',
@@ -85,10 +87,18 @@ export function ReviewPointModal({
   const warnings = qualityGate?.flags.filter(f => f.severity === 'warning') ?? [];
   const infoFlags = qualityGate?.flags.filter(f => f.severity === 'info') ?? [];
   const notesRequired = warnings.length > 0 && !consultantNotes.trim();
+  const canRequestMissingData = Boolean(consultantNotes.trim() || interviewNotes.trim());
 
   function handleApprove() {
     if (notesRequired) return;
     onApprove(reviewPoint.id, consultantNotes, interviewNotes);
+    setConsultantNotes('');
+    setInterviewNotes('');
+  }
+
+  function handleRequestMissingData() {
+    if (!onRequestMissingData || !canRequestMissingData) return;
+    onRequestMissingData(reviewPoint.id, consultantNotes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
   }
@@ -307,6 +317,16 @@ export function ReviewPointModal({
           <Button onClick={onClose} variant="ghost">
             Cancel
           </Button>
+          {onRequestMissingData ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRequestMissingData}
+              disabled={!canRequestMissingData}
+            >
+              {PM.reviewModal.requestMissingDataCta}
+            </Button>
+          ) : null}
           <motion.div
             whileHover={notesRequired ? {} : { scale: 1.01 }}
             whileTap={notesRequired ? {} : { scale: 0.98 }}

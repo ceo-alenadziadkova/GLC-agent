@@ -71,6 +71,8 @@ export function ReconReviewSummary({
     );
   }
 
+  const contextSummary = recon.recon_context_summary ?? null;
+
   return (
     <div className="space-y-4">
       <Callout intent="info" title={copy.introTitle}>
@@ -82,6 +84,92 @@ export function ReconReviewSummary({
           {copy.truncationWarningBody}
         </Callout>
       ) : null}
+
+      <div className="glc-card rounded-xl border p-4">
+        <SectionLabel className="mb-2.5">{copy.contextSummaryTitle}</SectionLabel>
+        {contextSummary ? (
+          <div className="space-y-3">
+            <p className="mb-3 text-xs leading-relaxed text-[var(--text-secondary)]">
+              {interpolate(copy.contextModeBody, {
+                mode: copy.contextModeLabels[contextSummary.mode] ?? contextSummary.mode,
+              })}
+            </p>
+
+            {contextSummary.known_facts.length > 0 ? (
+              <div>
+                <p className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.contextKnownFactsTitle}
+                </p>
+                <ul className="text-foreground list-inside list-disc space-y-1 text-xs leading-relaxed">
+                  {contextSummary.known_facts.map((fact, idx) => (
+                    <li key={`known-${idx}`}>{fact}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {contextSummary.inferred_insights.length > 0 ? (
+              <div>
+                <p className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.contextInferredTitle}
+                </p>
+                <ul className="space-y-2">
+                  {contextSummary.inferred_insights.map((insight, idx) => (
+                    <li key={`inferred-${idx}`} className="text-xs leading-relaxed">
+                      <span className="text-foreground">{insight.text}</span>
+                      <span className="text-muted-foreground ml-1.5">
+                        ({interpolate(copy.contextConfidenceLabel, { confidence: insight.confidence })})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {contextSummary.missing_inputs.length > 0 ? (
+              <div>
+                <p className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.contextMissingInputsTitle}
+                </p>
+                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs leading-relaxed">
+                  {contextSummary.missing_inputs.map((item, idx) => (
+                    <li key={`missing-${idx}`}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {contextSummary.recommended_next_steps.length > 0 ? (
+              <div>
+                <p className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.contextNextStepsTitle}
+                </p>
+                <ul className="text-foreground list-inside list-disc space-y-1 text-xs leading-relaxed">
+                  {contextSummary.recommended_next_steps.map((step, idx) => (
+                    <li key={`next-${idx}`}>{step}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {(contextSummary.consultant_hints ?? []).length > 0 ? (
+              <div className="mt-1 border-t border-[var(--border-subtle)] pt-3">
+                <p className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {copy.contextConsultantHintsTitle}
+                </p>
+                <p className="text-muted-foreground mb-2 text-xs leading-relaxed">{copy.contextConsultantHintsIntro}</p>
+                <ul className="text-foreground list-inside list-disc space-y-1.5 text-xs leading-relaxed">
+                  {(contextSummary.consultant_hints ?? []).map((hint, idx) => (
+                    <li key={`hint-${idx}`}>{hint}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Callout intent="neutral">{copy.contextSummaryUnavailableBody}</Callout>
+        )}
+      </div>
 
       <Callout intent="neutral" title={copy.extractionNoteTitle}>
         {copy.extractionNoteBody}

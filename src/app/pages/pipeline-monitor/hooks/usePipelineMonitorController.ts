@@ -108,6 +108,18 @@ export function usePipelineMonitorController(id: string | undefined) {
     }
   }
 
+  async function handleRequestMissingData(_id: number, consultantNotes: string, interviewNotes: string) {
+    if (!modalReview) return;
+    const ok = await approveReview(
+      modalReview.afterPhase,
+      consultantNotes || undefined,
+      interviewNotes || undefined,
+      'request_missing_data',
+    );
+    if (!ok) return;
+    setModalReview(null);
+  }
+
   async function handleStopPipeline() {
     if (isStopping) return;
     setIsStopping(true);
@@ -164,6 +176,7 @@ export function usePipelineMonitorController(id: string | undefined) {
     isCreated,
     canStopPipeline,
     handleApprove,
+    handleRequestMissingData,
     handleStopPipeline,
     canManagePlatformSettings,
     resumeCancelledBusy,

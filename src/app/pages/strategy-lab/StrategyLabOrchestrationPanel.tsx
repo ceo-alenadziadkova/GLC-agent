@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Path } from '@phosphor-icons/react';
+import { CaretDown, Path } from '@phosphor-icons/react';
 
 import type { DomainKey } from '@glc/intake-core';
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
@@ -504,7 +504,15 @@ export function StrategyLabOrchestrationPanel({
         <span className="text-foreground text-sm font-semibold">{ORCHESTRATION_UI_COPY.sectionTitle}</span>
       </div>
       <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.sectionHint}</p>
-      <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.roles.timelineVsLab}</p>
+
+      <div className="bg-background rounded-lg border p-3">
+        <div className="text-muted-foreground mb-2 text-xs font-semibold">{ORCHESTRATION_UI_COPY.strategyLabQuickStartTitle}</div>
+        <ol className="text-muted-foreground list-inside list-decimal space-y-1 text-xs leading-relaxed">
+          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep1}</li>
+          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep2}</li>
+          <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep3}</li>
+        </ol>
+      </div>
 
       <div className="bg-background space-y-2 rounded-lg border p-3">
         <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.flowTitle}</div>
@@ -519,54 +527,64 @@ export function StrategyLabOrchestrationPanel({
       </div>
 
       {APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? (
-        <div className="bg-background space-y-2 rounded-lg border p-3">
-          <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
-          <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
-          <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
-          <ul className="flex flex-col gap-1">
-            {executionPlan.selected_domains.map(d => (
-              <li key={d}>
-                <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={stage2Selection.includes(d)}
-                    onChange={() => toggleStage2Domain(d)}
-                    className="border-border rounded border"
-                  />
-                  <span>{DOMAIN_LABELS[d] ?? d}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={stage2Working}
-              onClick={() => void handleSaveStage2Intent()}
-            >
-              {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={stage2Working}
-              onClick={() => void handleClearSavedStage2Intent()}
-            >
-              {STRATEGY_LAB_COPY.directorStage2Intent.clear}
-            </Button>
+        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
+          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
+            <div className="flex items-center gap-2">
+              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="text-foreground text-sm font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.directorStage2Summary}
+              </span>
+            </div>
+          </summary>
+          <div className="border-border space-y-2 border-t p-3">
+            <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
+            <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
+            <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
+            <ul className="flex flex-col gap-1">
+              {executionPlan.selected_domains.map(d => (
+                <li key={d}>
+                  <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={stage2Selection.includes(d)}
+                      onChange={() => toggleStage2Domain(d)}
+                      className="border-border rounded border"
+                    />
+                    <span>{DOMAIN_LABELS[d] ?? d}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={stage2Working}
+                onClick={() => void handleSaveStage2Intent()}
+              >
+                {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={stage2Working}
+                onClick={() => void handleClearSavedStage2Intent()}
+              >
+                {STRATEGY_LAB_COPY.directorStage2Intent.clear}
+              </Button>
+            </div>
+            {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
+              <p className="text-muted-foreground text-xs">
+                {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
+                {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
+                  .map(d => DOMAIN_LABELS[d] ?? d)
+                  .join(', ')}
+              </p>
+            ) : null}
           </div>
-          {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
-            <p className="text-muted-foreground text-xs">
-              {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
-              {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
-                .map(d => DOMAIN_LABELS[d] ?? d)
-                .join(', ')}
-            </p>
-          ) : null}
-        </div>
+        </details>
       ) : null}
 
       <div className="space-y-3">
@@ -719,51 +737,66 @@ export function StrategyLabOrchestrationPanel({
       {hasUnsavedManifestChanges && (
         <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.buildPackNeedsManifestSync}</p>
       )}
-      <div className="bg-background space-y-2 rounded-lg border p-3">
-        <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.snapshotHistoryTitle}</div>
-        {manifestSnapshots.length > 0 ? (
-          <label className="flex flex-col gap-1">
-            <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.snapshotHistoryLabel}</span>
-            <select
-              className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-              value={manifestSnapshotId ?? ''}
-              onChange={e => {
-                const nextId = e.target.value;
-                const next = manifestSnapshots.find(row => row.id === nextId);
-                setManifestSnapshotId(nextId);
-                hydratedManifestSnapshotId.current = null;
-                if (next) {
-                  setScenario(next.payload.change_scenario);
-                  setSeason(next.payload.season_preset);
-                  setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
-                  setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
-                  setSavedManifestSignature(
-                    encodeManifestChangeSignature({
-                      change_scenario: next.payload.change_scenario,
-                      season_preset: next.payload.season_preset,
-                      plan_horizon: next.payload.plan_horizon,
-                    }),
-                  );
-                  hydratedManifestSnapshotId.current = nextId;
-                }
-              }}
-            >
-              {manifestSnapshots.map(row => (
-                <option key={row.id} value={row.id}>
-                  {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
-                  {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotHistoryEmpty}</p>
-        )}
-        <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotVersionHint}</p>
-      </div>
+      <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
+        <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
+          <div className="flex items-center gap-2">
+            <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+            <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary}</span>
+          </div>
+        </summary>
+        <div className="border-border space-y-2 border-t p-3 pt-3">
+          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.snapshotHistoryTitle}</div>
+          {manifestSnapshots.length > 0 ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.snapshotHistoryLabel}</span>
+              <select
+                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                value={manifestSnapshotId ?? ''}
+                onChange={e => {
+                  const nextId = e.target.value;
+                  const next = manifestSnapshots.find(row => row.id === nextId);
+                  setManifestSnapshotId(nextId);
+                  hydratedManifestSnapshotId.current = null;
+                  if (next) {
+                    setScenario(next.payload.change_scenario);
+                    setSeason(next.payload.season_preset);
+                    setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
+                    setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
+                    setSavedManifestSignature(
+                      encodeManifestChangeSignature({
+                        change_scenario: next.payload.change_scenario,
+                        season_preset: next.payload.season_preset,
+                        plan_horizon: next.payload.plan_horizon,
+                      }),
+                    );
+                    hydratedManifestSnapshotId.current = nextId;
+                  }
+                }}
+              >
+                {manifestSnapshots.map(row => (
+                  <option key={row.id} value={row.id}>
+                    {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
+                    {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotHistoryEmpty}</p>
+          )}
+          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotVersionHint}</p>
+        </div>
+      </details>
 
-      <div className="bg-background space-y-2 rounded-lg border p-3">
-        <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.commercialOfferTitle}</div>
+      <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
+        <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
+          <div className="flex items-center gap-2">
+            <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+            <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.orchestrationDisclosure.commercialSummary}</span>
+          </div>
+        </summary>
+        <div className="border-border space-y-2 border-t p-3 pt-3">
+          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.commercialOfferTitle}</div>
         <Button
           type="button"
           variant="secondary"
@@ -840,7 +873,8 @@ export function StrategyLabOrchestrationPanel({
             <TimelineLinkButton auditId={auditId} />
           </div>
         ) : null}
-      </div>
+        </div>
+      </details>
 
       {roadmapVersionToShow > 0 && (
         <p className="text-muted-foreground text-xs">
@@ -848,64 +882,85 @@ export function StrategyLabOrchestrationPanel({
         </p>
       )}
 
-      {planGovernance && (
-        <div className="bg-background space-y-2 rounded-lg border p-3">
-          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.governanceTitle}</div>
-          <p className="text-muted-foreground text-xs">
-            {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
-          </p>
-          {pack?.input_quality && (
+      {planGovernance ? (
+        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
+          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
+            <div className="flex items-center gap-2">
+              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="text-foreground text-sm font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsSummary}
+              </span>
+            </div>
+          </summary>
+          <div className="border-border space-y-2 border-t p-3">
+            <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.governanceTitle}</div>
             <p className="text-muted-foreground text-xs">
-              {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
-              {pack.input_quality.input_mode})
+              {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
             </p>
-          )}
-          <p className="text-muted-foreground text-xs">
-            Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
-          </p>
-          <p className="text-muted-foreground text-xs">
-            {ORCHESTRATION_UI_COPY.governanceScoresLabel}{' '}
-            {Math.round(planGovernance.dependency_integrity_score * 100)}% /{' '}
-            {Math.round(planGovernance.confidence_coverage_score * 100)}% /{' '}
-            {Math.round(planGovernance.risk_coverage_score * 100)}%
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Plan scores: {Math.round(planGovernance.integrity_score * 100)}% /{' '}
-            {Math.round(planGovernance.coverage_score * 100)}% /{' '}
-            {Math.round(planGovernance.confidence_score * 100)}%
-          </p>
-          <p className="text-muted-foreground text-xs">
-            {ORCHESTRATION_UI_COPY.governanceCriticalPathCoverageLabel}:{' '}
-            {Math.round(planGovernance.critical_path_node_ratio * 100)}%
-          </p>
-          {planGovernance.warnings.length > 0 && (
-            <ul className="text-foreground list-inside list-disc text-xs">
-              {planGovernance.warnings.map(line => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          )}
-          {governanceHints.length > 0 && (
-            <div>
-              <div className="text-muted-foreground mb-1 text-xs font-medium">
-                {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
-              </div>
+            {pack?.input_quality ? (
+              <p className="text-muted-foreground text-xs">
+                {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
+                {pack.input_quality.input_mode})
+              </p>
+            ) : null}
+            <p className="text-muted-foreground text-xs">
+              Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {ORCHESTRATION_UI_COPY.governanceScoresLabel}{' '}
+              {Math.round(planGovernance.dependency_integrity_score * 100)}% /{' '}
+              {Math.round(planGovernance.confidence_coverage_score * 100)}% /{' '}
+              {Math.round(planGovernance.risk_coverage_score * 100)}%
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Plan scores: {Math.round(planGovernance.integrity_score * 100)}% /{' '}
+              {Math.round(planGovernance.coverage_score * 100)}% /{' '}
+              {Math.round(planGovernance.confidence_score * 100)}%
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {ORCHESTRATION_UI_COPY.governanceCriticalPathCoverageLabel}:{' '}
+              {Math.round(planGovernance.critical_path_node_ratio * 100)}%
+            </p>
+            {planGovernance.warnings.length > 0 ? (
               <ul className="text-foreground list-inside list-disc text-xs">
-                {governanceHints.map((hint) => (
-                  <li key={hint}>{hint}</li>
+                {planGovernance.warnings.map(line => (
+                  <li key={line}>{line}</li>
                 ))}
               </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
-        <RevisionHistoryPanel items={revisionHistory} />
+            ) : null}
+            {governanceHints.length > 0 ? (
+              <div>
+                <div className="text-muted-foreground mb-1 text-xs font-medium">
+                  {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
+                </div>
+                <ul className="text-foreground list-inside list-disc text-xs">
+                  {governanceHints.map(hint => (
+                    <li key={hint}>{hint}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </details>
       ) : null}
 
-      {selectedRevisionDiff && roadmapVersionToShow > 1 && (
-        <div className="bg-background space-y-3 rounded-lg border p-3">
+      {(APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0) ||
+      (selectedRevisionDiff && roadmapVersionToShow > 1) ? (
+        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
+          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
+            <div className="flex items-center gap-2">
+              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="text-foreground text-sm font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.versionHistorySummary}
+              </span>
+            </div>
+          </summary>
+          <div className="border-border space-y-3 border-t p-3">
+            {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
+              <RevisionHistoryPanel items={revisionHistory} />
+            ) : null}
+            {selectedRevisionDiff && roadmapVersionToShow > 1 ? (
+              <div className="bg-background space-y-3 rounded-lg border p-3">
           <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.revisionDiffTitle}</div>
           {revisionDiffCandidates.length > 0 && (
             <label className="flex flex-col gap-1">
@@ -1022,11 +1077,24 @@ export function StrategyLabOrchestrationPanel({
               )}
             </div>
           )}
-        </div>
-      )}
+              </div>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
 
       {pack ? (
-        <div className="space-y-3 border-t pt-4">
+        <details className="[&_svg]:transition-transform [&[open]_svg]:rotate-180">
+          <summary className="border-border [&::-webkit-details-marker]:hidden list-none cursor-pointer border-t px-4 py-4">
+            <div className="flex items-center gap-2">
+              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="text-foreground text-sm font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.packInspectionSummary}
+              </span>
+            </div>
+          </summary>
+          <div className="border-border border-t px-4 pb-4">
+        <div className="space-y-3 pt-4">
           <div className="space-y-2">
             <div className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.orchestratorTabs.analysisDepth}</div>
             <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.depthFilter.hint}</p>
@@ -1080,6 +1148,8 @@ export function StrategyLabOrchestrationPanel({
             </div>
           )}
         </div>
+          </div>
+        </details>
       ) : (
         <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.noPackYet}</p>
       )}

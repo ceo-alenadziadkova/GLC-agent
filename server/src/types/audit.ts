@@ -35,6 +35,7 @@ export * from './audit/entities-domain.js';
 export * from './audit/entities-strategy.js';
 export * from './audit/entities-pipeline.js';
 export * from './audit/entities-brief.js';
+export * from './audit/client-project-context.js';
 export * from './audit/snapshot-public.js';
 export * from './audit/quality-gate.js';
 export * from './audit/entities-state.js';

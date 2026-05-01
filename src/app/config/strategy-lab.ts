@@ -2,6 +2,13 @@ import { DOMAIN_KEYS } from '../data/auditTypes';
 
 export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
+/** In-page anchors for Strategy Lab sticky section navigation (`/strategy/:id`). */
+export const STRATEGY_LAB_PAGE_ANCHORS = {
+  planSetup: 'strategy-lab-plan-setup',
+  inspectPack: 'strategy-lab-inspect-pack',
+  reference: 'strategy-lab-reference',
+} as const;
+
 export const STRATEGY_LAB_LAYOUT_POLICY = {
   sidebarLayoutAutoSaveId: 'strategy-lab:summary-layout',
   summaryPanelDefaultSizePct: 28,

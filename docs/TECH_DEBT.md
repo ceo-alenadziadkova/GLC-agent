@@ -104,6 +104,19 @@ Documented in project rules / audits; do not bulk-rewrite without a dedicated in
 
 ---
 
+## Gantt P3 backend prerequisites (Portal roadmap)
+
+Client-side Gantt P2 uses browser `localStorage` baseline snapshots, client-side CPM/slack, and client-built `.ics`. **Durable product behavior** needs server contracts:
+
+- **Drag-to-edit**: authenticated `PATCH` (or equivalent) for task plan windows with validation, optimistic concurrency, dependency checks; expose via feature flag (e.g. `roadmap_gantt_drag_edit`).
+- **Real percent complete**: persisted field on timeline tasks (optional `PATCH`); replace time-based “schedule elapsed” where authoritative completion exists.
+- **Server baseline history**: persist snapshots or versions + explicit baseline endpoints (`POST` / read on timeline or pack).
+- **iCal / export parity**: optional server-generated `.ics` aligned with sprint CSV and report truth.
+
+Until then, copy `roadmapGanttBaselineLocalNotice` documents the local-only baseline limitation.
+
+---
+
 ## Hardcode externalization implementation (2026-04-13)
 
 Completed in this pass (mapped to architecture ownership):

@@ -244,6 +244,14 @@ export interface SnapshotCachePayload {
   limitations?: string[];
   /** Gaps in machine/AI-oriented surface coverage inferred from this scan (for client copy). */
   ai_visibility?: { gaps: AiVisibilityGapId[] };
+  /**
+   * Lightweight heuristics for intake bank mapping (recon), derived during scan.
+   * Not a substitute for product answers; only seeds empty brief fields.
+   */
+  recon_hints?: {
+    /** `/checkout`, cart, pay buttons, etc. in combined fetched HTML. */
+    checkout_html: boolean;
+  };
   /** True when no HTML could be scored (e.g. robots block, unreachable). */
   degraded?: boolean;
   /** Public-facing excerpt from the fetched homepage (title + meta / OG / first paragraph). */

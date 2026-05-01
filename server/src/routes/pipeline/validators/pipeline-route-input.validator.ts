@@ -35,6 +35,7 @@ export const pipelineStartNextBodySchema = z.unknown().transform((body): { disab
 export const pipelineReviewApproveBodySchema = z.object({
   consultant_notes: z.union([z.string(), z.null(), z.undefined()]).optional(),
   interview_notes: z.union([z.string(), z.null(), z.undefined()]).optional(),
+  action: z.enum(['approve', 'request_missing_data']).optional(),
 });
 
 export const pipelineStatusQuerySchema = z.object({

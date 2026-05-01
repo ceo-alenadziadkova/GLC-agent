@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowsClockwise, Calendar, FunnelSimple, MagnifyingGlass } from '@phosphor-icons/react';
+import { ArrowsClockwise, Calendar, FunnelSimple, MagnifyingGlass, Trash, Warning } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAudits } from '../hooks/useAudits';
+import { useProfile } from '../hooks/useProfile';
 import type { AuditMeta, AuditOrigin } from '../data/auditTypes';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
@@ -13,6 +14,17 @@ import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { getAuditListPillPresentation } from '../lib/pipeline-monitor-helpers';
 import { QueueInlineActionLink } from './queue-inline-action-link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { cn } from '../components/ui/utils';
 
 const STATUS_OPTIONS = [
   'created',
@@ -41,6 +53,8 @@ function formatOpenAriaLabel(template: string, company: string): string {
 
 export function AdminAllAudits() {
   const copy = WORKSPACE_PAGE_COPY.allAudits;
+  const tableCopy = copy.table;
+  const { canManagePlatformSettings } = useProfile();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [source, setSource] = useState<AuditOrigin | ''>('');
@@ -51,7 +65,11 @@ export function AdminAllAudits() {
   const [sortBy, setSortBy] = useState<'created_at' | 'updated_at'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const { audits, total, hasMore, loadMore, loading, error, reload } = useAudits(50, {
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { audits, total, hasMore, loadMore, loading, error, reload, deleteAudit } = useAudits(50, {
     status: status ? [status] : undefined,
     source: source ? [source] : undefined,
     createdFrom: createdFrom || undefined,
@@ -75,6 +93,20 @@ export function AdminAllAudits() {
       );
     });
   }, [audits, query]);
+
+  const deleteTargetAudit = useMemo(
+    () => (deleteTargetId ? audits.find((a) => a.id === deleteTargetId) ?? null : null),
+    [audits, deleteTargetId],
+  );
+
+  const deleteTargetCompanyLabel = deleteTargetAudit
+    ? deleteTargetAudit.company_name ||
+      formatAuditWebsiteDisplay(deleteTargetAudit.company_url, deleteTargetAudit.no_public_website)
+    : '';
+
+  const actionsGridClass = canManagePlatformSettings
+    ? '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_minmax(5.5rem,auto)]'
+    : '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_40px]';
 
   return (
     <AppShell
@@ -176,9 +208,10 @@ export function AdminAllAudits() {
           </div>
         </section>
 
-        {error && (
-          <div className="text-destructive glc-soft-panel p-4 text-sm">
-            {error}
+        {(error || deleteError) && (
+          <div className="text-destructive glc-soft-panel flex items-start gap-2 p-4 text-sm">
+            {deleteError && <Warning className="mt-0.5 h-4 w-4 flex-shrink-0" />}
+            <span>{deleteError ?? error}</span>
           </div>
         )}
 
@@ -199,7 +232,12 @@ export function AdminAllAudits() {
 
         {filtered.length > 0 && (
           <div className="glc-card overflow-hidden rounded-xl">
-            <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps [grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_40px]">
+            <div
+              className={cn(
+                'text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps',
+                actionsGridClass,
+              )}
+            >
               <span>{copy.table.headerCompany}</span>
               <span>{copy.table.headerSource}</span>
               <span>{copy.table.headerStatus}</span>
@@ -214,7 +252,11 @@ export function AdminAllAudits() {
               return (
                 <div
                   key={audit.id}
-                  className={`grid items-center px-5 py-3 [grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_40px] ${index < filtered.length - 1 ? 'border-b' : ''}`}
+                  className={cn(
+                    'grid items-center px-5 py-3',
+                    actionsGridClass,
+                    index < filtered.length - 1 ? 'border-b' : '',
+                  )}
                 >
                   <div className="min-w-0">
                     <Link to={`/audit/${audit.id}`} className="text-foreground block truncate text-sm font-semibold no-underline">
@@ -236,14 +278,32 @@ export function AdminAllAudits() {
                   {audit.overall_score !== null
                     ? <ScoreBadge score={Math.round(audit.overall_score)} size="sm" />
                     : <span className="text-muted-foreground text-sm">—</span>}
-                  <QueueInlineActionLink
-                    to={audit.status === 'created' ? `/pipeline/${audit.id}` : `/audit/${audit.id}`}
-                    tone="info"
-                    className="h-7 w-7 rounded-md p-0"
-                    ariaLabel={formatOpenAriaLabel(copy.table.openIconAriaLabel, companyLabel)}
-                  >
-                    {copy.table.openButton}
-                  </QueueInlineActionLink>
+                  <div className="flex items-center justify-end gap-1">
+                    <QueueInlineActionLink
+                      to={audit.status === 'created' ? `/pipeline/${audit.id}` : `/audit/${audit.id}`}
+                      tone="info"
+                      className="h-7 w-7 rounded-md p-0"
+                      ariaLabel={formatOpenAriaLabel(copy.table.openIconAriaLabel, companyLabel)}
+                    >
+                      {copy.table.openButton}
+                    </QueueInlineActionLink>
+                    {canManagePlatformSettings && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={deletingId === audit.id}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive glc-touch-target h-7 w-7 shrink-0 p-0 sm:min-h-0"
+                        aria-label={formatOpenAriaLabel(tableCopy.deleteIconAriaLabel, companyLabel)}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeleteTargetId(audit.id);
+                        }}
+                      >
+                        <Trash className="h-4 w-4" weight="bold" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -265,6 +325,53 @@ export function AdminAllAudits() {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tableCopy.deleteDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <span>
+                {tableCopy.deleteDialogDescriptionPrefix}
+                {deleteTargetCompanyLabel ? (
+                  <>
+                    {' '}
+                    <span className="font-medium text-foreground">{deleteTargetCompanyLabel}</span>
+                  </>
+                ) : null}
+                {tableCopy.deleteDialogDescriptionMiddle}
+                {tableCopy.deleteDialogDescriptionSuffix}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">{tableCopy.deleteDialogCancel}</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                const target = deleteTargetId;
+                setDeleteTargetId(null);
+                if (!target) return;
+                setDeletingId(target);
+                setDeleteError(null);
+                void deleteAudit(target)
+                  .catch(() => setDeleteError(tableCopy.deleteFailed))
+                  .finally(() => setDeletingId(null));
+              }}
+            >
+              {tableCopy.deleteDialogConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

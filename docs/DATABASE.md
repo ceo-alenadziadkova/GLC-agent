@@ -323,6 +323,8 @@ Core fields:
 
 Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
 
+**Related product model (not an extra table in v1):** [`ClientProjectContextV1`](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md) — a composed **view** of structured `responses` plus optional **project narrative** and **audit enrichment**; SSOT for bank cells remains this row (and public token / session pre-link).
+
 Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`, `027_intake_versions.sql`, `028_intake_version_migration.sql`.
 
 ---

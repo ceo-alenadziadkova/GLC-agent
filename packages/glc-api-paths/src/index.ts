@@ -259,6 +259,31 @@ export function apiAuditsBriefHelpRequest(auditId: string): string {
   return `${apiAuditsPath(auditId)}/brief/help-request`;
 }
 
+/** GET — composed `ClientProjectContextV1` from `intake_brief` (+ optional future enrichments). */
+export function apiAuditsClientProjectContext(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/client-project-context`;
+}
+
+/** GET — deterministic `nextRecommended` tail (non-baseline bank ids) + questions for the audit brief. */
+export function apiAuditsIntakeFollowupSuggestions(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/intake-followup-suggestions`;
+}
+
+/** POST — same contract as `apiIntakeIntelligenceSnapshot` but for an authenticated audit brief (consultant/portal). */
+export function apiAuditsBriefIntelligenceSnapshot(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/intelligence-snapshot`;
+}
+
+/** POST — second LLM pass: B1 `label_overrides` only (after `PUT /brief` + confirm). */
+export function apiAuditsBriefIntelligenceWording(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/intelligence-wording`;
+}
+
+/** POST — merge another audit’s bank `responses` into this brief (Basics/identity cells preserved on target). */
+export function apiAuditsBriefCloneFrom(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/clone-from`;
+}
+
 export function apiAuditsReview(auditId: string, phase: number): string {
   return `${apiAuditsPath(auditId)}/reviews/${encodeURIComponent(String(phase))}`;
 }
@@ -294,6 +319,15 @@ export function apiIntakeIntelligenceKpi(token: string): string {
 
 export function apiIntakeNextQuestion(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/next-question`;
+}
+
+export function apiIntakeTailoredQuestions(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/tailored-questions`;
+}
+
+/** POST — LLM (optional) + F2-ordered follow-ups after pre-brief; see ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT. */
+export function apiIntakeIntelligenceSnapshot(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/intelligence-snapshot`;
 }
 
 export function apiBriefPublicSession(token: string): string {

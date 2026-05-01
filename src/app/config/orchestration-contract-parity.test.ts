@@ -142,6 +142,15 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps new-audit brief early snapshot + clone-from flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.briefCloneFromAuditEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.briefCloneFromAuditEnabled,
+    );
+  });
+
   it('keeps v9 orchestration manifest/governance/ADR flags aligned (server env defaults vs APP_FEATURE_FLAGS)', () => {
     expect(APP_FEATURE_FLAGS.manifestScenarioCompareEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.manifestScenarioCompareEnabled,

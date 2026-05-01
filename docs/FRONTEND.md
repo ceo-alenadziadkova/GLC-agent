@@ -263,11 +263,19 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - "New Audit" button → `/audit/new`
 - Legacy `/portfolio` path is a redirect alias to `/dashboard`
 
-### `NewAudit.tsx`
-- Form: company URL (required), company name (optional), industry dropdown (optional)
-- Submit → `api.createAudit(url, name, industry)` → `POST /api/audits`
-- On success → `navigate('/pipeline/' + result.id)`
-- Loading/error states
+### `NewAudit.tsx` (new audit wizard)
+
+- **Entry:** `src/app/pages/NewAudit.tsx` — variants **consultant** (`/audit/new`) and **client self-serve** (`/portal/audit/new` via `variant="client_self_serve"`). State machine: `useNewAuditWizard` in `src/app/pages/new-audit/useNewAuditWizard.ts`.
+- **Steps:** `src/app/pages/new-audit/steps/` — **0** `Step0Basics` (URL, industry, coverage), **1** `Step1Brief` (intake bank), **2** `Step2Review`, **3** `Step3Launch`. Chrome: `NewAuditChrome.tsx` (step indicator).
+- **When an audit id exists:** `draftAuditId` in the wizard (set on first `POST /api/audits` / draft save — see `src/app/pages/new-audit/newAuditExecution.ts`). **Step 0** may have no id yet; **step 1+** typically have `draftAuditId` for portal drafts and after basics submit.
+
+**Client project context** ([`ClientProjectContextV1`](../src/app/data/audit/contracts/client-project-context.types.ts), `GET /api/audits/:id/client-project-context`):
+
+- **API:** `api.getClientProjectContext(auditId)` in `src/app/data/api/brief-profile-platform.ts` (merged into `api` in `apiService.ts`).
+- **Step 1 / 2 UI:** `ClientProjectContextPanel` + `useClientProjectContext` — **`Step1Brief`** and **`Step2Review`** (same `draftAuditId` + debounced `responses` / `pipelineGateBriefResponses` sync key). Toggle **`APP_FEATURE_FLAGS.newAuditClientProjectContextPanelEnabled`**. Unit tests: `src/app/hooks/__tests__/useClientProjectContext.test.ts`.
+- **Follow-up (deterministic):** `api.getIntakeFollowupSuggestions(auditId)` → `GET /api/audits/:id/intake-followup-suggestions` — same tail as public tailored-questions, using stored brief + `product_mode`; optional to pair with the project-context panel or LLM ordering later.
+
+(See also [ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md).)
 
 ### `PipelineMonitor.tsx`
 - `useParams<{ id: string }>()` for audit ID

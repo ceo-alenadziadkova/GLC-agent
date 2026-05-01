@@ -7,12 +7,19 @@ import { API_URL, apiFetch, getAuthHeaders } from '../api-http';
 import type { QualityGateReport } from '../audit/contracts/pipeline/pipeline.types';
 
 export const auditsReviewsReportsApi = {
-  async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {
+  async approveReview(
+    id: string,
+    phase: number,
+    consultantNotes?: string,
+    interviewNotes?: string,
+    action: 'approve' | 'request_missing_data' = 'approve',
+  ) {
     return apiFetch(apiAuditsReview(id, phase), {
       method: 'POST',
       body: JSON.stringify({
         consultant_notes: consultantNotes ?? null,
         interview_notes: interviewNotes ?? null,
+        action,
       }),
     });
   },

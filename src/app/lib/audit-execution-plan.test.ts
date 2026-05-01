@@ -15,6 +15,7 @@ import {
   isExpressLikeAudit,
   isSnapshotStyleAudit,
   phaseIdsFromMetaPlan,
+  plannedExecutionPhaseIdSet,
 } from './audit-execution-plan';
 
 function meta(over: Partial<AuditMeta> = {}): AuditMeta {
@@ -123,6 +124,37 @@ describe('audit-execution-plan', () => {
       );
       expect(phases).toEqual([0, 3]);
       expect(phases).not.toContain(7);
+    });
+  });
+
+  describe('plannedExecutionPhaseIdSet', () => {
+    it('returns null when execution_plan absent or domains not selected', () => {
+      expect(plannedExecutionPhaseIdSet(meta({ execution_plan: undefined }))).toBe(null);
+      expect(
+        plannedExecutionPhaseIdSet(
+          meta({
+            execution_plan: { coverage_package: 'complete', selected_domains: [], include_strategy: true },
+          }),
+        ),
+      ).toBe(null);
+    });
+
+    it('returns a set of planned phase ids when domains are selected', () => {
+      const set = plannedExecutionPhaseIdSet(
+        meta({
+          execution_plan: {
+            coverage_package: 'complete',
+            selected_domains: ['tech_infrastructure', 'automation_processes'],
+            include_strategy: false,
+            depth: 'standard',
+            source: 'user_selected',
+          },
+        }),
+      );
+      expect(set?.has(0)).toBe(true);
+      expect(set?.has(1)).toBe(true);
+      expect(set?.has(5)).toBe(false);
+      expect(set?.has(6)).toBe(true);
     });
   });
 

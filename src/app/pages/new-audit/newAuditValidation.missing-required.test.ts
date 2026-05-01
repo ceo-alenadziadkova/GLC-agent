@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { listAnsweredPipelineRequiredIds, listMissingPipelineRequiredIds } from './newAuditValidation';
+import {
+  listAnsweredPipelineRequiredIds,
+  listMissingPipelineRequiredIds,
+  newAuditStep1CollectionMode,
+} from './newAuditValidation';
 
 describe('listMissingPipelineRequiredIds', () => {
   it('returns non-empty when brief is empty', () => {
@@ -7,6 +11,7 @@ describe('listMissingPipelineRequiredIds', () => {
       responses: {},
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
     });
     expect(missing.length).toBeGreaterThan(0);
   });
@@ -16,6 +21,7 @@ describe('listMissingPipelineRequiredIds', () => {
       responses: {},
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
     });
     const withIndustry = listMissingPipelineRequiredIds({
       responses: {
@@ -23,6 +29,7 @@ describe('listMissingPipelineRequiredIds', () => {
       },
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
     });
     expect(withIndustry.length).toBeLessThanOrEqual(base.length);
   });
@@ -32,11 +39,13 @@ describe('listMissingPipelineRequiredIds', () => {
       responses: {},
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
     });
     const withStep0Only = listMissingPipelineRequiredIds({
       responses: {},
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
       step0Basics: {
         url: 'https://example.com',
         name: 'Acme',
@@ -51,6 +60,42 @@ describe('listMissingPipelineRequiredIds', () => {
     }
     expect(withStep0Only.length).toBeLessThan(withoutStep0.length);
   });
+
+  it('uses full-bank required set after tailored phase unlock for consultant flow', () => {
+    const locked = listMissingPipelineRequiredIds({
+      responses: {},
+      noPublicWebsite: false,
+      briefProductMode: 'full',
+      isClientSelfServe: false,
+      tailoredPhaseUnlocked: false,
+    });
+    const unlocked = listMissingPipelineRequiredIds({
+      responses: {},
+      noPublicWebsite: false,
+      briefProductMode: 'full',
+      isClientSelfServe: false,
+      tailoredPhaseUnlocked: true,
+    });
+    expect(unlocked.length).toBeGreaterThanOrEqual(locked.length);
+  });
+
+  it('uses pre-brief required set for no-site before tailored unlock', () => {
+    const locked = listMissingPipelineRequiredIds({
+      responses: {},
+      noPublicWebsite: true,
+      briefProductMode: 'full',
+      isClientSelfServe: false,
+      tailoredPhaseUnlocked: false,
+    });
+    const unlocked = listMissingPipelineRequiredIds({
+      responses: {},
+      noPublicWebsite: true,
+      briefProductMode: 'full',
+      isClientSelfServe: false,
+      tailoredPhaseUnlocked: true,
+    });
+    expect(locked.length).toBeLessThanOrEqual(unlocked.length);
+  });
 });
 
 describe('listAnsweredPipelineRequiredIds', () => {
@@ -61,6 +106,7 @@ describe('listAnsweredPipelineRequiredIds', () => {
       },
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
     });
     expect(answered).toContain('a2');
   });
@@ -70,6 +116,7 @@ describe('listAnsweredPipelineRequiredIds', () => {
       responses: {},
       noPublicWebsite: false,
       briefProductMode: 'full',
+      isClientSelfServe: true,
       step0Basics: {
         url: 'https://example.com',
         name: 'Acme',
@@ -79,5 +126,27 @@ describe('listAnsweredPipelineRequiredIds', () => {
       },
     });
     expect(answered).toEqual(expect.arrayContaining(['a11', 'a12', 'a2']));
+  });
+});
+
+describe('newAuditStep1CollectionMode', () => {
+  it('starts no-site Step1 in pre-brief mode before tailored unlock', () => {
+    expect(
+      newAuditStep1CollectionMode({
+        noPublicWebsite: true,
+        isClientSelfServe: false,
+        tailoredPhaseUnlocked: false,
+      }),
+    ).toBe('pre_brief');
+  });
+
+  it('returns discovery for consultant no-site after tailored unlock', () => {
+    expect(
+      newAuditStep1CollectionMode({
+        noPublicWebsite: true,
+        isClientSelfServe: false,
+        tailoredPhaseUnlocked: true,
+      }),
+    ).toBe('discovery');
   });
 });

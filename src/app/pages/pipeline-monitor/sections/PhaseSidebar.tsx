@@ -92,6 +92,8 @@ export function PhaseSidebar(props: {
   /** Portal mobile: steps panel below detail — full width, top border, capped height. */
   stackedBelowDetail?: boolean;
   reviewByPhase: Map<number, PipelineReview>;
+  /** Review gate after the auto wing (`review_points.after_phase`, often 4; partial coverage may be 1–3). */
+  autoWingReviewAfterPhase: number;
   reviewWarningsByPhase: Map<number, boolean>;
   onSelectPhase: (phaseId: number) => void;
   onOpenReviewModal: (afterPhase: number, label: string) => void;
@@ -105,6 +107,7 @@ export function PhaseSidebar(props: {
     resizableLayout = false,
     stackedBelowDetail = false,
     reviewByPhase,
+    autoWingReviewAfterPhase,
     reviewWarningsByPhase,
     onSelectPhase,
     onOpenReviewModal,
@@ -197,10 +200,15 @@ export function PhaseSidebar(props: {
               ))}
           </div>
           <RevBanner
-            review={reviewByPhase.get(4) ?? pendingReviewFallback(4)}
+            review={reviewByPhase.get(autoWingReviewAfterPhase) ?? pendingReviewFallback(autoWingReviewAfterPhase)}
             label={isExpress ? reviewLabels.twoFinal : reviewLabels.two}
-            onOpenModal={() => onOpenReviewModal(4, isExpress ? reviewLabels.twoFinal : reviewLabels.two)}
-            hasWarnings={reviewWarningsByPhase.get(4) ?? false}
+            onOpenModal={() =>
+              onOpenReviewModal(
+                autoWingReviewAfterPhase,
+                isExpress ? reviewLabels.twoFinal : reviewLabels.two,
+              )
+            }
+            hasWarnings={reviewWarningsByPhase.get(autoWingReviewAfterPhase) ?? false}
             canApprove={false}
             copy={portalRevCopy}
           />
@@ -298,10 +306,15 @@ export function PhaseSidebar(props: {
       </div>
 
       <RevBanner
-        review={reviewByPhase.get(4) ?? pendingReviewFallback(4)}
+        review={reviewByPhase.get(autoWingReviewAfterPhase) ?? pendingReviewFallback(autoWingReviewAfterPhase)}
         label={isExpress ? reviewLabels.twoFinal : reviewLabels.two}
-        onOpenModal={() => onOpenReviewModal(4, isExpress ? reviewLabels.twoFinal : reviewLabels.two)}
-        hasWarnings={reviewWarningsByPhase.get(4) ?? false}
+        onOpenModal={() =>
+          onOpenReviewModal(
+            autoWingReviewAfterPhase,
+            isExpress ? reviewLabels.twoFinal : reviewLabels.two,
+          )
+        }
+        hasWarnings={reviewWarningsByPhase.get(autoWingReviewAfterPhase) ?? false}
         canApprove
       />
 

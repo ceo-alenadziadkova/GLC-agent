@@ -8,7 +8,11 @@ import type {
   IntakeReadinessBadge,
   IntakeVersionTuple,
 } from '../../../data/auditTypes';
-import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
+import type {
+  AuditBriefIntelligenceSnapshotResponse,
+  AuditBriefIntelligenceWordingResponse,
+  BriefSchemaSnapshot,
+} from '../../../data/api/brief-profile-platform';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import type { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
 
@@ -21,6 +25,18 @@ export type NewAuditWizardContract = {
   fromDiscovery: string;
   step: 0 | 1 | 2 | 3;
   setStep: Dispatch<SetStateAction<0 | 1 | 2 | 3>>;
+  /** When Basics is split (URL present), 0 = form, 1 = site pre-check. */
+  basicsSubStep: 0 | 1;
+  setBasicsSubStep: Dispatch<SetStateAction<0 | 1>>;
+  /** True when the wizard shows a separate “site pre-check” sub-step before Brief (public URL). */
+  useBasicsSiteScanSplit: boolean;
+  /** 0..3 in four-step mode; 0..4 in five-step (Basics + site + Brief + Review + Launch). */
+  visualWizardIndex: number;
+  stepIndicatorVariant: 'four' | 'five';
+  handleWizardStepIndicatorClick: (visual: number) => void;
+  handleStep0ContinueFromBasics: () => Promise<void>;
+  handleSiteCheckContinueToBrief: () => void;
+  handleSiteCheckBackToBasicsForm: () => void;
   loading: boolean;
   setLoading: Dispatch<SetStateAction<boolean>>;
   error: string | null;
@@ -53,6 +69,11 @@ export type NewAuditWizardContract = {
   pipelineRequiredTotal: number;
   /** Bank question ids for required pipeline gates that currently have an answer (for Step 2 review list). */
   answeredPipelineRequiredIds: string[];
+  /**
+   * After Save + intelligence wording (or when full bank applies without snapshot split), Step 1 uses the full
+   * collection plan including business-tailored follow-ups — not only the pre_brief slice.
+   */
+  briefTailoredFollowUpUnlocked: boolean;
   /** Merged brief (Step 0 + cells) used for pipeline gates; drives answer column in Step 2 review table. */
   pipelineGateBriefResponses: BriefResponses;
   step2Complete: boolean;
@@ -68,6 +89,8 @@ export type NewAuditWizardContract = {
   briefExecutionDiagnosticError: boolean;
   /** Resolver-visible question order from GET …/brief (wizard sequencing). */
   briefWizardServerVisibleQuestionIds: string[] | undefined;
+  /** Increments only after server-side brief/context updates; prevents per-keystroke context refetches. */
+  clientProjectContextSyncTick: number;
   bankMetrics: ReturnType<typeof useIntakeBankMetrics>;
   briefLayoutChoice: BriefLayoutChoice;
   setBriefLayoutChoice: Dispatch<SetStateAction<BriefLayoutChoice>>;
@@ -88,6 +111,30 @@ export type NewAuditWizardContract = {
   draftAuditId: string | null;
   draftIntakeVersions: IntakeVersionTuple | null;
   setDraftIntakeVersions: Dispatch<SetStateAction<IntakeVersionTuple | null>>;
+  /** Step 1 sequencing: short brief collection -> snapshot confirmation. */
+  briefIntelligenceSubStep: 'short_brief' | 'snapshot_confirm';
+  intelligenceSnapshotResult: AuditBriefIntelligenceSnapshotResponse | null;
+  intelligenceSnapshotError: string | null;
+  intelligenceSnapshotLoading: boolean;
+  /** B1 client phrasing from `POST .../brief/intelligence-wording` (LLM-2). Canonical answer values unchanged. */
+  intelligenceWordingUi: Pick<
+    AuditBriefIntelligenceWordingResponse,
+    'label_overrides' | 'hint_overrides' | 'option_display_overrides'
+  >;
+  intelligenceWordingLoading: boolean;
+  intelligenceSnapshotPhase: 'standard' | 'early';
+  intelEarlyMergePending: boolean;
+  earlyIntelligenceEligible: boolean;
+  runEarlyBriefIntelligenceSnapshot: () => Promise<void>;
+  handleBriefCloneFromAudit: (sourceAuditId: string) => Promise<void>;
+  handleStep1ContinueToReview: () => Promise<void>;
+  handleIntelligenceSnapshotSaveApplyAndWording: (selectedInferredIds: Set<string>) => Promise<void>;
+  handleIntelligenceSnapshotBackToBriefForm: () => void;
+  handleIntelligenceSnapshotSkipToReview: () => void;
+  runBriefIntelligenceSnapshot: (opts?: { earlyCapture?: boolean }) => Promise<void>;
+  retryBriefIntelligenceSnapshot: () => Promise<void>;
+  handleBackFromStep2ToStep1: () => void;
+  handleBackFromStep1ToStep0: () => void;
   draftSaving: boolean;
   draftNotice: string | null;
   setDraftNotice: Dispatch<SetStateAction<string | null>>;

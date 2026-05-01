@@ -4210,6 +4210,26 @@ html:not(.dark) .glc-hover-row:hover {
   }
 }
 
+/* Five segments (Basics + site pre-check + Brief + Review + Launch) — allow wrapping on small screens. */
+.ds-new-audit-step-indicator-row[data-step-variant='five'] {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+  justify-content: center;
+}
+@media (min-width: 1024px) {
+  .ds-new-audit-step-indicator-row[data-step-variant='five'] {
+    flex-wrap: nowrap;
+  }
+}
+@media (max-width: 639px) {
+  .ds-new-audit-step-indicator-row[data-step-variant='five'] .ds-new-audit-step-label {
+    font-size: 0.65rem;
+    max-width: 4.5rem;
+    text-align: center;
+    line-height: 1.15;
+  }
+}
+
 .ds-new-audit-step-indicator-segment {
   display: flex;
   align-items: center;

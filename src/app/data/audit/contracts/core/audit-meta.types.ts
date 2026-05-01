@@ -90,4 +90,29 @@ export interface ReconData {
   pages_crawled: CrawledPage[];
   brief: string | null;
   interview_answers: string | null;
+  recon_context_summary?: ReconContextSummary | null;
+}
+
+export type ReconContextMode =
+  | 'website_crawl'
+  | 'no_public_website'
+  | 'idea_only'
+  | 'problem_only'
+  | 'mixed_limited_data';
+
+export interface ReconInferredInsight {
+  text: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface ReconContextSummary {
+  mode: ReconContextMode;
+  source_labels: string[];
+  known_facts: string[];
+  inferred_insights: ReconInferredInsight[];
+  missing_inputs: string[];
+  recommended_next_steps: string[];
+  /** Pipeline review — prompts for consultants to gather more client context */
+  consultant_hints?: string[];
+  generated_at: string;
 }

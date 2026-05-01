@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deriveAutoWingReviewAfterPhase,
   getAuditListPillPresentation,
   getPhaseStatus,
   getPipelineMonitorHeaderPresentation,
+  hasVisiblyRunningUpstreamPhase,
   isPipelineAuditActiveStatus,
 } from './pipeline-monitor-helpers';
 
@@ -44,6 +46,12 @@ describe('getPhaseStatus', () => {
     ).toBe('pending');
   });
 
+  it('marks phases outside partial execution_plan as skipped', () => {
+    const planIds = new Set([0, 1, 6]);
+    expect(getPhaseStatus(5, 1, 'auto', [], false, null, planIds)).toBe('skipped');
+    expect(getPhaseStatus(1, 1, 'auto', [], false, null, planIds)).toBe('running');
+  });
+
   it('after resume from cancelled to review (mid-phase, no gate row), current phase is review so Continue is available', () => {
     expect(getPhaseStatus(3, 3, 'review', [], false, null)).toBe('review');
     expect(getPhaseStatus(1, 1, 'review', [], false, null)).toBe('review');
@@ -71,6 +79,51 @@ describe('getPipelineMonitorHeaderPresentation', () => {
 
   it('maps failed audits to failed pill', () => {
     expect(getPipelineMonitorHeaderPresentation('failed')).toEqual({ status: 'failed', pulse: false });
+  });
+});
+
+describe('hasVisiblyRunningUpstreamPhase', () => {
+  const row = (id: number, status: 'running' | 'pending' | 'skipped' | 'completed', skipped = false) => ({
+    id,
+    skipped,
+    status,
+  });
+
+  it('is true when a non-skipped upstream phase is running', () => {
+    const phases = [row(0, 'completed'), row(1, 'running'), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(true);
+  });
+
+  it('is false when upstream running phase is skipped (partial plan)', () => {
+    const phases = [row(0, 'completed'), row(5, 'skipped', true), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(false);
+  });
+
+  it('is false when no upstream phase is running', () => {
+    const phases = [row(0, 'completed'), row(1, 'completed'), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(false);
+  });
+});
+
+describe('deriveAutoWingReviewAfterPhase', () => {
+  it('uses the highest auto-wing review row (1–4) from the server snapshot', () => {
+    expect(
+      deriveAutoWingReviewAfterPhase([
+        { after_phase: 0 },
+        { after_phase: 1 },
+        { after_phase: 7 },
+      ]),
+    ).toBe(1);
+    expect(
+      deriveAutoWingReviewAfterPhase([
+        { after_phase: 0 },
+        { after_phase: 4 },
+      ]),
+    ).toBe(4);
+  });
+
+  it('defaults to 4 when no auto-wing gate is present in the array', () => {
+    expect(deriveAutoWingReviewAfterPhase([{ after_phase: 0 }, { after_phase: 7 }])).toBe(4);
   });
 });
 

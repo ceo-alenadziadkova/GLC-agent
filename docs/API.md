@@ -9,7 +9,7 @@ Most `/api/*` endpoints require a valid Supabase JWT in the `Authorization: Bear
 
 Authentication exceptions (no JWT):
 
-- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/next-question` (diagnostic pilot; **F1** — feature-flagged, deterministic; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)), `POST /api/intake/:token/respond`, public discovery routes.
+- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `GET /api/intake/:token/tailored-questions` (two-phase intake follow-up list), `POST /api/intake/:token/intelligence-snapshot` (F2 + optional LLM + narrative, see [ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT](./adrs/ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT.md)), `POST /api/intake/:token/nl-describe` (diagnostic pilot), `POST /api/intake/:token/intelligence-kpi` (diagnostic pilot KPI), `POST /api/intake/:token/next-question` (diagnostic pilot; **F1** — feature-flagged, deterministic; see [ADR-INTAKE-NEXT-QUESTION-V1](./adrs/ADR-INTAKE-NEXT-QUESTION-V1.md)), `POST /api/intake/:token/respond`, public discovery routes.
 - Token-protected operator routes: `/api/snapshot/operator/*` (requires `SNAPSHOT_OPERATOR_TOKEN`, not JWT).
 - Secret-header route: `POST /api/benchmarks/recompute` (cron/system secret header, not JWT).
 
@@ -343,6 +343,11 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `GET /api/audits/:id/orchestration/sprint-export` | yes | yes | Tabular **export** (JSON/CSV) of graph nodes; optional join with latest execution pack — same RLS/ownership as **GET pack**; portal **guest** rejected where pack routes reject guests |
 | `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
+| `GET /api/audits/:id/client-project-context` | yes | yes | Composed **client project context** from `intake_brief` ([ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md)); `context` may be `null` if no brief row |
+| `POST /api/audits/:id/brief/intelligence-snapshot` | yes | yes | F2 + narrative + inferred preview (LLM-1 “understanding” for this route: **no** `label_overrides` from the model); same envelope as public snapshot; call **`PUT /brief` first**; optional Lighthouse from `collected_data` when present — see [ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT](./adrs/ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT.md). Optional body **`{ "early_capture": true }`** (**consultant** draft: `audits.client_id === null`): when **`FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT`** is on, skips the full pre-brief slot gate and accepts **early_capture** slots from `@glc/intake-core` only (**public**/client-linked intake ignored). |
+| `POST /api/audits/:id/brief/clone-from` | yes | yes | Body **`{ "source_audit_id": "<uuid>" }`**: merges selected intake responses from source into target when both rows are readable by the actor and **`client_id`** matches (multi-site / holding pattern); gated by **`FEATURE_BRIEF_CLONE_FROM_AUDIT`**. **`403`** `AUDITS_BRIEF_CLONE_FORBIDDEN` on mismatch/disabled; otherwise standard audit **404** / **403** access rules. |
+| `POST /api/audits/:id/brief/intelligence-wording` | yes | yes | Second LLM pass: **`label_overrides`**, **`hint_overrides`**, **`option_display_overrides`** (B1; canonical stored values unchanged) + **`kpi`**. Call after confirm + **`PUT /brief`**; `FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM` — [ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT](./adrs/ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT.md) |
+| `GET /api/audits/:id/intake-followup-suggestions` | yes | yes | Deterministic follow-up **bank ids** + labels from [`getIntakeFollowupSuggestionsForAuditId`](../../server/src/services/intake/intake-followup-candidates.service.ts) (`suggestions` is `null` if no `intake_brief` row) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
 | `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/stop` | yes | yes | Client may start/continue/stop only when `audits.client_id` matches. Start still requires brief gates (`status === 'created'`). **`retry`** remains consultant-only. |
 | `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only: owner or platform operator (see retry section) |
@@ -892,6 +897,28 @@ Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brie
 
 ---
 
+### `GET /api/audits/:id/client-project-context`
+
+**Auth:** same as `GET /api/audits/:id/brief` (consultant owner or linked client).
+
+**Response `200`:** `{ "context": ClientProjectContextV1 | null }` — built from `intake_brief` via [`loadClientProjectContextForAuditId`](../../server/src/services/client-project/client-project-context.service.ts). **`context.auditEnrichment.byKey`** may include **`performance_lighthouse`** (trimmed scores / URL) when `collected_data` has a `performance` row with `lighthouse`, and **`collector_keys_present`** when any collector row exists. **`context`** is **`null`** when there is no brief row for the audit. See [ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md).
+
+**Response `404` / `403`:** same as other audit-scoped routes.
+
+---
+
+### `GET /api/audits/:id/intake-followup-suggestions`
+
+**Auth:** same as `GET /api/audits/:id/brief`.
+
+**Response `200`:** `{ "suggestions": { "question_ids", "case_keys", "next_recommended", "questions" } | null }` — when a brief row exists, **`question_ids`** is the **non-baseline** tail of `nextRecommended` (see [`isIntakeMinimumContextBankId`](../../packages/intake-core/src/intake-base-context-ids.ts)), using stored **`intake_brief`**, **`audits.product_mode`**, **`collection_mode`**, and **`collected_by`** (→ `client_form` vs `consultant_interview` surface). When there is no brief, **`suggestions`** is **`null`**.
+
+**Response `500`:** `AUDITS_INTAKE_FOLLOWUP_SUGGESTIONS_GET_FAILED`.
+
+**Response `404` / `403`:** same as `GET /api/audits/:id` when the audit is missing or inaccessible.
+
+---
+
 ### `POST /api/audits/:id/upgrade-from-snapshot`
 
 **Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to package-based coverage (`starter` / `pro` / `complete`), resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
@@ -1314,6 +1341,26 @@ In `express` UX, `f2` still displays all focus areas for transparency, but `Mark
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
 **Response `410`:** link expired.
+
+### `GET /api/intake/:token/tailored-questions`
+
+**Auth:** none. **Purpose:** after the **pre-brief slots** are satisfied on the stored `responses`, returns the **tail** of the full-plan `nextRecommended` queue with **baseline** [pre-brief bank ids](adrs/ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md) removed (`buildTailoredQuestionsForResponses` → `isIntakeMinimumContextBankId`). Used by the **two-phase public intake** UI (client feature `intakeTwoPhasePublicEnabled`).
+
+**Response `200`:** `{ "questions": BriefQuestion[], "question_ids": string[], "case_keys": string[], "next_recommended": string[] }` — empty `question_ids` means the planner has no additional **non-baseline** steps (client may go straight to review).
+
+**Response `400`:** `INTAKE_PREBRIEF_INCOMPLETE` when pre-brief slots are not yet satisfied.
+
+**Response `404` / `410`:** same as `GET /api/intake/:token`.
+
+### `POST /api/intake/:token/intelligence-snapshot`
+
+**Auth:** none. **Precondition:** pre-brief slots satisfied (else **`400`** `INTAKE_PREBRIEF_INCOMPLETE`, same as tailored-questions).
+
+**Body (optional):** `{ "skip_llm"?: boolean }` — when `true`, only deterministic F2 follow-up order (no Anthropic call).
+
+**Response `200`:** Composes the same follow-up **tail** as `GET …/tailored-questions` but may reorder via LLM and add optional `narrative`, `inferred_preview`, and `label_overrides` (display-only). Shapes: `questions`, `question_ids`, `case_keys`, `next_recommended`, `deterministic_question_ids`, `narrative`, `inferred_preview`, `merge_would_apply_count`, `snapshot_no_new_inferred`, `label_overrides`, `f2_source` (`llm` | `llm_mixed` | `deterministic`), `kpi: { invalid_f2_ids_filtered, f2_suggestion_length }`. See [ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT](./adrs/ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT.md) §3.1.
+
+**Server:** `FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM` (default off) — when disabled, `f2_source` is always `deterministic` and the response matches planner order without LLM. KPI row: `intake_intelligence_snapshot` in `pipeline_events`.
 
 ### `POST /api/intake/:token/nl-describe`
 

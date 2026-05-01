@@ -1,4 +1,5 @@
 import { ArrowsClockwise } from '@phosphor-icons/react';
+import { useMemo } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { AppShell } from '../../components/AppShell';
 import { ReviewPointModal } from '../../components/glc/ReviewPointModal';
@@ -14,6 +15,8 @@ import { PhaseDetailPanel } from './sections/PhaseDetailPanel';
 import { StopPipelineDialog } from './sections/StopPipelineDialog';
 import { pipelineHasReconCrawlerTruncationWarning } from '../../lib/pipeline-recon-truncation';
 import type { PipelineReview } from './types-pipeline-state';
+import { plannedExecutionPhaseIdSet } from '../../lib/audit-execution-plan';
+import { deriveAutoWingReviewAfterPhase } from '../../lib/pipeline-monitor-helpers';
 import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
 import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
@@ -54,6 +57,7 @@ export function PipelineMonitorPage() {
     isCreated,
     canStopPipeline,
     handleApprove,
+    handleRequestMissingData,
     handleStopPipeline,
     canManagePlatformSettings,
     resumeCancelledBusy,
@@ -68,15 +72,22 @@ export function PipelineMonitorPage() {
       ? pipelineState.current_phase
       : null;
 
+  const autoWingReviewAfterPhase = deriveAutoWingReviewAfterPhase(reviews);
+
+  const plannedExecutionPhaseIds = useMemo(
+    () => (audit?.meta ? plannedExecutionPhaseIdSet(audit.meta) : null),
+    [audit?.meta],
+  );
+
   const reviewByPhase = new Map<number, PipelineReview>([
     [0, selectReviewForPhase(reviews, 0)],
-    [4, selectReviewForPhase(reviews, 4)],
+    [autoWingReviewAfterPhase, selectReviewForPhase(reviews, autoWingReviewAfterPhase)],
     [7, selectReviewForPhase(reviews, 7)],
   ]);
 
   const reviewWarningsByPhase = new Map<number, boolean>([
     [0, hasQualityWarnings(qualityGateByPhase.get(0))],
-    [4, hasQualityWarnings(qualityGateByPhase.get(4))],
+    [autoWingReviewAfterPhase, hasQualityWarnings(qualityGateByPhase.get(autoWingReviewAfterPhase))],
     [7, hasQualityWarnings(qualityGateByPhase.get(7))],
   ]);
 
@@ -140,6 +151,7 @@ export function PipelineMonitorPage() {
               <PhaseDetailPanel
                 selectedPhase={selectedPhase}
                 phases={phases}
+                plannedExecutionPhaseIds={plannedExecutionPhaseIds}
                 pipelineState={pipelineState}
                 pipeError={pipeError}
                 isCreated={isCreated}
@@ -167,6 +179,7 @@ export function PipelineMonitorPage() {
                 currentPhaseId={currentPhaseId}
                 stackedBelowDetail
                 reviewByPhase={reviewByPhase}
+                autoWingReviewAfterPhase={autoWingReviewAfterPhase}
                 reviewWarningsByPhase={reviewWarningsByPhase}
                 onSelectPhase={setSelectedPhaseId}
                 onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
@@ -181,6 +194,7 @@ export function PipelineMonitorPage() {
                 isClient={isClient}
                 currentPhaseId={currentPhaseId}
                 reviewByPhase={reviewByPhase}
+                autoWingReviewAfterPhase={autoWingReviewAfterPhase}
                 reviewWarningsByPhase={reviewWarningsByPhase}
                 onSelectPhase={setSelectedPhaseId}
                 onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
@@ -188,6 +202,7 @@ export function PipelineMonitorPage() {
               <PhaseDetailPanel
                 selectedPhase={selectedPhase}
                 phases={phases}
+                plannedExecutionPhaseIds={plannedExecutionPhaseIds}
                 pipelineState={pipelineState}
                 pipeError={pipeError}
                 isCreated={isCreated}
@@ -232,6 +247,7 @@ export function PipelineMonitorPage() {
               currentPhaseId={currentPhaseId}
               resizableLayout
               reviewByPhase={reviewByPhase}
+              autoWingReviewAfterPhase={autoWingReviewAfterPhase}
               reviewWarningsByPhase={reviewWarningsByPhase}
               onSelectPhase={setSelectedPhaseId}
               onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
@@ -252,6 +268,7 @@ export function PipelineMonitorPage() {
             <PhaseDetailPanel
               selectedPhase={selectedPhase}
               phases={phases}
+              plannedExecutionPhaseIds={plannedExecutionPhaseIds}
               pipelineState={pipelineState}
               pipeError={pipeError}
               isCreated={isCreated}
@@ -287,6 +304,7 @@ export function PipelineMonitorPage() {
         }
         onClose={() => setModalReview(null)}
         onApprove={handleApprove}
+        onRequestMissingData={handleRequestMissingData}
         qualityGate={modalReview ? qualityGateByPhase.get(modalReview.afterPhase) ?? null : null}
         governanceRefines={governanceRefinesForModal}
         governanceRefineSectionTitle={PM.reviewModal.governanceRefineSectionTitle}

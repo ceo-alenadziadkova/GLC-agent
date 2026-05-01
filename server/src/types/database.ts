@@ -63,6 +63,7 @@ export interface Database {
           pages_crawled: Record<string, unknown>[];
           brief: string | null;
           interview_answers: string | null;
+          recon_context_summary: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
@@ -79,6 +80,7 @@ export interface Database {
           pages_crawled?: Record<string, unknown>[];
           brief?: string | null;
           interview_answers?: string | null;
+          recon_context_summary?: Record<string, unknown> | null;
         };
         Update: Partial<Database['public']['Tables']['audit_recon']['Insert']>;
       };

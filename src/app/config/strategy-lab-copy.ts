@@ -5,9 +5,9 @@ const STRATEGY_LAB_EMPTY_FIELD = '—' as const;
 
 export const STRATEGY_LAB_COPY = {
   tabLabels: {
-    quick: 'Legacy Quick Wins',
-    medium: 'Legacy Core Growth',
-    strategic: 'Legacy Strategic',
+    quick: 'Quick wins',
+    medium: 'Core growth',
+    strategic: 'Strategic',
   },
   depthFilter: {
     all: 'All depths',
@@ -15,8 +15,25 @@ export const STRATEGY_LAB_COPY = {
     deep: 'Deep only',
     hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
   },
-  roles: {
-    timelineVsLab: ORCHESTRATION_IA_COPY.timelineVsLabRole,
+  /** Sticky in-page nav (consultant orchestration mode). */
+  pageNav: {
+    ariaLabel: 'Strategy Lab sections',
+    planSetup: 'Plan setup',
+    inspectPack: 'Inspect pack',
+    reference: 'Reference',
+  },
+  referenceDisclosure: {
+    summary: 'Reference: peer benchmarks and constraint overrides',
+    hint: 'Optional tuning for initiative rules — expand when you need industry context or to override intake assumptions.',
+  },
+  /** `<summary>` labels for collapsible blocks in StrategyLabOrchestrationPanel */
+  orchestrationDisclosure: {
+    directorStage2Summary: 'Advanced: stage-2 deep director intent',
+    snapshotHistorySummary: 'Manifest snapshot history',
+    commercialSummary: 'Optional coverage expansion offers',
+    diagnosticsSummary: 'Plan quality diagnostics',
+    versionHistorySummary: 'Version history and change details',
+    packInspectionSummary: 'Inspect pack nodes by analysis depth',
   },
   orchestratorTabs: {
     tablistAriaLabel: 'Orchestrator: critical path, dependencies, and risks',

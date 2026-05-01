@@ -14,6 +14,11 @@ export const ORCHESTRATION_UI_COPY = {
   sectionTitle: 'Roadmap input',
   sectionHint:
     'Confirm how you want to execute changes and the planning window. Coverage must match this audit’s execution plan.',
+  /** Strategy Lab — short steps shown once at the top of the orchestration panel. */
+  strategyLabQuickStartTitle: 'Typical flow',
+  strategyLabQuickStartStep1: 'Adjust scenario, planning window, and optional dates; confirm the preview.',
+  strategyLabQuickStartStep2: 'Save a manifest snapshot.',
+  strategyLabQuickStartStep3: 'Build the execution pack, then inspect nodes below or open the execution timeline.',
   flowTitle: 'Roadmap flow',
   flowScope: 'Scope',
   flowPreview: 'Preview',
@@ -563,7 +568,53 @@ export const ORCHESTRATION_UI_COPY = {
   marketingTeaserTitle: 'Get a delivery-ready roadmap',
   marketingTeaserBody:
     'Every package now includes a client-friendly execution narrative with phases, milestones, and next priorities.',
+  /** Portal roadmap Gantt — bars, milestones, tooltips */
+  roadmapGanttCriticalPathBadge: 'On critical path',
+  roadmapGanttOverdueBadge: 'Overdue',
+  roadmapGanttOverdueEndedPrefix: 'Plan target ended',
+  roadmapGanttTopPriority7dBadge: 'Top priority · 7d',
+  roadmapGanttTopPriority30dBadge: 'Top priority · 30d',
+  roadmapGanttCrossLaneLabel: 'Cross-lane sync',
+  roadmapGanttCriticalPathFilterLabel: 'Critical path only',
+  roadmapGanttCriticalPathPresetLabel: 'Preset: Critical path',
+  roadmapGanttMilestonesLaneTitle: 'Milestones',
+  roadmapGanttBlocksLabel: 'Blocks',
+  roadmapGanttBlockedByLabel: 'Blocked by',
+  roadmapGanttDurationDaysSuffix: 'd',
+  roadmapGanttUnlocksLabel: 'Unlocks',
+  roadmapGanttUnlocksNone: 'No downstream tasks in this dependency projection.',
+  roadmapGanttUnlocksOne: 'Unlocks 1 downstream task.',
+  roadmapGanttUnlocksMany: 'Unlocks {count} downstream tasks.',
+  roadmapGanttTooltipDateRangeSep: '–',
+  roadmapGanttChainHighlightToggleHint:
+    'Dim tasks outside the selected task dependency chain (upstream + downstream).',
+  roadmapGanttChainHighlightLabel: 'Highlight dependency chain',
+  roadmapGanttSearchAriaLabel: 'Filter tasks by title',
+  roadmapGanttSearchPlaceholder: 'Search tasks',
+  roadmapGanttConfidenceTooltipPrefix: 'Confidence',
+  roadmapGanttWeekendLegendLabel: 'Weekend',
+  roadmapGanttSlackToggleLabel: 'Show slack / float',
+  roadmapGanttSlackTooltipPrefix: 'Total float',
+  roadmapGanttScheduleProgressToggleLabel: 'Show schedule progress',
+  roadmapGanttScheduleElapsedTooltipPrefix: 'Schedule elapsed',
+  roadmapGanttScheduleElapsedHint: 'Time-based along the plan window, not task completion %.',
+  roadmapGanttBaselineSetCta: 'Set baseline',
+  roadmapGanttBaselineClearCta: 'Clear baseline',
+  roadmapGanttBaselineTakenAtPrefix: 'Baseline saved',
+  roadmapGanttBaselineLocalNotice: 'Baseline is stored only in this browser.',
+  roadmapGanttBaselineDeltaStartLabel: 'Start delta vs baseline',
+  roadmapGanttBaselineDeltaEndLabel: 'End delta vs baseline',
+  roadmapGanttIcalExportCta: 'Download iCal (.ics)',
+  roadmapGanttIcalExportBusy: 'Building calendar…',
+  roadmapGanttIcalExportError: 'Could not build calendar file.',
 } as const;
+
+/** Portal Gantt drawer — downstream task count (keep wording in copy keys above). */
+export function formatRoadmapGanttUnlocksCopy(count: number): string {
+  if (count <= 0) return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksNone;
+  if (count === 1) return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksOne;
+  return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksMany.replace('{count}', String(count));
+}
 
 /** Client-facing manifest state line on the portal timeline (no internal enum names). */
 export const TIMELINE_MANIFEST_STATE_CLIENT: Record<OrchestrationManifestState, string> = {
@@ -598,6 +649,7 @@ export function formatTimelineCalendarPlanWindowLineClient(startIso: string, end
  * IA: timeline-first vs Strategy Lab (ADR Phase 4). Single narrative SSOT for portal, Lab, cockpit.
  */
 export const ORCHESTRATION_IA_COPY = {
+  /** Long-form IA note (portal timeline, cockpit); Strategy Lab avoids repeating this on-page. */
   timelineVsLabRole:
     'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
   /** AppShell subtitle on portal timeline when `orchestrationTimelinePrimaryUxEnabled` is on. */
@@ -606,9 +658,9 @@ export const ORCHESTRATION_IA_COPY = {
   /** Footnote under primary CTAs on client cockpit. */
   clientCockpitTimelineFootnote:
     'Sequencing and seasonal buckets live on the execution timeline; Strategy Lab remains the place for manifest and pack tooling.',
-  /** Strategy Lab AppShell / page subtitle. */
+  /** Strategy Lab AppShell — single canonical line (duplicated Timeline vs Lab copy removed from the page body). */
   strategyLabAppShellSubtitle:
-    'Detail layer: manifest snapshots, pack versions, and node inspection. Sequencing stays on the execution timeline.',
+    'Configure inputs, save a snapshot, and build the execution pack — then use the execution timeline for sequencing.',
   /** Secondary line on client navigation cards (timeline). */
   clientNavTimelineCardSubtitle: 'Primary sequencing — seasonal buckets, lanes, and dependencies.',
   /** Secondary line on client navigation cards (Lab). */

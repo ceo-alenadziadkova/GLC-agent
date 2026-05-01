@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Info, ListBullets, Signpost } from '@phosphor-ic
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import {
+  type BriefQuestion,
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
@@ -80,6 +81,11 @@ export function IntakeBankWizard({
   reportInputGapsPrefix = 'Still unclear:',
   reportInputGapsOverflowSuffix = 'more',
   noVisibleQuestionsHint = 'No questions are available yet. Complete Basics first, then continue here.',
+  /** Optional display-only label overrides (B1 bank ids), e.g. from `POST …/intelligence-wording`. */
+  questionLabelOverrides,
+  questionHintOverrides,
+  /** Per-id parallel arrays: same order/length as canonical `options` for UI labels only. */
+  questionOptionDisplayOverrides,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
@@ -121,6 +127,9 @@ export function IntakeBankWizard({
   reportInputGapsPrefix?: string;
   reportInputGapsOverflowSuffix?: string;
   noVisibleQuestionsHint?: string;
+  questionLabelOverrides?: Record<string, string>;
+  questionHintOverrides?: Record<string, string>;
+  questionOptionDisplayOverrides?: Record<string, string[]>;
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -199,7 +208,27 @@ export function IntakeBankWizard({
   const contextDepthAnswered = answeredRequired + answeredRecommended;
   const contextDepthRatio = contextDepthTotal > 0 ? Math.min(contextDepthAnswered / contextDepthTotal, 1) : 0;
   const contextDepthPct = Math.round(contextDepthRatio * 100);
-  const q = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
+  const qRaw = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
+  const q: BriefQuestion | null = (() => {
+    if (!qRaw) return null;
+    const lo = questionLabelOverrides?.[qRaw.id]?.trim();
+    const ho = questionHintOverrides?.[qRaw.id]?.trim();
+    if (!lo && !ho) return qRaw;
+    return {
+      ...qRaw,
+      ...(lo ? { question: lo } : {}),
+      ...(ho ? { hint: ho } : {}),
+    };
+  })();
+
+  const optionDisplayLabels: string[] | undefined = (() => {
+    if (!qRaw?.options || qRaw.options.length === 0) return undefined;
+    const over = questionOptionDisplayOverrides?.[qRaw.id];
+    if (over && over.length === qRaw.options.length) {
+      return over;
+    }
+    return undefined;
+  })();
   const baseGuidedFeedback =
     guidedCompletionRatio < 0.35
       ? clientGuidedValueFeedbackEarly
@@ -295,8 +324,9 @@ export function IntakeBankWizard({
           {chips.map(id => {
             const st = wizard.visibleQuestionStubs.find(s => s.id === id);
             const pri = st?.priority ?? 'recommended';
-            const bq = bankIdToBriefQuestion(id, pri);
-            const labelText = bq.question;
+            const bqRaw = bankIdToBriefQuestion(id, pri);
+            const labelText =
+              questionLabelOverrides?.[id]?.trim() ? questionLabelOverrides[id]!.trim() : bqRaw.question;
             const label = labelText.length > 48 ? `${labelText.slice(0, 47)}…` : labelText;
             const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
             return (
@@ -318,7 +348,7 @@ export function IntakeBankWizard({
         </div>
       </div>
     );
-  }, [currentVisibleStub, wizard]);
+  }, [currentVisibleStub, questionLabelOverrides, wizard]);
 
   function goToNextVisibleStep() {
     if (totalVisibleSteps === 0 || isLastVisibleStep) return;
@@ -440,6 +470,7 @@ export function IntakeBankWizard({
               }}
               disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
               productMode={productMode}
+              optionDisplayLabels={optionDisplayLabels}
             />
             <div className="flex items-center justify-between pt-0.5">
               <button

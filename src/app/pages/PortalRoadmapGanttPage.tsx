@@ -22,6 +22,12 @@ export function PortalRoadmapGanttPage() {
     enabled: Boolean(id) && !loading && !error && Boolean(audit),
   });
 
+  const packQuery = useQuery({
+    queryKey: glcKeys.orchestrationPack.detail(id ?? ''),
+    queryFn: () => api.getOrchestrationPack(id as string),
+    enabled: Boolean(id) && !loading && !error && Boolean(audit),
+  });
+
   if (!id) {
     return (
       <AppShell title="Roadmap schedule" subtitle="Missing audit id">
@@ -46,7 +52,9 @@ export function PortalRoadmapGanttPage() {
     );
   }
 
-  const projection = buildRoadmapGanttProjection(timelineQuery.data.timeline);
+  const projection = buildRoadmapGanttProjection(timelineQuery.data.timeline, {
+    pack: packQuery.data?.pack ?? null,
+  });
   const backHref = isClient ? buildAppRoute.portalTimeline(id) : buildAppRoute.timeline(id);
   const strategyHref = isClient ? buildAppRoute.portalStrategy(id) : buildAppRoute.strategy(id);
 
@@ -58,7 +66,7 @@ export function PortalRoadmapGanttPage() {
             <Link to={backHref}>Back to timeline</Link>
           </Button>
         </div>
-        <RoadmapGanttView projection={projection} strategyHref={strategyHref} />
+        <RoadmapGanttView auditId={id} projection={projection} strategyHref={strategyHref} />
       </div>
     </AppShell>
   );

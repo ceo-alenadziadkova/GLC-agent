@@ -7,6 +7,7 @@ import {
   applyConsultantBriefLayoutAskEachTime,
   clientBriefLayoutStorageKey,
   consultantBriefLayoutStorageKey,
+  readConsultantNewAuditBriefLayout,
   resolveClientBriefLayout,
   resolveConsultantBriefLayout,
   writeClientBriefLayout,
@@ -38,6 +39,19 @@ describe('client-brief-layout-preference', () => {
     writeConsultantBriefLayoutDefault('classic');
     expect(localStorage.getItem(consultantBriefLayoutStorageKey(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE))).toBeNull();
     expect(resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE)).toBe('classic');
+    expect(readConsultantNewAuditBriefLayout()).toBeNull();
+  });
+
+  it('readConsultantNewAuditBriefLayout does not use global consultant default', () => {
+    writeConsultantBriefLayoutDefault('classic');
+    expect(resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE)).toBe('classic');
+    expect(readConsultantNewAuditBriefLayout()).toBeNull();
+  });
+
+  it('readConsultantNewAuditBriefLayout returns explicit new_audit value', () => {
+    writeConsultantBriefLayoutDefault('classic');
+    writeConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE, 'wizard');
+    expect(readConsultantNewAuditBriefLayout()).toBe('wizard');
   });
 
   it('applyConsultantBriefLayoutAskEachTime clears default and all consultant scope keys', () => {

@@ -28,6 +28,8 @@ import {
   resolveCreateAuditOwnership,
 } from '../../../services/audits/audits-create.service.js';
 import { isDpaAcceptanceEffectivelyTrue } from '../../../services/legal-consent.service.js';
+import { scheduleNewAuditLighthouseBootstrap } from '../../../services/audits/new-audit-lighthouse-bootstrap.service.js';
+import { scheduleNewAuditSiteScrape } from '../../../services/audits/new-audit-site-scrape.service.js';
 
 export async function createAuditController(req: AuthRequest, res: Response) {
   try {
@@ -96,6 +98,17 @@ export async function createAuditController(req: AuthRequest, res: Response) {
       executionPlan: modeResolution.executionPlan,
       noPublicWebsite: no_public_website === true,
       origin,
+    });
+
+    scheduleNewAuditLighthouseBootstrap({
+      auditId: audit.id,
+      companyUrl: urlResolution.url,
+      noPublicWebsite: no_public_website === true,
+    });
+    scheduleNewAuditSiteScrape({
+      auditId: audit.id,
+      companyUrl: urlResolution.url,
+      noPublicWebsite: no_public_website === true,
     });
 
     const payload = { id: audit.id, status: audit.status };

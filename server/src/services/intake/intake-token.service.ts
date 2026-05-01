@@ -105,6 +105,8 @@ export async function fetchIntakeTokenRowForPrefill(token: string): Promise<Pref
 }
 
 export type PublicIntakeLoadRow = {
+  id: string;
+  audit_id: string | null;
   metadata: unknown;
   responses: unknown;
   submitted_at: unknown;
@@ -114,7 +116,7 @@ export type PublicIntakeLoadRow = {
 export async function fetchIntakeTokenRowForPublicLoad(token: string): Promise<PublicIntakeLoadRow | null> {
   const { data: row, error } = await supabase
     .from('intake_tokens')
-    .select('metadata, responses, submitted_at, expires_at')
+    .select('id, audit_id, metadata, responses, submitted_at, expires_at')
     .eq('token', token)
     .single();
   if (error || !row) return null;

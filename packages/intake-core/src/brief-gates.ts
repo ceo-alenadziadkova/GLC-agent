@@ -4,6 +4,7 @@
  */
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from './audit-contract.js';
 import { buildIntakePlan } from './core/build-intake-plan.js';
+import { PRE_BRIEF_BANK_INCLUDED_IDS } from './core/load-policy.js';
 import { resolveIntakeArtifacts } from './core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from './core/types.js';
 import { INTAKE_IDENTITY_FIELD_IDS, PRE_BRIEF_PARTICIPATION_IDS } from './intake-brief-catalog-meta.js';
@@ -100,17 +101,63 @@ export function isPreBriefSubmitSlotSatisfied(id: string, responses: Record<stri
   return isPreBriefAnswered(responses[id]);
 }
 
+/**
+ * Submit slots: identity, then every id in `modes.pre_brief.bankIncluded` (portrait / phase 1),
+ * then any express required id not already covered (e.g. legacy alignment).
+ * Ensures "Continue" is blocked until all first-phase bank questions are answered, not only f1/b1/a10/a6.
+ */
+/**
+ * Minimum answers for **early** authenticated intelligence snapshot (identity / step-0 portrait only).
+ * Excludes `modes.pre_brief.bankIncluded` and express tail — used when `early_capture` is requested on
+ * `POST …/brief/intelligence-snapshot` (consultant tooling; public token routes must not use this).
+ */
+export function getEarlyBriefCaptureSubmitSlotIds(responses: Record<string, unknown>): string[] {
+  const head: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
+  if (unwrapIntakeValue(responses.a2) === 'Other') {
+    head.push('intake_industry_specify');
+  }
+  return head;
+}
+
+export function areEarlyBriefCaptureSlotsSatisfied(responses: Record<string, unknown>): boolean {
+  const slots = getEarlyBriefCaptureSubmitSlotIds(responses);
+  return slots.every(id => isPreBriefSubmitSlotSatisfied(id, responses));
+}
+
+export function arePreBriefSubmitSlotsSatisfied(
+  responses: Record<string, unknown>,
+  collectionMode?: IntakeBriefCollectionMode,
+  intakeVersionTuple?: IntakeVersionTuple,
+): boolean {
+  const slots = getPreBriefSubmitSlotIds(responses, collectionMode, intakeVersionTuple);
+  return slots.every(id => isPreBriefSubmitSlotSatisfied(id, responses));
+}
+
 export function getPreBriefSubmitSlotIds(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
   intakeVersionTuple?: IntakeVersionTuple,
 ): string[] {
-  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
+  const head: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
   if (unwrapIntakeValue(responses.a2) === 'Other') {
-    ids.push('intake_industry_specify');
+    head.push('intake_industry_specify');
   }
-  ids.push(...resolvePreBriefSubmitExpressBankIds(responses, collectionMode, intakeVersionTuple));
-  return ids;
+  const expressInSlice = resolvePreBriefSubmitExpressBankIds(responses, collectionMode, intakeVersionTuple);
+  const seen = new Set<string>(head);
+  const out: string[] = [...head];
+  for (const id of PRE_BRIEF_BANK_INCLUDED_IDS) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  for (const id of expressInSlice) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
 }
 
 export function resolveSlaRequiredIds(

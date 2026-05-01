@@ -134,6 +134,16 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   nlIngressLlmEnabled: false,
   /**
+   * Optional second LLM pass for `POST /api/intake/:token/intelligence-snapshot` (F2 + narrative).
+   * When false, the route returns deterministic follow-up order only.
+   * Env: FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM
+   */
+  intakeIntelligenceSnapshotLlmEnabled: false,
+  /**
+   * Second pass: B1 display phrasing for bank question ids (POST …/intelligence-wording). Env: FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM
+   */
+  intakeIntelligenceWordingLlmEnabled: false,
+  /**
    * Rollout mode for NL ingress LLM mapper.
    * Allowed: shadow | internal | pilot | ga.
    * Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE
@@ -174,4 +184,25 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Anthropic prompt cache on stable system/tool prefixes. Env: FEATURE_LLM_PROMPT_CACHE
    */
   llmPromptCacheEnabled: true,
+  /**
+   * On POST /api/audits with a public site URL, run Lighthouse immediately and persist `lighthouse_bootstrap` + prefill hints.
+   * Env: FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP
+   */
+  newAuditLighthouseBootstrapEnabled: true,
+  /**
+   * On POST /api/audits with a public site URL, run deterministic site scan (snapshot-class) and persist `new_audit_site_recon`.
+   * Env: FEATURE_NEW_AUDIT_SITE_SCRAPE
+   */
+  newAuditSiteScrapeEnabled: true,
+  /**
+   * Allows `POST /api/audits/:id/brief/intelligence-snapshot` with `{ early_capture: true }` after identity-only slots
+   * (consultant audits with `client_id` null).
+   * Env: FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT
+   */
+  briefEarlyIntelligenceSnapshotEnabled: true,
+  /**
+   * `POST /api/audits/:id/brief/clone-from` — copy bank responses from another audit (same consultant access + client_id match).
+   * Env: FEATURE_BRIEF_CLONE_FROM_AUDIT
+   */
+  briefCloneFromAuditEnabled: true,
 } as const;

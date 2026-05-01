@@ -19,6 +19,9 @@ export {
 } from './branch-rules.js';
 export { isSoloTeamRaw } from './branch-response-normalizers.js';
 export {
+  areEarlyBriefCaptureSlotsSatisfied,
+  arePreBriefSubmitSlotsSatisfied,
+  getEarlyBriefCaptureSubmitSlotIds,
   getPreBriefSubmitSlotIds,
   getVisibleBankStubs,
   isPreBriefSubmitSlotSatisfied,
@@ -215,6 +218,10 @@ export {
   type DirectorDeepDiveBriefContext,
 } from './core/extract-director-deep-dive-context-from-brief.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
+export {
+  INTAKE_MINIMUM_CONTEXT_BANK_IDS,
+  isIntakeMinimumContextBankId,
+} from './intake-base-context-ids.js';
 export type {
   AuditReadinessStatus,
   BriefPriority,

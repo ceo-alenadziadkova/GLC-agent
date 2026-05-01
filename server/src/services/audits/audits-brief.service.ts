@@ -37,6 +37,33 @@ export function resolveCollectionModeOrThrow(input: unknown): IntakeBriefCollect
   return input as IntakeBriefCollectionMode;
 }
 
+/** Merges `recon_prefills.suggested_brief_answers` into stored responses for empty fields only (read path). */
+export function applyReconSuggestedAnswersToResponses(
+  responses: Record<string, unknown>,
+  reconPrefills: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const raw = reconPrefills?.suggested_brief_answers;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return responses;
+  }
+  const suggested = raw as Record<string, unknown>;
+  const keys = ['a1', 'a3', 'a5', 'a6', 'a9'] as const;
+  const next = { ...responses };
+  for (const key of keys) {
+    if (!(key in suggested)) continue;
+    const cur = next[key];
+    const empty =
+      cur === undefined ||
+      cur === null ||
+      (typeof cur === 'string' && !cur.trim()) ||
+      (Array.isArray(cur) && cur.length === 0);
+    if (empty) {
+      next[key] = suggested[key];
+    }
+  }
+  return next;
+}
+
 export function buildBriefContext(args: {
   audit: { execution_plan: unknown; user_id: string; client_id: string | null };
   brief: { collection_mode?: unknown; intake_versions?: unknown; responses?: unknown } | null;

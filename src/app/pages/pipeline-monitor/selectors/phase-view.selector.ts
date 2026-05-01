@@ -1,5 +1,5 @@
-import type { AuditCoveragePackage, PipelineEvent } from '../../../data/auditTypes';
-import { isExpressLikeAudit } from '../../../lib/audit-execution-plan';
+import type { AuditCoveragePackage, DomainKey, PipelineEvent } from '../../../data/auditTypes';
+import { isExpressLikeAudit, plannedExecutionPhaseIdSet } from '../../../lib/audit-execution-plan';
 import {
   EXPRESS_MAX_PHASE,
   getPhaseStatus,
@@ -17,6 +17,7 @@ type AuditLite = {
     execution_plan?: {
       coverage_package?: AuditCoveragePackage;
       include_strategy?: boolean;
+      selected_domains?: DomainKey[];
     } | null;
   };
   domains?: Record<string, { status: string; score: number } | null>;
@@ -49,6 +50,10 @@ export function selectPhaseViews(args: {
 
   const reviews = pipelineState.reviews || [];
   const events = pipelineState.events || [];
+  const plannedPhaseIds =
+    audit?.meta?.execution_plan && (audit.meta.execution_plan.selected_domains?.length ?? 0) > 0
+      ? plannedExecutionPhaseIdSet(audit.meta)
+      : null;
 
   return PHASE_META.map(meta => {
     const domainData = meta.domainKey
@@ -62,6 +67,7 @@ export function selectPhaseViews(args: {
       reviews,
       isExpress,
       domainStatus,
+      plannedPhaseIds,
     );
     const phaseEvents = events.filter((event: PipelineEvent) => event.phase === meta.id);
     const log = isClientPortal

@@ -46,6 +46,8 @@ export function BriefField({
   onOtherSpecifyChange,
   disabledOptions,
   productMode,
+  /** Same length as `q.options`; button text only; `onChange` still receives canonical option strings. */
+  optionDisplayLabels,
 }: {
   q: BriefQuestion;
   value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
@@ -63,6 +65,7 @@ export function BriefField({
   disabledOptions?: readonly string[];
   /** Optional product mode for contextual hints. */
   productMode?: ProductMode;
+  optionDisplayLabels?: string[];
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
     ? value.value
@@ -144,7 +147,13 @@ export function BriefField({
       {q.type === 'single_choice' && q.options && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {q.options.map(opt => {
+            {q.options.map((opt, optIdx) => {
+              const display =
+                optionDisplayLabels &&
+                optionDisplayLabels.length === q.options!.length &&
+                (optionDisplayLabels[optIdx] ?? '').trim()
+                  ? (optionDisplayLabels[optIdx] as string).trim()
+                  : opt;
               const selected = strVal === opt;
               const locked = disabledOptions?.includes(opt) ?? false;
               return (
@@ -163,7 +172,7 @@ export function BriefField({
                   )}
                 >
                   {locked && <LockSimple size={11} weight="bold" className="mr-0.5 inline" />}
-                  {opt}
+                  {display}
                 </button>
               );
             })}
@@ -184,7 +193,13 @@ export function BriefField({
       {q.type === 'multi_choice' && q.options && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {q.options.map(opt => {
+            {q.options.map((opt, optIdx) => {
+              const display =
+                optionDisplayLabels &&
+                optionDisplayLabels.length === q.options!.length &&
+                (optionDisplayLabels[optIdx] ?? '').trim()
+                  ? (optionDisplayLabels[optIdx] as string).trim()
+                  : opt;
               const selected = arrVal.includes(opt);
               const locked = disabledOptions?.includes(opt) ?? false;
               const clickedExclusive = isExclusiveMultiChoiceOption(opt);
@@ -218,7 +233,7 @@ export function BriefField({
                   ) : selected ? (
                     <Check size={11} weight="bold" className="mr-0.5 inline" />
                   ) : null}
-                  {opt}
+                  {display}
                 </button>
               );
             })}

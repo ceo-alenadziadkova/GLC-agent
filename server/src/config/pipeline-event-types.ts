@@ -28,6 +28,10 @@ export const PIPELINE_EVENT_TYPES = {
   intakeIntelligenceDropOff: 'intake_intelligence_drop_off',
   /** F1: deterministic `POST /api/intake/:token/next-question` decision (no LLM). */
   intakeIntelligenceNextQuestion: 'intake_intelligence_next_question',
+  /** POST /api/intake/:token/intelligence-snapshot — F2 order + merge preview KPI (no pipeline phase). */
+  intakeIntelligenceSnapshot: 'intake_intelligence_snapshot',
+  /** POST /api/audits/:id/brief/intelligence-wording — B1 display phrasing / label overrides (second LLM pass). */
+  intakeIntelligenceWording: 'intake_intelligence_wording',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

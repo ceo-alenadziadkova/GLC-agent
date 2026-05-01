@@ -1,16 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 import { PortalRoadmapGanttPage } from '../PortalRoadmapGanttPage';
+import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
+import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
+import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 
 const useAuditMock = vi.fn();
 const useProfileMock = vi.fn();
-const getAuditTimelineMock = vi.fn();
+
+const apiMocks = vi.hoisted(() => ({
+  getAuditTimelineMock: vi.fn(),
+  getOrchestrationPackMock: vi.fn(),
+  downloadOrchestrationSprintExportCsvMock: vi.fn(),
+}));
 
 vi.mock('../../hooks/useAudit', () => ({
   useAudit: (...args: unknown[]) => useAuditMock(...args),
@@ -26,7 +33,9 @@ vi.mock('../../components/AppShell', () => ({
 
 vi.mock('../../data/apiService', () => ({
   api: {
-    getAuditTimeline: (...args: unknown[]) => getAuditTimelineMock(...args),
+    getAuditTimeline: (...args: unknown[]) => apiMocks.getAuditTimelineMock(...args),
+    getOrchestrationPack: (...args: unknown[]) => apiMocks.getOrchestrationPackMock(...args),
+    downloadOrchestrationSprintExportCsv: (...args: unknown[]) => apiMocks.downloadOrchestrationSprintExportCsvMock(...args),
   },
 }));
 
@@ -49,7 +58,24 @@ describe('PortalRoadmapGanttPage', () => {
       error: null,
       audit: { meta: { id: 'audit-1' } },
     });
-    getAuditTimelineMock.mockResolvedValue({
+    const minimalPack: GlcOrchestrationPackView = {
+      version: ORCHESTRATION_PACK_SCHEMA_VERSION,
+      graph: { nodes: [], edges: [] },
+      lanes: {} as GlcOrchestrationPackView['lanes'],
+      critical_path: ['a'],
+      conflicts_resolved: [],
+      manifest_snapshot_id: 'snap-test',
+      confidence_map: { node_confidence: { a: 'high' } },
+    };
+    apiMocks.downloadOrchestrationSprintExportCsvMock.mockResolvedValue('id,title\n');
+    apiMocks.getOrchestrationPackMock.mockResolvedValue({
+      pack: minimalPack,
+      orchestration_pack_version: 1,
+      roadmap_version: 1,
+      last_revision_diff: null,
+      plan_governance: null,
+    });
+    apiMocks.getAuditTimelineMock.mockResolvedValue({
       timeline: {
         status: 'ready',
         version: {
@@ -72,6 +98,7 @@ describe('PortalRoadmapGanttPage', () => {
           },
         ],
         dependencies: [{ from: 'a', to: 'b', relation: 'direct_blocker', blocking: true, cross_lane: true }],
+        milestones: [{ id: 'm1', label: 'Release gate', target_window_days: 5, unlocks: [] }],
         top_7d: [],
         top_30d: [],
         waiting_list_domains: [],
@@ -82,7 +109,7 @@ describe('PortalRoadmapGanttPage', () => {
 
   it('renders roadmap schedule and opens task details', async () => {
     const user = userEvent.setup();
-    const view = renderWithProviders(
+    renderWithProviders(
       <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
         <Routes>
           <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
@@ -93,9 +120,7 @@ describe('PortalRoadmapGanttPage', () => {
     const coreApiLabels = await screen.findAllByText('Core API');
     expect(coreApiLabels.length).toBeGreaterThan(0);
     expect(await screen.findByText('Roadmap timeline')).toBeInTheDocument();
-    const ganttItem = view.container.querySelector('.rct-item');
-    expect(ganttItem).not.toBeNull();
-    await user.click(ganttItem as HTMLElement);
+    await user.click(coreApiLabels[0]!);
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByText('tech_infrastructure')).toBeInTheDocument();
   });
@@ -259,7 +284,7 @@ describe('PortalRoadmapGanttPage', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Blocked only' }));
     expect(screen.getByRole('checkbox', { name: 'Blocked only' })).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Reset view' }));
-    expect(screen.getByText('Tasks 2')).toBeInTheDocument();
+    expect(screen.getByText('Tasks 3')).toBeInTheDocument();
   });
 
   it('renders timeline scroll controls and jump-to-today button', async () => {
@@ -275,5 +300,218 @@ describe('PortalRoadmapGanttPage', () => {
     expect(screen.getByRole('button', { name: 'Scroll timeline left' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Scroll timeline right' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+  });
+
+  it('shows critical path badge when opening a task on the pack critical path', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    await user.click(screen.getAllByText('Core API')[0]!);
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByText(ORCHESTRATION_UI_COPY.roadmapGanttCriticalPathBadge)).toBeInTheDocument();
+  });
+
+  it('filters gantt items to critical-path tasks when Critical path only is enabled', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
+    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
+    expect(metrics).toBeTruthy();
+    expect(within(metrics as HTMLElement).getByText('Tasks 3')).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /Critical path only/i }));
+    expect(within(metrics as HTMLElement).getByText('Tasks 1')).toBeInTheDocument();
+    expect(screen.queryByText('Launch campaign')).not.toBeInTheDocument();
+  });
+
+  it('renders milestone lane label and bar tooltip content on hover', async () => {
+    const user = userEvent.setup();
+    const view = renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.roadmapGanttMilestonesLaneTitle)).toBeInTheDocument();
+
+    const bars = view.container.querySelectorAll('.rct-item');
+    const coreBar = [...bars].find((el) => el.textContent?.includes('Core API'));
+    expect(coreBar).toBeTruthy();
+    await user.hover(coreBar as HTMLElement);
+    const tooltips = await screen.findAllByRole('tooltip');
+    const taskTip = tooltips.find((el) => el.textContent?.includes('Core API'));
+    expect(taskTip).toBeTruthy();
+    expect(taskTip?.textContent).toMatch(new RegExp(`${ORCHESTRATION_UI_COPY.roadmapGanttBlocksLabel}:\\s*\\d+`));
+    expect(taskTip?.textContent).toContain(ORCHESTRATION_UI_COPY.roadmapGanttDurationDaysSuffix);
+    expect(taskTip?.textContent).toContain(`${ORCHESTRATION_UI_COPY.roadmapGanttConfidenceTooltipPrefix}: high`);
+  });
+
+  it('adds cross-lane styling class to dependency arrows in the graph', async () => {
+    const user = userEvent.setup();
+    const view = renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    await user.click(screen.getByRole('button', { name: 'Dependencies' }));
+    await screen.findByText('Dependency graph');
+    expect(view.container.querySelector('.roadmap-dependency-arrow-cross-lane')).not.toBeNull();
+  });
+
+  it('filters tasks by title search input', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
+    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
+    expect(metrics).toBeTruthy();
+    expect(within(metrics as HTMLElement).getByText('Tasks 3')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(ORCHESTRATION_UI_COPY.roadmapGanttSearchAriaLabel), 'launch');
+    expect(within(metrics as HTMLElement).getByText('Tasks 2')).toBeInTheDocument();
+  });
+
+  it('restores title filter from URL query q', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1?q=Core']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    expect(screen.getByLabelText(ORCHESTRATION_UI_COPY.roadmapGanttSearchAriaLabel)).toHaveValue('Core');
+    const timelinePanel = screen.getByText('Roadmap timeline').closest('.rounded-xl');
+    const metrics = timelinePanel?.querySelector('.roadmap-controls-metrics');
+    expect(within(metrics as HTMLElement).getByText('Tasks 2')).toBeInTheDocument();
+  });
+
+  it('calls sprint CSV export API when download button is clicked', async () => {
+    const user = userEvent.setup();
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.sprintExportCsvCta }));
+    expect(apiMocks.downloadOrchestrationSprintExportCsvMock).toHaveBeenCalledWith('audit-1');
+    anchorClickSpy.mockRestore();
+  });
+
+  it('shows weekend legend on day scale and hides it on month scale', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    expect(screen.getByText(ORCHESTRATION_UI_COPY.roadmapGanttWeekendLegendLabel)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Months' }));
+    expect(screen.queryByText(ORCHESTRATION_UI_COPY.roadmapGanttWeekendLegendLabel)).not.toBeInTheDocument();
+  });
+
+  it('renders confidence dot on task bar when pack provides node_confidence', async () => {
+    const view = renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    expect(view.container.querySelector('.roadmap-gantt-confidence-dot[data-level="high"]')).not.toBeNull();
+  });
+
+
+
+  it('downloads iCal via anchor click without calling backend', async () => {
+    const user = userEvent.setup();
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttIcalExportCta }));
+    expect(anchorClickSpy).toHaveBeenCalled();
+    anchorClickSpy.mockRestore();
+  });
+
+  it('shows baseline saved label after Set baseline', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.roadmapGanttBaselineSetCta }));
+    expect(screen.getByText(new RegExp(ORCHESTRATION_UI_COPY.roadmapGanttBaselineTakenAtPrefix))).toBeInTheDocument();
+  });
+
+  it('includes schedule elapsed line in task tooltip when schedule progress is enabled', async () => {
+    const user = userEvent.setup();
+    const view = renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/portal/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+    expect(screen.getByRole('checkbox', { name: ORCHESTRATION_UI_COPY.roadmapGanttScheduleProgressToggleLabel })).toBeChecked();
+    const bars = view.container.querySelectorAll('.rct-item');
+    const coreBar = [...bars].find((el) => el.textContent?.includes('Core API'));
+    expect(coreBar).toBeTruthy();
+    await user.hover(coreBar as HTMLElement);
+    const tooltips = await screen.findAllByRole('tooltip');
+    const taskTip = tooltips.find((el) => el.textContent?.includes('Core API'));
+    expect(taskTip?.textContent).toContain(ORCHESTRATION_UI_COPY.roadmapGanttScheduleElapsedTooltipPrefix);
   });
 });

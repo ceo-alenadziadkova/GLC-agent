@@ -34,6 +34,7 @@ import {
   patchWebsitePresenceResponse,
 } from '../lib/intake-brief-response-updates';
 import { INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID } from '../../../config/intake-critical-signal-map';
+import { splitPreBriefSlotsIntoQueueSteps } from '../lib/split-pre-brief-slot-queue';
 
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
 type IntakeJourneyStage = 'fast_pass' | 'precision_pass';
@@ -121,6 +122,17 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const [progressiveStepIndex, setProgressiveStepIndex] = useState(0);
   const [optionalDetailsOpenById, setOptionalDetailsOpenById] = useState<Record<string, boolean>>({});
   const [resumeBannerVisible, setResumeBannerVisible] = useState(false);
+  const [tailoredPayload, setTailoredPayload] = useState<{
+    questions: BriefQuestion[];
+    questionIds: string[];
+  } | null>(null);
+  /** F2 / LLM display-only labels (bank ids); cleared when leaving tailored. */
+  const [tailoredLabelOverrides, setTailoredLabelOverrides] = useState<Record<string, string>>({});
+  /** One short paragraph from intelligence snapshot; does not claim inferred cells were applied. */
+  const [intelligenceSnapshotNarrative, setIntelligenceSnapshotNarrative] = useState<string | null>(null);
+  const [twoPhaseWave, setTwoPhaseWave] = useState<'none' | 'prebrief' | 'tailored_loading' | 'tailored'>(() =>
+    APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled ? 'prebrief' : 'none',
+  );
 
   const hadSubmissionOnLoadRef = useRef(false);
   const intakeKpiSessionIdRef = useRef(crypto.randomUUID());
@@ -143,19 +155,23 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     } | null;
   }>({ status: 'idle', decision: null });
 
+  const intakeCollectionMode = useMemo(
+    () => (twoPhaseWave === 'tailored' || twoPhaseWave === 'tailored_loading' ? 'full' : 'pre_brief') as const,
+    [twoPhaseWave],
+  );
   const intakeSchemaSnapshot = useMemo(() => {
     try {
       return buildBriefSchemaSnapshot({
         responses: briefResponsesToIntakeMap(responses),
         productMode: 'full',
-        collectionMode: 'pre_brief',
+        collectionMode: intakeCollectionMode,
         surface: 'client_form',
         intakeVersionTuple: currentIntakeVersionTuple(),
       });
     } catch {
       return null;
     }
-  }, [responses]);
+  }, [responses, intakeCollectionMode]);
 
   const intelligenceByQuestionId = useMemo(() => {
     const byId: Record<
@@ -209,13 +225,34 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     return byQuestion;
   }, [intakeSchemaSnapshot]);
 
+  const rawQuestionList = useMemo((): BriefQuestion[] => {
+    if ((phase === 'review' || phase === 'success') && tailoredPayload) {
+      const byId = new Map<string, BriefQuestion>();
+      for (const q of questions) {
+        byId.set(q.id, q);
+      }
+      for (const q of tailoredPayload.questions) {
+        byId.set(q.id, q);
+      }
+      return Array.from(byId.values());
+    }
+    if (twoPhaseWave === 'tailored' && tailoredPayload) {
+      return tailoredPayload.questions;
+    }
+    return questions;
+  }, [phase, twoPhaseWave, tailoredPayload, questions]);
+
   const visibleQuestions = useMemo(() => {
-    const filtered = questions.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses)));
-    return filtered.map(q => ({
-      ...q,
-      ...(intelligenceByQuestionId[q.id] ? intelligenceByQuestionId[q.id] : {}),
-    }));
-  }, [questions, responses, intelligenceByQuestionId]);
+    const filtered = rawQuestionList.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses)));
+    return filtered.map(q => {
+      const override = twoPhaseWave === 'tailored' && tailoredLabelOverrides[q.id]?.trim();
+      return {
+        ...q,
+        ...(override ? { question: override } : {}),
+        ...(intelligenceByQuestionId[q.id] ? intelligenceByQuestionId[q.id] : {}),
+      };
+    });
+  }, [rawQuestionList, responses, intelligenceByQuestionId, twoPhaseWave, tailoredLabelOverrides]);
 
   const questionSections = useMemo(
     () => groupBriefQuestionsBySection(visibleQuestions),
@@ -251,10 +288,26 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     if (journeyStage === 'fast_pass') return adaptiveFastPassIds;
     return precisionPassIds;
   }, [adaptiveFastPassIds, journeyStage, precisionPassIds]);
-  const progressiveQueue = useMemo(
-    () => buildProgressiveQueue(visibleQuestions, activeQuestionIds),
-    [activeQuestionIds, visibleQuestions],
-  );
+  const preBriefStepGroups = useMemo(() => {
+    if (twoPhaseWave === 'none') return null;
+    return splitPreBriefSlotsIntoQueueSteps(getPreBriefSubmitSlotIds(responses));
+  }, [twoPhaseWave, responses]);
+  const progressiveQueue = useMemo(() => {
+    if (twoPhaseWave === 'prebrief' || twoPhaseWave === 'tailored_loading') {
+      return preBriefStepGroups ?? buildProgressiveQueue(visibleQuestions, activeQuestionIds);
+    }
+    if (twoPhaseWave === 'tailored' && tailoredPayload) {
+      return buildProgressiveQueue(tailoredPayload.questions, tailoredPayload.questionIds);
+    }
+    return buildProgressiveQueue(visibleQuestions, activeQuestionIds);
+  }, [
+    twoPhaseWave,
+    preBriefStepGroups,
+    tailoredPayload,
+    visibleQuestions,
+    activeQuestionIds,
+    journeyStage,
+  ]);
   const activeQueueItem = useMemo(() => progressiveQueue[progressiveStepIndex] ?? [], [progressiveQueue, progressiveStepIndex]);
   const displayedQuestionSections = useMemo(() => {
     if (questionMode === 'all_questions') return questionSections;
@@ -377,6 +430,12 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   }, [websitePresenceKey]);
 
   useEffect(() => {
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && questionMode === 'all_questions') {
+      setQuestionMode('progressive');
+    }
+  }, [questionMode]);
+
+  useEffect(() => {
     if (!token || loading || phase !== 'form') return;
     if (!APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled || !APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled) {
       return;
@@ -476,6 +535,65 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       setPhase('review');
       return;
     }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading') {
+      return;
+    }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'prebrief') {
+      const atLastStep = progressiveStepIndex >= progressiveQueue.length - 1;
+      if (!atLastStep) {
+        setProgressiveStepIndex(prev => prev + 1);
+        return;
+      }
+      if (!token) {
+        return;
+      }
+      setTwoPhaseWave('tailored_loading');
+      setSubmitError(null);
+      void (async () => {
+        try {
+          if (APP_FEATURE_FLAGS.intakeIntelligenceSnapshotEnabled) {
+            const r = await api.postIntakeIntelligenceSnapshot(token);
+            setIntelligenceSnapshotNarrative(
+              r.narrative && r.narrative.trim().length > 0 ? r.narrative.trim() : null,
+            );
+            setTailoredLabelOverrides(r.label_overrides ?? {});
+            if (r.question_ids.length === 0) {
+              setTwoPhaseWave('prebrief');
+              setPhase('review');
+              return;
+            }
+            setTailoredPayload({ questions: r.questions, questionIds: r.question_ids });
+            setTwoPhaseWave('tailored');
+            setProgressiveStepIndex(0);
+            return;
+          }
+          const r = await api.getIntakeTailoredQuestions(token);
+          if (r.question_ids.length === 0) {
+            setTwoPhaseWave('prebrief');
+            setPhase('review');
+            return;
+          }
+          setIntelligenceSnapshotNarrative(null);
+          setTailoredLabelOverrides({});
+          setTailoredPayload({ questions: r.questions, questionIds: r.question_ids });
+          setTwoPhaseWave('tailored');
+          setProgressiveStepIndex(0);
+        } catch (e) {
+          setTwoPhaseWave('prebrief');
+          setSubmitError(toUiApiErrorMessage(e));
+        }
+      })();
+      return;
+    }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored') {
+      const atLastT = progressiveStepIndex >= progressiveQueue.length - 1;
+      if (!atLastT) {
+        setProgressiveStepIndex(prev => prev + 1);
+        return;
+      }
+      setPhase('review');
+      return;
+    }
     const atLastStep = progressiveStepIndex >= progressiveQueue.length - 1;
     if (!atLastStep) {
       setProgressiveStepIndex(prev => prev + 1);
@@ -498,10 +616,34 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       return;
     }
     setPhase('review');
-  }, [journeyStage, precisionPassIds.length, progressiveQueue.length, progressiveStepIndex, questionMode, token]);
+  }, [
+    journeyStage,
+    precisionPassIds.length,
+    progressiveQueue.length,
+    progressiveStepIndex,
+    questionMode,
+    token,
+    twoPhaseWave,
+  ]);
   const onBackProgressive = useCallback(() => {
     if (questionMode === 'all_questions') {
       setQuestionMode('progressive');
+      return;
+    }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored' && progressiveStepIndex > 0) {
+      setProgressiveStepIndex(prev => prev - 1);
+      return;
+    }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored' && progressiveStepIndex === 0) {
+      setTwoPhaseWave('prebrief');
+      setTailoredPayload(null);
+      setTailoredLabelOverrides({});
+      setIntelligenceSnapshotNarrative(null);
+      setProgressiveStepIndex(Math.max(0, (preBriefStepGroups?.length ?? 1) - 1));
+      return;
+    }
+    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading') {
+      setTwoPhaseWave('prebrief');
       return;
     }
     if (progressiveStepIndex > 0) {
@@ -512,7 +654,7 @@ export function useIntakeBriefController(rawToken: string | undefined) {
       setJourneyStage('fast_pass');
       setProgressiveStepIndex(0);
     }
-  }, [journeyStage, progressiveStepIndex, questionMode]);
+  }, [journeyStage, preBriefStepGroups?.length, progressiveStepIndex, questionMode, twoPhaseWave]);
   const onSaveAndContinueLater = useCallback(() => {
     if (!token || typeof window === 'undefined') return;
     window.localStorage.setItem(
@@ -708,6 +850,25 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     return out;
   }, [activeQueueItem, optionalDetailsOpenById]);
 
+  const hideGuidedAllToggle = APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled;
+  const tailoredPhaseBanner =
+    APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled &&
+    twoPhaseWave === 'tailored' &&
+    progressiveStepIndex === 0
+      ? {
+          title: copy.tailoredPhaseTitle,
+          body:
+            intelligenceSnapshotNarrative && intelligenceSnapshotNarrative.length > 0
+              ? `${copy.tailoredPhaseBody}\n\n${intelligenceSnapshotNarrative}`
+              : copy.tailoredPhaseBody,
+        }
+      : null;
+  const modeSubtitleOverride =
+    APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored'
+      ? copy.modeSubtitleTailored
+      : null;
+  const progressiveContinueBusy = APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading';
+
   return {
     token,
     loading,
@@ -788,5 +949,9 @@ export function useIntakeBriefController(rawToken: string | undefined) {
             busy: nlIngressStatus === 'sending',
             status: nlIngressStatus === 'ok' ? 'ok' : nlIngressStatus === 'error' ? 'error' : 'idle',
           },
+    hideGuidedAllToggle,
+    tailoredPhaseBanner,
+    modeSubtitleOverride,
+    progressiveContinueBusy,
   };
 }

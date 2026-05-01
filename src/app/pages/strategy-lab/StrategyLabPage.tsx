@@ -22,6 +22,7 @@ import {
   STRATEGY_LAB_EXECUTION_PACK_POLICY,
   STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS,
   STRATEGY_LAB_LAYOUT_POLICY,
+  STRATEGY_LAB_PAGE_ANCHORS,
   STRATEGY_LAB_ROADMAP_EXPORT_POLICY,
   STRATEGY_LAB_SORT_MODES,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
@@ -432,14 +433,43 @@ export function StrategyLab() {
           {ORCHESTRATION_UI_COPY.clientHidden}
         </div>
       ) : null}
-      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap && (
-        <StrategyLabOrchestrationPanel
-          auditId={audit.meta.id}
-          executionPlan={executionPlanForRoadmap}
-          strategy={audit.strategy}
-          onReload={reload}
-        />
-      )}
+      {useOrchestratorPrimaryNav && !isClient && audit.strategy ? (
+        <nav
+          aria-label={STRATEGY_LAB_COPY.pageNav.ariaLabel}
+          className="bg-card border-border sticky top-0 z-[15] flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2"
+        >
+          {executionPlanForRoadmap ? (
+            <a
+              href={`#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`}
+              className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
+            >
+              {STRATEGY_LAB_COPY.pageNav.planSetup}
+            </a>
+          ) : null}
+          <a
+            href={`#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`}
+            className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {STRATEGY_LAB_COPY.pageNav.inspectPack}
+          </a>
+          <a
+            href={`#${STRATEGY_LAB_PAGE_ANCHORS.reference}`}
+            className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {STRATEGY_LAB_COPY.pageNav.reference}
+          </a>
+        </nav>
+      ) : null}
+      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
+        <div id={STRATEGY_LAB_PAGE_ANCHORS.planSetup} className="scroll-mt-20">
+          <StrategyLabOrchestrationPanel
+            auditId={audit.meta.id}
+            executionPlan={executionPlanForRoadmap}
+            strategy={audit.strategy}
+            onReload={reload}
+          />
+        </div>
+      ) : null}
       <ResizablePanelGroup
         direction="horizontal"
         className="ds-audit-workspace-main-h"
@@ -461,116 +491,119 @@ export function StrategyLab() {
             : undefined}
           className="min-w-0"
         >
-        <div className="bg-background h-full min-h-0 flex-1 overflow-y-auto">
+        <div
+          id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
+          className="bg-background h-full min-h-0 flex-1 scroll-mt-20 overflow-y-auto"
+        >
           {!isClient && (
-            <>
-              {APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled ? (
-                <div className="border-b bg-card px-4 py-3">
-                  <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.roles.timelineVsLab}</p>
-                </div>
-              ) : null}
-              <div
-                className="space-y-3 border-b bg-card p-4"
-              >
+            <details id={STRATEGY_LAB_PAGE_ANCHORS.reference} className="border-border bg-card scroll-mt-20 border-b">
+              <summary className="border-border [&::-webkit-details-marker]:hidden [&_svg]:transition-transform [&[open]_svg]:rotate-180 list-none cursor-pointer border-b px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <ChartBar className="text-info h-4 w-4" />
-                  <span className="text-foreground text-sm font-semibold">
-                    {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
-                  </span>
+                  <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+                  <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.referenceDisclosure.summary}</span>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  {STRATEGY_LAB_COPY.panel.domainBenchmarksHint}
-                </p>
-                <div className="space-y-2">
-                  {DOMAIN_KEYS.map((dk) => {
-                    const row = domainBenchmarks[dk];
-                    const label = DOMAIN_LABELS[dk] ?? dk;
-                    return (
-                      <div
-                        key={dk}
-                        className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
+              </summary>
+              <div className="space-y-0 px-4 pb-4 pt-3">
+                <p className="text-muted-foreground pb-4 text-xs leading-relaxed">{STRATEGY_LAB_COPY.referenceDisclosure.hint}</p>
+                <div className="space-y-3 border-b border-border pb-4">
+                  <div className="flex items-center gap-2">
+                    <ChartBar className="text-info h-4 w-4" />
+                    <span className="text-foreground text-sm font-semibold">
+                      {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.panel.domainBenchmarksHint}</p>
+                  <div className="space-y-2">
+                    {DOMAIN_KEYS.map((dk) => {
+                      const row = domainBenchmarks[dk];
+                      const label = DOMAIN_LABELS[dk] ?? dk;
+                      return (
+                        <div
+                          key={dk}
+                          className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
+                        >
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="text-foreground font-mono tabular-nums">
+                            {row
+                              ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
+                              : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-3 pt-4">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="text-info h-4 w-4" />
+                    <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
+                  </div>
+                  <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
+                      <select
+                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                        value={constraintStageDraft}
+                        onChange={e => setConstraintStageDraft(e.target.value)}
                       >
-                        <span className="text-muted-foreground">{label}</span>
-                        <span className="text-foreground font-mono tabular-nums">
-                          {row
-                            ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
-                            : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
-                        </span>
-                      </div>
-                    );
-                  })}
+                        {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
+                          <option key={s} value={s}>
+                            {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
+                      <select
+                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                        value={constraintBudgetDraft}
+                        onChange={e => setConstraintBudgetDraft(e.target.value)}
+                      >
+                        {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
+                          <option key={b} value={b}>
+                            {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
+                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
+                      <select
+                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                        value={constraintTeamDraft}
+                        onChange={e => setConstraintTeamDraft(e.target.value)}
+                      >
+                        {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
+                          <option key={t} value={t}>
+                            {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={constraintSaving}
+                      onClick={() => void handleSaveConstraintOverrides()}
+                    >
+                      {STRATEGY_LAB_COPY.constraints.save}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={constraintSaving}
+                      onClick={() => void handleClearConstraintOverrides()}
+                    >
+                      {STRATEGY_LAB_COPY.constraints.useBrief}
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-3 border-b bg-card p-4">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="text-info h-4 w-4" />
-                  <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
-                </div>
-                <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                  <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
-                    <select
-                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                      value={constraintStageDraft}
-                      onChange={e => setConstraintStageDraft(e.target.value)}
-                    >
-                      {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
-                        <option key={s} value={s}>
-                          {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
-                    <select
-                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                      value={constraintBudgetDraft}
-                      onChange={e => setConstraintBudgetDraft(e.target.value)}
-                    >
-                      {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
-                        <option key={b} value={b}>
-                          {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
-                    <select
-                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                      value={constraintTeamDraft}
-                      onChange={e => setConstraintTeamDraft(e.target.value)}
-                    >
-                      {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
-                        <option key={t} value={t}>
-                          {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Button
-                    type="button"
-                    variant="default"
-                    disabled={constraintSaving}
-                    onClick={() => void handleSaveConstraintOverrides()}
-                  >
-                    {STRATEGY_LAB_COPY.constraints.save}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={constraintSaving}
-                    onClick={() => void handleClearConstraintOverrides()}
-                  >
-                    {STRATEGY_LAB_COPY.constraints.useBrief}
-                  </Button>
-                </div>
-              </div>
-            </>
+            </details>
           )}
           {showLegacyRoadmapComposer ? (
             <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">

@@ -7,7 +7,12 @@ import type { SnapshotCachePayload } from './types.js';
 export function redactSnapshotPayloadForDomainCache(p: SnapshotCachePayload): SnapshotCachePayload {
   return {
     ...p,
-    contact_info: { emails: [], phones: [], addresses: [] },
+    /** Keep public footer/structured business lines; redact direct emails/phones only. */
+    contact_info: {
+      emails: [],
+      phones: [],
+      addresses: p.contact_info?.addresses?.length ? [...p.contact_info.addresses] : [],
+    },
   };
 }
 

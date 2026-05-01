@@ -106,8 +106,9 @@ export const PRE_BRIEF_PARTICIPATION_IDS: ReadonlySet<string> = new Set<string>(
 /** Static bank ids that may be required on public pre-brief submit (express SLA intersect `pre_brief.bankIncluded`). */
 const PRE_BRIEF_BANK_ID_SET = new Set<string>(PRE_BRIEF_BANK_INCLUDED_IDS);
 
+/** Express always / if-visible only when in `pre_brief.bankIncluded` (phase 1 portrait slice). */
 export const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
-  ...EXPRESS_REQUIRED_ALWAYS_IDS,
+  ...EXPRESS_REQUIRED_ALWAYS_IDS.filter(id => PRE_BRIEF_BANK_ID_SET.has(id)),
   ...EXPRESS_REQUIRED_IF_VISIBLE_IDS.filter(id => PRE_BRIEF_BANK_ID_SET.has(id)),
 ] as const;
 

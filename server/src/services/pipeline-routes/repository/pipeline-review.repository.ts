@@ -59,3 +59,25 @@ export async function approvePendingReview(params: {
 
   return { data: (data as ApprovedReviewRow | null) ?? null, error: error as Error | null };
 }
+
+export async function requestMissingDataForPendingReview(params: {
+  auditId: string;
+  afterPhase: number;
+  consultantNotes: string | null;
+  interviewNotes: string | null;
+}): Promise<{ data: ApprovedReviewRow | null; error: Error | null }> {
+  const { auditId, afterPhase, consultantNotes, interviewNotes } = params;
+  const { data, error } = await supabase
+    .from('review_points')
+    .update({
+      consultant_notes: consultantNotes,
+      interview_notes: interviewNotes,
+    })
+    .eq('audit_id', auditId)
+    .eq('after_phase', afterPhase)
+    .eq('status', 'pending')
+    .select()
+    .maybeSingle();
+
+  return { data: (data as ApprovedReviewRow | null) ?? null, error: error as Error | null };
+}

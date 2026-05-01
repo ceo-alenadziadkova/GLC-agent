@@ -140,13 +140,13 @@ Review gates pause the pipeline and let the consultant enrich the context before
 
 | Gate | After Phase | Before / notes |
 |---|---|---|
-| Gate 1 | Phase 0 (Recon) | Auto wing (phases 1–4) |
-| Gate 2 | Phase 4 (last of auto wing) | Analytic wing (phases 5–6) then Strategy (phase 7) |
+| Gate 1 | Phase 0 (Recon) | Auto wing (selected phases in 1–4) or next block |
+| Gate 2 | **Highest selected auto wing phase** (1–4); full coverage is still phase 4 | Analytic wing (phases 5–6) then Strategy (phase 7) when planned |
 | Gate 3 | Phase 7 (Strategy) | Report / delivery (no further automated phases) |
 
-With default plans, review phases are `[0, 4, 7]` for `full` and `[0, 4]` for `express`. Effective gates always come from `reviewPhasesForExecutionPlan(...)` for the specific audit row. `free_snapshot` uses no review gates.
+With full six-domain coverage and strategy, review phases are `[0, 4, 7]` (same as legacy `full`). For partial coverage (for example Pro with only Tech + Automation), Gate 2 aligns with the last selected auto phase (`1` when only Tech ran) so the pipeline can leave the `auto` status and accept `POST .../pipeline/next`. Effective gates always come from `reviewPhasesForExecutionPlan(...)` for the specific audit row. `free_snapshot` uses no review gates.
 
-Approve with `POST /api/audits/:id/reviews/:phase` where `phase` matches the completed block (`0`, `4`, or `7`). See [API.md](./API.md).
+Approve with `POST /api/audits/:id/reviews/:phase` where `phase` matches the **`after_phase`** for that gate (`0`, the last auto phase executed for that audit, or `7`). See [API.md](./API.md).
 
 When a gate is reached:
 1. Backend emits `review_needed` event to `pipeline_events`
