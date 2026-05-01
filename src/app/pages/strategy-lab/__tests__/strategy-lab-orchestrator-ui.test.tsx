@@ -30,10 +30,19 @@ const PACK_FIXTURE: GlcOrchestrationPackView = {
 };
 
 describe('strategy lab orchestrator ui', () => {
-  it('uses plain-language initiative horizon labels in copy SSOT', () => {
-    expect(STRATEGY_LAB_COPY.tabLabels.quick.toLowerCase()).not.toContain('legacy');
-    expect(STRATEGY_LAB_COPY.pageNav.planSetup.length).toBeGreaterThan(0);
+  it('exposes the orchestration-first copy keys in the SSOT (no legacy initiative tabs)', () => {
+    expect(STRATEGY_LAB_COPY.stepsStrip.step1Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.stepsStrip.step2Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.stepsStrip.step3Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary.length).toBeGreaterThan(0);
     expect(STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary.length).toBeGreaterThan(0);
+    expect(
+      // Legacy timeframe tabs and roadmap markdown export keys must no longer be reachable.
+      (STRATEGY_LAB_COPY as unknown as { tabLabels?: unknown }).tabLabels,
+    ).toBeUndefined();
+    expect(
+      (STRATEGY_LAB_COPY as unknown as { pageNav?: unknown }).pageNav,
+    ).toBeUndefined();
   });
 
   it('renders now-tab nodes and selects a node on click', () => {

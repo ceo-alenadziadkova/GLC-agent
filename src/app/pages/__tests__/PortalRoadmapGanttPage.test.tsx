@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from '../../lib/tanstack-react-query
 import type { ReactNode } from 'react';
 
 import { PortalRoadmapGanttPage } from '../PortalRoadmapGanttPage';
+import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { buildAppRoute } from '../../config/route-paths';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
@@ -105,6 +107,31 @@ describe('PortalRoadmapGanttPage', () => {
         data_gaps: null,
       },
     });
+  });
+
+  it('shows workbench segmented nav for consultants with Roadmap selected', async () => {
+    useProfileMock.mockReturnValue({ isClient: false });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/roadmap/audit-1']}>
+        <Routes>
+          <Route path="/roadmap/:id" element={<PortalRoadmapGanttPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Roadmap timeline');
+
+    const wb = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel });
+    const roadmap = within(wb).getByRole('link', {
+      name: STRATEGY_LAB_COPY.workbenchSegment.roadmapLabel,
+    });
+    const orchestration = within(wb).getByRole('link', {
+      name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
+    });
+    expect(roadmap).toHaveAttribute('href', buildAppRoute.roadmap('audit-1'));
+    expect(orchestration).toHaveAttribute('href', buildAppRoute.strategy('audit-1'));
+    expect(roadmap).toHaveAttribute('aria-current', 'page');
+    expect(orchestration).not.toHaveAttribute('aria-current');
   });
 
   it('renders roadmap schedule and opens task details', async () => {

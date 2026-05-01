@@ -1,35 +1,23 @@
-import { useState, useMemo, useEffect, useCallback, useId } from 'react';
+import { useMemo, useEffect, useCallback, useId } from 'react';
 import { useQueryClient } from '../../lib/tanstack-react-query';
-import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import {
-  Lightning, TrendUp, MapTrifold, ArrowRight, Check,
-  Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
-  Path,
+  MapTrifold, ArrowRight,
+  ArrowsClockwise, SlidersHorizontal,
+  Path, Check,
 } from '@phosphor-icons/react';
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
 import { useAudit } from '../../hooks/useAudit';
 import { useBrowserOnline } from '../../hooks/useBrowserOnline';
 import { useProfile } from '../../hooks/useProfile';
-import type { StrategyInitiative } from '../../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../../data/api/benchmarks';
 import { api } from '../../data/apiService';
-import { ApiError } from '../../data/api-error';
-import { COLOR_TOKENS } from '../../../design-system/tokens/colors';
 import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
-  STRATEGY_LAB_DOMAIN_FILTER_ALL,
-  STRATEGY_LAB_EXECUTION_PACK_POLICY,
-  STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS,
   STRATEGY_LAB_LAYOUT_POLICY,
   STRATEGY_LAB_PAGE_ANCHORS,
-  STRATEGY_LAB_ROADMAP_EXPORT_POLICY,
-  STRATEGY_LAB_SORT_MODES,
-  type StrategyLabDomainFilter,
-  type StrategyLabRoadmapTimeframe,
-  type StrategyLabSortMode,
 } from '../../config/strategy-lab';
 import {
   STRATEGY_LAB_UI_BUDGET_BANDS,
@@ -49,6 +37,7 @@ import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
+import { StrategyLabWorkbenchSegmentedNav } from './StrategyLabWorkbenchSegmentedNav';
 import {
   StrategyLabOrchestratorListBody,
   type StrategyLabOrchestratorTabId,
@@ -56,29 +45,26 @@ import {
 import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../../components/ui/accordion';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../../components/ui/sheet';
 import { useIsMobile } from '../../components/ui/use-mobile';
 import { toast } from 'sonner';
-import {
-  buildStrategyLabRoadmapMarkdown,
-  downloadTextFile,
-  strategyLabRoadmapExportFileName,
-} from '../../lib/strategy-lab-roadmap-export';
-import { sortStrategyInitiatives } from '../../lib/strategy-lab-sort';
+import { ApiError } from '../../data/api-error';
 import type { StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
-import type { StrategyExecutionPackResponse } from '../../data/audit/contracts/report/strategy-lab.types';
-
-const TABS: {
-  key: StrategyLabRoadmapTimeframe;
-  label: string;
-  icon: typeof Lightning;
-  toneClass: string;
-  desc: string;
-}[] = [
-  { key: 'quick', label: STRATEGY_LAB_COPY.tabLabels.quick, icon: Lightning, toneClass: 'text-warning', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.quick },
-  { key: 'medium', label: STRATEGY_LAB_COPY.tabLabels.medium, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.medium },
-  { key: 'strategic', label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, toneClass: 'text-violet-500', desc: STRATEGY_LAB_COPY.tabHorizonDescriptions.strategic },
-];
+import { useState } from 'react';
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
   if (raw == null) return null;
@@ -86,11 +72,16 @@ function normalizeAuditIndustryKey(raw: string | null | undefined): string | nul
   return t.length > 0 ? t : null;
 }
 
-const EFFORT_CLASS: Record<string, string> = {
-  low: 'text-success',
-  medium: 'text-warning',
-  high: 'text-destructive',
-};
+/** Three-step path that anchors the user inside Strategy Lab. */
+type StepStatus = 'done' | 'current' | 'pending';
+
+interface StepDefinition {
+  id: 'context' | 'initiatives' | 'packRoadmap';
+  label: string;
+  hint: string;
+  href: string;
+  status: StepStatus;
+}
 
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
@@ -101,15 +92,10 @@ export function StrategyLab() {
   const online = useBrowserOnline();
   const loadErrorSummaryId = useId();
   const loadOfflineHintId = useId();
+  const stepsStripDescriptionId = useId();
+  const constraintOverridesErrorRegionId = useId();
   const { isClient } = useProfile();
-  const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
-  const [selected,  setSelected]  = useState<Set<string>>(new Set());
-  const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
-  const [sortMode, setSortMode] = useState<StrategyLabSortMode>('roi');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
-  const [executionLoading, setExecutionLoading] = useState(false);
-  const [lastPack, setLastPack] = useState<StrategyExecutionPackResponse | null>(null);
   const [domainBenchmarks, setDomainBenchmarks] = useState<
     Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>
   >({});
@@ -117,6 +103,10 @@ export function StrategyLab() {
   const [constraintBudgetDraft, setConstraintBudgetDraft] = useState<string>('unknown');
   const [constraintTeamDraft, setConstraintTeamDraft] = useState<string>('unknown');
   const [constraintSaving, setConstraintSaving] = useState(false);
+  /** Persisted until success or consultant dismiss — pairs with polite aria-live region (toast alone is unreliable for SR). */
+  const [constraintOverridesSaveErrorMessage, setConstraintOverridesSaveErrorMessage] = useState<string | null>(null);
+  /** Mobile-only Plan summary Sheet open state. On desktop the same content lives in a side `<ResizablePanel>` and this flag stays unused. */
+  const [isSummarySheetOpen, setIsSummarySheetOpen] = useState(false);
 
   const glcPackView = useMemo(() => {
     const raw = audit?.strategy?.glc_orchestration_pack;
@@ -132,6 +122,18 @@ export function StrategyLab() {
   );
 
   const selectedPackNodeId = searchParams.get('node');
+
+  /**
+   * Mobile UX: when a node is picked from the orchestrator tabs, the Plan summary
+   * lives in a Sheet and is otherwise invisible — auto-open it so the detail card
+   * reaches the consultant without an extra tap. Desktop keeps the side panel
+   * always visible, so this effect is a no-op there.
+   */
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!selectedPackNodeId) return;
+    setIsSummarySheetOpen(true);
+  }, [isMobile, selectedPackNodeId]);
 
   const setSelectedPackNodeId = useCallback(
     (nextId: string | null) => {
@@ -270,64 +272,19 @@ export function StrategyLab() {
     };
   }, [audit?.strategy, audit?.meta?.industry, isClient]);
 
-  const initiatives = useMemo(() => {
-    if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
-    return {
-      quick: audit.strategy.quick_wins || [],
-      medium: audit.strategy.medium_term || [],
-      strategic: audit.strategy.strategic || [],
-    };
-  }, [audit?.strategy]);
+  const formatConstraintOverridesSaveErrorMessage = useCallback((e: unknown) => {
+    const base = STRATEGY_LAB_COPY.constraints.saveFailed;
+    if (!(e instanceof ApiError)) return base;
+    const detail =
+      e.details && typeof e.details === 'object' && e.details !== null && 'detail' in e.details
+        ? String((e.details as { detail?: unknown }).detail ?? '')
+        : '';
+    return detail.trim() ? `${base} (${detail})` : base;
+  }, []);
 
-  const visible = initiatives[activeTab];
-  const filteredVisible = useMemo(() => {
-    const base = visible.filter(
-      i => domainFilter === STRATEGY_LAB_DOMAIN_FILTER_ALL || i.domain === domainFilter,
-    );
-    return sortStrategyInitiatives(base, sortMode);
-  }, [visible, domainFilter, sortMode]);
-
-  const roadmapMarkdownPreview = useMemo(() => {
-    if (!audit?.strategy || selected.size === 0) return null;
-    const selectedByTimeframe = {
-      quick: initiatives.quick.filter(i => selected.has(i.id)),
-      medium: initiatives.medium.filter(i => selected.has(i.id)),
-      strategic: initiatives.strategic.filter(i => selected.has(i.id)),
-    };
-    return buildStrategyLabRoadmapMarkdown({
-      title: STRATEGY_LAB_COPY.export.documentTitle,
-      companyLabel: STRATEGY_LAB_COPY.export.companyLabel,
-      urlLabel: STRATEGY_LAB_COPY.export.urlLabel,
-      auditIdLabel: STRATEGY_LAB_COPY.export.auditIdLabel,
-      generatedOnLabel: STRATEGY_LAB_COPY.export.generatedOnLabel,
-      executiveSummaryHeading: STRATEGY_LAB_COPY.export.executiveSummaryHeading,
-      selectedHeading: STRATEGY_LAB_COPY.export.selectedInitiativesHeading,
-      sectionLabels: {
-        quick: STRATEGY_LAB_COPY.tabLabels.quick,
-        medium: STRATEGY_LAB_COPY.tabLabels.medium,
-        strategic: STRATEGY_LAB_COPY.tabLabels.strategic,
-      },
-      impactLabel: STRATEGY_LAB_COPY.export.impactLabel,
-      effortLabel: STRATEGY_LAB_COPY.export.effortLabel,
-      dependenciesLabel: STRATEGY_LAB_COPY.export.dependenciesLabel,
-      missingFieldValue: STRATEGY_LAB_COPY.export.missingFieldValue,
-      companyName: audit.meta.company_name,
-      companyUrl: audit.meta.company_url,
-      auditId: audit.meta.id,
-      executiveSummary: audit.strategy.executive_summary,
-      selectedByTimeframe,
-    });
-  }, [audit, initiatives, selected]);
-
-  const allInitiatives = [...initiatives.quick, ...initiatives.medium, ...initiatives.strategic];
-  const allSelected = allInitiatives.filter(i => selected.has(i.id));
-
-  const handleGenerateRoadmap = useCallback(() => {
-    if (!roadmapMarkdownPreview || !audit?.strategy) return;
-    const fileName = strategyLabRoadmapExportFileName(audit.meta, new Date());
-    downloadTextFile(fileName, roadmapMarkdownPreview, STRATEGY_LAB_ROADMAP_EXPORT_POLICY.markdownDownloadMimeType);
-    toast.success(STRATEGY_LAB_COPY.toasts.roadmapDownloaded);
-  }, [audit, roadmapMarkdownPreview]);
+  const dismissConstraintOverridesSaveError = useCallback(() => {
+    setConstraintOverridesSaveErrorMessage(null);
+  }, []);
 
   const handleSaveConstraintOverrides = useCallback(async () => {
     if (!id) return;
@@ -338,15 +295,26 @@ export function StrategyLab() {
         budget_band: constraintBudgetDraft,
         team_scale: constraintTeamDraft,
       });
+      setConstraintOverridesSaveErrorMessage(null);
       applyStrategyLabContextPatchToAuditCache(queryClient, id, res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.constraints.saveOk);
       reload();
-    } catch {
-      toast.error(STRATEGY_LAB_COPY.constraints.saveFailed);
+    } catch (e) {
+      const msg = formatConstraintOverridesSaveErrorMessage(e);
+      setConstraintOverridesSaveErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setConstraintSaving(false);
     }
-  }, [id, constraintStageDraft, constraintBudgetDraft, constraintTeamDraft, queryClient, reload]);
+  }, [
+    id,
+    constraintStageDraft,
+    constraintBudgetDraft,
+    constraintTeamDraft,
+    formatConstraintOverridesSaveErrorMessage,
+    queryClient,
+    reload,
+  ]);
 
   const handleClearConstraintOverrides = useCallback(async () => {
     if (!id) return;
@@ -357,53 +325,18 @@ export function StrategyLab() {
         budget_band: null,
         team_scale: null,
       });
+      setConstraintOverridesSaveErrorMessage(null);
       applyStrategyLabContextPatchToAuditCache(queryClient, id, res.strategy_lab_context);
       toast.success(STRATEGY_LAB_COPY.constraints.clearOk);
       reload();
-    } catch {
-      toast.error(STRATEGY_LAB_COPY.constraints.saveFailed);
+    } catch (e) {
+      const msg = formatConstraintOverridesSaveErrorMessage(e);
+      setConstraintOverridesSaveErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setConstraintSaving(false);
     }
-  }, [id, queryClient, reload]);
-
-  const handleGenerateExecutionPlan = useCallback(async () => {
-    if (!id || selected.size === 0) return;
-    const initiative_ids = Array.from(selected);
-    if (initiative_ids.length > STRATEGY_LAB_EXECUTION_PACK_POLICY.maxInitiativesPerRequest) {
-      toast.error(
-        STRATEGY_LAB_COPY.panel.executionPlanTooMany.replace(
-          '{max}',
-          String(STRATEGY_LAB_EXECUTION_PACK_POLICY.maxInitiativesPerRequest),
-        ),
-      );
-      return;
-    }
-    setExecutionLoading(true);
-    try {
-      const res = await api.postStrategyExecutionPack(id, { initiative_ids });
-      setLastPack(res);
-      toast.success(STRATEGY_LAB_COPY.panel.executionPlanDone);
-    } catch (e) {
-      const detail =
-        e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null && 'detail' in e.details
-          ? String((e.details as { detail?: unknown }).detail ?? '')
-          : '';
-      toast.error(
-        detail ? `${STRATEGY_LAB_COPY.panel.executionPlanFailed} (${detail})` : STRATEGY_LAB_COPY.panel.executionPlanFailed,
-      );
-    } finally {
-      setExecutionLoading(false);
-    }
-  }, [id, selected]);
-
-  function toggle(initId: string) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(initId) ? next.delete(initId) : next.add(initId);
-      return next;
-    });
-  }
+  }, [id, formatConstraintOverridesSaveErrorMessage, queryClient, reload]);
 
   if (loading && !audit) {
     return (
@@ -427,11 +360,11 @@ export function StrategyLab() {
           aria-live="polite"
           aria-atomic="true"
         >
-          <p id={loadErrorSummaryId} className="text-destructive">
+          <p id={loadErrorSummaryId} className="text-destructive max-w-prose">
             {error || STRATEGY_LAB_COPY.messages.auditNotFound}
           </p>
           {!online ? (
-            <p id={loadOfflineHintId} className="text-muted-foreground text-sm">
+            <p id={loadOfflineHintId} className="text-muted-foreground text-sm max-w-prose">
               {STRATEGY_LAB_COPY.messages.offlineHint}
             </p>
           ) : null}
@@ -455,9 +388,6 @@ export function StrategyLab() {
 
   const orchestrationUiEnabled = APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
   const clientOrchestrationLabReadOnlyEnabled = APP_FEATURE_FLAGS.clientOrchestrationLabReadOnlyEnabled;
-  const orchestrationPackReady = glcPackView != null;
-  const useOrchestratorPrimaryNav = orchestrationUiEnabled;
-  const showLegacyRoadmapComposer = !useOrchestratorPrimaryNav;
   const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
   const reportHref = id
     ? isClient
@@ -486,132 +416,126 @@ export function StrategyLab() {
     );
   }
 
-  return (
-    <AppShell
-      title={STRATEGY_LAB_COPY.appShell.title}
-      subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
-      actions={
-        !useOrchestratorPrimaryNav ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="text-success text-xs font-mono font-semibold">
-              {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={selected.size === 0 || executionLoading}
-              className={cn(selected.size === 0 ? 'opacity-40' : '')}
-              onClick={handleGenerateExecutionPlan}
-            >
-              <ListBullets className="w-4 h-4" />
-              {executionLoading ? STRATEGY_LAB_COPY.panel.executionPlanRunning : STRATEGY_LAB_COPY.panel.generateExecutionPlan}
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              disabled={selected.size === 0}
-              className={cn(selected.size === 0 ? 'opacity-40' : '')}
-              onClick={handleGenerateRoadmap}
-            >{STRATEGY_LAB_COPY.panel.generateRoadmap}
-            </Button>
-          </div>
-        ) : null
-      }
-    >
-      {orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled ? (
-        <div className="bg-card flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.clientTimelineReadOnlyHint}</p>
-          <Button asChild variant="outline" size="sm" className="no-underline w-fit">
-            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
-          </Button>
-        </div>
-      ) : orchestrationUiEnabled && isClient ? (
-        <div className="text-muted-foreground border-b bg-card px-4 py-2 text-center text-xs">
-          {ORCHESTRATION_UI_COPY.clientHidden}
-        </div>
-      ) : null}
-      {useOrchestratorPrimaryNav && !isClient && audit.strategy ? (
-        <nav
-          aria-label={STRATEGY_LAB_COPY.pageNav.ariaLabel}
-          className="bg-card border-border sticky top-0 z-[15] flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2"
-        >
-          {executionPlanForRoadmap ? (
-            <a
-              href={`#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`}
-              className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
-            >
-              {STRATEGY_LAB_COPY.pageNav.planSetup}
-            </a>
-          ) : null}
-          <a
-            href={`#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`}
-            className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
-          >
-            {STRATEGY_LAB_COPY.pageNav.inspectPack}
-          </a>
-          <a
-            href={`#${STRATEGY_LAB_PAGE_ANCHORS.reference}`}
-            className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
-          >
-            {STRATEGY_LAB_COPY.pageNav.reference}
-          </a>
-        </nav>
-      ) : null}
-      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
-        <div id={STRATEGY_LAB_PAGE_ANCHORS.planSetup} className="scroll-mt-20">
-          <StrategyLabOrchestrationPanel
-            auditId={audit.meta.id}
-            executionPlan={executionPlanForRoadmap}
-            strategy={audit.strategy}
-            onReload={reload}
-            mergeStrategyLabContextInAuditCache={mergeStrategyLabContextInAuditCache}
-          />
-        </div>
-      ) : null}
-      <ResizablePanelGroup
-        key={isMobile ? 'strategy-lab-layout-mobile' : 'strategy-lab-layout-desktop'}
-        direction="horizontal"
-        className="ds-audit-workspace-main-h"
-        autoSaveId={`${STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}:${isMobile ? 'sm' : 'lg'}`}
-      >
+  // Steps strip status: derived from real audit signals (no UI-only flags).
+  const hasContextDone =
+    !!audit.strategy.effective_constraints &&
+    (executionPlanForRoadmap?.selected_domains.length ?? 0) > 0;
+  const hasConfigureDone =
+    !!glcPackView?.manifest_snapshot_id ||
+    (typeof audit.strategy.orchestration_pack_version === 'number' &&
+      audit.strategy.orchestration_pack_version > 0);
+  const hasBuildDone =
+    typeof audit.strategy.orchestration_pack_version === 'number' &&
+    audit.strategy.orchestration_pack_version > 0;
 
-        {/* ── Initiative picker ─────────────────────── */}
-        <ResizablePanel
-          id="strategy-lab-main"
-          order={1}
-          defaultSize={isMobile
-            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
-          minSize={isMobile
-            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : STRATEGY_LAB_LAYOUT_POLICY.mainPanelMinSizePct}
-          maxSize={isMobile
-            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : undefined}
-          className="min-w-0"
-        >
-        <div
-          id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
-          className="bg-background h-full min-h-0 flex-1 scroll-mt-20 overflow-y-auto"
-        >
+  // First non-done step is the current one; if all done, step 3 stays "current" so the user lands on Inspect pack.
+  const stepStatuses: ReadonlyArray<StepStatus> = [
+    hasContextDone ? 'done' : 'current',
+    hasContextDone ? (hasConfigureDone ? 'done' : 'current') : 'pending',
+    hasContextDone && hasConfigureDone ? (hasBuildDone ? 'done' : 'current') : 'pending',
+  ];
+  // If all done, keep step 3 “current” (review state on Inspect pack).
+  const allDone = stepStatuses.every(s => s === 'done');
+  const stepsResolved: ReadonlyArray<StepStatus> = allDone
+    ? (['done', 'done', 'current'] as const)
+    : stepStatuses;
+
+  const steps: ReadonlyArray<StepDefinition> = [
+    {
+      id: 'context',
+      label: STRATEGY_LAB_COPY.stepsStrip.step1Title,
+      hint: STRATEGY_LAB_COPY.stepsStrip.step1Hint,
+      href: `#${STRATEGY_LAB_PAGE_ANCHORS.reference}`,
+      status: stepsResolved[0],
+    },
+    {
+      id: 'initiatives',
+      label: STRATEGY_LAB_COPY.stepsStrip.step2Title,
+      hint: STRATEGY_LAB_COPY.stepsStrip.step2Hint,
+      href: `#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`,
+      status: stepsResolved[1],
+    },
+    {
+      id: 'packRoadmap',
+      label: STRATEGY_LAB_COPY.stepsStrip.step3Title,
+      hint: STRATEGY_LAB_COPY.stepsStrip.step3Hint,
+      href: `#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`,
+      status: stepsResolved[2],
+    },
+  ];
+
+  const stepsStripVisible = !isClient && orchestrationUiEnabled;
+
+  // Reference accordion preview: count benchmarks with data and describe constraint state.
+  // Both lines are always-visible in the trigger so consultants can decide whether to expand without clicking.
+  const benchmarksAvailableCount = DOMAIN_KEYS.reduce(
+    (acc, dk) => (domainBenchmarks[dk] ? acc + 1 : acc),
+    0,
+  );
+  const referencePreviewBenchmarks = STRATEGY_LAB_COPY.referenceDisclosure.previewBenchmarks
+    .replace('{available}', String(benchmarksAvailableCount))
+    .replace('{total}', String(DOMAIN_KEYS.length));
+
+  const labContextOverrides = audit.strategy.strategy_lab_context;
+  const hasOverride =
+    !!labContextOverrides &&
+    (typeof labContextOverrides.company_stage === 'string' ||
+      typeof labContextOverrides.budget_band === 'string' ||
+      typeof labContextOverrides.team_scale === 'string');
+  const effectiveConstraints = audit.strategy.effective_constraints;
+  const constraintsSummary = effectiveConstraints
+    ? [
+        STRATEGY_LAB_COPY.constraints.optionLabels.stage[
+          effectiveConstraints.company_stage as keyof typeof STRATEGY_LAB_COPY.constraints.optionLabels.stage
+        ] ?? effectiveConstraints.company_stage,
+        STRATEGY_LAB_COPY.constraints.optionLabels.budget[
+          effectiveConstraints.budget_band as keyof typeof STRATEGY_LAB_COPY.constraints.optionLabels.budget
+        ] ?? effectiveConstraints.budget_band,
+        STRATEGY_LAB_COPY.constraints.optionLabels.team[
+          effectiveConstraints.team_scale as keyof typeof STRATEGY_LAB_COPY.constraints.optionLabels.team
+        ] ?? effectiveConstraints.team_scale,
+      ].join(' / ')
+    : null;
+  const referencePreviewConstraints = !constraintsSummary
+    ? STRATEGY_LAB_COPY.referenceDisclosure.previewConstraintsUnknown
+    : (hasOverride
+        ? STRATEGY_LAB_COPY.referenceDisclosure.previewConstraintsOverridden
+        : STRATEGY_LAB_COPY.referenceDisclosure.previewConstraintsFromBrief
+      ).replace('{summary}', constraintsSummary);
+
+  const inspectPackScrollInner = (
+    <>
           {!isClient && (
-            <details id={STRATEGY_LAB_PAGE_ANCHORS.reference} className="border-border bg-card scroll-mt-20 border-b">
-              <summary className="border-border [&::-webkit-details-marker]:hidden [&_svg]:transition-transform [&[open]_svg]:rotate-180 list-none cursor-pointer border-b px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-                  <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.referenceDisclosure.summary}</span>
-                </div>
-              </summary>
-              <div className="space-y-0 px-4 pb-4 pt-3">
-                <p className="text-muted-foreground pb-4 text-xs leading-relaxed">{STRATEGY_LAB_COPY.referenceDisclosure.hint}</p>
-                <div className="space-y-3 border-b border-border pb-4">
+            <section
+              id={STRATEGY_LAB_PAGE_ANCHORS.reference}
+              className="border-border bg-card scroll-mt-20 border-b"
+            >
+              <Accordion
+                type="single"
+                collapsible
+                className="px-4 [&_[data-slot=accordion-item]]:border-b-0"
+              >
+                <AccordionItem value="reference">
+                  <AccordionTrigger className="py-3 hover:no-underline">
+                    <span className="flex flex-1 flex-col items-start gap-1 text-left">
+                      <span className="text-foreground text-sm font-semibold">
+                        {STRATEGY_LAB_COPY.referenceDisclosure.summary}
+                      </span>
+                      <span className="text-muted-foreground text-[length:var(--text-2xs)] font-normal leading-snug">
+                        {referencePreviewBenchmarks} · {referencePreviewConstraints}
+                      </span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4 pt-1">
+                    <p className="text-muted-foreground pb-4 text-xs leading-relaxed max-w-prose">{STRATEGY_LAB_COPY.referenceDisclosure.hint}</p>
+                    <div className="space-y-3 border-b border-border pb-4">
                   <div className="flex items-center gap-2">
-                    <ChartBar className="text-info h-4 w-4" />
+                    <SlidersHorizontal className="text-info h-4 w-4" aria-hidden />
                     <span className="text-foreground text-sm font-semibold">
                       {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
                     </span>
                   </div>
-                  <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.panel.domainBenchmarksHint}</p>
+                  <p className="text-muted-foreground text-xs max-w-prose">{STRATEGY_LAB_COPY.panel.domainBenchmarksHint}</p>
                   <div className="space-y-2">
                     {DOMAIN_KEYS.map((dk) => {
                       const row = domainBenchmarks[dk];
@@ -634,10 +558,32 @@ export function StrategyLab() {
                 </div>
                 <div className="space-y-3 pt-4">
                   <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="text-info h-4 w-4" />
+                    <SlidersHorizontal className="text-info h-4 w-4" aria-hidden />
                     <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
                   </div>
-                  <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
+                  <p className="text-muted-foreground text-xs max-w-prose">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
+                  {constraintOverridesSaveErrorMessage ? (
+                    <div
+                      id={constraintOverridesErrorRegionId}
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                      className="bg-card flex flex-wrap items-start justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                    >
+                      <p className="text-destructive m-0 text-xs leading-relaxed max-w-prose">
+                        {constraintOverridesSaveErrorMessage}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 shrink-0 text-xs"
+                        onClick={dismissConstraintOverridesSaveError}
+                      >
+                        {STRATEGY_LAB_COPY.constraints.dismissSaveError}
+                      </Button>
+                    </div>
+                  ) : null}
                   <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                     <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
                       <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
@@ -687,6 +633,7 @@ export function StrategyLab() {
                       type="button"
                       variant="default"
                       disabled={constraintSaving}
+                      aria-describedby={constraintOverridesSaveErrorMessage ? constraintOverridesErrorRegionId : undefined}
                       onClick={() => void handleSaveConstraintOverrides()}
                     >
                       {STRATEGY_LAB_COPY.constraints.save}
@@ -695,495 +642,339 @@ export function StrategyLab() {
                       type="button"
                       variant="secondary"
                       disabled={constraintSaving}
+                      aria-describedby={constraintOverridesSaveErrorMessage ? constraintOverridesErrorRegionId : undefined}
                       onClick={() => void handleClearConstraintOverrides()}
                     >
                       {STRATEGY_LAB_COPY.constraints.useBrief}
                     </Button>
                   </div>
                 </div>
-              </div>
-            </details>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </section>
           )}
-          {showLegacyRoadmapComposer ? (
-            <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
-              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={domainFilter}
-                  onChange={e => setDomainFilter(e.target.value as StrategyLabDomainFilter)}
-                >
-                  <option value={STRATEGY_LAB_DOMAIN_FILTER_ALL}>{STRATEGY_LAB_COPY.panel.domainFilterAll}</option>
-                  {STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS.map(dk => (
-                    <option key={dk} value={dk}>
-                      {DOMAIN_LABELS[dk as keyof typeof DOMAIN_LABELS] ?? dk}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.sortModeLabel}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={sortMode}
-                  onChange={e => setSortMode(e.target.value as StrategyLabSortMode)}
-                >
-                  {STRATEGY_LAB_SORT_MODES.map(m => (
-                    <option key={m} value={m}>
-                      {STRATEGY_LAB_COPY.panel.sortModes[m]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          ) : null}
-          {/* Tabs */}
-          {showLegacyRoadmapComposer ? (
-            <div
-              className="bg-background/90 sticky top-0 z-10 flex gap-2 border-b p-4 backdrop-blur"
-            >
-              {TABS.map(tab => {
-                  const I = tab.icon;
-                  const active = activeTab === tab.key;
-                  const count = initiatives[tab.key].length;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className={cn(
-                        'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
-                        active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
-                        orchestrationUiEnabled && orchestrationPackReady && 'opacity-80',
-                      )}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId="tab-indicator"
-                          className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
-                          transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
-                        />
-                      )}
-                      <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
-                      <span className="relative font-semibold text-xs">{tab.label} ({count})</span>
-                      <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
-                        {tab.desc}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
-          ) : null}
 
-          {/* Initiative list */}
-          {showLegacyRoadmapComposer ? (
-            <div className="p-4 space-y-2">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-2"
+          <div className="p-4">
+            {glcPackView && !isClient ? (
+              <div className="space-y-4">
+                <div
+                  role="tablist"
+                  aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
+                  className="flex flex-wrap gap-2 border-b border-border pb-3"
                 >
-                  <>
-                      {filteredVisible.length === 0 && (
-                        <div className="text-center py-10">
-                          <p className="text-muted-foreground text-sm">
-                            {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
-                          </p>
-                        </div>
-                      )}
-                      {filteredVisible.map((init: StrategyInitiative, i: number) => {
-                  const sel = selected.has(init.id);
-                  const expanded = expandedId === init.id;
-                  return (
-                    <motion.div
-                      key={init.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.045, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  {(
+                    [
+                      ['now', STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
+                      ['next', STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
+                      [
+                        'dependencies',
+                        STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
+                        STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
+                      ],
+                      ['risks', STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
+                    ] as const
+                  ).map(([key, label, desc]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      id={`strategy-lab-orchestrator-tab-${key}`}
+                      role="tab"
+                      aria-selected={orchestratorTab === key}
+                      aria-controls="strategy-lab-orchestrator-panel"
+                      tabIndex={orchestratorTab === key ? 0 : -1}
+                      onClick={() => setOrchestratorTab(key)}
                       className={cn(
-                        'w-full rounded-xl border text-left transition-all',
-                        sel ? 'border-primary/40 bg-primary/10 shadow-xs ring-2 ring-primary/10' : 'border-border bg-card shadow-xs',
+                        'flex min-w-[length:var(--strategy-lab-orchestrator-tab-min-width)] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-colors sm:min-w-0 sm:flex-none',
+                        orchestratorTab === key
+                          ? 'border-primary/40 bg-primary/10 text-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:text-foreground',
                       )}
                     >
-                      <div className="flex items-start gap-2 p-4">
-                        <button
-                          type="button"
-                          aria-pressed={sel}
-                          onClick={() => toggle(init.id)}
+                      <span className="font-semibold">{label}</span>
+                      <span className="text-[length:var(--text-2xs)] leading-snug opacity-90">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div
+                  role="tabpanel"
+                  id="strategy-lab-orchestrator-panel"
+                  aria-labelledby={`strategy-lab-orchestrator-tab-${orchestratorTab}`}
+                >
+                  <StrategyLabOrchestratorListBody
+                    pack={glcPackView}
+                    tab={orchestratorTab}
+                    selectedNodeId={selectedPackNodeId}
+                    onSelectNode={setSelectedPackNodeId}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-background rounded-xl border p-4">
+                <p className="text-foreground text-sm font-semibold">
+                  {ORCHESTRATION_UI_COPY.timelineTitle}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs leading-relaxed max-w-prose">
+                  {ORCHESTRATION_UI_COPY.timelineHint}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="sm" className="no-underline">
+                    <Link to={timelineHref}>
+                      <Path className="h-4 w-4" aria-hidden />
+                      {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="no-underline">
+                    <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+    </>
+  );
+
+  /** Node inspector + dashed empty state (shared desktop panel + mobile Sheet). */
+  const planSummaryDetailBlock =
+    glcPackView ? (
+      <>
+        {selectedPackNodeId ? (
+          <OrchestrationNodeDetailCard
+            pack={glcPackView}
+            nodeId={selectedPackNodeId}
+            onClear={() => setSelectedPackNodeId(null)}
+          />
+        ) : null}
+        {!selectedPackNodeId ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed max-w-prose">
+            {STRATEGY_LAB_COPY.orchestratorTabs.pickNode}
+          </p>
+        ) : null}
+      </>
+    ) : null;
+
+  const planSummaryFooter = (
+    <div className="space-y-2 border-t border-border p-4">
+      <Button asChild variant="ghost" className="w-full justify-center py-2">
+        <Link to={reportHref}>
+          {STRATEGY_LAB_COPY.panel.viewReport}{' '}
+          <ArrowRight className="ml-1 inline h-3.5 w-3.5" aria-hidden />
+        </Link>
+      </Button>
+    </div>
+  );
+
+  /** Wraps roadmap heading + inspector; outer scroll chrome is added by callers. */
+  const planSummaryDesktopChrome = (
+    <>
+      <div className="flex-1 space-y-5 p-5">
+        <div>
+          <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>
+          <p className="text-muted-foreground mt-1 max-w-prose text-xs">{STRATEGY_LAB_COPY.panel.summaryHint}</p>
+        </div>
+        {planSummaryDetailBlock}
+      </div>
+      {planSummaryFooter}
+    </>
+  );
+
+  /** Narrow viewports squeeze the roadmap summary — move it into a Sheet so the orchestrator owns full width. */
+  const consultantMobilePackSummarySheet = isMobile && !isClient && !!glcPackView;
+
+  return (
+    <AppShell
+      title={STRATEGY_LAB_COPY.appShell.title}
+      subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
+    >
+      {orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled ? (
+        <div className="bg-card flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.clientTimelineReadOnlyHint}</p>
+          <Button asChild variant="outline" size="sm" className="no-underline w-fit">
+            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
+          </Button>
+        </div>
+      ) : orchestrationUiEnabled && isClient ? (
+        <div className="text-muted-foreground border-b bg-card px-4 py-2 text-center text-xs">
+          {ORCHESTRATION_UI_COPY.clientHidden}
+        </div>
+      ) : null}
+
+      {stepsStripVisible && id ? (
+        <div className="bg-card border-border divide-border sticky top-0 z-[15] divide-y border-b">
+          <div className="px-4 py-3">
+            <StrategyLabWorkbenchSegmentedNav auditId={id} active="orchestration" />
+          </div>
+          <nav aria-label={STRATEGY_LAB_COPY.stepsStrip.ariaLabel} className="px-4 py-3">
+          <p id={stepsStripDescriptionId} className="sr-only">
+            {STRATEGY_LAB_COPY.stepsStrip.description}
+          </p>
+          <ol
+            className="flex flex-wrap items-stretch gap-3 sm:flex-nowrap"
+            aria-describedby={stepsStripDescriptionId}
+          >
+            {steps.map((step, index) => {
+              const isDone = step.status === 'done';
+              const isCurrent = step.status === 'current';
+              const statusLabel = isDone
+                ? STRATEGY_LAB_COPY.stepsStrip.statusDone
+                : isCurrent
+                  ? STRATEGY_LAB_COPY.stepsStrip.statusCurrent
+                  : STRATEGY_LAB_COPY.stepsStrip.statusPending;
+              return (
+                <li key={step.id} className="min-w-[length:var(--strategy-lab-steps-strip-min-width,12rem)] flex-1">
+                  <a
+                    href={step.href}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    className={cn(
+                      'group flex h-full items-start gap-3 rounded-lg border px-3 py-2 transition-colors',
+                      isCurrent
+                        ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                        : isDone
+                          ? 'border-border bg-card'
+                          : 'border-dashed border-border bg-card opacity-80',
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+                        isDone
+                          ? 'bg-success text-white'
+                          : isCurrent
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {isDone ? <Check className="h-3.5 w-3.5" weight="bold" /> : index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="text-foreground text-sm font-semibold">{step.label}</span>
+                        <span
                           className={cn(
-                            'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all',
-                            sel ? 'border-primary bg-primary' : 'border-border bg-muted',
+                            'text-[length:var(--text-2xs)] font-mono uppercase tracking-wide',
+                            isDone ? 'text-success' : isCurrent ? 'text-primary' : 'text-muted-foreground',
                           )}
                         >
-                          {sel && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                        </button>
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => toggle(init.id)}
-                        >
-                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                            <span className="text-foreground text-sm font-medium">{init.title}</span>
-                            {init.domain ? (
-                              <span className="text-muted-foreground text-[length:var(--text-2xs)] font-mono uppercase">
-                                {init.domain}
-                              </span>
-                            ) : null}
-                          </div>
-                          {init.description ? (
-                            <p className="text-muted-foreground mb-2 text-xs leading-relaxed">{init.description}</p>
-                          ) : null}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold">
-                              {init.impact} {STRATEGY_LAB_COPY.panel.labels.impact}
-                            </span>
-                            <span className={cn('text-xs font-semibold', EFFORT_CLASS[init.effort] ?? 'text-muted-foreground')}>
-                              {init.effort} {STRATEGY_LAB_COPY.panel.labels.effort}
-                            </span>
-                            {typeof init.evidence_verified === 'boolean' ? (
-                              <span className={cn('text-[length:var(--text-2xs)] font-medium', init.evidence_verified ? 'text-success' : 'text-warning')}>
-                                {init.evidence_verified ? STRATEGY_LAB_COPY.panel.labels.verified : STRATEGY_LAB_COPY.panel.labels.unverified}
-                              </span>
-                            ) : null}
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          aria-expanded={expanded}
-                          className="text-muted-foreground hover:text-foreground flex-shrink-0 p-1"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setExpandedId(expanded ? null : init.id);
-                          }}
-                        >
-                          <CaretDown className={cn('h-4 w-4 transition-transform', expanded ? 'rotate-180' : '')} />
-                        </button>
-                      </div>
-                      {expanded ? (
-                        <div className="text-muted-foreground space-y-2 border-t px-4 py-3 text-xs leading-relaxed">
-                          {init.decision?.why_this?.length ? (
-                            <div>
-                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.why}</p>
-                              <ul className="list-inside list-disc space-y-0.5">
-                                {init.decision.why_this.map((s, idx) => (
-                                  <li key={`${init.id}-why-${idx}`}>{s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                          {init.outcome?.description ? (
-                            <div>
-                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.outcome}</p>
-                              <p>{init.outcome.description}</p>
-                            </div>
-                          ) : null}
-                          {init.scope?.includes?.length ? (
-                            <div>
-                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.scopeIn}</p>
-                              <ul className="list-inside list-disc space-y-0.5">
-                                {init.scope.includes.map((s, idx) => (
-                                  <li key={`${init.id}-in-${idx}`}>{s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                          {init.execution_paths?.length ? (
-                            <div>
-                              <p className="text-foreground mb-1 font-semibold">{STRATEGY_LAB_COPY.panel.labels.paths}</p>
-                              <ul className="space-y-1">
-                                {init.execution_paths.map(p => (
-                                  <li key={`${init.id}-${p.type}`}>
-                                    <span className="text-foreground font-medium">{p.type}</span>
-                                    {p.incompatible ? (
-                                      <span className="text-warning ml-2">({STRATEGY_LAB_COPY.panel.labels.incompatible})</span>
-                                    ) : null}
-                                    : {p.description} ({p.time_estimate})
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </motion.div>
-                  );
-                      })}
-                    </>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="p-4">
-              {glcPackView && !isClient ? (
-                <div className="space-y-4">
-                  <div
-                    role="tablist"
-                    aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
-                    className="flex flex-wrap gap-2 border-b border-border pb-3"
-                  >
-                    {(
-                      [
-                        ['now', STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
-                        ['next', STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
-                        [
-                          'dependencies',
-                          STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
-                          STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
-                        ],
-                        ['risks', STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
-                      ] as const
-                    ).map(([key, label, desc]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        id={`strategy-lab-orchestrator-tab-${key}`}
-                        role="tab"
-                        aria-selected={orchestratorTab === key}
-                        aria-controls={`strategy-lab-orchestrator-panel`}
-                        tabIndex={orchestratorTab === key ? 0 : -1}
-                        onClick={() => setOrchestratorTab(key)}
-                        className={cn(
-                          'flex min-w-[length:var(--strategy-lab-orchestrator-tab-min-width)] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-colors sm:min-w-0 sm:flex-none',
-                          orchestratorTab === key
-                            ? 'border-primary/40 bg-primary/10 text-foreground'
-                            : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        <span className="font-semibold">{label}</span>
-                        <span className="text-[length:var(--text-2xs)] leading-snug opacity-90">{desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div
-                    role="tabpanel"
-                    id="strategy-lab-orchestrator-panel"
-                    aria-labelledby={`strategy-lab-orchestrator-tab-${orchestratorTab}`}
-                  >
-                    <StrategyLabOrchestratorListBody
-                      pack={glcPackView}
-                      tab={orchestratorTab}
-                      selectedNodeId={selectedPackNodeId}
-                      onSelectNode={setSelectedPackNodeId}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-background rounded-xl border p-4">
-                  <p className="text-foreground text-sm font-semibold">
-                    {ORCHESTRATION_UI_COPY.timelineTitle}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                    {ORCHESTRATION_UI_COPY.timelineHint}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button asChild variant="outline" size="sm" className="no-underline">
-                      <Link to={timelineHref}>
-                        <Path className="h-4 w-4" />
-                        {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
-                      </Link>
-                    </Button>
-                    <Button asChild variant="ghost" size="sm" className="no-underline">
-                      <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                          {statusLabel}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground mt-0.5 block max-w-prose text-xs leading-snug">
+                        {step.hint}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
         </div>
-        </ResizablePanel>
+      ) : null}
 
-        {!isMobile && (
+      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
+        <div id={STRATEGY_LAB_PAGE_ANCHORS.planSetup} className="scroll-mt-20">
+          <StrategyLabOrchestrationPanel
+            auditId={audit.meta.id}
+            executionPlan={executionPlanForRoadmap}
+            strategy={audit.strategy}
+            onReload={reload}
+            mergeStrategyLabContextInAuditCache={mergeStrategyLabContextInAuditCache}
+          />
+        </div>
+      ) : null}
+      {consultantMobilePackSummarySheet ? (
+        <div className="bg-background ds-audit-workspace-main-h flex flex-col">
+          <div
+            id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
+            className="bg-background min-h-0 flex-1 overflow-y-auto scroll-mt-20"
+          >
+            {inspectPackScrollInner}
+          </div>
+          <div className="bg-card sticky bottom-0 z-10 shrink-0 border-t border-border px-4 py-3">
+            <Sheet open={isSummarySheetOpen} onOpenChange={setIsSummarySheetOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex h-auto min-h-11 w-full flex-col gap-1 py-3"
+                  aria-haspopup="dialog"
+                  aria-expanded={isSummarySheetOpen}
+                >
+                  <span className="text-foreground text-sm font-semibold">
+                    {STRATEGY_LAB_COPY.panel.summaryDrawerTriggerLabel}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {selectedPackNodeId
+                      ? STRATEGY_LAB_COPY.panel.summaryDrawerNodeSelectedHint
+                      : STRATEGY_LAB_COPY.panel.summaryDrawerNoSelectionHint}
+                  </span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="flex h-full flex-col gap-0 p-0 sm:max-w-sm">
+                <SheetHeader className="border-border space-y-1 border-b px-4 py-4 text-left">
+                  <SheetTitle>{STRATEGY_LAB_COPY.panel.summaryDrawerTitle}</SheetTitle>
+                  <SheetDescription>{STRATEGY_LAB_COPY.panel.summaryHint}</SheetDescription>
+                </SheetHeader>
+                <div className="bg-card flex min-h-0 flex-1 flex-col overflow-y-auto">
+                  <div className="flex-1 space-y-5 p-5">{planSummaryDetailBlock}</div>
+                  {planSummaryFooter}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+      ) : isMobile ? (
+        <div className="bg-background ds-audit-workspace-main-h">
+          <div
+            id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
+            className="bg-background h-full min-h-0 overflow-y-auto scroll-mt-20"
+          >
+            {inspectPackScrollInner}
+          </div>
+        </div>
+      ) : (
+        <ResizablePanelGroup
+          key="strategy-lab-layout-desktop"
+          direction="horizontal"
+          className="ds-audit-workspace-main-h"
+          autoSaveId={`${STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}:lg`}
+        >
+          <ResizablePanel
+            id="strategy-lab-main"
+            order={1}
+            defaultSize={100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
+            minSize={STRATEGY_LAB_LAYOUT_POLICY.mainPanelMinSizePct}
+            className="min-w-0"
+          >
+            <div
+              id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
+              className="bg-background h-full min-h-0 flex-1 scroll-mt-20 overflow-y-auto"
+            >
+              {inspectPackScrollInner}
+            </div>
+          </ResizablePanel>
+
           <ResizableHandle
             aria-label={STRATEGY_LAB_COPY.panel.resizeHandle}
             title={STRATEGY_LAB_COPY.panel.resizeHint}
             className="w-1.5 bg-[var(--border-subtle)] after:w-1.5"
           />
-        )}
 
-        {/* ── Plan summary ──────────────────────────── */}
-        <ResizablePanel
-          id="strategy-lab-summary"
-          order={2}
-          defaultSize={isMobile
-            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
-          minSize={isMobile
-            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMinSizePct}
-          maxSize={isMobile
-            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
-            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMaxSizePct}
-          className="min-w-0"
-        >
-        <div className="bg-card flex h-full min-h-0 w-full flex-col overflow-y-auto">
-          <div className="p-5 flex-1 space-y-5">
-            <div>
-              <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>
-              <p className="text-muted-foreground mt-1 text-xs">
-                {selected.size} {STRATEGY_LAB_COPY.panel.initiativesSelectedSuffix}
-              </p>
+          <ResizablePanel
+            id="strategy-lab-summary"
+            order={2}
+            defaultSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
+            minSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMinSizePct}
+            maxSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMaxSizePct}
+            className="min-w-0"
+          >
+            <div className="bg-card flex h-full min-h-0 w-full flex-col overflow-y-auto">
+              {planSummaryDesktopChrome}
             </div>
-
-            {glcPackView && selectedPackNodeId ? (
-              <OrchestrationNodeDetailCard
-                pack={glcPackView}
-                nodeId={selectedPackNodeId}
-                onClear={() => setSelectedPackNodeId(null)}
-              />
-            ) : null}
-
-            {glcPackView && !selectedPackNodeId ? (
-              <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
-                {STRATEGY_LAB_COPY.orchestratorTabs.pickNode}
-              </p>
-            ) : null}
-
-            {!useOrchestratorPrimaryNav ? (
-              <>
-                <div className="space-y-2">
-                  {[
-                    { label: STRATEGY_LAB_COPY.panel.totalInitiatives, value: `${selected.size}`, color: 'var(--text-primary)' },
-                    { label: STRATEGY_LAB_COPY.panel.quickWins, value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
-                    { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: COLOR_TOKENS.semantic.uiSemantic.strategicPurple },
-                  ].map(({ label, value, color }) => (
-                    <div
-                      key={label}
-                      className="bg-background flex items-center justify-between rounded-lg border px-3 py-2.5"
-                    >
-                      <span className="text-muted-foreground text-xs">{label}</span>
-                      <span className={cn('text-sm font-bold tabular-nums', color === 'var(--text-primary)' ? 'text-foreground' : color === 'var(--glc-green)' ? 'text-success' : 'text-violet-500')}>
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : null}
-
-            {!useOrchestratorPrimaryNav ? (
-              <div className="space-y-2">
-                <SectionLabel className="mb-1">{STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}</SectionLabel>
-                <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.panel.roadmapPreviewHint}</p>
-                {roadmapMarkdownPreview ? (
-                  <div
-                    className="bg-background max-h-[length:var(--strategy-lab-roadmap-preview-max-height)] overflow-auto rounded-lg border"
-                    role="region"
-                    aria-label={STRATEGY_LAB_COPY.panel.roadmapPreviewTitle}
-                  >
-                    <pre className="text-foreground whitespace-pre-wrap break-words p-3 font-mono text-[length:var(--text-2xs)] leading-relaxed">
-                      {roadmapMarkdownPreview}
-                    </pre>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs leading-relaxed">
-                    {STRATEGY_LAB_COPY.panel.roadmapPreviewEmpty}
-                  </p>
-                )}
-              </div>
-            ) : null}
-
-            {/* Effort mix */}
-            {!useOrchestratorPrimaryNav ? (
-              <div>
-                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.effortMix}</SectionLabel>
-              {(['low', 'medium', 'high'] as const).map(effort => {
-                const count = allSelected.filter(i => i.effort === effort).length;
-                const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
-                return (
-                  <div key={effort} className="flex items-center gap-2 mb-2">
-                    <span className="text-muted-foreground w-14 flex-shrink-0 text-xs">{STRATEGY_LAB_COPY.panel.labels.effortTier[effort]}</span>
-                    <div className="bg-border h-1 flex-1 overflow-hidden rounded-full">
-                      <motion.div
-                        className={cn('h-full rounded-full', effort === 'low' ? 'bg-success' : effort === 'medium' ? 'bg-warning' : 'bg-destructive')}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                      />
-                    </div>
-                    <span className={cn('w-6 flex-shrink-0 text-right font-mono text-xs tabular-nums', EFFORT_CLASS[effort])}>
-                      {count}
-                    </span>
-                  </div>
-                );
-              })}
-              </div>
-            ) : null}
-
-            {!useOrchestratorPrimaryNav && lastPack ? (
-              <div>
-                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.lastExecutionPlan}</SectionLabel>
-                <div className="space-y-3">
-                  {lastPack.payload.packs.map(pack => (
-                    <div key={pack.initiative_id} className="bg-background rounded-lg border px-3 py-2.5 text-xs">
-                      <p className="text-foreground mb-1 font-mono font-semibold">{pack.initiative_id}</p>
-                      <p className="text-muted-foreground mb-2 line-clamp-3">{pack.architecture}</p>
-                      <ul className="text-muted-foreground list-inside list-decimal space-y-1">
-                        {pack.tasks.slice(0, 6).map((t, idx) => (
-                          <li key={`${pack.initiative_id}-t-${idx}`}>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{STRATEGY_LAB_COPY.panel.outcomeMeasurementFooter}</p>
-              </div>
-            ) : null}
-
-            {/* Selected list */}
-            {!useOrchestratorPrimaryNav && allSelected.length > 0 && (
-              <div>
-                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.selectedTitle}</SectionLabel>
-                <div className="space-y-1.5">
-                  {allSelected.slice(0, 8).map(init => (
-                    <div
-                      key={init.id}
-                      className="bg-background flex items-start gap-2 rounded-lg border px-2 py-1.5 text-xs"
-                    >
-                      <Target className="text-info mt-0.5 h-3 w-3 flex-shrink-0" />
-                      <span className="text-muted-foreground leading-snug">{init.title}</span>
-                    </div>
-                  ))}
-                  {allSelected.length > 8 && (
-                    <p className="text-muted-foreground py-1 text-center text-xs">
-                      +{allSelected.length - 8} {STRATEGY_LAB_COPY.panel.moreItemsSuffix}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* CTA */}
-          <div className="space-y-2 border-t p-4">
-            {!useOrchestratorPrimaryNav ? (
-              <motion.div
-                whileHover={selected.size > 0 ? { scale: 1.01 } : {}}
-                whileTap={selected.size  > 0 ? { scale: 0.99 } : {}}
-              >
-                <Button
-                  type="button"
-                  variant="default"
-                  className={cn('w-full justify-center py-2.5', selected.size === 0 ? 'opacity-40' : '')}
-                  disabled={selected.size === 0}
-                  onClick={handleGenerateRoadmap}
-                >
-                  {STRATEGY_LAB_COPY.panel.generateRoadmap}
-                </Button>
-              </motion.div>
-            ) : null}
-            <Button asChild variant="ghost" className="w-full justify-center py-2">
-              <Link to={reportHref}>
-                {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
     </AppShell>
   );
 }

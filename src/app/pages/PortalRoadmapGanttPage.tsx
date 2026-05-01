@@ -10,6 +10,8 @@ import { glcKeys } from '../lib/glc-keys';
 import { buildRoadmapGanttProjection } from '../lib/roadmap-gantt-mapper';
 import { RoadmapGanttView } from '../components/roadmap-gantt/RoadmapGanttView';
 import { buildAppRoute } from '../config/route-paths';
+import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
+import { StrategyLabWorkbenchSegmentedNav } from './strategy-lab/StrategyLabWorkbenchSegmentedNav';
 
 export function PortalRoadmapGanttPage() {
   const { id } = useParams<{ id: string }>();
@@ -61,6 +63,9 @@ export function PortalRoadmapGanttPage() {
   return (
     <AppShell title="Roadmap schedule" subtitle="Multi-lane timeline with dependencies and task details">
       <div className="mx-auto max-w-6xl space-y-4">
+        {!isClient && APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled ? (
+          <StrategyLabWorkbenchSegmentedNav auditId={id} active="roadmap" />
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm" className="no-underline">
             <Link to={backHref}>Back to timeline</Link>

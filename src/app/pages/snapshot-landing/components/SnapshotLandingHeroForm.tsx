@@ -75,7 +75,7 @@ export function SnapshotLandingHeroForm(props: {
               className="mx-auto w-full max-w-[min(100%,var(--snapshot-hero-title-max-width))] text-balance text-[length:var(--snapshot-hero-title-size)] [font-family:var(--font-display)] font-bold leading-[1.04] text-[var(--text-primary)] tracking-[var(--tracking-snapshot-hero)] lg:mx-0 lg:max-w-xl lg:tracking-[var(--tracking-snapshot-hero-lg)]"
             >
               <span className="block lg:max-w-[15ch]">{Copy.titleLead}</span>
-              <span className="glc-gradient-text-flow mt-2 block lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
+              <span className="mt-2 block font-bold text-[var(--glc-blue)] lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
                 {Copy.titleAccent}
               </span>
             </motion.h1>

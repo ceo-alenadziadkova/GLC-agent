@@ -11,43 +11,10 @@ html.dark::before {
   background: radial-gradient(circle, transparent 40%, var(--overlay-backdrop) 100%);
 }
 
-.glc-gradient-text-flow {
-  background-image: linear-gradient(
-    110deg,
-    var(--glc-blue-deeper) 0%,
-    var(--glc-blue) 30%,
-    var(--glc-green) 58%,
-    var(--glc-orange) 82%,
-    var(--glc-blue-deeper) 100%
-  );
-  background-size: 220% 220%;
-  background-position: 0% 50%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  animation: glc-gradient-flow 5.8s ease-in-out infinite;
-  will-change: background-position;
-}
-
-@keyframes glc-gradient-flow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .glc-gradient-text-flow {
-    animation: none;
-    background-position: 45% 50%;
-  }
-}
+/* Removed `.glc-gradient-text-flow` (gradient-filled text via background-clip: text)
+ * per impeccable craft anti-pattern policy: gradient text fails contrast in portions
+ * of the gradient and breaks under forced-colors / high-contrast modes. Replace any
+ * usage with solid token colors and weight/size hierarchy. */
 
 html:not(.dark) .glc-light-home-hero {
   border: 1px solid color-mix(in oklab, var(--border-subtle) 72%, var(--glc-blue-muted));

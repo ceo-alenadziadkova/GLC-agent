@@ -1311,10 +1311,13 @@ html:not(.dark) .glc-hover-row:hover {
   color: var(--text-primary);
 }
 
-/* BankClassicBriefFields.tsx */
+/* BankClassicBriefFields.tsx
+ * Section header chip: subtle background tint only.
+ * Removed `border-left: 2px ...` accent strip per impeccable craft anti-pattern policy
+ * (≥2px border-left as decorative strip is banned — use background tint or icon-led header instead). */
 .ds-bank-classic-section-header-tint {
   background-color: color-mix(in oklab, var(--glc-blue) 5%, transparent);
-  border-left: 2px solid color-mix(in oklab, var(--glc-blue) 25%, transparent);
+  padding-left: var(--space-2);
 }
 
 .ds-bank-classic-section-label {
@@ -4140,9 +4143,10 @@ html:not(.dark) .glc-hover-row:hover {
   background: color-mix(in oklab, var(--glc-green) 88%, var(--foreground));
 }
 
-.ds-rec-card-accent-border {
-  border-left-width: 3px;
-}
+/* Removed `.ds-rec-card-accent-border` (3px border-left accent strip on
+ * recommendation cards) per impeccable craft anti-pattern policy. Quick-win
+ * status is now communicated via the `QuickWinTag` badge inside the card
+ * header instead of a coloured side strip. */
 
 .ds-issue-confidence-pill {
   font-size: 9px;

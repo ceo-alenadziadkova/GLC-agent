@@ -104,7 +104,8 @@ Avoid hard-coded `#92400E`, `#D97706`, `#F59E0B`, and raw `rgba(245,158,11,…)`
 
 - **Design intent** for the muted text steps is documented inline in `theme.css` next to `--text-tertiary` / `--text-quaternary`.
 - **Automated check:** Lighthouse 11 accessibility was run on the public **`/login`** route (dev server); category score **1.0** with no failing audits in that run. **Portfolio, New Audit, Audit Workspace, Settings** require an authenticated session for the same automated pass — use Lighthouse/axe in a logged-in browser or CI with a test user when regressing contrast.
-- **Gradient-filled text** (`.glc-gradient-text-flow` in `index.css`) can fail contrast in portions of the gradient if the string is essential content; reserve it for decorative/marketing emphasis or provide a plain-text equivalent nearby.
+- **Gradient-filled text** (`background-clip: text`) is a banned anti-pattern: it can fail contrast in portions of the gradient and breaks under forced-colors / high-contrast modes. The previous `.glc-gradient-text-flow` rule was removed from `src/styles/features.css`; replace any reintroduced gradient text with solid token colors plus weight/size hierarchy.
+- **Border-left ≥ 2px as a decorative accent strip** (e.g. side stripes on cards or section headers) is a banned anti-pattern — it reads as a coloured rule rather than legitimate hierarchy. The previous `.ds-bank-classic-section-header-tint` 2px rule and `.ds-rec-card-accent-border` 3px rule were removed from `src/styles/components.css`; use background tints, badges (e.g. `QuickWinTag`) or icon-led headers instead.
 
 ### Typography
 

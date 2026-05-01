@@ -135,7 +135,7 @@ describe('StrategyLabOrchestrationPanel commercial accept', () => {
     mockPostOrchestrationCommercialOffer.mockResolvedValue(commercialProbeResponse);
   });
 
-  it('opens accessible confirm dialog and POSTs commercial offer with accept_domain on Apply', async () => {
+  it('renders an inline confirm group (no overlay AlertDialog) and POSTs commercial offer with accept_domain on Confirm', async () => {
     const user = userEvent.setup();
     const onReload = vi.fn();
     render(
@@ -153,7 +153,8 @@ describe('StrategyLabOrchestrationPanel commercial accept', () => {
       { wrapper: createWrapper() },
     );
 
-    await user.click(screen.getByText(STRATEGY_LAB_COPY.orchestrationDisclosure.commercialSummary));
+    // Open the unified Advanced disclosure (groups Stage-2 intent + snapshot history + commercial offers).
+    await user.click(screen.getByText(STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary));
     await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.commercialCheckCta }));
 
     expect(mockPostOrchestrationCommercialOffer).toHaveBeenCalledTimes(1);
@@ -161,13 +162,17 @@ describe('StrategyLabOrchestrationPanel commercial accept', () => {
       expect.not.objectContaining({ accept_domain: expect.anything() }),
     );
 
+    // Inline confirm pattern: trigger button arms the inline group; no AlertDialog overlay is rendered.
     await user.click(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.commercialAcceptCta }));
 
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByRole('heading', { level: 2, name: ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle })).toBeTruthy();
-    expect(within(dialog).getByText(ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription)).toBeTruthy();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
 
-    await user.click(within(dialog).getByRole('button', { name: ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm }));
+    const inlineConfirm = await screen.findByRole('group', {
+      name: ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle,
+    });
+    expect(within(inlineConfirm).getByText(ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription)).toBeTruthy();
+
+    await user.click(within(inlineConfirm).getByRole('button', { name: ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm }));
 
     expect(mockPostOrchestrationCommercialOffer).toHaveBeenCalledTimes(2);
     expect(mockPostOrchestrationCommercialOffer.mock.calls[1][1]).toMatchObject({

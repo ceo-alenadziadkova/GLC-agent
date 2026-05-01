@@ -30,9 +30,8 @@ export function RecommendationsSection({ domainData, openRec, setOpenRec }: Prop
         return (
           <div
             key={rec.id || index}
-            className={`glc-card overflow-hidden rounded-[var(--radius-xl)] border-l border-solid ds-rec-card-accent-border ${
-              isQuickWin ? 'border-l-[var(--glc-orange)]' : 'border-l-[var(--border-default)]'
-            }`}
+            className="glc-card overflow-hidden rounded-[var(--radius-xl)]"
+            data-quick-win={isQuickWin ? 'true' : 'false'}
           >
             <button
               type="button"

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { CaretDown, Path } from '@phosphor-icons/react';
+import { Path } from '@phosphor-icons/react';
 
 import type { DomainKey } from '@glc/intake-core';
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
@@ -19,17 +19,13 @@ import type {
 import { api } from '../../data/apiService';
 import { ApiError } from '../../data/api-error';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
 import { Button } from '../../components/ui/button';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../../components/ui/accordion';
 import { Input } from '../../../design-system/ui';
 import { toast } from 'sonner';
 import {
@@ -93,6 +89,12 @@ export function StrategyLabOrchestrationPanel({
 }: StrategyLabOrchestrationPanelProps) {
   const pack = isGlcOrchestrationPackView(strategy.glc_orchestration_pack) ? strategy.glc_orchestration_pack : null;
 
+  const buildPackHintId = useId();
+  const advancedStage2HeadingId = useId();
+  const advancedSnapshotHeadingId = useId();
+  const advancedCommercialHeadingId = useId();
+  const inlineConfirmId = useId();
+
   const [scenario, setScenario] = useState<OrchestrationChangeScenario>('hybrid');
   const [season, setSeason] = useState<OrchestrationSeasonPreset>('rolling_90d');
   const [planHorizonStart, setPlanHorizonStart] = useState('');
@@ -114,8 +116,8 @@ export function StrategyLabOrchestrationPanel({
   const [planGovernance, setPlanGovernance] = useState<OrchestrationPlanGovernanceDto | null>(null);
   const [commercialOffer, setCommercialOffer] = useState<OrchestrationCommercialOfferResponseDto | null>(null);
   const [commercialWorking, setCommercialWorking] = useState(false);
-  const [commercialAcceptDialogOpen, setCommercialAcceptDialogOpen] = useState(false);
-  const [commercialAcceptDomain, setCommercialAcceptDomain] = useState<keyof typeof DOMAIN_LABELS | null>(null);
+  /** Inline accept confirmation: domain pending confirmation, or null. Replaces overlay AlertDialog. */
+  const [pendingAcceptDomain, setPendingAcceptDomain] = useState<keyof typeof DOMAIN_LABELS | null>(null);
   const [analysisDepthFilter, setAnalysisDepthFilter] = useState<'all' | 'baseline' | 'deep'>('all');
   const [stage2Selection, setStage2Selection] = useState<DomainKey[]>(
     () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
@@ -436,29 +438,27 @@ export function StrategyLabOrchestrationPanel({
     [auditId, executionPlan.selected_domains, onReload, scenario, season, planHorizonStart, planHorizonEnd],
   );
 
-  const handleFetchCommercialOffer = useCallback(
-    async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
-      if (accept_domain) {
-        setCommercialAcceptDomain(accept_domain);
-        setCommercialAcceptDialogOpen(true);
-        return;
-      }
-      await performCommercialOfferFetch(undefined);
+  /** Top-level CTA Apply: probe with no accept_domain (initial scan). */
+  const handleProbeCommercialOffer = useCallback(async () => {
+    await performCommercialOfferFetch(undefined);
+  }, [performCommercialOfferFetch]);
+
+  /** Inline-confirm trigger: arms the inline confirmation block for a specific domain. */
+  const handleRequestAcceptDomain = useCallback((accept_domain: keyof typeof DOMAIN_LABELS) => {
+    setPendingAcceptDomain(accept_domain);
+  }, []);
+
+  const handleCancelInlineAccept = useCallback(() => {
+    setPendingAcceptDomain(null);
+  }, []);
+
+  const handleConfirmInlineAccept = useCallback(
+    (accept_domain: keyof typeof DOMAIN_LABELS) => {
+      setPendingAcceptDomain(null);
+      void performCommercialOfferFetch(accept_domain);
     },
     [performCommercialOfferFetch],
   );
-
-  const handleCommercialAcceptDialogOpenChange = useCallback((open: boolean) => {
-    setCommercialAcceptDialogOpen(open);
-    if (!open) setCommercialAcceptDomain(null);
-  }, []);
-
-  const handleCommercialAcceptConfirm = useCallback(() => {
-    const d = commercialAcceptDomain;
-    setCommercialAcceptDialogOpen(false);
-    setCommercialAcceptDomain(null);
-    if (d) void performCommercialOfferFetch(d);
-  }, [commercialAcceptDomain, performCommercialOfferFetch]);
 
   const toggleStage2Domain = useCallback((d: DomainKey) => {
     setStage2Selection(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
@@ -544,23 +544,59 @@ export function StrategyLabOrchestrationPanel({
     },
   ] as const;
 
-  return (
-    <div id={ORCHESTRATION_PANEL_DOM_ID} className="bg-card space-y-4 border-b p-4">
-      <div className="flex items-center gap-2">
-        <Path className="text-info h-4 w-4" />
-        <span className="text-foreground text-sm font-semibold">{ORCHESTRATION_UI_COPY.sectionTitle}</span>
-      </div>
-      <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.sectionHint}</p>
+  /** Whether we have any diagnostics to render flat (governance, revision diff, or pack inspection content). */
+  const hasPlanDiagnostics = !!planGovernance || revisionHistory.length > 0 || pack !== null;
+  /** Whether revision history sub-block has anything to show. */
+  const showRevisionHistorySubsection =
+    (APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0) ||
+    (selectedRevisionDiff !== null && roadmapVersionToShow > 1);
 
+  // Advanced accordion preview tokens — joined with ` · ` so each capability has a hint without expanding.
+  const savedStage2Count = strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0;
+  const advancedPreviewStage2 = savedStage2Count > 0
+    ? STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewStage2Count.replace(
+        '{count}',
+        String(savedStage2Count),
+      )
+    : STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewStage2None;
+  const advancedPreviewSnapshots = manifestSnapshots.length > 0
+    ? STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewSnapshotsCount.replace(
+        '{count}',
+        String(manifestSnapshots.length),
+      )
+    : STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewSnapshotsEmpty;
+  const advancedPreviewOffers = (commercialOffer?.offers.length ?? 0) > 0
+    ? STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewOffersReady
+    : STRATEGY_LAB_COPY.orchestrationDisclosure.advancedPreviewOffersIdle;
+  const advancedPreviewTokens = [
+    APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? advancedPreviewStage2 : null,
+    advancedPreviewSnapshots,
+    advancedPreviewOffers,
+  ].filter((token): token is string => token !== null);
+  const advancedPreviewLine = advancedPreviewTokens.join(' · ');
+
+  return (
+    <div id={ORCHESTRATION_PANEL_DOM_ID} className="bg-card space-y-5 border-b p-4">
+      {/* Section header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Path className="text-info h-4 w-4" aria-hidden />
+          <h2 className="text-foreground text-sm font-semibold">{ORCHESTRATION_UI_COPY.sectionTitle}</h2>
+        </div>
+        <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.sectionHint}</p>
+      </div>
+
+      {/* Quick start hint */}
       <div className="bg-background rounded-lg border p-3">
         <div className="text-muted-foreground mb-2 text-xs font-semibold">{ORCHESTRATION_UI_COPY.strategyLabQuickStartTitle}</div>
-        <ol className="text-muted-foreground list-inside list-decimal space-y-1 text-xs leading-relaxed">
+        <ol className="text-muted-foreground list-inside list-decimal space-y-1 text-xs leading-relaxed max-w-prose">
           <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep1}</li>
           <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep2}</li>
           <li>{ORCHESTRATION_UI_COPY.strategyLabQuickStartStep3}</li>
         </ol>
       </div>
 
+      {/* Manifest mini progress */}
       <div className="bg-background space-y-2 rounded-lg border p-3">
         <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.flowTitle}</div>
         <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -573,71 +609,11 @@ export function StrategyLabOrchestrationPanel({
         </ol>
       </div>
 
-      {APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? (
-        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
-          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
-            <div className="flex items-center gap-2">
-              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-              <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.directorStage2Summary}
-              </span>
-            </div>
-          </summary>
-          <div className="border-border space-y-2 border-t p-3">
-            <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
-            <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
-            <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
-            <ul className="flex flex-col gap-1">
-              {executionPlan.selected_domains.map(d => (
-                <li key={d}>
-                  <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={stage2Selection.includes(d)}
-                      onChange={() => toggleStage2Domain(d)}
-                      className="border-border rounded border"
-                    />
-                    <span>{DOMAIN_LABELS[d] ?? d}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={stage2Working}
-                onClick={() => void handleSaveStage2Intent()}
-              >
-                {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={stage2Working}
-                onClick={() => void handleClearSavedStage2Intent()}
-              >
-                {STRATEGY_LAB_COPY.directorStage2Intent.clear}
-              </Button>
-            </div>
-            {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
-              <p className="text-muted-foreground text-xs">
-                {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
-                {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
-                  .map(d => DOMAIN_LABELS[d] ?? d)
-                  .join(', ')}
-              </p>
-            ) : null}
-          </div>
-        </details>
-      ) : null}
-
+      {/* Core flow controls (always visible) */}
       <div className="space-y-3">
         <div>
           <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.coverageLabel}</span>
-          <p className="text-foreground mt-1 text-sm">{domainLabels}</p>
+          <p className="text-foreground mt-1 text-sm max-w-prose">{domainLabels}</p>
         </div>
         <label className="flex flex-col gap-1">
           <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.scenarioLabel}</span>
@@ -669,7 +645,7 @@ export function StrategyLabOrchestrationPanel({
         </label>
         <div className="space-y-2">
           <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.planHorizonLabel}</span>
-          <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed">{ORCHESTRATION_UI_COPY.planHorizonHint}</p>
+          <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed max-w-prose">{ORCHESTRATION_UI_COPY.planHorizonHint}</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="flex flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonStartLabel}</span>
@@ -693,10 +669,11 @@ export function StrategyLabOrchestrationPanel({
         </div>
       </div>
 
+      {/* Live manifest preview */}
       <div className="bg-background space-y-2 rounded-lg border p-3">
         <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.previewTitle}</div>
         {previewLoading && <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.previewLoading}</p>}
-        {manifestPreviewError && <p className="text-danger text-xs">{manifestPreviewError}</p>}
+        {manifestPreviewError && <p className="text-danger text-xs max-w-prose">{manifestPreviewError}</p>}
         <ul className="text-foreground space-y-1 text-xs">
           <li>
             <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewDomains}: </span>
@@ -758,7 +735,7 @@ export function StrategyLabOrchestrationPanel({
               </ul>
             </div>
             {manifestPreview.confidence_callouts.length > 0 && (
-              <ul className="text-muted-foreground list-inside list-disc text-xs">
+              <ul className="text-muted-foreground list-inside list-disc text-xs max-w-prose">
                 {manifestPreview.confidence_callouts.map((line, i) => (
                   <li key={i}>{line}</li>
                 ))}
@@ -768,160 +745,38 @@ export function StrategyLabOrchestrationPanel({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="secondary" disabled={working} onClick={() => void handleSaveManifest()}>
-          {ORCHESTRATION_UI_COPY.confirmSaveManifest}
-        </Button>
-        <Button
-          type="button"
-          variant="default"
-          disabled={working || !manifestSnapshotId || hasUnsavedManifestChanges}
-          onClick={() => void handleBuildPack()}
-        >
-          {ORCHESTRATION_UI_COPY.buildPack}
-        </Button>
-      </div>
-      {hasUnsavedManifestChanges && (
-        <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.buildPackNeedsManifestSync}</p>
-      )}
-      <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
-        <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
-          <div className="flex items-center gap-2">
-            <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-            <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary}</span>
-          </div>
-        </summary>
-        <div className="border-border space-y-2 border-t p-3 pt-3">
-          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.snapshotHistoryTitle}</div>
-          {manifestSnapshots.length > 0 ? (
-            <label className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.snapshotHistoryLabel}</span>
-              <select
-                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={manifestSnapshotId ?? ''}
-                onChange={e => {
-                  const nextId = e.target.value;
-                  const next = manifestSnapshots.find(row => row.id === nextId);
-                  setManifestSnapshotId(nextId);
-                  hydratedManifestSnapshotId.current = null;
-                  if (next) {
-                    setScenario(next.payload.change_scenario);
-                    setSeason(next.payload.season_preset);
-                    setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
-                    setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
-                    setSavedManifestSignature(
-                      encodeManifestChangeSignature({
-                        change_scenario: next.payload.change_scenario,
-                        season_preset: next.payload.season_preset,
-                        plan_horizon: next.payload.plan_horizon,
-                      }),
-                    );
-                    hydratedManifestSnapshotId.current = nextId;
-                  }
-                }}
-              >
-                {manifestSnapshots.map(row => (
-                  <option key={row.id} value={row.id}>
-                    {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
-                    {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotHistoryEmpty}</p>
-          )}
-          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.snapshotVersionHint}</p>
+      {/* CTA hierarchy: Build pack (primary, lg, with icon) + Save snapshot (outline, secondary). */}
+      <div className="space-y-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={working}
+            onClick={() => void handleSaveManifest()}
+            aria-label={STRATEGY_LAB_COPY.panel.saveSnapshotSecondaryAria}
+          >
+            {ORCHESTRATION_UI_COPY.confirmSaveManifest}
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            size="lg"
+            disabled={working || !manifestSnapshotId || hasUnsavedManifestChanges}
+            onClick={() => void handleBuildPack()}
+            aria-label={STRATEGY_LAB_COPY.panel.buildPackPrimaryAria}
+            aria-describedby={hasUnsavedManifestChanges ? buildPackHintId : undefined}
+            className="w-full sm:w-auto"
+          >
+            <Path className="h-4 w-4" aria-hidden />
+            {ORCHESTRATION_UI_COPY.buildPack}
+          </Button>
         </div>
-      </details>
-
-      <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
-        <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
-          <div className="flex items-center gap-2">
-            <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-            <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.orchestrationDisclosure.commercialSummary}</span>
-          </div>
-        </summary>
-        <div className="border-border space-y-2 border-t p-3 pt-3">
-          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.commercialOfferTitle}</div>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={commercialWorking}
-          onClick={() => void handleFetchCommercialOffer()}
-        >
-          {commercialWorking ? ORCHESTRATION_UI_COPY.commercialChecking : ORCHESTRATION_UI_COPY.commercialCheckCta}
-        </Button>
-        {commercialOffer?.offers.length ? (
-          <ul className="text-foreground space-y-3 text-xs">
-            {commercialOffer.offers.map(row => (
-              <li key={row.domain} className="list-none rounded-md border border-border px-3 py-2">
-                <div className="font-medium">
-                  {row.value_message} ({row.estimated_incremental_effort_weeks}w)
-                </div>
-                <div className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] font-semibold">
-                  {ORCHESTRATION_UI_COPY.commercialWhyNowTitle}
-                </div>
-                <ul className="mt-1 list-inside list-disc text-[length:var(--text-2xs)]">
-                  {row.why_now_bullets.map((line, i) => (
-                    <li key={`${row.domain}-why-${i}`}>{line}</li>
-                  ))}
-                </ul>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => void handleFetchCommercialOffer(row.domain)}
-                >
-                  {ORCHESTRATION_UI_COPY.commercialAcceptCta}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {commercialOffer?.base_preview ? (
-          <div className="text-muted-foreground space-y-2 text-xs">
-            <div className="font-semibold text-foreground">{ORCHESTRATION_UI_COPY.commercialBeforeAfterTitle}</div>
-            <div>
-              <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialBeforeLabel}: </span>
-              {commercialOffer.base_preview.lanes_included
-                .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-                .join(', ')}
-            </div>
-            {commercialOffer.recalculated_preview ? (
-              <div>
-                <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialAfterLabel}: </span>
-                {commercialOffer.recalculated_preview.lanes_included
-                  .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-                  .join(', ')}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        {commercialOffer?.accepted_domain && commercialOffer.recalculated_preview?.lanes_included ? (
-          <p className="text-muted-foreground text-xs">
-            {ORCHESTRATION_UI_COPY.commercialRecalculatedPrefix}{' '}
-            {DOMAIN_LABELS[commercialOffer.accepted_domain] ?? commercialOffer.accepted_domain}:{' '}
-            {commercialOffer.recalculated_preview.lanes_included
-              .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-              .join(', ')}
-            {commercialOffer.accepted_pack_result?.roadmap_version
-              ? ` · v${commercialOffer.accepted_pack_result.roadmap_version}`
-              : ''}
+        {hasUnsavedManifestChanges && (
+          <p id={buildPackHintId} className="text-muted-foreground text-xs max-w-prose">
+            {ORCHESTRATION_UI_COPY.buildPackNeedsManifestSync}
           </p>
-        ) : null}
-        {commercialOffer?.accepted_pack_result ? (
-          <div className="border-border space-y-2 rounded-md border px-3 py-2">
-            <p className="text-muted-foreground m-0 text-xs">{ORCHESTRATION_UI_COPY.commercialAcceptedReviewTimeline}</p>
-            <p className="text-muted-foreground m-0 text-[length:var(--text-2xs)]">
-              {ORCHESTRATION_UI_COPY.commercialAcceptedCompareHint}
-            </p>
-            <TimelineLinkButton auditId={auditId} />
-          </div>
-        ) : null}
-        </div>
-      </details>
+        )}
+      </div>
 
       {roadmapVersionToShow > 0 && (
         <p className="text-muted-foreground text-xs">
@@ -929,292 +784,532 @@ export function StrategyLabOrchestrationPanel({
         </p>
       )}
 
-      {planGovernance ? (
-        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
-          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
-            <div className="flex items-center gap-2">
-              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-              <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsSummary}
-              </span>
-            </div>
-          </summary>
-          <div className="border-border space-y-2 border-t p-3">
-            <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.governanceTitle}</div>
-            <p className="text-muted-foreground text-xs">
-              {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
+      {/* Plan diagnostics (flat, no <details>). Visible whenever there's something to inspect. */}
+      {hasPlanDiagnostics ? (
+        <section
+          aria-labelledby="strategy-lab-orch-diagnostics-heading"
+          className="space-y-4 border-t border-border pt-4"
+        >
+          <div className="space-y-1">
+            <h3 id="strategy-lab-orch-diagnostics-heading" className="text-foreground text-sm font-semibold">
+              {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsGroupTitle}
+            </h3>
+            <p className="text-muted-foreground text-xs max-w-prose">
+              {STRATEGY_LAB_COPY.orchestrationDisclosure.diagnosticsGroupHint}
             </p>
-            {pack?.input_quality ? (
-              <p className="text-muted-foreground text-xs">
-                {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
-                {pack.input_quality.input_mode})
+          </div>
+
+          {planGovernance ? (
+            <div className="bg-background space-y-2 rounded-lg border p-3">
+              <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.governanceTitle}</div>
+              <p className="text-muted-foreground text-xs max-w-prose">
+                {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
               </p>
-            ) : null}
-            <p className="text-muted-foreground text-xs">
-              Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {ORCHESTRATION_UI_COPY.governanceScoresLabel}{' '}
-              {Math.round(planGovernance.dependency_integrity_score * 100)}% /{' '}
-              {Math.round(planGovernance.confidence_coverage_score * 100)}% /{' '}
-              {Math.round(planGovernance.risk_coverage_score * 100)}%
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Plan scores: {Math.round(planGovernance.integrity_score * 100)}% /{' '}
-              {Math.round(planGovernance.coverage_score * 100)}% /{' '}
-              {Math.round(planGovernance.confidence_score * 100)}%
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {ORCHESTRATION_UI_COPY.governanceCriticalPathCoverageLabel}:{' '}
-              {Math.round(planGovernance.critical_path_node_ratio * 100)}%
-            </p>
-            {planGovernance.warnings.length > 0 ? (
-              <ul className="text-foreground list-inside list-disc text-xs">
-                {planGovernance.warnings.map(line => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
-            {governanceHints.length > 0 ? (
-              <div>
-                <div className="text-muted-foreground mb-1 text-xs font-medium">
-                  {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
+              {pack?.input_quality ? (
+                <p className="text-muted-foreground text-xs max-w-prose">
+                  {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
+                  {pack.input_quality.input_mode})
+                </p>
+              ) : null}
+              <p className="text-muted-foreground text-xs">
+                Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {ORCHESTRATION_UI_COPY.governanceScoresLabel}{' '}
+                {Math.round(planGovernance.dependency_integrity_score * 100)}% /{' '}
+                {Math.round(planGovernance.confidence_coverage_score * 100)}% /{' '}
+                {Math.round(planGovernance.risk_coverage_score * 100)}%
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Plan scores: {Math.round(planGovernance.integrity_score * 100)}% /{' '}
+                {Math.round(planGovernance.coverage_score * 100)}% /{' '}
+                {Math.round(planGovernance.confidence_score * 100)}%
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {ORCHESTRATION_UI_COPY.governanceCriticalPathCoverageLabel}:{' '}
+                {Math.round(planGovernance.critical_path_node_ratio * 100)}%
+              </p>
+              {planGovernance.warnings.length > 0 ? (
+                <ul className="text-foreground list-inside list-disc text-xs max-w-prose">
+                  {planGovernance.warnings.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {governanceHints.length > 0 ? (
+                <div>
+                  <div className="text-muted-foreground mb-1 text-xs font-medium">
+                    {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
+                  </div>
+                  <ul className="text-foreground list-inside list-disc text-xs max-w-prose">
+                    {governanceHints.map(hint => (
+                      <li key={hint}>{hint}</li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="text-foreground list-inside list-disc text-xs">
-                  {governanceHints.map(hint => (
-                    <li key={hint}>{hint}</li>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showRevisionHistorySubsection ? (
+            <div className="bg-background space-y-3 rounded-lg border p-3">
+              <div className="text-foreground text-xs font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.versionHistorySummary}
+              </div>
+              {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
+                <RevisionHistoryPanel items={revisionHistory} />
+              ) : null}
+              {selectedRevisionDiff && roadmapVersionToShow > 1 ? (
+                <div className="space-y-3">
+                  <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.revisionDiffTitle}</div>
+                  {revisionDiffCandidates.length > 0 && (
+                    <label className="flex flex-col gap-1">
+                      <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionCompareLabel}</span>
+                      <select
+                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                        value={selectedRevisionDiffKey ?? revisionDiffCandidates[0]?.key ?? ''}
+                        onChange={e => setSelectedRevisionDiffKey(e.target.value)}
+                      >
+                        {revisionDiffCandidates.map(item => (
+                          <option key={item.key} value={item.key}>
+                            v{item.from_version} → v{item.to_version}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <p className="text-muted-foreground text-xs">
+                    v{selectedRevisionDiff.from_version} → v{selectedRevisionDiff.to_version}
+                  </p>
+                  <ul className="text-foreground space-y-1 text-xs">
+                    {selectedRevisionDiff.nodes_added.length > 0 && (
+                      <li>
+                        <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesAdded}: </span>
+                        {selectedRevisionDiff.nodes_added.join(', ')}
+                      </li>
+                    )}
+                    {selectedRevisionDiff.nodes_removed.length > 0 && (
+                      <li>
+                        <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesRemoved}: </span>
+                        {selectedRevisionDiff.nodes_removed.join(', ')}
+                      </li>
+                    )}
+                    <li>
+                      {selectedRevisionDiff.critical_path_changed
+                        ? ORCHESTRATION_UI_COPY.revisionCriticalPathChanged
+                        : ORCHESTRATION_UI_COPY.revisionCriticalPathUnchanged}
+                    </li>
+                    <li>
+                      <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionConflictsResolvedCounts}: </span>
+                      {selectedRevisionDiff.conflicts_resolved_before} → {selectedRevisionDiff.conflicts_resolved_after}
+                    </li>
+                  </ul>
+                  {selectedRevisionDiff.nodes_lane_changed.length > 0 && (
+                    <div>
+                      <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionLaneChanges}</div>
+                      <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
+                        {selectedRevisionDiff.nodes_lane_changed
+                          .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed)
+                          .map(row => {
+                            const fromL =
+                              row.from_lane in ORCHESTRATION_LANE_LABELS
+                                ? ORCHESTRATION_LANE_LABELS[row.from_lane as OrchestrationLaneId]
+                                : row.from_lane;
+                            const toL =
+                              row.to_lane in ORCHESTRATION_LANE_LABELS
+                                ? ORCHESTRATION_LANE_LABELS[row.to_lane as OrchestrationLaneId]
+                                : row.to_lane;
+                            return (
+                              <li key={row.id}>
+                                {titleById.get(row.id) ?? row.id}{' '}
+                                <span className="text-muted-foreground">
+                                  ({ORCHESTRATION_UI_COPY.revisionLaneChangeRow}: {fromL} → {toL})
+                                </span>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                      {selectedRevisionDiff.nodes_lane_changed.length >
+                        ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed && (
+                        <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
+                      )}
+                    </div>
+                  )}
+                  {(selectedRevisionDiff.edges_added.length > 0 || selectedRevisionDiff.edges_removed.length > 0) && (
+                    <div className="space-y-2 border-t border-border pt-2">
+                      {selectedRevisionDiff.edges_added.length > 0 && (
+                        <div>
+                          <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesAdded}</div>
+                          <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
+                            {selectedRevisionDiff.edges_added
+                              .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
+                              .map((e, i) => (
+                                <li key={`a-${e.from}-${e.to}-${i}`}>
+                                  {titleById.get(e.from) ?? e.from}
+                                  <span className="text-muted-foreground"> → </span>
+                                  {titleById.get(e.to) ?? e.to}
+                                </li>
+                              ))}
+                          </ul>
+                          {selectedRevisionDiff.edges_added.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
+                            <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
+                          )}
+                        </div>
+                      )}
+                      {selectedRevisionDiff.edges_removed.length > 0 && (
+                        <div>
+                          <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesRemoved}</div>
+                          <ul className="text-foreground list-inside list-disc space-y-1 text-xs max-w-prose">
+                            {selectedRevisionDiff.edges_removed
+                              .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
+                              .map((e, i) => (
+                                <li key={`r-${e.from}-${e.to}-${i}`}>
+                                  {titleById.get(e.from) ?? e.from}
+                                  <span className="text-muted-foreground"> → </span>
+                                  {titleById.get(e.to) ?? e.to}
+                                </li>
+                              ))}
+                          </ul>
+                          {selectedRevisionDiff.edges_removed.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
+                            <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {pack ? (
+            <div className="bg-background space-y-3 rounded-lg border p-3">
+              <div className="text-foreground text-xs font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.packInspectionSummary}
+              </div>
+              <div className="space-y-2">
+                <div className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.orchestratorTabs.analysisDepth}</div>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">{STRATEGY_LAB_COPY.depthFilter.hint}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['all', 'baseline', 'deep'] as const).map(mode => (
+                    <Button
+                      key={mode}
+                      type="button"
+                      size="sm"
+                      variant={analysisDepthFilter === mode ? 'default' : 'outline'}
+                      onClick={() => setAnalysisDepthFilter(mode)}
+                    >
+                      {mode === 'all'
+                        ? STRATEGY_LAB_COPY.depthFilter.all
+                        : mode === 'baseline'
+                          ? STRATEGY_LAB_COPY.depthFilter.baseline
+                          : STRATEGY_LAB_COPY.depthFilter.deep}
+                    </Button>
+                  ))}
+                </div>
+                <ul className="text-muted-foreground list-inside list-disc text-xs max-w-prose">
+                  {depthFilteredNodes.length === 0 && <li>—</li>}
+                  {depthFilteredNodes.map(n => (
+                    <li key={n.id}>
+                      {n.title}{' '}
+                      <span className="text-[length:var(--text-2xs)]">
+                        ({n.analysis_depth === 'deep' ? ORCHESTRATION_UI_COPY.nodeBadgeDeep : ORCHESTRATION_UI_COPY.nodeBadgeBaseline})
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-          </div>
-        </details>
-      ) : null}
-
-      {(APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0) ||
-      (selectedRevisionDiff && roadmapVersionToShow > 1) ? (
-        <details className="bg-background rounded-lg border [&_svg]:transition-transform [&[open]_svg]:rotate-180">
-          <summary className="[&::-webkit-details-marker]:hidden list-none cursor-pointer px-3 py-3">
-            <div className="flex items-center gap-2">
-              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
-              <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.versionHistorySummary}
-              </span>
-            </div>
-          </summary>
-          <div className="border-border space-y-3 border-t p-3">
-            {APP_FEATURE_FLAGS.revisionHistoryPanelEnabled && revisionHistory.length > 0 ? (
-              <RevisionHistoryPanel items={revisionHistory} />
-            ) : null}
-            {selectedRevisionDiff && roadmapVersionToShow > 1 ? (
-              <div className="bg-background space-y-3 rounded-lg border p-3">
-          <div className="text-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.revisionDiffTitle}</div>
-          {revisionDiffCandidates.length > 0 && (
-            <label className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionCompareLabel}</span>
-              <select
-                className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                value={selectedRevisionDiffKey ?? revisionDiffCandidates[0]?.key ?? ''}
-                onChange={e => setSelectedRevisionDiffKey(e.target.value)}
-              >
-                {revisionDiffCandidates.map(item => (
-                  <option key={item.key} value={item.key}>
-                    v{item.from_version} → v{item.to_version}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <p className="text-muted-foreground text-xs">
-            v{selectedRevisionDiff.from_version} → v{selectedRevisionDiff.to_version}
-          </p>
-          <ul className="text-foreground space-y-1 text-xs">
-            {selectedRevisionDiff.nodes_added.length > 0 && (
-              <li>
-                <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesAdded}: </span>
-                {selectedRevisionDiff.nodes_added.join(', ')}
-              </li>
-            )}
-            {selectedRevisionDiff.nodes_removed.length > 0 && (
-              <li>
-                <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionNodesRemoved}: </span>
-                {selectedRevisionDiff.nodes_removed.join(', ')}
-              </li>
-            )}
-            <li>
-              {selectedRevisionDiff.critical_path_changed
-                ? ORCHESTRATION_UI_COPY.revisionCriticalPathChanged
-                : ORCHESTRATION_UI_COPY.revisionCriticalPathUnchanged}
-            </li>
-            <li>
-              <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.revisionConflictsResolvedCounts}: </span>
-              {selectedRevisionDiff.conflicts_resolved_before} → {selectedRevisionDiff.conflicts_resolved_after}
-            </li>
-          </ul>
-          {selectedRevisionDiff.nodes_lane_changed.length > 0 && (
-            <div>
-              <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionLaneChanges}</div>
-              <ul className="text-foreground list-inside list-disc space-y-1 text-xs">
-                {selectedRevisionDiff.nodes_lane_changed
-                  .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed)
-                  .map(row => {
-                    const fromL =
-                      row.from_lane in ORCHESTRATION_LANE_LABELS
-                        ? ORCHESTRATION_LANE_LABELS[row.from_lane as OrchestrationLaneId]
-                        : row.from_lane;
-                    const toL =
-                      row.to_lane in ORCHESTRATION_LANE_LABELS
-                        ? ORCHESTRATION_LANE_LABELS[row.to_lane as OrchestrationLaneId]
-                        : row.to_lane;
-                    return (
-                      <li key={row.id}>
-                        {titleById.get(row.id) ?? row.id}{' '}
-                        <span className="text-muted-foreground">
-                          ({ORCHESTRATION_UI_COPY.revisionLaneChangeRow}: {fromL} → {toL})
+              <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.labDetailLayerHint}</p>
+              {synthesisConflicts.length > 0 && (
+                <div className="border-t pt-3">
+                  <div className="text-foreground mb-1 text-xs font-semibold">{ORCHESTRATION_UI_COPY.synthesisSectionTitle}</div>
+                  <p className="text-muted-foreground mb-2 text-xs max-w-prose">{ORCHESTRATION_UI_COPY.synthesisSectionHint}</p>
+                  <ul className="text-foreground space-y-2 text-xs">
+                    {synthesisConflicts.map(row => (
+                      <li key={row.id} className="bg-card rounded-md border px-3 py-2 max-w-prose">
+                        <span className="text-muted-foreground font-medium">
+                          {row.resolution === 'synthesis_applied'
+                            ? ORCHESTRATION_UI_COPY.synthesisResolutionApplied
+                            : ORCHESTRATION_UI_COPY.synthesisResolutionPending}
+                          {': '}
                         </span>
+                        {row.summary}
                       </li>
-                    );
-                  })}
-              </ul>
-              {selectedRevisionDiff.nodes_lane_changed.length >
-                ORCHESTRATION_UI_LIMITS.maxRevisionDiffLaneChangesDisplayed && (
-                <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-              )}
-            </div>
-          )}
-          {(selectedRevisionDiff.edges_added.length > 0 || selectedRevisionDiff.edges_removed.length > 0) && (
-            <div className="space-y-2 border-t border-border pt-2">
-              {selectedRevisionDiff.edges_added.length > 0 && (
-                <div>
-                  <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesAdded}</div>
-                  <ul className="text-foreground list-inside list-disc space-y-1 text-xs">
-                    {selectedRevisionDiff.edges_added
-                      .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
-                      .map((e, i) => (
-                        <li key={`a-${e.from}-${e.to}-${i}`}>
-                          {titleById.get(e.from) ?? e.from}
-                          <span className="text-muted-foreground"> → </span>
-                          {titleById.get(e.to) ?? e.to}
-                        </li>
-                      ))}
+                    ))}
                   </ul>
-                  {selectedRevisionDiff.edges_added.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
-                    <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-                  )}
-                </div>
-              )}
-              {selectedRevisionDiff.edges_removed.length > 0 && (
-                <div>
-                  <div className="text-muted-foreground mb-1 text-xs font-medium">{ORCHESTRATION_UI_COPY.revisionEdgesRemoved}</div>
-                  <ul className="text-foreground list-inside list-disc space-y-1 text-xs">
-                    {selectedRevisionDiff.edges_removed
-                      .slice(0, ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed)
-                      .map((e, i) => (
-                        <li key={`r-${e.from}-${e.to}-${i}`}>
-                          {titleById.get(e.from) ?? e.from}
-                          <span className="text-muted-foreground"> → </span>
-                          {titleById.get(e.to) ?? e.to}
-                        </li>
-                      ))}
-                  </ul>
-                  {selectedRevisionDiff.edges_removed.length > ORCHESTRATION_UI_LIMITS.maxRevisionDiffEdgesDisplayed && (
-                    <p className="text-muted-foreground mt-1 text-xs">{ORCHESTRATION_UI_COPY.revisionDiffTruncated}</p>
-                  )}
                 </div>
               )}
             </div>
+          ) : (
+            <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.noPackYet}</p>
           )}
-              </div>
-            ) : null}
-          </div>
-        </details>
+        </section>
       ) : null}
 
-      {pack ? (
-        <details className="[&_svg]:transition-transform [&[open]_svg]:rotate-180">
-          <summary className="border-border [&::-webkit-details-marker]:hidden list-none cursor-pointer border-t px-4 py-4">
-            <div className="flex items-center gap-2">
-              <CaretDown className="text-muted-foreground h-4 w-4 flex-shrink-0" aria-hidden />
+      {/* Advanced settings: single accordion grouping Stage-2 intent + snapshot history + commercial offers.
+       * Trigger keeps an always-visible preview line so capabilities stay discoverable without expanding. */}
+      <Accordion
+        type="single"
+        collapsible
+        className="bg-background rounded-lg border [&_[data-slot=accordion-item]]:border-b-0"
+      >
+        <AccordionItem value="advanced">
+          <AccordionTrigger className="px-3 py-3 hover:no-underline">
+            <span className="flex flex-1 flex-col items-start gap-1 text-left">
               <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.packInspectionSummary}
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary}
               </span>
-            </div>
-          </summary>
-          <div className="border-border border-t px-4 pb-4">
-        <div className="space-y-3 pt-4">
-          <div className="space-y-2">
-            <div className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.orchestratorTabs.analysisDepth}</div>
-            <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.depthFilter.hint}</p>
-            <div className="flex flex-wrap gap-2">
-              {(['all', 'baseline', 'deep'] as const).map(mode => (
-                <Button
-                  key={mode}
-                  type="button"
-                  size="sm"
-                  variant={analysisDepthFilter === mode ? 'default' : 'outline'}
-                  onClick={() => setAnalysisDepthFilter(mode)}
-                >
-                  {mode === 'all'
-                    ? STRATEGY_LAB_COPY.depthFilter.all
-                    : mode === 'baseline'
-                      ? STRATEGY_LAB_COPY.depthFilter.baseline
-                      : STRATEGY_LAB_COPY.depthFilter.deep}
-                </Button>
-              ))}
-            </div>
-            <ul className="text-muted-foreground list-inside list-disc text-xs">
-              {depthFilteredNodes.length === 0 && <li>—</li>}
-              {depthFilteredNodes.map(n => (
-                <li key={n.id}>
-                  {n.title}{' '}
-                  <span className="text-[length:var(--text-2xs)]">
-                    ({n.analysis_depth === 'deep' ? ORCHESTRATION_UI_COPY.nodeBadgeDeep : ORCHESTRATION_UI_COPY.nodeBadgeBaseline})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.labDetailLayerHint}</p>
-          {synthesisConflicts.length > 0 && (
-            <div className="border-t pt-3">
-              <div className="text-foreground mb-1 text-xs font-semibold">{ORCHESTRATION_UI_COPY.synthesisSectionTitle}</div>
-              <p className="text-muted-foreground mb-2 text-xs">{ORCHESTRATION_UI_COPY.synthesisSectionHint}</p>
-              <ul className="text-foreground space-y-2 text-xs">
-                {synthesisConflicts.map(row => (
-                  <li key={row.id} className="bg-background rounded-md border px-3 py-2">
-                    <span className="text-muted-foreground font-medium">
-                      {row.resolution === 'synthesis_applied'
-                        ? ORCHESTRATION_UI_COPY.synthesisResolutionApplied
-                        : ORCHESTRATION_UI_COPY.synthesisResolutionPending}
-                      {': '}
-                    </span>
-                    {row.summary}
+              <span className="text-muted-foreground text-[length:var(--text-2xs)] font-normal leading-snug">
+                {advancedPreviewLine}
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="border-border space-y-5 border-t p-3 pt-4">
+            <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
+              {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedHint}
+            </p>
+
+          {APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? (
+            <section aria-labelledby={advancedStage2HeadingId} className="space-y-2">
+              <h4 id={advancedStage2HeadingId} className="text-foreground text-xs font-semibold">
+                {STRATEGY_LAB_COPY.orchestrationDisclosure.directorStage2Summary}
+              </h4>
+              <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
+              <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
+              <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
+              <ul className="flex flex-col gap-1">
+                {executionPlan.selected_domains.map(d => (
+                  <li key={d}>
+                    <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={stage2Selection.includes(d)}
+                        onChange={() => toggleStage2Domain(d)}
+                        className="border-border rounded border"
+                      />
+                      <span>{DOMAIN_LABELS[d] ?? d}</span>
+                    </label>
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-        </div>
-          </div>
-        </details>
-      ) : (
-        <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.noPackYet}</p>
-      )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={stage2Working}
+                  onClick={() => void handleSaveStage2Intent()}
+                >
+                  {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={stage2Working}
+                  onClick={() => void handleClearSavedStage2Intent()}
+                >
+                  {STRATEGY_LAB_COPY.directorStage2Intent.clear}
+                </Button>
+              </div>
+              {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
+                <p className="text-muted-foreground text-xs max-w-prose">
+                  {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
+                  {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
+                    .map(d => DOMAIN_LABELS[d] ?? d)
+                    .join(', ')}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
-      <AlertDialog open={commercialAcceptDialogOpen} onOpenChange={handleCommercialAcceptDialogOpenChange}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button">{ORCHESTRATION_UI_COPY.commercialConfirmAcceptCancel}</AlertDialogCancel>
-            <AlertDialogAction type="button" onClick={handleCommercialAcceptConfirm}>
-              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <hr className="border-border" />
+
+          <section aria-labelledby={advancedSnapshotHeadingId} className="space-y-2">
+            <h4 id={advancedSnapshotHeadingId} className="text-foreground text-xs font-semibold">
+              {ORCHESTRATION_UI_COPY.snapshotHistoryTitle}
+            </h4>
+            {manifestSnapshots.length > 0 ? (
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.snapshotHistoryLabel}</span>
+                <select
+                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                  value={manifestSnapshotId ?? ''}
+                  onChange={e => {
+                    const nextId = e.target.value;
+                    const next = manifestSnapshots.find(row => row.id === nextId);
+                    setManifestSnapshotId(nextId);
+                    hydratedManifestSnapshotId.current = null;
+                    if (next) {
+                      setScenario(next.payload.change_scenario);
+                      setSeason(next.payload.season_preset);
+                      setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
+                      setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
+                      setSavedManifestSignature(
+                        encodeManifestChangeSignature({
+                          change_scenario: next.payload.change_scenario,
+                          season_preset: next.payload.season_preset,
+                          plan_horizon: next.payload.plan_horizon,
+                        }),
+                      );
+                      hydratedManifestSnapshotId.current = nextId;
+                    }
+                  }}
+                >
+                  {manifestSnapshots.map(row => (
+                    <option key={row.id} value={row.id}>
+                      {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
+                      {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.snapshotHistoryEmpty}</p>
+            )}
+            <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.snapshotVersionHint}</p>
+          </section>
+
+          <hr className="border-border" />
+
+          <section aria-labelledby={advancedCommercialHeadingId} className="space-y-2">
+            <h4 id={advancedCommercialHeadingId} className="text-foreground text-xs font-semibold">
+              {ORCHESTRATION_UI_COPY.commercialOfferTitle}
+            </h4>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={commercialWorking}
+              onClick={() => void handleProbeCommercialOffer()}
+            >
+              {commercialWorking ? ORCHESTRATION_UI_COPY.commercialChecking : ORCHESTRATION_UI_COPY.commercialCheckCta}
+            </Button>
+            {commercialOffer?.offers.length ? (
+              <ul className="text-foreground space-y-3 text-xs">
+                {commercialOffer.offers.map(row => {
+                  const isPending = pendingAcceptDomain === row.domain;
+                  const inlineId = isPending ? `${inlineConfirmId}-${row.domain}` : undefined;
+                  return (
+                    <li key={row.domain} className="list-none rounded-md border border-border px-3 py-2 max-w-prose">
+                      <div className="font-medium">
+                        {row.value_message} ({row.estimated_incremental_effort_weeks}w)
+                      </div>
+                      <div className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] font-semibold">
+                        {ORCHESTRATION_UI_COPY.commercialWhyNowTitle}
+                      </div>
+                      <ul className="mt-1 list-inside list-disc text-[length:var(--text-2xs)]">
+                        {row.why_now_bullets.map((line, i) => (
+                          <li key={`${row.domain}-why-${i}`}>{line}</li>
+                        ))}
+                      </ul>
+                      {isPending ? (
+                        <div
+                          id={inlineId}
+                          role="group"
+                          aria-labelledby={`${inlineId}-title`}
+                          aria-describedby={`${inlineId}-desc`}
+                          className="bg-card border-border mt-2 space-y-2 rounded-md border px-3 py-2"
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              handleCancelInlineAccept();
+                            }
+                          }}
+                        >
+                          <h5
+                            id={`${inlineId}-title`}
+                            className="text-foreground text-xs font-semibold"
+                          >
+                            {ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle}
+                          </h5>
+                          <p
+                            id={`${inlineId}-desc`}
+                            className="text-muted-foreground text-xs leading-relaxed max-w-prose"
+                          >
+                            {ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              autoFocus
+                              onClick={() => handleConfirmInlineAccept(row.domain)}
+                            >
+                              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCancelInlineAccept}
+                            >
+                              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptCancel}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2"
+                          aria-haspopup="dialog"
+                          onClick={() => handleRequestAcceptDomain(row.domain)}
+                        >
+                          {ORCHESTRATION_UI_COPY.commercialAcceptCta}
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {commercialOffer?.base_preview ? (
+              <div className="text-muted-foreground space-y-2 text-xs">
+                <div className="font-semibold text-foreground">{ORCHESTRATION_UI_COPY.commercialBeforeAfterTitle}</div>
+                <div className="max-w-prose">
+                  <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialBeforeLabel}: </span>
+                  {commercialOffer.base_preview.lanes_included
+                    .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
+                    .join(', ')}
+                </div>
+                {commercialOffer.recalculated_preview ? (
+                  <div className="max-w-prose">
+                    <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialAfterLabel}: </span>
+                    {commercialOffer.recalculated_preview.lanes_included
+                      .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
+                      .join(', ')}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {commercialOffer?.accepted_domain && commercialOffer.recalculated_preview?.lanes_included ? (
+              <p className="text-muted-foreground text-xs max-w-prose">
+                {ORCHESTRATION_UI_COPY.commercialRecalculatedPrefix}{' '}
+                {DOMAIN_LABELS[commercialOffer.accepted_domain] ?? commercialOffer.accepted_domain}:{' '}
+                {commercialOffer.recalculated_preview.lanes_included
+                  .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
+                  .join(', ')}
+                {commercialOffer.accepted_pack_result?.roadmap_version
+                  ? ` · v${commercialOffer.accepted_pack_result.roadmap_version}`
+                  : ''}
+              </p>
+            ) : null}
+            {commercialOffer?.accepted_pack_result ? (
+              <div className="border-border space-y-2 rounded-md border px-3 py-2">
+                <p className="text-muted-foreground m-0 text-xs max-w-prose">{ORCHESTRATION_UI_COPY.commercialAcceptedReviewTimeline}</p>
+                <p className="text-muted-foreground m-0 text-[length:var(--text-2xs)] max-w-prose">
+                  {ORCHESTRATION_UI_COPY.commercialAcceptedCompareHint}
+                </p>
+                <TimelineLinkButton auditId={auditId} />
+              </div>
+            ) : null}
+          </section>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

@@ -4,39 +4,67 @@ import { ORCHESTRATION_IA_COPY } from './orchestration-roadmap-ui-copy.en';
 const STRATEGY_LAB_EMPTY_FIELD = '—' as const;
 
 export const STRATEGY_LAB_COPY = {
-  tabLabels: {
-    quick: 'Quick wins',
-    medium: 'Core growth',
-    strategic: 'Strategic',
-  },
-  /** Planner horizon subtitles on legacy roadmap timeframe tabs — keep with tab labels above. */
-  tabHorizonDescriptions: {
-    quick: 'Under 1 week horizon · minimal budget band',
-    medium: '1–3 months horizon · moderate budget band',
-    strategic: '3–6 months horizon · expanded investment band',
-  },
   depthFilter: {
     all: 'All depths',
     baseline: 'Baseline only',
     deep: 'Deep only',
     hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
   },
-  /** Sticky in-page nav (consultant orchestration mode). */
-  pageNav: {
-    ariaLabel: 'Strategy Lab sections',
-    planSetup: 'Plan setup',
-    inspectPack: 'Inspect pack',
-    reference: 'Reference',
+  /** Consultant switch between orchestration tooling and roadmap schedule (`/strategy` vs `/roadmap`). */
+  workbenchSegment: {
+    ariaLabel: 'Strategy Lab workspace mode',
+    description:
+      'Switch between orchestration tooling in Strategy Lab and the consultant roadmap schedule. Use orchestrator tabs inside the lab to browse pack rows.',
+    orchestrationLabel: 'Orchestration',
+    roadmapLabel: 'Roadmap',
+  },
+  /** Top-of-page three-step path that anchors the consultant inside Strategy Lab. */
+  stepsStrip: {
+    ariaLabel: 'Strategy Lab progress',
+    description:
+      'Three steps from audit context to initiative configuration and a built orchestration pack. Links jump to sections on this page; use Roadmap in the toolbar for the consultant schedule.',
+    step1Title: 'Context',
+    step1Hint: 'Audit scope, constraints and benchmarks pinned.',
+    step2Title: 'Initiatives',
+    step2Hint: 'Tune scenario, horizons and snapshots so the orchestration pack matches priorities.',
+    step3Title: 'Pack & roadmap',
+    step3Hint: 'Inspect the pack dependency map on this page · use Roadmap mode for consultant schedule lanes.',
+    statusDone: 'Done',
+    statusCurrent: 'Now',
+    statusPending: 'Next',
   },
   referenceDisclosure: {
     summary: 'Reference: peer benchmarks and constraint overrides',
     hint: 'Optional tuning for initiative rules — expand when you need industry context or to override intake assumptions.',
+    /** Always-visible preview line shown in the accordion trigger (uses {available}/{total} placeholders). */
+    previewBenchmarks: 'Benchmarks: {available}/{total} available',
+    /** Shown when at least one constraint axis is set as a Strategy Lab override (uses {summary} placeholder). */
+    previewConstraintsOverridden: 'Constraints overridden: {summary}',
+    /** Shown when no constraint axis is overridden — Strategy Lab uses the intake brief defaults (uses {summary} placeholder). */
+    previewConstraintsFromBrief: 'Constraints from brief: {summary}',
+    /** Shown until effective constraints arrive (e.g. older audits without strategy block). */
+    previewConstraintsUnknown: 'Constraints not set yet',
   },
   /** `<summary>` labels for collapsible blocks in StrategyLabOrchestrationPanel */
   orchestrationDisclosure: {
-    directorStage2Summary: 'Advanced: stage-2 deep director intent',
+    /** Single Advanced settings disclosure that groups Stage-2 intent, snapshot history and commercial offers. */
+    advancedSummary: 'Advanced settings: deep intent, snapshot history, coverage offers',
+    advancedHint:
+      'Optional controls. Most plans build cleanly without these. Open this group only when you need to tune deep follow-up, browse prior manifests, or weigh coverage expansions.',
+    /** Always-visible preview line for the Advanced accordion trigger. Tokens are joined with ` · `. */
+    advancedPreviewStage2None: 'Stage-2 intent: not set',
+    advancedPreviewStage2Count: 'Stage-2 intent: {count} domain(s)',
+    advancedPreviewSnapshotsCount: 'Snapshots: {count}',
+    advancedPreviewSnapshotsEmpty: 'Snapshots: none yet',
+    advancedPreviewOffersReady: 'Coverage offers: ready',
+    advancedPreviewOffersIdle: 'Coverage offers: not requested',
+    directorStage2Summary: 'Stage-2 deep director intent',
     snapshotHistorySummary: 'Manifest snapshot history',
     commercialSummary: 'Optional coverage expansion offers',
+    /** Group heading for plan diagnostics (governance + version history + pack inspection) — flat, not collapsed. */
+    diagnosticsGroupTitle: 'Plan quality and history',
+    diagnosticsGroupHint:
+      'Diagnostics for the latest pack: planner governance, revision deltas and node-level inspection.',
     diagnosticsSummary: 'Plan quality diagnostics',
     versionHistorySummary: 'Version history and change details',
     packInspectionSummary: 'Inspect pack nodes by analysis depth',
@@ -83,82 +111,35 @@ export const STRATEGY_LAB_COPY = {
     errorSubtitle: 'Error',
     unavailableSubtitle: 'Not available yet',
   },
-  export: {
-    documentTitle: 'Prioritised transformation roadmap',
-    companyLabel: 'Company',
-    urlLabel: 'URL',
-    auditIdLabel: 'Audit ID',
-    generatedOnLabel: 'Generated (UTC)',
-    executiveSummaryHeading: 'Executive summary',
-    selectedInitiativesHeading: 'Selected initiatives',
-    impactLabel: 'Impact',
-    effortLabel: 'Effort',
-    dependenciesLabel: 'Dependencies',
-    missingFieldValue: STRATEGY_LAB_EMPTY_FIELD,
-  },
-  toasts: {
-    roadmapDownloaded: 'Roadmap downloaded as a Markdown file.',
-  },
   panel: {
-    filterDomainLabel: 'Filter by domain',
-    sortModeLabel: 'Sort',
-    sortModes: {
-      impact: 'By impact',
-      effort: 'By effort',
-      roi: 'By ROI score',
-      domain: 'By domain',
-    },
-    domainFilterAll: 'All domains',
-    generateExecutionPlan: 'Generate execution plan',
-    executionPlanRunning: 'Generating execution plan…',
-    executionPlanDone: 'Execution plan saved',
-    executionPlanFailed: 'Could not generate execution plan',
-    executionPlanTooMany: 'Select at most {max} initiatives for an execution plan.',
-    initiativeDetails: 'Details',
-    labels: {
-      impact: 'Impact',
-      effort: 'Effort',
-      effortTier: {
-        low: 'Low',
-        medium: 'Medium',
-        high: 'High',
-      },
-      why: 'Why this',
-      outcome: 'Outcome',
-      scopeIn: 'In scope',
-      scopeOut: 'Out of scope',
-      paths: 'Execution paths',
-      evidence: 'Evidence',
-      verified: 'Evidence links verified',
-      unverified: 'Evidence links not fully verified',
-      incompatible: 'Incompatible with brief constraints',
-    },
-    lastExecutionPlan: 'Latest execution plan',
-    /** Closed-loop measurement (client-owned). */
-    outcomeMeasurementFooter:
-      'North Star / OKR: copy success metrics from the plan into your own goal system. Check-ins: use review cadence as a calendar reminder — this app does not send reminders or sync to CRM/analytics yet.',
-    noExecutionPlans: 'No execution plans yet',
-    selectedSuffix: 'selected',
-    generateRoadmap: 'Generate Roadmap',
+    /** Inline confirm pattern for commercial accept (replaces overlay AlertDialog). */
+    commercialAcceptInlineHint: 'Confirm to accept this offer and rebuild the pack with extra coverage.',
+    commercialAcceptInlineConfirmLabel: 'Confirm accept',
+    commercialAcceptInlineCancelLabel: 'Cancel',
+    /** Surfaced beside the disabled Build pack button when the manifest signature has unsaved drift. */
+    buildPackBlockedAriaHint: 'Save the current manifest snapshot before building the pack.',
+    /** Tooltip-like label clarifying primary CTA intent. */
+    buildPackPrimaryAria: 'Build orchestration pack from the saved manifest snapshot',
+    saveSnapshotSecondaryAria: 'Save the current manifest as a new snapshot',
     domainBenchmarksTitle: 'Domain benchmarks',
     domainBenchmarksHint:
       'Median confidence (p50) vs peer runs in the last 90 days. Uses your audit industry when set, otherwise the cross-industry pool.',
     emptyBenchmarksValue: STRATEGY_LAB_EMPTY_FIELD,
-    noInitiativesInCategory: 'No initiatives in this category',
-    yourRoadmap: 'Your Roadmap',
-    initiativesSelectedSuffix: 'initiatives selected',
-    totalInitiatives: 'Total Initiatives',
-    quickWins: 'Quick Wins',
-    strategicItems: 'Strategic Items',
-    effortMix: 'Effort Mix',
-    selectedTitle: 'Selected',
-    moreItemsSuffix: 'more items',
+    yourRoadmap: 'Plan summary',
+    summaryHint:
+      'Pick a node in the orchestrator tabs to inspect lane, domain and analysis depth here.',
     viewReport: 'View Report',
-    roadmapPreviewTitle: 'Roadmap document',
-    roadmapPreviewHint: 'Same text as the Markdown download. Scroll to read.',
-    roadmapPreviewEmpty: 'Select one or more initiatives on the left to preview the roadmap here.',
     resizeHandle: 'Resize roadmap summary panel',
     resizeHint: 'Drag to resize. Double-click to collapse or expand.',
+    /**
+     * Mobile-only Plan summary drawer (Sheet). On narrow viewports the side summary
+     * panel is replaced with a Sheet to keep the main column readable; the trigger
+     * lives at the bottom of the main column and auto-opens once a node is picked.
+     */
+    summaryDrawerTriggerLabel: 'Open plan summary',
+    summaryDrawerTitle: 'Plan summary',
+    summaryDrawerNodeSelectedHint: 'Node selected — open to inspect detail',
+    summaryDrawerNoSelectionHint: 'Open after picking a node from the orchestrator tabs',
   },
   messages: {
     auditNotFound: 'Audit not found',
@@ -179,6 +160,8 @@ export const STRATEGY_LAB_COPY = {
     saveOk: 'Constraint overrides saved.',
     clearOk: 'Overrides cleared. Intake brief values apply again.',
     saveFailed: 'Could not save constraint overrides.',
+    /** Closes inline save error (`role="status"` + aria-live); success clears automatically. */
+    dismissSaveError: 'Dismiss',
     optionLabels: {
       stage: {
         idea: 'Idea',
