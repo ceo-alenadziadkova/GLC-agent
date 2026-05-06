@@ -39,6 +39,19 @@ describe('strategy lab context policy', () => {
     const b = mergeStrategyLabContextForStorage(a, { director_stage2_domains: null });
     expect(b.director_stage2_domains).toBeUndefined();
   });
+
+  it('parses preserve_board_identity_on_rename flag', () => {
+    expect(parseStoredStrategyLabContext({ preserve_board_identity_on_rename: true })).toEqual({
+      preserve_board_identity_on_rename: true,
+    });
+  });
+
+  it('merge applies preserve_board_identity_on_rename and null clears', () => {
+    const a = mergeStrategyLabContextForStorage({}, { preserve_board_identity_on_rename: true });
+    expect(a.preserve_board_identity_on_rename).toBe(true);
+    const b = mergeStrategyLabContextForStorage(a, { preserve_board_identity_on_rename: null });
+    expect(b.preserve_board_identity_on_rename).toBeUndefined();
+  });
 });
 
 describe('mergeBriefSnapshotWithLabOverrides', () => {

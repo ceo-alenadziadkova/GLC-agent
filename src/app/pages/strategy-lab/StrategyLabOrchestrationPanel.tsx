@@ -107,6 +107,10 @@ export function StrategyLabOrchestrationPanel({
     () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
   );
   const [stage2Working, setStage2Working] = useState(false);
+  const [preserveBoardIdentityOnRename, setPreserveBoardIdentityOnRename] = useState<boolean>(
+    () => strategy.strategy_lab_context?.preserve_board_identity_on_rename === true,
+  );
+  const [boardIdentityWorking, setBoardIdentityWorking] = useState(false);
 
   const { hasUnsavedManifestChanges, applySignatureFromManifestPayload, markDraftAsSavedBaseline } =
     useManifestSavedSignatureBaseline({
@@ -125,6 +129,10 @@ export function StrategyLabOrchestrationPanel({
   useEffect(() => {
     setStage2Selection(strategy.strategy_lab_context?.director_stage2_domains ?? []);
   }, [strategy.strategy_lab_context?.director_stage2_domains]);
+
+  useEffect(() => {
+    setPreserveBoardIdentityOnRename(strategy.strategy_lab_context?.preserve_board_identity_on_rename === true);
+  }, [strategy.strategy_lab_context?.preserve_board_identity_on_rename]);
 
   useEffect(() => {
     const p = isGlcOrchestrationPackView(strategy.glc_orchestration_pack) ? strategy.glc_orchestration_pack : null;
@@ -459,6 +467,22 @@ export function StrategyLabOrchestrationPanel({
     }
   }, [auditId, mergeStrategyLabContextInAuditCache, onReload]);
 
+  const handleSaveBoardIdentityPreference = useCallback(async () => {
+    setBoardIdentityWorking(true);
+    try {
+      const res = await api.patchStrategyLabContext(auditId, {
+        preserve_board_identity_on_rename: preserveBoardIdentityOnRename ? true : null,
+      });
+      mergeStrategyLabContextInAuditCache?.(res.strategy_lab_context);
+      toast.success(STRATEGY_LAB_COPY.boardIdentity.saveOk);
+      onReload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.boardIdentity.saveFailed);
+    } finally {
+      setBoardIdentityWorking(false);
+    }
+  }, [auditId, mergeStrategyLabContextInAuditCache, onReload, preserveBoardIdentityOnRename]);
+
   const revisionDiffToShow = lastPostRevision?.diff ?? strategy.glc_orchestration_last_revision_diff ?? null;
   const revisionDiffCandidates = useMemo(() => {
     const items = revisionHistory.map(row => ({
@@ -694,6 +718,40 @@ export function StrategyLabOrchestrationPanel({
               ) : null}
             </section>
           ) : null}
+
+          <hr className="border-border" />
+
+          <section className="space-y-2">
+            <h4 className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.boardIdentity.sectionTitle}</h4>
+            <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
+              {STRATEGY_LAB_COPY.boardIdentity.sectionHint}
+            </p>
+            <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={preserveBoardIdentityOnRename}
+                onChange={event => setPreserveBoardIdentityOnRename(event.target.checked)}
+                className="border-border rounded border"
+              />
+              <span>{STRATEGY_LAB_COPY.boardIdentity.checkboxLabel}</span>
+            </label>
+            {!preserveBoardIdentityOnRename ? (
+              <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">
+                {STRATEGY_LAB_COPY.boardIdentity.warningWhenOff}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={boardIdentityWorking}
+                onClick={() => void handleSaveBoardIdentityPreference()}
+              >
+                {STRATEGY_LAB_COPY.boardIdentity.save}
+              </Button>
+            </div>
+          </section>
 
           <hr className="border-border" />
 

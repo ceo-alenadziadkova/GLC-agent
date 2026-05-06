@@ -17,11 +17,13 @@ const {
   mockGetRoadmapManifestSnapshots,
   mockGetOrchestrationPackDiffHistory,
   mockPostOrchestrationCommercialOffer,
+  mockPatchStrategyLabContext,
 } = vi.hoisted(() => ({
   mockPostOrchestratorPreview: vi.fn(),
   mockGetRoadmapManifestSnapshots: vi.fn(),
   mockGetOrchestrationPackDiffHistory: vi.fn(),
   mockPostOrchestrationCommercialOffer: vi.fn(),
+  mockPatchStrategyLabContext: vi.fn(),
 }));
 
 vi.mock('../../hooks/useProfile', () => ({
@@ -42,6 +44,7 @@ vi.mock('../../data/apiService', async (importOriginal) => {
       getRoadmapManifestSnapshots: mockGetRoadmapManifestSnapshots,
       getOrchestrationPackDiffHistory: mockGetOrchestrationPackDiffHistory,
       postOrchestrationCommercialOffer: mockPostOrchestrationCommercialOffer,
+      patchStrategyLabContext: mockPatchStrategyLabContext,
     },
   };
 });
@@ -133,6 +136,7 @@ describe('StrategyLabOrchestrationPanel commercial accept', () => {
     mockGetRoadmapManifestSnapshots.mockResolvedValue({ snapshots: [] });
     mockGetOrchestrationPackDiffHistory.mockResolvedValue({ items: [] });
     mockPostOrchestrationCommercialOffer.mockResolvedValue(commercialProbeResponse);
+    mockPatchStrategyLabContext.mockResolvedValue({ strategy_lab_context: {} });
   });
 
   it('renders an inline confirm group (no overlay AlertDialog) and POSTs commercial offer with accept_domain on Confirm', async () => {
@@ -178,5 +182,32 @@ describe('StrategyLabOrchestrationPanel commercial accept', () => {
     expect(mockPostOrchestrationCommercialOffer.mock.calls[1][1]).toMatchObject({
       accept_domain: 'security_compliance',
     });
+  });
+
+  it('saves board identity preference through strategy-lab context patch', async () => {
+    const user = userEvent.setup();
+    render(
+      <StrategyLabOrchestrationPanel
+        auditId="audit-commercial-test"
+        executionPlan={{
+          selected_domains: ['tech_infrastructure'],
+          depth: 'standard',
+          source: 'user_selected',
+        }}
+        strategy={buildRoadmapPackStrategy(buildMinimalPack())}
+        onReload={vi.fn()}
+        mergeStrategyLabContextInAuditCache={vi.fn()}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await user.click(screen.getByText(STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary));
+    await user.click(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.checkboxLabel));
+    await user.click(screen.getByRole('button', { name: STRATEGY_LAB_COPY.boardIdentity.save }));
+
+    expect(mockPatchStrategyLabContext).toHaveBeenCalledWith(
+      'audit-commercial-test',
+      expect.objectContaining({ preserve_board_identity_on_rename: true }),
+    );
   });
 });

@@ -12,10 +12,12 @@ describe('parseStrategyLabContextPatchResponse', () => {
         budget_band: 'unknown',
         team_scale: 'unknown',
         director_stage2_domains: ['tech_infrastructure'],
+        preserve_board_identity_on_rename: true,
       },
     });
     expect(out.strategy_lab_context.company_stage).toBe('growth');
     expect(out.strategy_lab_context.director_stage2_domains).toEqual(['tech_infrastructure']);
+    expect(out.strategy_lab_context.preserve_board_identity_on_rename).toBe(true);
   });
 
   it('accepts an empty strategy_lab_context shell', () => {

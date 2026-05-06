@@ -245,6 +245,17 @@ export const STRATEGY_LAB_COPY = {
     saveFailed: 'Could not save intent',
     selectedSummary: 'Marked for deep follow-up',
   },
+  boardIdentity: {
+    sectionTitle: 'Board identity on rename',
+    sectionHint:
+      'Use this when you rename initiatives and want Delivery Board cards to keep the same identity key across rebuilds.',
+    checkboxLabel: 'Keep Board card identity on rename',
+    warningWhenOff:
+      'Renaming without this option can create a new card on the Board and mark the previous card as orphaned.',
+    save: 'Save identity preference',
+    saveOk: 'Board identity preference saved.',
+    saveFailed: 'Could not save Board identity preference.',
+  },
 } as const;
 
 /**
@@ -267,6 +278,7 @@ export const STRATEGY_LAB_COPY_CONTEXT = {
   packDependencyMap: STRATEGY_LAB_COPY.packDependencyMap,
   depthFilter: STRATEGY_LAB_COPY.depthFilter,
   directorStage2: STRATEGY_LAB_COPY.directorStage2Intent,
+  boardIdentity: STRATEGY_LAB_COPY.boardIdentity,
   errorsLoading: STRATEGY_LAB_COPY.messages,
   appChrome: STRATEGY_LAB_COPY.appShell,
 } as const;

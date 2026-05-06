@@ -24,6 +24,7 @@ export type StrategyLabContextPatchBody = {
   budget_band?: string | null;
   team_scale?: string | null;
   director_stage2_domains?: DomainKey[] | null;
+  preserve_board_identity_on_rename?: boolean | null;
 };
 
 /** Runtime shape for PATCH `/api/audits/:id/strategy-lab-context` (prevents partial/bad JSON slipping into React Query cache). */
@@ -35,6 +36,7 @@ const strategyLabContextBodySchema = z
     budget_band: z.string().optional(),
     team_scale: z.string().optional(),
     director_stage2_domains: z.array(z.enum(domainKeysTuple)).optional(),
+    preserve_board_identity_on_rename: z.boolean().optional(),
   })
   .passthrough();
 

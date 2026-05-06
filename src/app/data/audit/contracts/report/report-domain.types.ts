@@ -123,6 +123,7 @@ export interface StrategyEffectiveConstraints {
 /** Persisted Strategy Lab JSON subset exposed on the audit strategy read model. */
 export type StrategyLabContextView = Partial<StrategyEffectiveConstraints> & {
   director_stage2_domains?: DomainKey[];
+  preserve_board_identity_on_rename?: boolean;
 };
 
 export interface StrategyRoadmap {
