@@ -34,35 +34,36 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  loading = false,
-  disabled,
-  ...props
-}: React.ComponentProps<"button"> &
+export type ButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     loading?: boolean;
-  }) {
-  const Comp = asChild ? Slot : "button";
-  const isDisabled = Boolean(disabled || loading);
+  };
 
-  return (
-    <Comp
-      data-slot="button"
-      data-loading={loading ? "true" : "false"}
-      aria-busy={loading || undefined}
-      disabled={isDisabled}
-      className={cn(
-        buttonVariants({ variant, size, className }),
-        "data-[loading=true]:cursor-wait data-[loading=true]:opacity-75",
-      )}
-      {...props}
-    />
-  );
-}
+/**
+ * Forward ref so Radix `Trigger asChild` / composition (`SlotClone`) can attach anchors for focus measurements.
+ */
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, loading = false, disabled, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    const isDisabled = Boolean(disabled || loading);
+
+    return (
+      <Comp
+        ref={ref}
+        data-slot="button"
+        data-loading={loading ? "true" : "false"}
+        aria-busy={loading || undefined}
+        disabled={isDisabled}
+        className={cn(
+          buttonVariants({ variant, size, className }),
+          "data-[loading=true]:cursor-wait data-[loading=true]:opacity-75",
+        )}
+        {...props}
+      />
+    );
+  },
+);
+Button.displayName = "Button";
 
 export { Button, buttonVariants };

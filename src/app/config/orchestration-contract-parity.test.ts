@@ -157,6 +157,18 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps Delivery Board reconcile preview flag default aligned with server', () => {
+    expect(APP_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled,
+    );
+  });
+
+  it('keeps Delivery Board custom columns feature default aligned with server', () => {
+    expect(APP_FEATURE_FLAGS.planBoardCustomColumnsEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardCustomColumnsEnabled,
+    );
+  });
+
   it('keeps v9 orchestration manifest/governance/ADR flags aligned (server env defaults vs APP_FEATURE_FLAGS)', () => {
     expect(APP_FEATURE_FLAGS.manifestScenarioCompareEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.manifestScenarioCompareEnabled,

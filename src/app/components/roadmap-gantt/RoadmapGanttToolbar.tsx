@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { ArrowsClockwise, DownloadSimple } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import type { TimelineGroupBase } from 'react-calendar-timeline';
@@ -76,6 +78,8 @@ export type RoadmapGanttToolbarProps = {
   hasActiveFilters: boolean;
   activeFilterTags: ReadonlyArray<{ id: string; label: string; clear: () => void }>;
   activeFilterReason: string;
+  /** Optional leading controls (e.g. consultant-only Plan actions). Rendered inside the primary toolbar row. */
+  toolbarLeadingSlot?: ReactNode | undefined;
 };
 
 export function RoadmapGanttToolbar({
@@ -139,6 +143,7 @@ export function RoadmapGanttToolbar({
   hasActiveFilters,
   activeFilterTags,
   activeFilterReason,
+  toolbarLeadingSlot,
 }: RoadmapGanttToolbarProps) {
   const baselineLegendChip =
     baselineSnapshot != null ? (
@@ -245,6 +250,9 @@ export function RoadmapGanttToolbar({
 
         <div className="flex flex-wrap items-end gap-3">
           <h2 className="sr-only">{ORCHESTRATION_UI_COPY.roadmapGanttToolbarPrimarySectionTitle}</h2>
+          {toolbarLeadingSlot ? (
+            <div className="flex flex-wrap items-center gap-2 self-end">{toolbarLeadingSlot}</div>
+          ) : null}
           {primaryViewControls}
           <button
             type="button"

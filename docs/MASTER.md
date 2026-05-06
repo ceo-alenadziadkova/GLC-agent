@@ -70,8 +70,8 @@ Selected ADR quick links:
 | Client unified roadmap (multi-lane timeline, lab split, pre-commit manifest) | [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) |
 | Delivery Board (operational state, Plan `view=board`, Timeline sunset path) | [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md](adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
 | Delivery Board vs narrative Timeline — product §2 matrix + GLC-PB ticket skeleton (Accepted v1; additive product framing aligned with Operational-layer ADR) | [ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md](adrs/ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md) |
-| Delivery Board deferred epics (rename identity, hybrid manifest, columns) — backlog | [ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](adrs/ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) |
-| Delivery Board Epic 1 — preserve canonical node key on rename (Proposed) | [ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](adrs/ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) |
+| Delivery Board deferred epics stub (Epics 2–3 backlog; Epic 1 shipped — see Preserve key ADR) | [ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](adrs/ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) |
+| Delivery Board Epic 1 — preserve canonical node key on rename (Accepted) | [ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](adrs/ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) |
 | Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
 | Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |
@@ -212,7 +212,7 @@ Current implementation note: persisted `glc_orchestration_pack` uses schema v2 (
 
 ### 9. Frontend application
 
-**What it is:** React 18 SPA: pages, hooks, Realtime subscriptions, API client; **GLC design system** (tokens in `src/styles/theme.css`, light/dark, shadcn-compatible variables).
+**What it is:** React 18 SPA: pages, hooks, Realtime subscriptions, API client; **GLC design system** (tokens in `src/styles/theme.css`, light/dark, shadcn-compatible variables). **Strategy Lab vs Plan:** Lab holds define / manifest / pack tooling on `/strategy/:id`; canonical delivery lives on `/plan/:id` (`view=board`, `roadmap`, or legacy `timeline`), with in-page IA anchors linking Define context, Shape pack, and Publish & operate.
 
 **Why it matters:** User-facing audit workflow and live pipeline UI.
 

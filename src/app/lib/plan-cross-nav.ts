@@ -1,7 +1,23 @@
-import { PORTAL_PLAN_VIEW_QUERY_KEY, type PortalPlanViewParam } from '../config/portal-plan';
+import type { PortalPlanViewParam } from '../config/portal-plan';
+import { PORTAL_PLAN_VIEW_QUERY_KEY } from '../config/portal-plan';
+import { buildAppRoute } from '../config/route-paths';
 
 /** Shared deep-link parameter across Plan surfaces (Board / Roadmap / Timeline). */
 export const PORTAL_PLAN_FOCUS_QUERY_KEY = 'focus' as const;
+
+/**
+ * Absolute plan surface href with canonical `view` and optional `focus` (canonical node key / pack node id).
+ * Preserves symmetry with roadmap → board linking in unified Plan shells.
+ */
+export function buildPlanSurfaceHrefWithFocus(args: {
+  auditId: string;
+  isClient: boolean;
+  view: PortalPlanViewParam;
+  focusCanonicalKey: string | null | undefined;
+}): string {
+  const base = args.isClient ? buildAppRoute.portalPlan(args.auditId, args.view) : buildAppRoute.plan(args.auditId, args.view);
+  return mergeFocusIntoPlanHref(base, args.focusCanonicalKey ?? null);
+}
 
 export function readPlanFocusCanonicalKey(search: string): string | null {
   const sp = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);

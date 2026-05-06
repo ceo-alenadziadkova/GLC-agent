@@ -24,4 +24,23 @@ describe('orchestration roadmap manifest signature compatibility', () => {
 
     expect(withAdjunctPayload).toBe(base);
   });
+
+  it('suffixes hints_digest into the encoded signature while core inputs match', () => {
+    const base = encodeManifestChangeSignature({
+      change_scenario: 'hybrid',
+      season_preset: 'rolling_90d',
+      plan_horizon: { start_date: '2026-05-01', end_date: '2026-08-01' },
+    });
+    expect(base).not.toContain('hints');
+
+    const withHints = encodeManifestChangeSignature({
+      change_scenario: 'hybrid',
+      season_preset: 'rolling_90d',
+      plan_horizon: { start_date: '2026-05-01', end_date: '2026-08-01' },
+      hints_digest: 'digest-abc',
+    });
+
+    expect(withHints.startsWith(`${base}::hints::`)).toBe(true);
+    expect(withHints.endsWith('digest-abc')).toBe(true);
+  });
 });

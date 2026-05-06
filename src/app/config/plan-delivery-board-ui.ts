@@ -1,6 +1,15 @@
 import { APP_FEATURE_FLAGS } from './app-feature-flags';
 import type { PortalPlanViewParam } from './portal-plan';
 
+/**
+ * Canonical `view=` for Strategy Lab → Plan CTAs (explicit links).
+ * Prefer Delivery Board when the surface is rolled out; otherwise the Gantt Roadmap schedule.
+ */
+export function primaryPlanWorkbenchViewForStrategyLinks(): PortalPlanViewParam {
+  if (isPlanDeliveryBoardUiEnabled()) return 'board';
+  return 'roadmap';
+}
+
 const ROLLOUT_ORDER = ['shadow', 'internal', 'pilot', 'ga'] as const;
 
 function rolloutIndex(mode: (typeof ROLLOUT_ORDER)[number]): number {

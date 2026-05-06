@@ -14,6 +14,7 @@ import {
   StrategyPhaseResultPatchSchema,
 } from '../../../schemas/pipeline-phase-result-edit.js';
 import { logger } from '../../../services/logger.js';
+import { mergeStrategyInitiativeArrays } from '../../../services/pipeline/merge-strategy-phase-initiative-patches.js';
 import { resolveAuditPlanBoardAccess } from '../../../services/plan-board/plan-board-access.js';
 import { supabase } from '../../../services/supabase.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
@@ -27,7 +28,9 @@ function parsePhaseNumber(raw: string | undefined): number | null {
 
 export async function patchPipelinePhaseResultController(req: AuthRequest, res: Response) {
   const auditId = req.params.id as string;
-  const phase = parsePhaseNumber(req.params.phase);
+  const phaseParam = req.params.phase;
+  const phaseStr = Array.isArray(phaseParam) ? phaseParam[0] : phaseParam;
+  const phase = parsePhaseNumber(phaseStr);
 
   try {
     if (phase == null) {
@@ -74,9 +77,35 @@ export async function patchPipelinePhaseResultController(req: AuthRequest, res: 
       const patch = strategyPatchParsed.data;
       const updatePayload: Record<string, unknown> = {};
       if (patch.executive_summary != null) updatePayload.executive_summary = patch.executive_summary;
-      if (patch.quick_wins != null) updatePayload.quick_wins = patch.quick_wins;
-      if (patch.medium_term != null) updatePayload.medium_term = patch.medium_term;
-      if (patch.strategic != null) updatePayload.strategic = patch.strategic;
+
+      const needsInitiativeMerge =
+        patch.quick_wins != null || patch.medium_term != null || patch.strategic != null;
+      if (needsInitiativeMerge) {
+        const { data: strategyRow, error: strategyFetchErr } = await supabase
+          .from('audit_strategy')
+          .select('quick_wins, medium_term, strategic')
+          .eq('audit_id', auditId)
+          .maybeSingle();
+        if (strategyFetchErr || !strategyRow) {
+          logger.error('route.patch_pipeline_phase_result_strategy_row_missing', {
+            auditId,
+            phase,
+            error: strategyFetchErr?.message,
+          });
+          sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
+          return;
+        }
+        const merged = mergeStrategyInitiativeArrays({
+          currentQuickWins: strategyRow.quick_wins,
+          currentMediumTerm: strategyRow.medium_term,
+          currentStrategic: strategyRow.strategic,
+          patch,
+        });
+        if (merged.quick_wins != null) updatePayload.quick_wins = merged.quick_wins;
+        if (merged.medium_term != null) updatePayload.medium_term = merged.medium_term;
+        if (merged.strategic != null) updatePayload.strategic = merged.strategic;
+      }
+
       if (Object.keys(updatePayload).length === 0) {
         res.json({ ok: true, phase_number: phase, updated: false });
         return;

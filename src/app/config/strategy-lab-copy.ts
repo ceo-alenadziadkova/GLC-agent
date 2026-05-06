@@ -13,31 +13,43 @@ export const STRATEGY_LAB_COPY = {
     deep: 'Deep only',
     hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
   },
-  /** Consultant switch between orchestration tooling and plan execution surfaces (`/strategy` vs `/roadmap`). */
+  /** Consultant switch between orchestration tooling and plan execution surfaces (`/strategy` vs `/plan`). */
   workbenchSegment: {
     ariaLabel: 'Strategy Lab workspace mode',
     description:
-      'Orchestration builds the manifest and pack in Strategy Lab. Plan opens the seasonal timeline by default; switch to Board (when enabled) or Roadmap from the Plan tabs.',
+      'Strategy Lab defines the roadmap contract (context, manifest, pack). Plan is where delivery work runs — Board, Roadmap, or legacy Timeline tabs.',
     orchestrationLabel: 'Orchestration',
-    /** Entry to plan execution (`/roadmap`) — pair with Timeline under Plan tabs. */
+    /** Entry to plan execution (`/plan`) — pair with segmented Plan tabs. */
     planLabel: 'Plan',
     /** Visible under the control: disambiguates Plan vs in-page Roadmap/Timeline (no second progress UI). */
     surfaceHint:
-      'Plan opens the seasonal timeline by default. Switch to Delivery Board when enabled, or Roadmap for the dependency schedule.',
+      'Strategy Lab = definition and rebuilds. Plan = Board (when rolled out), Gantt Roadmap, or legacy Timeline.',
+  },
+  /** In-page IA: three phases on `/strategy/:id` (consultant). */
+  iaPhasesNav: {
+    ariaLabel: 'Strategy Lab phases on this page',
+    intro:
+      'Work in three phases on this screen: define context, shape the saved pack, then publish and operate (manifest → build → Plan).',
+    defineLinkLabel: 'Define context',
+    shapeLinkLabel: 'Shape pack',
+    publishLinkLabel: 'Publish & operate',
   },
   /** Cross-surface journey: Strategy Lab preparation then Plan execution (consultant-facing header). */
   journeyStrip: {
     ariaLabel: 'Planning journey',
+    /** Plan `/plan`: four-step strip starts collapsed behind a control (less chrome above Roadmap/Board). */
+    planSurfaceJourneyCollapseShow: 'Show planning journey',
+    planSurfaceJourneyCollapseHide: 'Hide planning journey',
     description:
-      'Four checkpoints from audit context to manifest, built pack, and plan execution on Roadmap and Timeline. Links jump to Strategy Lab anchors or open the Plan surface.',
+      'Four checkpoints — context and references, manifest contract, execution pack inspection, then the Plan surface for delivery. In-page links use the Define / Shape / Publish sections on Strategy Lab.',
     step1Title: 'Context',
-    step1Hint: 'Audit scope, constraints and benchmarks pinned.',
+    step1Hint: 'Tune benchmarks and constraint assumptions (Define section).',
     step2Title: 'Manifest',
-    step2Hint: 'Scenario, horizon and snapshots aligned before pack build.',
+    step2Hint: 'Scenario, horizon, snapshot — Publish & operate block below.',
     step3Title: 'Pack',
-    step3Hint: 'Built orchestration pack — inspect dependency map below.',
+    step3Hint: 'Critical path lists + initiatives — Shape pack section.',
     step4Title: 'Plan',
-    step4Hint: 'Plan surface: Delivery Board (when enabled), Roadmap schedule, and seasonal Timeline — switch tabs there.',
+    step4Hint: 'Open Plan for Board, Roadmap, or legacy Timeline — execution and ordering.',
     statusDone: 'Done',
     statusCurrent: 'Now',
     statusPending: 'Next',
@@ -45,7 +57,7 @@ export const STRATEGY_LAB_COPY = {
   /** Helper text under breadcrumb when Plan tabs are omitted (manifest wizard surface). */
   manifestWizardChrome: {
     contextHint:
-      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Plan (Board, Roadmap, or Timeline) from Strategy Lab once the pack is ready.',
+      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Plan (delivery board or roadmap when enabled, or legacy Timeline) from Strategy Lab once the pack is ready.',
   },
   /** Nested Plan view tabs (schedule lanes vs timeline). */
   planViewSegment: {
@@ -54,18 +66,20 @@ export const STRATEGY_LAB_COPY = {
     boardTabLabel: 'Board',
     roadmapTabLabel: 'Roadmap',
     timelineTabLabel: 'Timeline',
-    /** Visible under the segment control: how surfaces differ. */
+    /** Collapsible “learn more” control (reduces noise next to tabs). */
+    learnMoreTrigger: 'How these views differ',
+    learnMoreHide: 'Hide explanation',
+    /** Visible under the segment control: how surfaces differ (expanded on demand). */
     differentiationIntro:
-      'Delivery Board groups critical-path work by horizon for execution flow (read-only in early rollout). Roadmap is the Gantt schedule with dependencies and baseline comparison. Timeline is the legacy seasonal narrative lanes view.',
-    /** Shown when Roadmap is active. */
-    roadmapContextHint:
-      'You are on the schedule: navigate tasks and lanes, inspect dependency paths, and compare to a saved baseline. Use keyboard shortcuts for the grid; lane changes are available from the task menu when applicable.',
+      'Board: operational columns for delivery state (DnD and manual backlog). Roadmap: time-based schedule with filters and dependencies. Timeline: legacy seasonal narrative projection.',
+    /** Shown when Roadmap is active — one short line under tabs. */
+    roadmapContextHint: 'Schedule view: inspect timing, filters, dependencies, baseline. Drag-and-drop workflow lives on Board.',
     /** Shown when Board is active. */
-    boardContextHint:
-      'You are on the delivery board preview: horizon buckets projected from the pack critical path — status controls arrive in the next rollout phase.',
+    boardContextHint: 'Execution board: move cards across columns and add backlog work. Timeline bars follow the packed schedule.',
     /** Shown when Timeline is active. */
-    timelineContextHint:
-      'You are on the execution timeline: seasonal buckets, lane stories and read-focused navigation — not the interactive Gantt.',
+    timelineContextHint: 'Legacy seasonal lanes (read-focused). Prefer Roadmap or Board for structured delivery.',
+    /** Compact Plan toolbar: opens menu with Board vs Roadmap vs Timeline guidance. */
+    toolbarViewsHelpAriaLabel: 'Help: how Board, Roadmap, and Timeline differ',
   },
   /** Breadcrumb above Plan chrome (Roadmap / Timeline pages). */
   planSurfaceBreadcrumb: {
@@ -87,12 +101,21 @@ export const STRATEGY_LAB_COPY = {
     /** Shown until effective constraints arrive (e.g. older audits without strategy block). */
     previewConstraintsUnknown: 'Constraints not set yet',
   },
+  /** Progress checklist at top of StrategyLabOrchestrationPanel */
+  orchestrationWorkflowStatus: {
+    title: 'Where you are',
+    manifestDirty: 'Manifest has unsaved changes — save a snapshot before Build.',
+    manifestSynced: 'Manifest matches the saved snapshot baseline.',
+    packPresent: 'Execution pack saved (version {version}).',
+    packMissing: 'No execution pack saved yet — save a manifest snapshot, then Build pack.',
+    boardHintsQueued: 'Delivery Board hints are queued — save a manifest snapshot to sign them into the contract.',
+  },
   /** `<summary>` labels for collapsible blocks in StrategyLabOrchestrationPanel */
   orchestrationDisclosure: {
-    /** Single Advanced settings disclosure that groups Stage-2 intent, snapshot history and commercial offers. */
-    advancedSummary: 'Advanced settings: deep intent, snapshot history, coverage offers',
+    /** Single Advanced disclosure: diagnostics, Stage-2, snapshots, commercial, board identity. */
+    advancedSummary: 'Advanced: plan diagnostics, deep intent, snapshots, coverage offers, board identity',
     advancedHint:
-      'Optional controls. Most plans build cleanly without these. Open this group only when you need to tune deep follow-up, browse prior manifests, or weigh coverage expansions.',
+      'Optional controls. Most work finishes with manifest + Build above. Expand when you need governance history, revision diffs, deep follow-up domains, older snapshots, coverage expansion, or board-identity prefs.',
     /** Always-visible preview line for the Advanced accordion trigger. Tokens are joined with ` · `. */
     advancedPreviewStage2None: 'Stage-2 intent: not set',
     advancedPreviewStage2Count: 'Stage-2 intent: {count} domain(s)',
@@ -103,7 +126,7 @@ export const STRATEGY_LAB_COPY = {
     directorStage2Summary: 'Stage-2 deep director intent',
     snapshotHistorySummary: 'Manifest snapshot history',
     commercialSummary: 'Optional coverage expansion offers',
-    /** Group heading for plan diagnostics (governance + version history + pack inspection) — flat, not collapsed. */
+    /** Group heading for plan diagnostics (governance + version history + pack inspection) — under Advanced. */
     diagnosticsGroupTitle: 'Plan quality and history',
     diagnosticsGroupHint:
       'Diagnostics for the latest pack: planner governance, revision deltas and node-level inspection.',
@@ -249,12 +272,29 @@ export const STRATEGY_LAB_COPY = {
     sectionTitle: 'Board identity on rename',
     sectionHint:
       'Use this when you rename initiatives and want Delivery Board cards to keep the same identity key across rebuilds.',
+    /** @deprecated Prefer per-initiative edit below; audit-wide toggle applies to all renames until cleared. */
+    deprecatedAuditWideHint:
+      'Prefer editing each initiative below. This audit-wide toggle is legacy and may be removed after rollout.',
     checkboxLabel: 'Keep Board card identity on rename',
-    warningWhenOff:
-      'Renaming without this option can create a new card on the Board and mark the previous card as orphaned.',
+    warningWhenOff: 'This will create a new card on the Board; the old one will be marked orphan.',
     save: 'Save identity preference',
     saveOk: 'Board identity preference saved.',
     saveFailed: 'Could not save Board identity preference.',
+    initiativeSectionTitle: 'Initiatives and Board card identity',
+    initiativeSectionHint:
+      'Rename an initiative and optionally keep the same Delivery Board card identity (explicit opt-in per save).',
+    drawerTitle: 'Edit initiative',
+    titleLabel: 'Title',
+    descriptionLabel: 'Description',
+    saveInitiative: 'Save initiative',
+    savingInitiative: 'Saving…',
+    saveInitiativeOk: 'Initiative updated.',
+    saveInitiativeFailed: 'Could not save initiative.',
+    cancel: 'Cancel',
+    editButton: 'Edit',
+    bucketQuickWins: 'Quick wins',
+    bucketMediumTerm: 'Medium-term initiatives',
+    bucketStrategic: 'Strategic initiatives',
   },
 } as const;
 
@@ -263,6 +303,7 @@ export const STRATEGY_LAB_COPY = {
  * Use for tooling, docs navigation, or future role-scoped loaders without breaking existing imports.
  */
 export const STRATEGY_LAB_COPY_CONTEXT = {
+  iaPhasesOnPage: STRATEGY_LAB_COPY.iaPhasesNav,
   consultantWorkbench: STRATEGY_LAB_COPY.workbenchSegment,
   journey: STRATEGY_LAB_COPY.journeyStrip,
   planSurfaces: {
@@ -271,6 +312,7 @@ export const STRATEGY_LAB_COPY_CONTEXT = {
     manifestWizardChrome: STRATEGY_LAB_COPY.manifestWizardChrome,
   },
   orchestrationLab: STRATEGY_LAB_COPY.orchestrationDisclosure,
+  orchestrationWorkflowStatus: STRATEGY_LAB_COPY.orchestrationWorkflowStatus,
   orchestrator: STRATEGY_LAB_COPY.orchestratorTabs,
   planSummary: STRATEGY_LAB_COPY.panel,
   benchmarksAndReference: STRATEGY_LAB_COPY.referenceDisclosure,

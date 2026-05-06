@@ -103,6 +103,8 @@ export interface StrategyInitiative {
   decision?: { why_this: string[]; tradeoffs?: string[]; if_skipped?: string[] };
   evidence?: { sources: StrategyInitiativeEvidenceSource[] };
   evidence_verified?: boolean;
+  /** Optional stable Board identity across title edits (Epic 1); explicit consultant opt-in only. */
+  board_identity_key?: string;
 }
 
 export interface ScorecardEntry {

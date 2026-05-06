@@ -12,26 +12,37 @@ import {
   IDEMPOTENCY_KEY_REQUIRED_MESSAGE,
   IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
   PLAN_BOARD_GOVERNANCE_BLOCKED_MESSAGE,
+  PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED_MESSAGE,
   PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED_MESSAGE,
 } from '../../../config/api-user-messages.en.js';
 import { idempotencyPatchAuditsPlanBoardCardKey } from '../../../config/api-http-paths.js';
-import { isOrchestrationPackApiEnabled, isPlanBoardStrictManualInProgressBlocked } from '../../../config/feature-flags.js';
+import {
+  isManifestDraftRevisionsFromBoardEnabled,
+  isOrchestrationPackApiEnabled,
+  isPlanBoardCustomColumnsFeatureEnabled,
+  isPlanBoardStrictManualInProgressBlocked,
+} from '../../../config/feature-flags.js';
 import {
   isPlanBoardOperationalReadOnlyPack,
   shouldBlockManualCardEnteringOperationalInProgress,
 } from '../../../config/plan-board-operational-policy.js';
-import type { PlanBoardColumnId } from '../../../config/plan-board-columns.js';
-import { parsePlanBoardTransition } from '../../../config/plan-board-transitions.js';
+import { parsePlanBoardTransitionBySemantics } from '../../../config/plan-board-transitions.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
 import { getStoredIdempotentResponse, isIdempotencyPayloadConflictError, storeIdempotentResponse } from '../../../lib/idempotency.js';
 import { resolveAuditPlanBoardAccess } from '../../../services/plan-board/plan-board-access.js';
+import {
+  buildDefaultResolvedPlanBoardPolicy,
+  resolvePlanBoardPolicyForAuditId,
+  semanticForColumnId,
+} from '../../../services/plan-board/plan-board-column-policy.service.js';
 import { isPlanBoardCardRowVisibleToClient } from '../../../services/plan-board/plan-board-client-view.js';
 import {
   countPinnedPlanBoardCards,
   emitPlanBoardCardMoved,
   emitPlanBoardCardPinned,
   emitPlanBoardConflict409,
+  emitPlanBoardManualInProgressBlocked,
 } from '../../../services/plan-board/plan-board-pipeline-events.js';
 import { logger } from '../../../services/logger.js';
 import { supabase } from '../../../services/supabase.js';
@@ -147,15 +158,25 @@ export async function patchPlanBoardCardController(req: AuthRequest, res: Respon
       return;
     }
 
+    const policyCtx = await resolvePlanBoardPolicyForAuditId({
+      auditId,
+      featureEnabled: isPlanBoardCustomColumnsFeatureEnabled(),
+    });
+    const resolved = policyCtx?.resolved ?? buildDefaultResolvedPlanBoardPolicy();
+    const allowedColumnIds = new Set(resolved.allowedColumnIds);
+
     const role = req.userRole === 'client' ? 'client' : 'consultant';
 
     if (
       role === 'client' &&
-      !isPlanBoardCardRowVisibleToClient({
-        source: cardRow.source as string,
-        column_id: cardRow.column_id as string,
-        delivery_area: cardRow.delivery_area as string,
-      })
+      !isPlanBoardCardRowVisibleToClient(
+        {
+          source: cardRow.source as string,
+          column_id: cardRow.column_id as string,
+          delivery_area: cardRow.delivery_area as string,
+        },
+        resolved.clientVisibleColumnIds,
+      )
     ) {
       sendApiError(res, 403, API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE);
       return;
@@ -166,35 +187,43 @@ export async function patchPlanBoardCardController(req: AuthRequest, res: Respon
       return;
     }
 
-    if (
-      parsed.data.to_column != null &&
-      parsed.data.to_column !== (cardRow.column_id as PlanBoardColumnId)
-    ) {
-      const from = cardRow.column_id as PlanBoardColumnId;
-      const to = parsed.data.to_column;
+    if (isManifestDraftRevisionsFromBoardEnabled() && parsed.data.lane != null) {
+      sendApiError(
+        res,
+        409,
+        API_ERROR_CODES.PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED,
+        PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED_MESSAGE,
+        {
+          code: 'lane_requires_manifest_draft',
+        },
+      );
+      return;
+    }
+
+    if (parsed.data.to_column != null && !allowedColumnIds.has(parsed.data.to_column)) {
+      sendApiError(res, 400, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID, 'invalid_column');
+      return;
+    }
+
+    if (parsed.data.to_column != null && parsed.data.to_column !== (cardRow.column_id as string)) {
+      const fromSem = semanticForColumnId(resolved, cardRow.column_id as string);
+      const toSem = semanticForColumnId(resolved, parsed.data.to_column);
       if (
         shouldBlockManualCardEnteringOperationalInProgress({
           strictEnabled: isPlanBoardStrictManualInProgressBlocked(),
           source: cardRow.source as string,
-          currentColumnId: from,
-          requestedToColumn: to,
+          currentSemantic: fromSem,
+          requestedToSemantic: toSem,
         })
       ) {
-        void emitPlanBoardConflict409({
-          auditId,
-          payload: {
-            reason: 'manual_in_progress_blocked',
-            pack_version_seen: parsed.data.expected_pack_version,
-            pack_version_actual: persisted.orchestration_pack_version,
-          },
-        });
+        void emitPlanBoardManualInProgressBlocked({ auditId });
         sendApiError(res, 409, API_ERROR_CODES.PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED, PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED_MESSAGE, {
           code: 'manual_in_progress_blocked',
           pack_version_actual: persisted.orchestration_pack_version,
         });
         return;
       }
-      if (!parsePlanBoardTransition(role, from, to)) {
+      if (!parsePlanBoardTransitionBySemantics(role, fromSem, toSem)) {
         sendApiError(res, 403, API_ERROR_CODES.AUDITS_NOT_FOUND, 'transition_not_allowed');
         return;
       }

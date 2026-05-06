@@ -5,7 +5,7 @@
 
 export const ORCHESTRATION_CHANGE_SCENARIOS = ['integrate_existing', 'build_new', 'hybrid'] as const;
 export type OrchestrationChangeScenario = (typeof ORCHESTRATION_CHANGE_SCENARIOS)[number];
-export const ORCHESTRATION_MANIFEST_SCHEMA_VERSION = 2 as const;
+export const ORCHESTRATION_MANIFEST_SCHEMA_VERSION = 3 as const;
 export type OrchestrationManifestSchemaVersion = typeof ORCHESTRATION_MANIFEST_SCHEMA_VERSION;
 
 /** Optional calendar window on roadmap manifest (ISO YYYY-MM-DD); matches server `RoadmapPlanHorizon`. */
@@ -45,12 +45,19 @@ export function encodeManifestChangeSignature(args: {
   /** Raw inputs when horizon is incomplete (tracks typing vs saved). */
   plan_start_raw?: string;
   plan_end_raw?: string;
+  /** Stable digest over pending roadmap manifest draft revision queue rows (consultant UX only). */
+  hints_digest?: string | null;
 }): string {
   const explicit = manifestPlanHorizonKey(args.plan_horizon ?? null);
-  if (explicit) return `${args.change_scenario}::${args.season_preset}::${explicit}`;
-  const raw =
-    `${(args.plan_start_raw ?? '').trim()}::${(args.plan_end_raw ?? '').trim()}`;
-  return `${args.change_scenario}::${args.season_preset}::${raw}`;
+  let basis: string;
+  if (explicit) basis = `${args.change_scenario}::${args.season_preset}::${explicit}`;
+  else {
+    const raw =
+      `${(args.plan_start_raw ?? '').trim()}::${(args.plan_end_raw ?? '').trim()}`;
+    basis = `${args.change_scenario}::${args.season_preset}::${raw}`;
+  }
+  const h = typeof args.hints_digest === 'string' ? args.hints_digest.trim() : '';
+  return h.length > 0 ? `${basis}::hints::${h}` : basis;
 }
 
 /** Normalizes horizon draft inputs before signing — avoids false "unsaved" when ISO dates match but raw strings differ. */

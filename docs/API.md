@@ -345,9 +345,9 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS; `strategy` initiatives are normalized to **v2** (decision/evidence/execution_paths) when possible |
 | `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
 | `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
-| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **GET pack** is a thin read of `audit_strategy` after access check) |
+| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST /api/audits/:id/roadmap/manifest/draft-revisions`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + **`POST …/manifest/draft-revisions`** (consultant owner / platform admin; lane/owner **draft queue** behind **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`**) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, **draft-revisions**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **draft-revisions** also returns **`MANIFEST_DRAFT_REVISIONS_DISABLED`** when the board draft flag is off; **GET pack** is a thin read of `audit_strategy` after access check) |
 | `GET /api/audits/:id/orchestration/sprint-export` | yes | yes | Tabular **export** (JSON/CSV) of graph nodes; optional join with latest execution pack — same RLS/ownership as **GET pack**; portal **guest** rejected where pack routes reject guests |
-| `GET/PATCH /api/audits/:id/plan/board`, `PATCH …/cards/:cardId`, `POST …/cards`, `POST …/reconcile`, `POST …/telemetry/view-opened` | yes | partial | **Delivery Board** soft state (`plan_task_delivery`). **`GET`** returns `issues: [{ code: "no_pack" }]` or `issues: [{ code: "governance_blocked" }]` when pack input quality is degraded (Timeline parity). **`PATCH …/cards`** requires **`Idempotency-Key`** (UUID); **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`** blocks mutations until the pack improves. **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=true`**: **`source='manual'`** rows may not enter **`in_progress`** (appendix §2.3 strict path). Portal **clients** see only pack-backed workflow columns (`next_up`–`done`). Telemetry endpoint records non-PII `plan_board_*` pipeline events — [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
+| `GET/PATCH /api/audits/:id/plan/board`, `PATCH …/cards/:cardId`, `POST …/cards`, `POST …/reconcile/preview`, `POST …/reconcile`, `POST …/telemetry/view-opened` | yes | partial | **Delivery Board** soft state (`plan_task_delivery`). **`GET`** returns `issues: [{ code: "no_pack" }]` or `issues: [{ code: "governance_blocked" }]` when pack input quality is degraded (Timeline parity). **`PATCH …/cards`** requires **`Idempotency-Key`** (UUID); **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`** blocks mutations until the pack improves. When **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD=true`**, **`PATCH`** body **`lane`** returns **`409`** **`PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED`** (consultant must use **`POST …/roadmap/manifest/draft-revisions`**, then **Save manifest**). **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when strict manual policy is on (default): **`source='manual'`** rows may not enter **`in_progress`** (appendix §2.3). **`POST …/reconcile/preview`** is **`403`** **`PLAN_BOARD_RECONCILE_PREVIEW_DISABLED`** unless **`FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW=true`** (dry-run counts only). Portal **clients** see only pack-backed workflow columns (`next_up`–`done`). Telemetry endpoint records non-PII `plan_board_*` pipeline events — [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
 | `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/client-project-context` | yes | yes | Composed **client project context** from `intake_brief` ([ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md)); `context` may be `null` if no brief row |
@@ -563,11 +563,13 @@ Computes a **deterministic preview** of what the roadmap manifest implies (lanes
 
 Persists an immutable **roadmap input manifest** row. **`selected_domains`** must match **`audits.execution_plan.selected_domains`** (same set as the audit’s coverage contract).
 
+When the audit has **pending rows** in `audit_roadmap_manifest_draft_revisions` (`POST …/manifest/draft-revisions`), this route **merges** them into the persisted **`node_execution_hints`** map (raising **`schema_version`** to **`3`** when drafts exist), validates the merged payload again, persists the snapshot, then **deletes** the draft queue rows best-effort (signing merges lane/owner intent into the manifest instead of silently diverging from the persisted pack).
+
 **Request body (JSON):**
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "selected_domains": ["tech_infrastructure", "ux_conversion"],
   "change_scenario": "hybrid",
   "season_preset": "rolling_90d",
@@ -575,6 +577,9 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
   "plan_horizon": {
     "start_date": "2026-01-01",
     "end_date": "2026-06-30"
+  },
+  "node_execution_hints": {
+    "canonical::node-key": { "lane": "seo", "owner_hint": "Program office" }
   }
 }
 ```
@@ -585,13 +590,40 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 - CAO: `cao.process_map`, `cao.automation_candidates`, `cao.throughput`
 - CSO: `cso.case_classifier`, `cso.threat_model`, `cso.compliance_map`
 
-- **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
+- **`schema_version`:** optional on write; defaults to **`3`**. **`1`** / **`2`** remain readable for legacy snapshots. **`node_execution_hints`:** optional **`Record<canonical_node_key, { lane?, owner_hint? }>`** (validated lane ids mirror orchestration **`ORCHESTRATION_LANE_IDS`**); populated automatically when drafting from the Delivery Board queue is merged in; applied when rebuilding **`glc_orchestration_pack`** so graph **`lane`** / **`owner_hint`** stay aligned after persist.
 - **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
 - **`selected_action_ids`:** optional client intent (manifest-level). Used as a **soft prioritization hint** on run/regenerate when no request override is provided.
 
 **Response `201`:** `{ "id": "<uuid>" }` — use as **`manifest_snapshot_id`** when building the orchestration pack.
 
 **Errors:** `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `400 AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED`.
+
+---
+
+### `POST /api/audits/:id/roadmap/manifest/draft-revisions`
+
+Enqueue or update a **lane** and/or **`owner_hint`** draft for one **`canonical_node_key`** tied to an existing **`source='pack'`** row on **`plan_task_delivery`**. Intended for consultants moving execution intent off silent **`pack_lane_snapshot`** writes (**`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`**; mirrors SPA **`APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard`**).
+
+**Access:** **`consultant_owner`** or **`platform_admin`** only (**`404`** for other actors). Same governance as the board when persisted pack **`input_quality.degraded`**: **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`**. **`expected_pack_version`** must equal the current persisted orchestration pack version (**`409`** **`AUDITS_ORCHESTRATION_PACK_STALE_VERSION`** on mismatch).
+
+**Headers:** **`Idempotency-Key`** (UUID) recommended; same semantics as other audit POST routes.
+
+**Request body (JSON):**
+
+```json
+{
+  "canonical_node_key": "hybrid::…",
+  "expected_pack_version": 4,
+  "lane": "seo",
+  "owner_hint": "Marketing lead"
+}
+```
+
+At least one of **`lane`** or **`owner_hint`** is required (**`lane`** must be one of **`ORCHESTRATION_LANE_IDS`**).
+
+**Response `200`:** `{ "ok": true, "pending_count": <number>, "digest": "<sha256 hex>" }` — stable digest for Strategy Lab manifest “unsaved” signatures.
+
+**Errors:** `403 MANIFEST_DRAFT_REVISIONS_DISABLED`, `403 ORCHESTRATION_PACK_API_DISABLED`, `404 AUDITS_NOT_FOUND`, `409 AUDITS_ORCHESTRATION_PACK_NOT_READY`, `409 PLAN_BOARD_GOVERNANCE_BLOCKED`, `409 AUDITS_ORCHESTRATION_PACK_STALE_VERSION`, `400 AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID` / **`MANIFEST_DRAFT_REVISION_REJECTED`**, `409 IDEMPOTENCY_PAYLOAD_MISMATCH`, `500 AUDITS_FETCH_FAILED`.
 
 ---
 
@@ -758,10 +790,12 @@ Flattens the **persisted** orchestration pack graph into tabular rows for PM exp
 
 | Method | Route | Roles | Purpose |
 | --- | --- | --- | --- |
-| `GET` | `/api/audits/:id/plan/board` | Consultant owner + portal **client participants** (`audits.client_id`) | Hydrates persisted cards from `latest GET pack` semantics; `issues:[{ code:"no_pack" }]` without pack; `issues:[{ code:"governance_blocked" }]` when `pack.input_quality.degraded` (**read-only** operational mutations). Clients receive a filtered subset of cards (ADR §10). When a pack exists, response includes **`timeline_parity`** (`season_preset`, `top_7d`, `top_30d`, `top_priorities` with **`reason_code`**, `milestones`) aligned with **`GET …/timeline`** priority math so the SPA can avoid a second timeline fetch where supported (TD-023). |
-| `PATCH` | `/api/audits/:id/plan/board/cards/:cardId` | Consultant owner + client | Same fields as above. Header **`Idempotency-Key` required**. **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`** or **`AUDITS_ORCHESTRATION_PACK_STALE_VERSION`**; **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=true`** blocks manual cards entering **`in_progress`**; **`400`** **`IDEMPOTENCY_KEY_REQUIRED`** / **`409`** **`IDEMPOTENCY_PAYLOAD_MISMATCH`**. Successful moves emit sanitized `pipeline_events` (`plan_board_card_moved`, `plan_board_card_pinned`; conflict paths emit **`plan_board_conflict_409`** including **`manual_in_progress_blocked`** telemetry when applicable). |
-| `POST` | `/api/audits/:id/plan/board/cards` | Consultant owner | Inserts **`source=manual`** rows with `canonical_node_key = null`; body `{ title, lane, column_id? }`. **`409`** `PLAN_BOARD_GOVERNANCE_BLOCKED` when the pack is degraded; same **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** guard when **`column_id`** would be **`in_progress`** under the strict manual flag. |
-| `POST` | `/api/audits/:id/plan/board/reconcile` | Consultant owner | Deterministic reconcile (post-pack webhook). **`409`** `PLAN_BOARD_GOVERNANCE_BLOCKED` when degraded. |
+| `GET` | `/api/audits/:id/plan/board` | Consultant owner + portal **client participants** (`audits.client_id`) | Hydrates persisted cards from `latest GET pack` semantics; **`columns`** describes operational Kanban headings + semantics (Epic 3 when enabled for the audit owner; otherwise canonical six defaults). `issues:[{ code:"no_pack" }]` without pack; `issues:[{ code:"governance_blocked" }]` when `pack.input_quality.degraded` (**read-only** operational mutations). Clients receive a filtered subset of cards (ADR §10). When a pack exists, response includes **`timeline_parity`** (`season_preset`, `top_7d`, `top_30d`, `top_priorities` with **`reason_code`**, `milestones`) aligned with **`GET …/timeline`** priority math so the SPA can avoid a second timeline fetch where supported (TD-023). For **consultant owner** and **platform admin** callers only, adds optional boolean **`column_policy_editable`** (true when **`FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`** plus owner **`profiles.plan_board_custom_columns_entitled`** or caller is platform admin), so clients can expose Board column settings UI without probing **`PATCH`** failures. |
+| `PATCH` | `/api/audits/:id/plan/board/column-policy` | Consultant owner (+ platform admin) | Epic 3: **`{ kind: 'reset' }`** clears **`audits.plan_board_column_policy`** and remaps all **`plan_task_delivery`** rows to canonical default ids, or **`{ kind: 'replace', policy }`** (**`schema_version: 1`**, **`columns[]`**, **`semantics`** six distinct targets). **`403`** **`PLAN_BOARD_CUSTOM_COLUMNS_DISABLED`** when the feature gate or owner entitlement blocks writes. **`400`** **`PLAN_BOARD_COLUMN_POLICY_INVALID`** when the body breaks Zod/invariant rules (`duplicate_semantic_target`, unknown semantic target ids). |
+| `PATCH` | `/api/audits/:id/plan/board/cards/:cardId` | Consultant owner + client | Same fields as above. Header **`Idempotency-Key` required**. **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`** or **`AUDITS_ORCHESTRATION_PACK_STALE_VERSION`**; **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when strict manual policy blocks manual cards entering **`in_progress`** (emits **`plan_board_manual_in_progress_blocked`**); **`400`** **`IDEMPOTENCY_KEY_REQUIRED`** / **`409`** **`IDEMPOTENCY_PAYLOAD_MISMATCH`**. Successful moves emit sanitized `pipeline_events` (`plan_board_card_moved`, `plan_board_card_pinned`; other conflict paths emit **`plan_board_conflict_409`**). |
+| `POST` | `/api/audits/:id/plan/board/cards` | Consultant owner | Inserts **`source=manual`** rows with `canonical_node_key = null`; body `{ title, lane, column_id? }`. **`409`** `PLAN_BOARD_GOVERNANCE_BLOCKED` when the pack is degraded; same **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** guard when **`column_id`** would be **`in_progress`** under the strict manual flag (emits **`plan_board_manual_in_progress_blocked`**). |
+| `POST` | `/api/audits/:id/plan/board/reconcile/preview` | Consultant owner | **Dry-run** reconcile projection (no `plan_task_delivery` writes). **`403`** **`PLAN_BOARD_RECONCILE_PREVIEW_DISABLED`** when **`FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW`** is off. **`409`** `PLAN_BOARD_GOVERNANCE_BLOCKED` / **`AUDITS_ORCHESTRATION_PACK_NOT_READY`** same as reconcile. **`200`** body: counts plus bounded samples: `sample_new_backlog_cards: [{ canonical_node_key, title }]`, `sample_orphan_node_removed: [{ canonical_node_key, title }]` (cap from server config; see `PLAN_BOARD_RECONCILE_PREVIEW_SAMPLE_CAP`). |
+| `POST` | `/api/audits/:id/plan/board/reconcile` | Consultant owner | Deterministic reconcile (post-pack webhook). **`409`** `PLAN_BOARD_GOVERNANCE_BLOCKED` when degraded. Pack-persist hook uses **`plan_board_apply_reconcile_batch`** in one transaction when **`FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY=true`** (default); legacy multi-statement path on RPC failure or when the flag is `false`. |
 | `POST` | `/api/audits/:id/plan/board/telemetry/view-opened` | Consultant owner + client | Body **`{ pack_version: number, has_pack: boolean }`**; **`204`** empty; emits **`plan_board_view_opened`** (`pipeline_events.data` has role + versions only — no task text). |
 
 **Errors:** **`403`** `ORCHESTRATION_PACK_API_DISABLED`; **`403`** **`AUDITS_ACCESS_DENIED`** when a client PATCH targets a hidden card or `delivery_area`. Column transitions for **clients** remain server-validated (`parsePlanBoardTransition`). Manual titles: **`manual_title`** (`075_plan_task_delivery_manual_title.sql`); pack-backed titles hydrate from **`glc_orchestration_pack.graph`**.

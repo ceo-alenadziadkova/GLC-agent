@@ -25,6 +25,15 @@ vi.mock('../services/plan-board/plan-board-cards.service.js', () => ({
   listPlanBoardCardsForAudit: listMocks.list,
 }));
 
+vi.mock('../services/plan-board/plan-board-column-policy.service.js', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('../services/plan-board/plan-board-column-policy.service.js')>();
+  return {
+    ...actual,
+    resolvePlanBoardPolicyForAuditId: vi.fn().mockResolvedValue(null),
+  };
+});
+
 const sendApiErrorMock = vi.hoisted(() => vi.fn());
 const parityMocks = vi.hoisted(() => ({
   build: vi.fn().mockResolvedValue({
@@ -91,11 +100,14 @@ describe('getPlanBoardController', () => {
 
     await getPlanBoardController({ params: { id: 'a1' }, userId: 'u1' } as never, res);
 
-    expect(res.json).toHaveBeenCalledWith({
-      pack_version_used: 0,
-      cards: [],
-      issues: [{ code: 'no_pack' }],
-    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pack_version_used: 0,
+        cards: [],
+        issues: [{ code: 'no_pack' }],
+        columns: expect.arrayContaining([expect.objectContaining({ id: 'backlog' })]),
+      }),
+    );
   });
 
   it('clients receive filtered subset (mocked downstream filter)', async () => {
@@ -191,6 +203,7 @@ describe('getPlanBoardController', () => {
       expect.objectContaining({
         pack_version_used: 8,
         issues: [{ code: 'governance_blocked' }],
+        columns: expect.any(Array),
         cards: expect.arrayContaining([expect.objectContaining({ id: 'c1', title: 'Alpha' })]),
         timeline_parity: expect.objectContaining({
           top_7d: [],

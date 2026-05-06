@@ -27,6 +27,8 @@ import {
 } from '../../components/ui/accordion';
 import { toast } from 'sonner';
 import { useManifestSavedSignatureBaseline } from '../../hooks/useManifestSavedSignatureBaseline';
+import { planBoardQueryKeys, usePlanBoardQuery } from '../../data/api/plan-board-queries';
+import { useQueryClient } from '../../lib/tanstack-react-query';
 import { useDebouncedOrchestratorManifestPreview } from '../../hooks/useDebouncedOrchestratorManifestPreview';
 import {
   ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
@@ -75,9 +77,17 @@ export function StrategyLabOrchestrationPanel({
   onReload,
   mergeStrategyLabContextInAuditCache,
 }: StrategyLabOrchestrationPanelProps) {
+  const qc = useQueryClient();
   const pack = isGlcOrchestrationPackView(strategy.glc_orchestration_pack) ? strategy.glc_orchestration_pack : null;
 
+  const boardHintsQuery = usePlanBoardQuery({
+    auditId,
+    enabled: APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && Boolean(pack),
+  });
+  const manifestDraftRevisionDigest = boardHintsQuery.data?.manifest_draft_revision_digest ?? '';
+
   const buildPackHintId = useId();
+  const orchestrationWorkflowStatusHeadingId = useId();
   const advancedStage2HeadingId = useId();
   const advancedSnapshotHeadingId = useId();
   const advancedCommercialHeadingId = useId();
@@ -114,11 +124,14 @@ export function StrategyLabOrchestrationPanel({
 
   const { hasUnsavedManifestChanges, applySignatureFromManifestPayload, markDraftAsSavedBaseline } =
     useManifestSavedSignatureBaseline({
-    scenario,
-    season,
-    planHorizonStart,
-    planHorizonEnd,
-  });
+      scenario,
+      season,
+      planHorizonStart,
+      planHorizonEnd,
+      manifestDraftRevisionDigest: APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard
+        ? manifestDraftRevisionDigest
+        : undefined,
+    });
 
   /** Newest-first list from API; server only accepts this id for POST orchestrator run. */
   const latestManifestSnapshotId = useMemo(
@@ -321,6 +334,9 @@ export function StrategyLabOrchestrationPanel({
         },
         ...prev,
       ].slice(0, ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems));
+      if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard) {
+        await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+      }
       toast.success(ORCHESTRATION_UI_COPY.manifestSaved);
     } catch (e) {
       const detail =
@@ -339,6 +355,7 @@ export function StrategyLabOrchestrationPanel({
     planHorizonStart,
     planHorizonEnd,
     markDraftAsSavedBaseline,
+    qc,
   ]);
 
   const handleBuildPack = useCallback(async () => {
@@ -558,6 +575,33 @@ export function StrategyLabOrchestrationPanel({
         {ORCHESTRATION_UI_COPY.strategyLabNextActionInline}
       </p>
 
+      <section
+        aria-labelledby={orchestrationWorkflowStatusHeadingId}
+        className="border-border bg-background rounded-lg border px-3 py-3"
+      >
+        <h3 id={orchestrationWorkflowStatusHeadingId} className="text-foreground text-sm font-semibold">
+          {STRATEGY_LAB_COPY.orchestrationWorkflowStatus.title}
+        </h3>
+        <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1 text-xs leading-relaxed max-w-prose">
+          <li>
+            {hasUnsavedManifestChanges
+              ? STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestDirty
+              : STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestSynced}
+          </li>
+          <li>
+            {roadmapVersionToShow > 0
+              ? STRATEGY_LAB_COPY.orchestrationWorkflowStatus.packPresent.replace(
+                  '{version}',
+                  String(roadmapVersionToShow),
+                )
+              : STRATEGY_LAB_COPY.orchestrationWorkflowStatus.packMissing}
+          </li>
+          {APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && manifestDraftRevisionDigest.length > 0 ? (
+            <li>{STRATEGY_LAB_COPY.orchestrationWorkflowStatus.boardHintsQueued}</li>
+          ) : null}
+        </ul>
+      </section>
+
       {/* Core flow controls (always visible) */}
       <OrchestrationManifestCoreFields
         domainLabels={domainLabels}
@@ -621,28 +665,8 @@ export function StrategyLabOrchestrationPanel({
         </p>
       )}
 
-      {/* Plan diagnostics (flat, no <details>). Visible whenever there's something to inspect. */}
-      {hasPlanDiagnostics ? (
-        <OrchestrationPanelDiagnosticsSection
-          planGovernance={planGovernance}
-          governanceHints={governanceHints}
-          pack={pack}
-          showRevisionHistorySubsection={showRevisionHistorySubsection}
-          revisionHistory={revisionHistory}
-          selectedRevisionDiff={selectedRevisionDiff}
-          roadmapVersionToShow={roadmapVersionToShow}
-          revisionDiffCandidates={revisionDiffCandidates}
-          selectedRevisionDiffKey={selectedRevisionDiffKey}
-          setSelectedRevisionDiffKey={setSelectedRevisionDiffKey}
-          titleById={titleById}
-          analysisDepthFilter={analysisDepthFilter}
-          setAnalysisDepthFilter={setAnalysisDepthFilter}
-          depthFilteredNodes={depthFilteredNodes}
-          synthesisConflicts={synthesisConflicts}
-        />
-      ) : null}
-
-      {/* Advanced settings: single accordion grouping Stage-2 intent + snapshot history + commercial offers.
+      {/* Advanced: diagnostics + tuning (progressive disclosure). */}
+      {/* Advanced settings: single accordion grouping diagnostics, Stage-2 intent + snapshot history + commercial offers.
        * Trigger keeps an always-visible preview line so capabilities stay discoverable without expanding. */}
       <Accordion
         type="single"
@@ -661,6 +685,27 @@ export function StrategyLabOrchestrationPanel({
             </span>
           </AccordionTrigger>
           <AccordionContent className="border-border space-y-5 border-t p-3 pt-4">
+            {hasPlanDiagnostics ? (
+              <OrchestrationPanelDiagnosticsSection
+                embeddedInAdvanced
+                planGovernance={planGovernance}
+                governanceHints={governanceHints}
+                pack={pack}
+                showRevisionHistorySubsection={showRevisionHistorySubsection}
+                revisionHistory={revisionHistory}
+                selectedRevisionDiff={selectedRevisionDiff}
+                roadmapVersionToShow={roadmapVersionToShow}
+                revisionDiffCandidates={revisionDiffCandidates}
+                selectedRevisionDiffKey={selectedRevisionDiffKey}
+                setSelectedRevisionDiffKey={setSelectedRevisionDiffKey}
+                titleById={titleById}
+                analysisDepthFilter={analysisDepthFilter}
+                setAnalysisDepthFilter={setAnalysisDepthFilter}
+                depthFilteredNodes={depthFilteredNodes}
+                synthesisConflicts={synthesisConflicts}
+              />
+            ) : null}
+            {hasPlanDiagnostics ? <hr className="border-border" /> : null}
             <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
               {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedHint}
             </p>
@@ -725,6 +770,9 @@ export function StrategyLabOrchestrationPanel({
             <h4 className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.boardIdentity.sectionTitle}</h4>
             <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
               {STRATEGY_LAB_COPY.boardIdentity.sectionHint}
+            </p>
+            <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed max-w-prose">
+              {STRATEGY_LAB_COPY.boardIdentity.deprecatedAuditWideHint}
             </p>
             <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
               <input

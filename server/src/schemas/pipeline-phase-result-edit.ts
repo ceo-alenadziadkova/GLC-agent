@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS } from '@glc/intake-core';
 
 const textListSchema = z.array(z.string().trim().min(1)).max(12);
 
@@ -27,6 +28,14 @@ const strategyInitiativePatchSchema = z.object({
   id: z.string().trim().min(1).max(120),
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().min(1).max(4000),
+  /** Explicit override only (Epic 1). `null` clears; omit to leave unchanged. */
+  board_identity_key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS)
+    .nullable()
+    .optional(),
 });
 
 export const DomainPhaseResultPatchSchema = z.object({

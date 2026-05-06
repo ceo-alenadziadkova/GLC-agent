@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { buildAppRoute } from '../config/route-paths';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../config/plan-delivery-board-ui';
 import { api } from '../data/apiService';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { useAudit } from '../hooks/useAudit';
@@ -133,7 +134,9 @@ export function ConsultantOrchestrationCockpitPage() {
               <Link to={buildAppRoute.strategy(auditId)}>{ORCHESTRATION_UI_COPY.consultantCockpitRefineCta}</Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.plan(auditId, 'timeline')}>{ORCHESTRATION_UI_COPY.consultantCockpitTimelineLinkLabel}</Link>
+              <Link to={buildAppRoute.plan(auditId, primaryPlanWorkbenchViewForStrategyLinks())}>
+                {ORCHESTRATION_UI_COPY.consultantCockpitPlanLinkLabel}
+              </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="no-underline">
               <Link to={buildAppRoute.portalRoadmapManifest(auditId)}>

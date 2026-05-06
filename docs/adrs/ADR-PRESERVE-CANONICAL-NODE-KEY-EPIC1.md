@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Proposed |
+| **Status** | **Accepted** |
 | **Date** | 2026-05-03 |
 | **Scope** | Optional stable Board identity when a consultant renames an initiative in Strategy Lab without treating it as a new logical work item |
 | **Supersedes** | — |
@@ -10,8 +10,8 @@
 
 ### Related decisions
 
-- Delivery Board operational layer (stable key today = hash of manifest signature + lane + normalized title): [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) Appendix **E** (deferred here).
-- Follow-up epic index: [`ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md`](./ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) — **Epic 1**.
+- Delivery Board operational layer (**Appendix E** — shipped preserve-identity behaviour and links): [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
+- Follow-up deferred-epics stub (Epics 2–3 queue; Epic 1 in **Shipped epics**): [`ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md`](./ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md).
 - Canonical key implementation: [`packages/intake-core/src/canonical-node-key.ts`](../../packages/intake-core/src/canonical-node-key.ts).
 
 ---
@@ -22,11 +22,11 @@ Renaming an initiative changes slugified title input to [`canonicalNodeKey`](../
 
 ---
 
-## Decision (target — not binding until Accepted)
+## Decision
 
-1. **Explicit override only:** introduce a manifest-level optional **stable key** (or stable alias list) **participating in** canonical key materialisation when the consultant selects **“Keep Board card identity”** in Strategy Lab.
+1. **Explicit override only:** introduce a manifest-level optional **stable key** **participating in** canonical key materialisation when the consultant selects **“Keep Board card identity on rename”** in Strategy Lab (per-initiative save via [`StrategyLabInitiativeEditDrawer.tsx`](../../src/app/pages/strategy-lab/StrategyLabInitiativeEditDrawer.tsx)).
 2. **No silent preservation:** default remains current behaviour (title drives hash); preserving identity is **opt-in** per save.
-3. **Server truth:** [`computeCanonicalNodeKey`](../../packages/intake-core/src/canonical-node-key.ts) (or successor) reads manifest fields + pack node metadata; reconcile tests cover unchanged key when override matches.
+3. **Server truth:** [`canonicalNodeKeyFromManifestAndNode`](../../packages/intake-core/src/canonical-node-key.ts) reads manifest fields + pack node metadata; reconcile tests cover unchanged key when override matches.
 4. **Governance:** override fields are included in manifest signing / snapshot semantics already governed by [`ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md`](./ADR-ORCHESTRATION-POST-MVP-V9-CRITICAL-DELTA.md) — no duplicate signing pipeline.
 
 ---
@@ -38,26 +38,20 @@ Renaming an initiative changes slugified title input to [`canonicalNodeKey`](../
 
 ---
 
-## Implementation sketch (engineering — post-Acceptance)
+## Implementation (shipped)
 
 | Area | Work |
 | --- | --- |
-| `@glc/intake-core` | Extend key inputs with optional stable id from manifest node |
-| Manifest Zod / API | Add optional field + validation |
-| Strategy Lab | Checkbox + warning string from copy module |
-| Reconcile | Tests: same override → same `canonical_node_key` across title edits |
+| `@glc/intake-core` | Optional `board_identity_key` in canonical key materialisation |
+| Manifest / pack | Optional field on graph nodes; Zod in **`glc-orchestration-pack.ts`** |
+| Strategy Lab | Per-initiative edit sheet + checkbox + warning from **`strategy-lab-copy.ts`**; `PATCH …/pipeline/phases/7/result` merges initiative patches in **`patch-pipeline-phase-result.controller.ts`** |
+| Reconcile | **`server/src/tests/plan-board-reconcile.test.ts`** — match-after-rename with `board_identity_key` |
+| Signing | **`orchestration-roadmap-manifest-signature.test.ts`** — adjunct `board_identity_key` does not change manifest signature |
 
-### Implementation progress (2026 — backend tract)
-
-Shipped **without Strategy Lab UX** (product sign-off still required to mark this ADR **Accepted**):
-
-- **`board_identity_key`** on **`StrategyInitiative`** (`server/src/schemas/domain-output.ts`), propagated through **`OrchestrationActionNode`**, **`buildOrchestrationGraph`** graph nodes, persisted pack Zod (**`glc-orchestration-pack.ts`**), and consumed in **`reconcileBoardWithPack`** via **`canonicalNodeKeyFromManifestAndNode`** (**`packages/intake-core`**).
-- **Tests:** `@glc/intake-core` canonical-key cases; **`server/src/tests/plan-board-reconcile.test.ts`** match-after-rename scenario.
-
-Remaining for full Epic closure: Strategy Lab checkbox + manifest signing semantics review + promoting this ADR to **Accepted**.
+**Legacy:** audit-wide `preserve_board_identity_on_rename` in Strategy Lab orchestration panel remains documented as deprecated until removal in a later cleanup PR.
 
 ---
 
-## Status gate
+## Rollback
 
-Promote to **Accepted** only after product sign-off on UX copy, manifest shape, and rollback story (clear override → revert to title-hash behaviour).
+Clear per-initiative `board_identity_key` (uncheck “Keep Board card identity”, save) or revert `audit_strategy` initiative JSON via existing phase-result / admin flows — cards revert to title-hash canonical keys on next reconcile.

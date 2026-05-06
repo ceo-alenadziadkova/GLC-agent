@@ -17,7 +17,7 @@ const seasonPresetEnum = [...ROADMAP_SEASON_PRESETS] as [
 ];
 
 export const OrchestrationCommercialOfferRequestSchema = z.object({
-  schema_version: z.union([z.literal(1), z.literal(2)]).optional(),
+  schema_version: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   change_scenario: z.enum(changeScenarioEnum),
   season_preset: z.enum(seasonPresetEnum),
   selected_domains: z.array(z.enum(domainKeyEnum)).min(1),

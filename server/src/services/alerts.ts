@@ -5,6 +5,7 @@ import { cleanupExpiredEvaluationDatasets } from '../lib/evaluation-datasets-ret
 import { getSharedRedisClient } from './redis.js';
 import { emitStructuredNotification } from './notifications.js';
 import {
+  ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
   ALERT_CHECK_INTERVAL_MS,
   ALERT_CHECK_WINDOW_MINUTES,
   ALERT_COOLDOWN_MS,
@@ -20,6 +21,7 @@ import {
   formatPipelineFailureRateMessageEn,
   formatPipelineLatencyP95MessageEn,
   formatPipelineTokenBurnMessageEn,
+  formatPlanBoardConflictBurstMessageEn,
   pipelineAlertTitlesEn,
 } from '../config/alert-messages.en.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
@@ -150,6 +152,59 @@ export async function runAlertChecks(): Promise<void> {
         traceSuffix: formatObservabilityTraceSuffixForAlerts(traceId),
       }),
       payload: { token_burn: tokenBurn, threshold: TOKEN_BURN_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
+  }
+
+  const planBoardBurstTypes = new Set<string>([
+    PIPELINE_EVENT_TYPES.planBoardReconciled,
+    PIPELINE_EVENT_TYPES.planBoardConflict409,
+  ]);
+  const planBoardRowsByAudit = new Map<string, Array<{ created_at: string; event_type: string; data?: unknown }>>();
+  for (const event of events ?? []) {
+    const et = String(event.event_type);
+    if (!planBoardBurstTypes.has(et)) continue;
+    const aid = String(event.audit_id ?? '');
+    if (!aid) continue;
+    const list = planBoardRowsByAudit.get(aid) ?? [];
+    list.push({ created_at: String(event.created_at), event_type: et, data: event.data });
+    planBoardRowsByAudit.set(aid, list);
+  }
+
+  for (const [auditKey, planRows] of planBoardRowsByAudit) {
+    const sorted = [...planRows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const firstReconcile = sorted.find(r => r.event_type === PIPELINE_EVENT_TYPES.planBoardReconciled);
+    if (!firstReconcile) continue;
+    const conflictsAfter = sorted.filter(
+      r => r.event_type === PIPELINE_EVENT_TYPES.planBoardConflict409 && r.created_at > firstReconcile.created_at,
+    );
+    if (conflictsAfter.length < ALERT_BOARD_CONFLICT_BURST_THRESHOLD) continue;
+    if (!shouldNotify(`board_conflict_burst:${auditKey}`)) continue;
+    const burstTrace =
+      conflictsAfter.map(r => (r.data as { trace_id?: string } | null)?.trace_id).find(Boolean) ??
+      firstTraceId(events ?? []);
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_plan_board_conflict_burst_post_reconcile',
+      priority: 'medium',
+      audience: 'consultants',
+      title: pipelineAlertTitlesEn.planBoardConflictBurstPostReconcile,
+      message: formatPlanBoardConflictBurstMessageEn({
+        auditId: auditKey,
+        conflictCount: conflictsAfter.length,
+        threshold: ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
+        windowMin: WINDOW_MIN,
+        traceSuffix: formatObservabilityTraceSuffixForAlerts(burstTrace),
+      }),
+      auditId: auditKey,
+      payload: {
+        audit_id: auditKey,
+        conflict_count: conflictsAfter.length,
+        threshold: ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
+        window_minutes: WINDOW_MIN,
+        trace_id: burstTrace,
+      },
       sendInApp: true,
       sendTelegram: true,
     });

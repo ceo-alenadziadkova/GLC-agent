@@ -60,7 +60,7 @@ describe('PortalPlanPage unified shell landmarks', () => {
 
     render(<RouterProvider router={router} />);
 
-    expect(screen.getByTestId('board-surface-stub')).toBeInTheDocument();
+    expect(await screen.findByTestId('board-surface-stub')).toBeInTheDocument();
 
     await act(async () => {
       await router.navigate('/portal/plan/e2e-audit?view=roadmap');

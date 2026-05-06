@@ -3,16 +3,25 @@ import type {
   OrchestrationPlanHorizon,
   OrchestrationSeasonPreset,
 } from '../config/orchestration-roadmap-manifest';
-import { encodeManifestChangeSignature, manifestSignatureArgsFromDraft } from '../config/orchestration-roadmap-manifest';
+import {
+  encodeManifestChangeSignature,
+  manifestSignatureArgsFromDraft,
+} from '../config/orchestration-roadmap-manifest';
 
 /** Single entry point for “current draft” manifest signatures (Strategy Lab + wizard). */
-export function manifestChangeSignatureFromDraft(draft: {
-  change_scenario: OrchestrationChangeScenario;
-  season_preset: OrchestrationSeasonPreset;
-  plan_start_raw: string;
-  plan_end_raw: string;
-}): string {
-  return encodeManifestChangeSignature(manifestSignatureArgsFromDraft(draft));
+export function manifestChangeSignatureFromDraft(
+  draft: {
+    change_scenario: OrchestrationChangeScenario;
+    season_preset: OrchestrationSeasonPreset;
+    plan_start_raw: string;
+    plan_end_raw: string;
+  },
+  hintsDigest?: string | null,
+): string {
+  return encodeManifestChangeSignature({
+    ...manifestSignatureArgsFromDraft(draft),
+    hints_digest: hintsDigest ? hintsDigest.trim() : undefined,
+  });
 }
 
 /**

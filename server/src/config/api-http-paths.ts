@@ -15,6 +15,8 @@ export {
   idempotencyPostAuditsOrchestrationSelectedInitiativeKey,
   idempotencyPostAuditsOrchestratorRunKey,
   idempotencyPostAuditsRoadmapManifestSnapshotsKey,
+  apiAuditsRoadmapManifestDraftRevisions,
+  idempotencyPostAuditsRoadmapManifestDraftRevisionsKey,
   idempotencyPostKey,
   type ApiHttpPathPrefixKey,
 } from '@glc/api-paths';

@@ -4,7 +4,7 @@ import {
   type OrchestrationChangeScenario,
   type OrchestrationSeasonPreset,
 } from '../config/orchestration-roadmap-manifest';
-import { manifestChangeSignatureFromPayload } from '../lib/manifest-change-signature';
+import { manifestChangeSignatureFromDraft, manifestChangeSignatureFromPayload } from '../lib/manifest-change-signature';
 import { useManifestChangeSignatureFromDraftInputs } from './useManifestChangeSignatureFromDraftInputs';
 
 export type ManifestSavedSignatureBaselineInputs = {
@@ -12,6 +12,7 @@ export type ManifestSavedSignatureBaselineInputs = {
   season: OrchestrationSeasonPreset;
   planHorizonStart: string;
   planHorizonEnd: string;
+  manifestDraftRevisionDigest?: string | null | undefined;
 };
 
 /**
@@ -33,8 +34,18 @@ export function useManifestSavedSignatureBaseline(deps: ManifestSavedSignatureBa
   );
 
   const markDraftAsSavedBaseline = useCallback(() => {
-    setSavedManifestSignature(currentManifestSignature);
-  }, [currentManifestSignature]);
+    setSavedManifestSignature(
+      manifestChangeSignatureFromDraft(
+        {
+          change_scenario: deps.scenario,
+          season_preset: deps.season,
+          plan_start_raw: deps.planHorizonStart,
+          plan_end_raw: deps.planHorizonEnd,
+        },
+        null,
+      ),
+    );
+  }, [deps.scenario, deps.season, deps.planHorizonStart, deps.planHorizonEnd]);
 
   const clearSavedSignature = useCallback(() => {
     setSavedManifestSignature(null);

@@ -10,7 +10,7 @@
 
 ### Related decisions
 
-- Product framing + phased GLC-PB ticket skeleton (**Proposed**): [`ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md`](./ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md)
+- Product framing + phased GLC-PB ticket skeleton (**Accepted**): [`ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md`](./ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md)
 - Client unified roadmap: [`ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`](./ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md)
 - Orchestration / roadmap sync: [`ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md`](ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md)
 - Coverage / execution plan: [`ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md`](./ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md)
@@ -83,7 +83,7 @@ Any **long-form draft** ADR pasted in chats or wiki must **defer here** plus [`O
 
 A design that holds `pg_try_advisory_lock` across **multiple** REST/RPC calls from `supabase-js` is **incorrect** behind PostgREST’s per-request transactions: locks acquired in one RPC/auto-commit txn do not serialize the next `.from()` call.
 
-Serializing reconcile vs `PATCH` therefore requires either **one server-side Postgres routine** wrapping lock + mutations in a single transaction, a **direct session-scoped Postgres client** outside the pooled PostgREST path, or accepting the rare overlap risk (optimistic versioning on card rows reduces damage). **Operational decision:** **[TECH_DEBT.md](../TECH_DEBT.md) TD-024** is **`accepted_risk`** with idempotent reconcile + versioning mitigations unless monitoring shows harm.
+Serializing reconcile vs `PATCH` therefore requires either **one server-side Postgres routine** wrapping lock + mutations in a single transaction, a **direct session-scoped Postgres client** outside the pooled PostgREST path, or accepting the rare overlap risk (optimistic versioning on card rows reduces damage). **Shipped:** pack-persist reconcile uses **`plan_board_apply_reconcile_batch`** (`078_plan_board_reconcile_apply_batch.sql`) when **`FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`** is on — advisory lock + single transaction for reconcile DML + `plan_board_reconciled` event; concurrent **`PATCH`** remains a separate request path (TD-024 monitoring unchanged). **Operational decision:** **[TECH_DEBT.md](../TECH_DEBT.md) TD-024** stays **`accepted_risk`** for residual overlap unless monitoring clears it.
 
 ---
 
@@ -102,16 +102,16 @@ Long-form drafts sometimes describe a simpler flag and schema than shipped code.
 | Board enablement | **Rollout mode** `planDeliveryBoardRolloutMode` / **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`** (`shadow` … `ga`), not a single boolean. UI surfaces follow [`plan-delivery-board-ui.ts`](../../src/app/config/plan-delivery-board-ui.ts). |
 | `canonical_node_key` | **Nullable**: required for `source='pack'`, **NULL** for `source='manual'` (enforced by `CHECK` in [`074_plan_task_delivery.sql`](../../server/migrations/074_plan_task_delivery.sql)). |
 | Row ownership | **No** `user_id` column on `plan_task_delivery`; consultant identity lives in **`created_by_user_id`**; audit scoping in handlers + RLS. |
-| Serialize reconcile vs PATCH | **Appendix C** + **`[TECH_DEBT.md](../TECH_DEBT.md)` TD-024** — status **`accepted_risk`** unless monitoring shows overlap harm; optional future **SECURITY DEFINER** wrapper or session-scoped Postgres client (same Appendix C constraints). |
-| Appendix §2.3 strict (manual **`in_progress`**) | **Off by default.** Server flag **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`** + [`isPlanBoardStrictManualInProgressBlocked`](../../server/src/config/feature-flags.ts): when **`true`**, **`source='manual'`** rows reject entering **`in_progress`** (**`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`**). |
+| Serialize reconcile vs PATCH | **Appendix C** + **`[TECH_DEBT.md](../TECH_DEBT.md)` TD-024** — pack reconcile applies via **`plan_board_apply_reconcile_batch`** when enabled; **`accepted_risk`** remains for concurrent **`PATCH`** vs reconcile timing unless monitoring clears it. |
+| Appendix §2.3 strict (manual **`in_progress`**) | **On by default** in `SYSTEM_DEFAULTS` / [`isPlanBoardStrictManualInProgressBlocked`](../../server/src/config/feature-flags.ts). Env **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=false`** relaxes. When strict is **`true`**, **`source='manual'`** rows reject entering **`in_progress`** (**`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`**) and emit **`plan_board_manual_in_progress_blocked`** telemetry. |
 
 ---
 
 ## Appendix E — Preserve Board identity across initiative title edits
 
-**Canonical approach:** [`ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md`](./ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) (Proposed) — Strategy Lab UX + product sign-off for full Epic 1 closure.
+**Canonical approach:** [`ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md`](./ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) (**Accepted**) — per-initiative Strategy Lab editor + explicit opt-in on save.
 
-**Shipped backend (engineering):** optional **`board_identity_key`** on **`StrategyInitiative`** (validated Zod), persisted onto orchestration **`graph.nodes`**, feeds [`canonicalNodeKeyFromManifestAndNode`](../../packages/intake-core/src/canonical-node-key.ts): when present, the computed `canonical_node_key` is **stable across title edits** for the same manifest signature + lane. Consultants **without Strategy Lab UX** must set the field via strategy JSON tooling / API flows that mutate `audit_strategy` initiatives until Epic 1 UI lands.
+**Shipped:** optional **`board_identity_key`** on **`StrategyInitiative`** (validated Zod), persisted onto orchestration **`graph.nodes`**, feeds [`canonicalNodeKeyFromManifestAndNode`](../../packages/intake-core/src/canonical-node-key.ts): when present, the computed `canonical_node_key` is **stable across title edits** for the same manifest signature + lane. Consultants may also set the field via **`PATCH /api/audits/:id/pipeline/phases/7/result`** or strategy JSON tooling when Strategy Lab UI is unavailable.
 
 ---
 
@@ -127,7 +127,7 @@ Long-form drafts sometimes describe a simpler flag and schema than shipped code.
 
 Draft epic list (Proposed): **[ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](./ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md)** — promote each epic with a **new** ADR when scheduled. GA does **not** block on:
 
-- **`Appendix E`:** **`board_identity_key`** backend + intake-core materialisation shipped; UX checkbox / manifest-only workflow still **[ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](./ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md)** until Accepted and implemented end-to-end in Strategy Lab.
+- **`Appendix E`:** Epic 1 **Accepted** — per-initiative Strategy Lab editor + `board_identity_key` merge on phase-7 patch (**[ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](./ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md)**).
 - **Hybrid Board → manifest edits** (“2.1-C” cookbook): edits on Board flowing back into draft manifest revision flow.
 - **Per-audit custom kanban columns** (new persisted policy + migrations).
 - **`GET /timeline` skip on Board tab:** SPA toggle **`planBoardDeferTimelineFetchOnBoardTabEnabled`** ([`app-feature-flags.ts`](../../src/app/config/app-feature-flags.ts)) + unified Plan wiring — see **[DEPLOYMENT.md](../DEPLOYMENT.md)** (section *Delivery Board — monitoring*); rollback = set toggle `false`.

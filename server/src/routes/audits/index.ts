@@ -13,6 +13,7 @@ import { patchAuditTokenBudgetController } from './controllers/patch-audit-token
 import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
 import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
 import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
+import { postRoadmapManifestDraftRevisionController } from './controllers/post-roadmap-manifest-draft-revision.controller.js';
 import { postRoadmapManifestSnapshotController } from './controllers/post-roadmap-manifest-snapshot.controller.js';
 import { getRoadmapManifestSnapshotsController } from './controllers/get-roadmap-manifest-snapshots.controller.js';
 import { getRoadmapManifestSnapshotLatestController } from './controllers/get-roadmap-manifest-snapshot-latest.controller.js';
@@ -29,10 +30,12 @@ import { postOrchestratorRunController } from './controllers/post-orchestrator-r
 import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
 import { getPlanBoardController } from './controllers/get-plan-board.controller.js';
+import { patchPlanBoardColumnPolicyController } from './controllers/patch-plan-board-column-policy.controller.js';
 import { patchPlanBoardCardController } from './controllers/patch-plan-board-card.controller.js';
 import { deletePlanBoardCardController } from './controllers/delete-plan-board-card.controller.js';
 import { postPlanBoardManualCardController } from './controllers/post-plan-board-manual-card.controller.js';
 import { postPlanBoardReconcileController } from './controllers/post-plan-board-reconcile.controller.js';
+import { postPlanBoardReconcilePreviewController } from './controllers/post-plan-board-reconcile-preview.controller.js';
 import { postPlanBoardViewOpenedController } from './controllers/post-plan-board-view-opened.controller.js';
 import { patchPipelinePhaseResultController } from './controllers/patch-pipeline-phase-result.controller.js';
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
@@ -103,6 +106,12 @@ auditsRouter.post(
   attachProfile,
   rejectGuestFromPortal,
   postRoadmapManifestSnapshotController,
+);
+auditsRouter.post(
+  '/:id/roadmap/manifest/draft-revisions',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestDraftRevisionController,
 );
 auditsRouter.get(
   '/:id/roadmap/manifest-snapshots',
@@ -183,6 +192,12 @@ auditsRouter.get(
   getPlanBoardController,
 );
 auditsRouter.patch(
+  '/:id/plan/board/column-policy',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardColumnPolicyController,
+);
+auditsRouter.patch(
   '/:id/plan/board/cards/:cardId',
   attachProfile,
   rejectGuestFromPortal,
@@ -205,6 +220,12 @@ auditsRouter.post(
   attachProfile,
   rejectGuestFromPortal,
   postPlanBoardManualCardController,
+);
+auditsRouter.post(
+  '/:id/plan/board/reconcile/preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardReconcilePreviewController,
 );
 auditsRouter.post(
   '/:id/plan/board/reconcile',

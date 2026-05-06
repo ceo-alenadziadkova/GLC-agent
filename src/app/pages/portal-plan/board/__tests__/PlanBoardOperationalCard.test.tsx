@@ -5,9 +5,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../../../config/plan-board-copy.en';
 import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
 import { PlanBoardOperationalCard } from '../BoardView';
+
+const DEFAULT_MOVE_MENU = PLAN_BOARD_UI_COLUMNS.map((id) => ({
+  id,
+  title: PLAN_BOARD_COLUMN_HEADINGS_EN[id],
+}));
 
 const BASE_CARD: PlanBoardCardDto = {
   id: 'card-row-1',
@@ -38,6 +44,7 @@ describe('PlanBoardOperationalCard', () => {
         columnId="next_up"
         dragLocked={false}
         expectedPackVersion={3}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={onMove}
       />,
     );
@@ -58,6 +65,7 @@ describe('PlanBoardOperationalCard', () => {
         columnId="next_up"
         dragLocked={false}
         expectedPackVersion={3}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
         canMutateCard
         onEditTitle={onEditTitle}
@@ -92,6 +100,7 @@ describe('PlanBoardOperationalCard', () => {
         columnId="in_progress"
         dragLocked
         expectedPackVersion={2}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
       />,
     );

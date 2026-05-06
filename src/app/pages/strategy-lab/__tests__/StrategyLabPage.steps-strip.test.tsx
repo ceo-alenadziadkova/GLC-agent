@@ -8,6 +8,7 @@ import { buildAppRoute } from '../../../config/route-paths';
 import { ORCHESTRATION_LANE_LABELS } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../../config/orchestration-contract';
 import { STRATEGY_LAB_PAGE_ANCHORS } from '../../../config/strategy-lab';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../../config/plan-delivery-board-ui';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import type { AuditState } from '../../../data/audit/contracts/state/audit-state.types';
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
@@ -161,6 +162,20 @@ describe('StrategyLab steps strip', () => {
     featureFlagOverrides.clientOrchestrationLabReadOnlyEnabled = true;
   });
 
+  it('renders in-page Strategy Lab phase navigation for consultants', () => {
+    useAuditMock.mockReturnValue({
+      audit: buildAuditBase(),
+      loading: false,
+      error: null,
+      reload: reloadMock,
+      isFetching: false,
+    });
+
+    renderLab();
+
+    expect(screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.iaPhasesNav.ariaLabel })).toBeInTheDocument();
+  });
+
   it('renders consultant workbench segmented navigation with orchestration selected', () => {
     useAuditMock.mockReturnValue({
       audit: buildAuditBase(),
@@ -206,10 +221,13 @@ describe('StrategyLab steps strip', () => {
     const links = within(nav).getAllByRole('link');
     expect(links).toHaveLength(4);
     const strat = buildAppRoute.strategy('audit-steps-strip');
-    expect(links[0]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.reference}`);
+    expect(links[0]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.definePhase}`);
     expect(links[1]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`);
-    expect(links[2]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.inspectPack}`);
-    expect(links[3]).toHaveAttribute('href', buildAppRoute.plan('audit-steps-strip'));
+    expect(links[2]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.shapePack}`);
+    expect(links[3]).toHaveAttribute(
+      'href',
+      buildAppRoute.plan('audit-steps-strip', primaryPlanWorkbenchViewForStrategyLinks()),
+    );
     expect(links[0]).toHaveAttribute('aria-current', 'step');
     expect(links[1]).not.toHaveAttribute('aria-current');
     expect(links[2]).not.toHaveAttribute('aria-current');

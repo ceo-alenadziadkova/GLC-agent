@@ -6,14 +6,26 @@ import {
   AUDITS_NOT_FOUND_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
-import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import {
+  isManifestDraftRevisionsFromBoardEnabled,
+  isOrchestrationPackApiEnabled,
+  isPlanBoardCustomColumnsFeatureEnabled,
+} from '../../../config/feature-flags.js';
 import { isPlanBoardOperationalReadOnlyPack } from '../../../config/plan-board-operational-policy.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
 import { buildPlanBoardTimelineParity } from '../../../services/orchestration/orchestrator-timeline-read.service.js';
 import { resolveAuditPlanBoardAccess } from '../../../services/plan-board/plan-board-access.js';
 import { filterPlanBoardCardsForClientView } from '../../../services/plan-board/plan-board-client-view.js';
+import {
+  digestManifestDraftRevisions,
+  listManifestDraftRevisionsForAudit,
+} from '../../../services/orchestration/manifest-draft-revision.service.js';
 import { listPlanBoardCardsForAudit } from '../../../services/plan-board/plan-board-cards.service.js';
+import {
+  buildDefaultResolvedPlanBoardPolicy,
+  resolvePlanBoardPolicyForAuditId,
+} from '../../../services/plan-board/plan-board-column-policy.service.js';
 import { logger } from '../../../services/logger.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
@@ -45,11 +57,35 @@ export async function getPlanBoardController(req: AuthRequest, res: Response) {
       return;
     }
 
+    const featureCustomColumns = isPlanBoardCustomColumnsFeatureEnabled();
+    const policyCtx = await resolvePlanBoardPolicyForAuditId({
+      auditId,
+      featureEnabled: featureCustomColumns,
+    });
+    const boardColumnPolicy = policyCtx?.resolved ?? buildDefaultResolvedPlanBoardPolicy();
+    const columnsPayload = boardColumnPolicy.columns.map((c) => ({
+      id: c.id,
+      title: c.title,
+      semantic: c.semantic,
+      visible_to_client: c.visible_to_client,
+    }));
+
+    const columnPolicyCapabilities =
+      access.kind === 'consultant_owner' || access.kind === 'platform_admin' ?
+        {
+          column_policy_editable:
+            featureCustomColumns &&
+            ((policyCtx?.ownerPlanBoardCustomColumnsEntitled ?? false) || access.kind === 'platform_admin'),
+        }
+      : undefined;
+
     if (!persisted.pack) {
       res.json({
         pack_version_used: persisted.orchestration_pack_version,
         cards: [],
         issues: [{ code: 'no_pack' as const }],
+        columns: columnsPayload,
+        ...(columnPolicyCapabilities != null ? columnPolicyCapabilities : {}),
       });
       return;
     }
@@ -68,7 +104,10 @@ export async function getPlanBoardController(req: AuthRequest, res: Response) {
       return;
     }
 
-    const visibleRows = access.kind === 'client' ? filterPlanBoardCardsForClientView(rows) : rows;
+    const visibleRows =
+      access.kind === 'client'
+        ? filterPlanBoardCardsForClientView(rows, boardColumnPolicy.clientVisibleColumnIds)
+        : rows;
 
     const cards = visibleRows.map((r) => {
       const nodeId = r.pack_graph_node_id;
@@ -91,6 +130,25 @@ export async function getPlanBoardController(req: AuthRequest, res: Response) {
     const governanceBlocked = isPlanBoardOperationalReadOnlyPack(persisted.pack);
     const issues: Array<{ code: 'governance_blocked' }> = governanceBlocked ? [{ code: 'governance_blocked' }] : [];
 
+    let manifest_draft_revision_digest: string | undefined;
+    let manifest_draft_revision_pending_canonical_keys: string[] | undefined;
+    if (
+      isManifestDraftRevisionsFromBoardEnabled()
+      && (access.kind === 'consultant_owner' || access.kind === 'platform_admin')
+    ) {
+      const { rows: draftRows, error: draftErr } = await listManifestDraftRevisionsForAudit({ auditId });
+      if (draftErr) {
+        logger.warn('route.plan_board_draft_revision_list_failed', {
+          auditId,
+          error: draftErr.message,
+        });
+      } else {
+        manifest_draft_revision_digest =
+          draftRows.length > 0 ? digestManifestDraftRevisions(draftRows) : '';
+        manifest_draft_revision_pending_canonical_keys = draftRows.map(r => r.canonical_node_key);
+      }
+    }
+
     const parityResult = await buildPlanBoardTimelineParity({
       auditId,
       pack: persisted.pack,
@@ -104,7 +162,15 @@ export async function getPlanBoardController(req: AuthRequest, res: Response) {
       pack_version_used: persisted.orchestration_pack_version,
       cards,
       issues,
+      columns: columnsPayload,
       ...(timelineParityPayload != null ? { timeline_parity: timelineParityPayload } : {}),
+      ...(manifest_draft_revision_digest !== undefined
+        ? {
+            manifest_draft_revision_digest,
+            manifest_draft_revision_pending_canonical_keys: manifest_draft_revision_pending_canonical_keys ?? [],
+          }
+        : {}),
+      ...(columnPolicyCapabilities != null ? columnPolicyCapabilities : {}),
     });
   } catch (err) {
     const error = err as Error;

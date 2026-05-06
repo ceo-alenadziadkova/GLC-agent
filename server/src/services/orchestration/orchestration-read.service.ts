@@ -40,6 +40,7 @@ import {
 } from './roadmap-manifest.service.js';
 import { buildOrchestrationPackRevisionDiff } from './orchestration-pack-diff.js';
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
+import { applyRoadmapNodeExecutionHintsToPack } from './apply-node-execution-hints-to-pack.js';
 
 export async function loadAuditExecutionPlanRow(
   auditId: string,
@@ -233,12 +234,16 @@ export async function buildOrchestrationPackForAuditWithStatus(args: {
     inputQuality: normalizedInputs.inputQuality,
   });
 
-  const result = await runOrchestrationSynthesisIfEnabled({
+  let result = await runOrchestrationSynthesisIfEnabled({
     auditId: args.auditId,
     deterministicPack,
     normalizedStrategy: normalizedInputs.normalizedStrategy,
     domainRows: normalizedInputs.domainRowsForSynth,
     roadmapManifest: loaded.manifestRow.payload,
+  });
+  result = applyRoadmapNodeExecutionHintsToPack({
+    pack: result,
+    manifest: loaded.manifestRow.payload,
   });
   logger.info('orchestration.pack_lifecycle_metric', {
     auditId: args.auditId,

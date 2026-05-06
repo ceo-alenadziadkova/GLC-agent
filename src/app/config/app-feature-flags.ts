@@ -59,10 +59,20 @@ export const APP_FEATURE_FLAGS = {
   /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
   planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
   /**
+   * Unified `/plan` segmented nav: show legacy **Timeline** tab (pack graph narrative). SPA-only; default off (Delivery Board ADR).
+   * When off, `?view=timeline` still redirects to Board when Board rollout is on.
+   */
+  planUnifiedLegacyTimelineTabEnabled: false,
+  /**
    * When true, unified Plan (`PortalPlanPage`) skips `GET /timeline` while `view=board` if `timeline_parity`
    * on `GET …/plan/board` is sufficient (ADR Delivery Board follow-up). SPA-only; redeploy to change.
    */
   planBoardDeferTimelineFetchOnBoardTabEnabled: true,
+  /**
+   * Delivery Board lane/owner hints queue for signed manifest snapshots (Epic 2.1-C).
+   * Mirrors server `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD` (default on in SYSTEM_DEFAULTS); set false in both layers to rollback.
+   */
+  manifestDraftRevisionsFromBoard: true,
   /**
    * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
    * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
@@ -171,4 +181,13 @@ export const APP_FEATURE_FLAGS = {
    * multi-select Auto Wing domain re-runs before Continue. Disable to only use per-phase “Re-run this phase”.
    */
   pipelineMonitorPostReviewDomainRerunPromptEnabled: true,
+  /**
+   * Delivery Board: `POST …/plan/board/reconcile/preview` dry-run diff before reconcile.
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled` — `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW` on server.
+   */
+  planBoardReconcileDiffPreviewEnabled: false,
+  /**
+   * Delivery Board per-audit custom columns (PATCH `…/plan/board/column-policy`). Server: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS` + owner `profiles.plan_board_custom_columns_entitled`.
+   */
+  planBoardCustomColumnsEnabled: false,
 } as const;

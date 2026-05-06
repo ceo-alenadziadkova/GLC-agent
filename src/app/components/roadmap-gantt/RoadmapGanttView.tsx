@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Diamond } from '@phosphor-icons/react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import Timeline, {
   TimelineHeaders,
   DateHeader,
@@ -75,6 +75,7 @@ import {
 import { DEPENDENCY_KIND_LABEL } from '../../lib/roadmap-gantt-dep-kind-labels';
 import { RoadmapGanttDependencyTable } from './RoadmapGanttDependencyTable';
 import { RoadmapGanttToolbar } from './RoadmapGanttToolbar';
+import { buildAppRoute } from '../../config/route-paths';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { api } from '../../data/apiService';
 import {
@@ -112,7 +113,9 @@ import {
   ContextMenuLabel,
   ContextMenuTrigger,
 } from '../ui/context-menu';
+import { useProfile } from '../../hooks/useProfile';
 import { useRoadmapGanttFilteredTasks } from '../../hooks/useRoadmapGanttFilteredTasks';
+import { buildPlanUrlWithViewPreservingForeignParams } from '../../lib/plan-cross-nav';
 import { useRoadmapGanttDependencySvgPaths } from '../../hooks/useRoadmapGanttDependencySvgPaths';
 
 type GanttTaskItem = TimelineItemBase<number> & {
@@ -149,6 +152,8 @@ type RoadmapGanttViewProps = {
   /** When set, task drawer links to Delivery Board (`?focus=<pack node id>`). */
   getDeliveryBoardHrefForPackNode?: (packGraphNodeId: string) => string | null | undefined;
   planBoardHydration?: RoadmapGanttPlanBoardHydration;
+  /** Consultant-only controls injected into Gantt toolbar (e.g. manual card dialog). */
+  toolbarLeadingSlot?: ReactNode | undefined;
 };
 
 export function RoadmapGanttView({
@@ -157,8 +162,11 @@ export function RoadmapGanttView({
   strategyHref,
   getDeliveryBoardHrefForPackNode,
   planBoardHydration,
+  toolbarLeadingSlot,
 }: RoadmapGanttViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const { isClient } = useProfile();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => searchParams.get(ROADMAP_SEARCH_PARAM_TASK));
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [laneMoveMenuOpen, setLaneMoveMenuOpen] = useState(false);
@@ -198,6 +206,18 @@ export function RoadmapGanttView({
   );
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const consultantBoardPlanHref = useMemo(() => {
+    if (isClient || !auditId) return null;
+    const pathname = location.pathname.includes('/portal/plan/')
+      ? buildAppRoute.portalPlan(auditId, 'board').replace(/\?.*$/, '')
+      : buildAppRoute.plan(auditId, 'board').replace(/\?.*$/, '');
+    return buildPlanUrlWithViewPreservingForeignParams({
+      pathname,
+      currentSearch: location.search ?? '',
+      nextView: 'board',
+    });
+  }, [auditId, isClient, location.pathname, location.search]);
   const [scrollMetrics, setScrollMetrics] = useState<{ left: number; max: number; clientWidth: number }>({
     left: 0,
     max: 0,
@@ -1480,6 +1500,7 @@ export function RoadmapGanttView({
           hasActiveFilters={hasActiveFilters}
           activeFilterTags={activeFilterTags}
           activeFilterReason={activeFilterReason}
+          toolbarLeadingSlot={toolbarLeadingSlot}
         />
 {filteredTasks.length > 0 ? (
         <div className="roadmap-grid-area">
@@ -1886,6 +1907,7 @@ export function RoadmapGanttView({
         downstreamTaskCount={downstreamTaskCount}
         deliveryBoardHref={deliveryBoardHref}
         planBoardMove={taskPlanBoardMove}
+        consultantBoardPlanHref={consultantBoardPlanHref}
         onFilterToLane={(laneId) => {
           setLaneFilter(String(laneId));
           setRoadmapToolbarMoreOpen(true);

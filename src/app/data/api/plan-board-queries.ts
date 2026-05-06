@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '../../lib/tanstack-react-query';
 
 import { api } from '../apiService';
-import { PLAN_BOARD_UI_COLUMNS, type PlanBoardUiColumnId } from '../../config/plan-board-ui-columns';
+import { PLAN_BOARD_UI_COLUMNS } from '../../config/plan-board-ui-columns';
 
-import type { PlanBoardCardDeleteBody, PlanBoardCardPatchBody, PlanBoardCardDto } from './audits-orchestration';
+import type {
+  ManifestDraftRevisionPostBody,
+  PlanBoardCardDeleteBody,
+  PlanBoardCardPatchBody,
+  PlanBoardCardDto,
+  PlanBoardColumnPolicyPatchBody,
+  PlanBoardReconcilePreviewDto,
+} from './audits-orchestration';
 
 export const planBoardQueryKeys = {
   audit: (auditId: string) => ['plan-board', auditId] as const,
@@ -45,6 +52,12 @@ export function usePostPlanBoardReconcileMutation(auditId: string | undefined) {
   });
 }
 
+export function usePostPlanBoardReconcilePreviewMutation(auditId: string | undefined) {
+  return useMutation({
+    mutationFn: (): Promise<PlanBoardReconcilePreviewDto> => api.postPlanBoardReconcilePreview(auditId!),
+  });
+}
+
 export function usePostPlanBoardManualCardMutation(auditId: string | undefined) {
   const qc = useQueryClient();
 
@@ -54,6 +67,32 @@ export function usePostPlanBoardManualCardMutation(auditId: string | undefined) 
     onSettled: async () => {
       if (!auditId) return;
       await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+    },
+  });
+}
+
+export function usePostManifestDraftRevisionMutation(auditId: string | undefined) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: ManifestDraftRevisionPostBody) => api.postRoadmapManifestDraftRevision(auditId!, body),
+    onSettled: async () => {
+      if (!auditId) return;
+      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+    },
+  });
+}
+
+export function usePatchPlanBoardColumnPolicyMutation(args: {
+  auditId: string | undefined;
+}) {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: PlanBoardColumnPolicyPatchBody) => api.patchPlanBoardColumnPolicy(args.auditId!, body),
+    onSettled: async () => {
+      if (!args.auditId) return;
+      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(args.auditId) });
     },
   });
 }
@@ -73,14 +112,17 @@ export function useDeletePlanBoardCardMutation(args: { auditId: string | undefin
 
 export function bucketPlanBoardCardsByColumn(
   cards: readonly PlanBoardCardDto[],
-): Record<PlanBoardUiColumnId | string, string[]> {
-  const buckets: Record<string, string[]> = Object.fromEntries(PLAN_BOARD_UI_COLUMNS.map((c) => [c, []]));
+  columnIdsOrdered?: readonly string[],
+): Record<string, string[]> {
+  const orderedColumns =
+    columnIdsOrdered != null && columnIdsOrdered.length > 0 ? columnIdsOrdered : [...PLAN_BOARD_UI_COLUMNS];
 
+  const buckets: Record<string, string[]> = Object.fromEntries(orderedColumns.map((c) => [c, []]));
+
+  const fallbackColumnId = orderedColumns[0] ?? 'backlog';
   const ordered = [...cards].sort((a, b) => a.position - b.position);
   for (const row of ordered) {
-    const col = PLAN_BOARD_UI_COLUMNS.includes(row.column_id as PlanBoardUiColumnId)
-      ? (row.column_id as PlanBoardUiColumnId)
-      : 'backlog';
+    const col = orderedColumns.includes(row.column_id) ? row.column_id : fallbackColumnId;
     buckets[col]!.push(row.id);
   }
   return buckets;

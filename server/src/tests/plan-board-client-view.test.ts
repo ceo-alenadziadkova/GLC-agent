@@ -24,4 +24,20 @@ describe('plan-board-client-view', () => {
       }),
     ).toBe(false);
   });
+
+  it('respects custom client-visible column id set', () => {
+    const visible = new Set(['nq', 'wip']);
+    expect(
+      filterPlanBoardCardsForClientView(
+        [{ source: 'pack', column_id: 'nq', delivery_area: 'board' }],
+        visible,
+      ),
+    ).toHaveLength(1);
+    expect(
+      filterPlanBoardCardsForClientView(
+        [{ source: 'pack', column_id: 'icebox', delivery_area: 'backlog' }],
+        visible,
+      ),
+    ).toHaveLength(0);
+  });
 });

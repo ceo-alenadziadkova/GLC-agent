@@ -6,6 +6,10 @@ import { ORCHESTRATION_LANE_IDS } from '../config/orchestration-lanes.js';
 import { GlcOrchestrationPackSchema, type GlcOrchestrationPack } from '../schemas/glc-orchestration-pack.js';
 import type { PlanTaskDeliveryCardSnapshot } from '../services/plan-board/reconcile.js';
 import { reconcileBoardWithPack } from '../services/plan-board/reconcile.js';
+import {
+  buildPlanBoardReconcilePreviewDto,
+  computePlanBoardReconcilePreviewMetrics,
+} from '../services/plan-board/plan-board-reconcile-preview.service.js';
 
 const MANIFEST_SIG = 'fixture-manifest-signature';
 
@@ -176,5 +180,66 @@ describe('reconcileBoardWithPack', () => {
     const updated = result.updatedPackCards.find((row) => row.id === 'c-id');
     expect(updated?.pack_graph_node_id).toBe('n1');
     expect(updated?.orphaned_reason).toBeNull();
+  });
+
+  it('computePlanBoardReconcilePreviewMetrics matches reconcileBoardWithPack summary fields', () => {
+    const pack = buildPack([
+      { id: 'a', title: 'Alpha wave', lane: 'marketing_narrative' },
+      { id: 'b', title: 'Beta', lane: 'seo' },
+    ]);
+    const cards: PlanTaskDeliveryCardSnapshot[] = [];
+    const nextPackVersion = 7;
+    const r = reconcileBoardWithPack({
+      manifestSignature: MANIFEST_SIG,
+      nextPack: pack,
+      nextPackVersion,
+      cards,
+    });
+    const p = computePlanBoardReconcilePreviewMetrics({
+      manifestSignature: MANIFEST_SIG,
+      pack,
+      orchestration_pack_version: nextPackVersion,
+      cards,
+    });
+    expect(p).toEqual({
+      orchestration_pack_version: nextPackVersion,
+      matched: r.matched,
+      orphaned_node_removed: r.orphaned_node_removed,
+      orphaned_lane_changed: r.orphaned_lane_changed,
+      auto_created: r.auto_created,
+    });
+  });
+
+  it('buildPlanBoardReconcilePreviewDto includes title samples for new nodes and node_removed orphans', () => {
+    const missingKey = canonicalNodeKeyFromManifestAndNode({
+      manifest_signature: MANIFEST_SIG,
+      lane_id: 'marketing_narrative',
+      title: 'Detached initiative',
+    });
+    const pack = buildPack([
+      { id: 'n-stay', title: 'Staying node', lane: 'marketing_narrative' },
+      { id: 'n-new', title: 'Brand new node', lane: 'seo' },
+    ]);
+    const card = snapshotCard({
+      id: 'card-1',
+      source: 'pack',
+      canonical_node_key: missingKey,
+      pack_graph_node_id: 'old',
+      pack_lane_snapshot: 'marketing_narrative',
+      delivery_area: 'backlog',
+      column_id: 'backlog',
+      position: 0,
+      pinned: false,
+      last_applied_pack_version: 4,
+      orphaned_reason: null,
+    });
+    const dto = buildPlanBoardReconcilePreviewDto({
+      manifestSignature: MANIFEST_SIG,
+      pack,
+      orchestration_pack_version: 5,
+      cards: [card],
+    });
+    expect(dto.sample_new_backlog_cards.some((s) => s.title === 'Brand new node')).toBe(true);
+    expect(dto.sample_orphan_node_removed.some((s) => s.canonical_node_key === missingKey)).toBe(true);
   });
 });

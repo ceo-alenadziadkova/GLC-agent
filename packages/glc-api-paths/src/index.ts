@@ -167,6 +167,14 @@ export function idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId: string
   return idempotencyPostKey(apiAuditsRoadmapManifestSnapshots(auditId));
 }
 
+export function apiAuditsRoadmapManifestDraftRevisions(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest/draft-revisions`;
+}
+
+export function idempotencyPostAuditsRoadmapManifestDraftRevisionsKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsRoadmapManifestDraftRevisions(auditId));
+}
+
 export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
 }
@@ -175,12 +183,20 @@ export function apiAuditsPlanBoard(auditId: string): string {
   return `${apiAuditsPath(auditId)}/plan/board`;
 }
 
+export function apiAuditsPlanBoardColumnPolicy(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/column-policy`;
+}
+
 export function apiAuditsPlanBoardCard(auditId: string, cardId: string): string {
   return `${apiAuditsPlanBoard(auditId)}/cards/${cardId}`;
 }
 
 export function apiAuditsPlanBoardTelemetryViewOpened(auditId: string): string {
   return `${apiAuditsPlanBoard(auditId)}/telemetry/view-opened`;
+}
+
+export function apiAuditsPlanBoardReconcilePreview(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/reconcile/preview`;
 }
 
 export function idempotencyPatchAuditsPlanBoardCardKey(auditId: string, cardId: string): string {

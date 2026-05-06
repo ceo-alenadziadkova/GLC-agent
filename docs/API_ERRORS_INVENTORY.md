@@ -21,15 +21,20 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 | `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `platform` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
 | `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `REPORT_PDF_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
 | `AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID`, `AUDITS_STRATEGY_LAB_CONTEXT_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/strategy/lab-context` |
-| `AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED` | 400 / 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-snapshots` |
+| `AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID`, `AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH`, `AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED` | 400 / 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-snapshots` (merges **`audit_roadmap_manifest_draft_revisions`** into **`node_execution_hints`** before insert when pending rows exist) |
+| `MANIFEST_DRAFT_REVISION_REJECTED`, `MANIFEST_DRAFT_REVISIONS_DISABLED` | 400 / 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest/draft-revisions` (companion enqueue; **`MANIFEST_DRAFT_REVISIONS_DISABLED`** when **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD=false`**) |
 | `AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED` | 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview` |
 | `AUDITS_ROADMAP_MANIFEST_LIST_FAILED` | 500 | Same JSON | `GET /api/audits/:id/roadmap/manifest-snapshots` |
 | `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `AUDITS_ORCHESTRATION_PACK_NOT_READY`, `AUDITS_ORCHESTRATION_PACK_FAILED` | 400 / 409 / 500 | Same JSON | `POST /api/audits/:id/orchestration/pack` |
-| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack`, `GET/PATCH/POST` under **`/api/audits/:id/plan/board`** when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
-| `PLAN_BOARD_GOVERNANCE_BLOCKED` | 409 | Same JSON | `PATCH` / `POST` Delivery Board routes when persisted pack **`input_quality.degraded`** |
-| `PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED` | 409 | Same JSON | `PATCH …/plan/board/cards/:id`, `POST …/plan/board/cards` when **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=true`** blocks **`source='manual'`** entering **`in_progress`** |
-| `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_PAYLOAD_MISMATCH` | 400 / 409 | Same JSON | `PATCH /api/audits/:id/plan/board/cards/:cardId` (**`Idempotency-Key`** required; replay safety) |
-| `AUDITS_NOT_FOUND`, `AUDITS_FETCH_FAILED` | 404 / 500 | Same JSON | `GET /api/audits/:id/orchestration/pack` |
+| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST /api/audits/:id/roadmap/manifest/draft-revisions`, `POST/GET /api/audits/:id/orchestration/pack`, `GET/PATCH/POST` under **`/api/audits/:id/plan/board`** (including **`POST …/reconcile/preview`**) when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
+| `PLAN_BOARD_GOVERNANCE_BLOCKED` | 409 | Same JSON | `PATCH` / `POST` Delivery Board routes when persisted pack **`input_quality.degraded`**; **`POST …/roadmap/manifest/draft-revisions`** (same governance) |
+| `PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED` | 409 | Same JSON | `PATCH …/plan/board/cards/:id` **`lane`** when **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD=true`** — use **`POST …/roadmap/manifest/draft-revisions`** then Save manifest |
+| `PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED` | 409 | Same JSON | `PATCH …/plan/board/cards/:id`, `POST …/plan/board/cards` when strict manual policy blocks **`source='manual'`** entering **`in_progress`** |
+| `PLAN_BOARD_RECONCILE_PREVIEW_DISABLED` | 403 | Same JSON | `POST …/plan/board/reconcile/preview` when **`FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW=false`** |
+| `PLAN_BOARD_CUSTOM_COLUMNS_DISABLED` | 403 | Same JSON | `PATCH …/plan/board/column-policy` when **`FEATURE_PLAN_BOARD_CUSTOM_COLUMNS=false`** or audit owner lacks **`profiles.plan_board_custom_columns_entitled`** (unless platform admin) |
+| `PLAN_BOARD_COLUMN_POLICY_INVALID` | 400 / 500 | Same JSON | Malformed **`kind`/`policy`** body on column-policy PATCH (**400**) or remap/persist failure (**500** uses fetch-failed envelope in controller) |
+| `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_PAYLOAD_MISMATCH` | 400 / 409 | Same JSON | `PATCH /api/audits/:id/plan/board/cards/:cardId`, `POST …/roadmap/manifest/draft-revisions` (**replay safety**) |
+| `AUDITS_NOT_FOUND`, `AUDITS_FETCH_FAILED` | 404 / 500 | Same JSON | `GET /api/audits/:id/orchestration/pack`; **`AUDITS_FETCH_FAILED`** also envelopes hard failures listing draft revisions on **`POST …/manifest/draft-revisions`** |
 | `AUDITS_TOKEN_BUDGET_TOPUP_INVALID`, `AUDITS_TOKEN_BUDGET_TOPUP_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/token-budget` (platform admin only; reuses `PLATFORM_ADMIN_ONLY` for **403**) |
 
 ---

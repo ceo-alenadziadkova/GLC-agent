@@ -15,6 +15,11 @@ const manifestMocks = vi.hoisted(() => ({
   assertManifestMatchesExecutionPlan: vi.fn(),
 }));
 
+const draftMocks = vi.hoisted(() => ({
+  list: vi.fn(),
+  clear: vi.fn(),
+}));
+
 const previewMocks = vi.hoisted(() => ({
   buildRoadmapManifestPreview: vi.fn(),
 }));
@@ -45,6 +50,15 @@ vi.mock('../services/orchestration/roadmap-manifest.service.js', async importOri
     insertRoadmapManifestSnapshot: manifestMocks.insertRoadmapManifestSnapshot,
     listRoadmapManifestSnapshotsForAudit: manifestMocks.listRoadmapManifestSnapshotsForAudit,
     assertManifestMatchesExecutionPlan: manifestMocks.assertManifestMatchesExecutionPlan,
+  };
+});
+
+vi.mock('../services/orchestration/manifest-draft-revision.service.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/orchestration/manifest-draft-revision.service.js')>();
+  return {
+    ...actual,
+    listManifestDraftRevisionsForAudit: draftMocks.list,
+    clearManifestDraftRevisionsForAudit: draftMocks.clear,
   };
 });
 
@@ -107,6 +121,8 @@ describe('roadmap manifest controllers', () => {
       snapshots: [],
       error: null,
     });
+    draftMocks.list.mockResolvedValue({ rows: [], error: null });
+    draftMocks.clear.mockResolvedValue({ error: null });
   });
 
   it('preview: returns 403 when feature flag disabled', async () => {
@@ -186,6 +202,44 @@ describe('roadmap manifest controllers', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ id: '00000000-0000-4000-8000-000000000001' });
     expect(idempotencyMocks.storeIdempotentResponse).toHaveBeenCalled();
+    expect(draftMocks.clear).not.toHaveBeenCalled();
+  });
+
+  it('snapshot: merges queued draft revisions into persisted payload then clears queue', async () => {
+    draftMocks.list.mockResolvedValue({
+      rows: [
+        {
+          id: 'dr-1',
+          audit_id: 'audit-1',
+          canonical_node_key: 'k::one',
+          requested_lane: 'seo',
+          owner_hint: null,
+          expected_pack_version_at_enqueue: 2,
+          updated_at: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      error: null,
+    });
+
+    const req = { params: { id: 'audit-1' }, userId: 'user-1', body: validManifestPayload } as unknown;
+    const res = createRes();
+
+    await postRoadmapManifestSnapshotController(req as never, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(manifestMocks.insertRoadmapManifestSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditId: 'audit-1',
+        userId: 'user-1',
+        payload: expect.objectContaining({
+          schema_version: 3,
+          node_execution_hints: expect.objectContaining({
+            'k::one': { lane: 'seo' },
+          }),
+        }),
+      }),
+    );
+    expect(draftMocks.clear).toHaveBeenCalledWith('audit-1');
   });
 
   it('preview: returns 400 when manifest diverges from execution plan', async () => {

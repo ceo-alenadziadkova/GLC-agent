@@ -490,9 +490,22 @@ export function isBriefCloneFromAuditEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_BRIEF_CLONE_FROM_AUDIT, FF.briefCloneFromAuditEnabled);
 }
 
-/** Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE */
+/**
+ * Delivery Board staged rollout (SSOT). Env: `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`.
+ *
+ * Optional ops shorthand when the rollout env is **unset**: `PLAN_DELIVERY_BOARD=true` → `internal`
+ * (enables board APIs/tab alignment with older runbooks); `false` → `shadow`. Explicit rollout env always wins.
+ */
 export function getPlanDeliveryBoardRolloutMode(): FeatureRolloutMode {
-  return readFeatureRolloutMode(process.env.FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE, FF.planDeliveryBoardRolloutMode);
+  const rolloutExplicit = process.env.FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE?.trim();
+  if (rolloutExplicit) {
+    return readFeatureRolloutMode(rolloutExplicit, FF.planDeliveryBoardRolloutMode);
+  }
+  const thin = process.env.PLAN_DELIVERY_BOARD?.trim();
+  if (thin) {
+    return readFeatureFlagEnv(thin, false) ? 'internal' : 'shadow';
+  }
+  return FF.planDeliveryBoardRolloutMode;
 }
 
 /**
@@ -503,5 +516,42 @@ export function isPlanBoardStrictManualInProgressBlocked(): boolean {
   return readFeatureFlagEnv(
     process.env.FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS,
     FF.planBoardStrictManualInProgressBlocked,
+  );
+}
+
+/** Dry-run reconcile diff (`POST …/plan/board/reconcile/preview`). Env: `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW` */
+export function isPlanBoardReconcileDiffPreviewEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW,
+    FF.planBoardReconcileDiffPreviewEnabled,
+  );
+}
+
+/**
+ * Pack-persist reconcile uses transactional Postgres RPC (`078_plan_board_reconcile_apply_batch.sql`).
+ * Env: `FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`
+ */
+export function isPlanBoardReconcileTransactionalApplyEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY,
+    FF.planBoardReconcileTransactionalApplyEnabled,
+  );
+}
+
+/**
+ * Per-audit custom board columns (PATCH `…/plan/board/column-policy`). Env: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`
+ */
+export function isPlanBoardCustomColumnsFeatureEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PLAN_BOARD_CUSTOM_COLUMNS, FF.planBoardCustomColumnsEnabled);
+}
+
+/**
+ * Board execution hints enqueue as manifest draft revisions (POST `…/roadmap/manifest/draft-revisions`).
+ * Env: `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`
+ */
+export function isManifestDraftRevisionsFromBoardEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD,
+    FF.manifestDraftRevisionsFromBoardEnabled,
   );
 }

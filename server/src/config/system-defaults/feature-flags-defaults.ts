@@ -212,8 +212,29 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
   planDeliveryBoardRolloutMode: 'ga',
   /**
    * Blocks **manual** `plan_task_delivery` rows from entering the **in_progress** column (PATCH + POST manual-card).
-   * Default **off**: UI may warn without hard server deny; flip on for strict appendix §2.3 enforcement.
+   * Strict appendix §2.3 enforcement (product-approved default on).
    * Env: `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`
    */
-  planBoardStrictManualInProgressBlocked: false,
+  planBoardStrictManualInProgressBlocked: true,
+  /**
+   * When true, consultants may call `POST …/plan/board/reconcile/preview` for a dry-run diff before reconcile.
+   * Env: `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW`
+   */
+  planBoardReconcileDiffPreviewEnabled: false,
+  /**
+   * When true, pack-persist reconcile applies updates/inserts + pipeline event via `plan_board_apply_reconcile_batch` (single transaction + advisory lock).
+   * Env: `FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`
+   */
+  planBoardReconcileTransactionalApplyEnabled: true,
+  /**
+   * Board lane/owner hints queue into roadmap manifest drafts (Epic 2.1-C) instead of PATCH `lane`
+   * writing `plan_task_delivery.pack_lane_snapshot` directly for consultants.
+   * Env: `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`
+   */
+  manifestDraftRevisionsFromBoardEnabled: true,
+  /**
+   * Per-audit custom Delivery Board column ids (Epic 3). Requires owner `profiles.plan_board_custom_columns_entitled`.
+   * Env: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`
+   */
+  planBoardCustomColumnsEnabled: false,
 } as const;

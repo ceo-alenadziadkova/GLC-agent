@@ -82,7 +82,7 @@ export function buildBriefContext(args: {
   const briefMode = intakeBriefGateModeFromPartialPlan(
     (args.audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
   );
-  const executionContext =
+  const executionContext: 'default' | 'admin_presale' =
     perspective === 'consultant' && args.audit.client_id == null ? 'admin_presale' : 'default';
   return { responses, collectionMode, perspective, surface, intakeTuple, briefMode, executionContext };
 }

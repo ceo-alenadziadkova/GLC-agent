@@ -4,8 +4,15 @@ export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
 /** In-page anchors for Strategy Lab sticky section navigation (`/strategy/:id`). */
 export const STRATEGY_LAB_PAGE_ANCHORS = {
+  /** IA phase 1: benchmarks + constraint overrides (consultant reference region). */
+  definePhase: 'strategy-lab-define-phase',
+  /** IA phase 2: orchestrator + initiatives + dependency map. */
+  shapePack: 'strategy-lab-shape-pack',
+  /** IA phase 3: manifest snapshot, build pack, previews. */
   planSetup: 'strategy-lab-plan-setup',
+  /** Primary scroll container for the inspect column (legacy jump target). */
   inspectPack: 'strategy-lab-inspect-pack',
+  /** Accordion anchor inside define phase (peer benchmarks disclosure). */
   reference: 'strategy-lab-reference',
 } as const;
 

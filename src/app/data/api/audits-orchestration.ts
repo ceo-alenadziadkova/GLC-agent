@@ -7,7 +7,9 @@ import {
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
   apiAuditsPlanBoard,
+  apiAuditsPlanBoardColumnPolicy,
   apiAuditsPlanBoardCard,
+  apiAuditsPlanBoardReconcilePreview,
   apiAuditsPlanBoardTelemetryViewOpened,
   apiAuditsPipelinePhaseResult,
   apiAuditsOrchestratorLatest,
@@ -20,6 +22,7 @@ import {
   apiAuditsRoadmapManifestPreview,
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
+  apiAuditsRoadmapManifestDraftRevisions,
 } from '../../config/api-paths';
 import { API_URL, apiFetch, apiGetJsonOrNotModified, createTraceparent, getAuthHeaders } from '../api-http';
 import { ApiError } from '../api-error';
@@ -55,8 +58,17 @@ export type RoadmapManifestRequestBody = {
   risk_tolerance?: OrchestrationRiskTolerancePreset;
   plan_horizon?: OrchestrationPlanHorizon;
   selected_action_ids?: string[];
+  /** v3 manifest: execution hints merged from Delivery Board draft queue on save. */
+  node_execution_hints?: Partial<Record<string, { lane?: OrchestrationLaneId; owner_hint?: string }>>;
 };
 export type RoadmapInputManifest = RoadmapManifestRequestBody;
+
+export type ManifestDraftRevisionPostBody = {
+  canonical_node_key: string;
+  expected_pack_version: number;
+  lane?: OrchestrationLaneId;
+  owner_hint?: string;
+};
 
 export type RoadmapManifestSnapshotListItem = {
   id: string;
@@ -236,6 +248,20 @@ export type PlanBoardCardDto = {
 
 export type PlanBoardIssueCode = 'no_pack' | 'governance_blocked';
 
+export type PlanBoardColumnDto = {
+  id: string;
+  title: string;
+  semantic:
+    | 'backlog'
+    | 'next_up'
+    | 'in_progress'
+    | 'review'
+    | 'done'
+    | 'blocked'
+    | null;
+  visible_to_client: boolean;
+};
+
 export type PlanBoardTimelineParityDto = {
   season_preset: OrchestrationSeasonPreset | null;
   top_7d: string[];
@@ -253,8 +279,26 @@ export type PlanBoardGetBody = {
   pack_version_used: number;
   cards: PlanBoardCardDto[];
   issues: Array<{ code: PlanBoardIssueCode }>;
+  /** Consultant or platform admin: whether `PATCH …/plan/board/column-policy` may succeed for this audit. */
+  column_policy_editable?: boolean | undefined;
+  /** Operational column metadata (Epic 3); identity defaults when omitted for older responses. */
+  columns?: PlanBoardColumnDto[];
   /** Mirrors narrative Timeline parity fields without a separate GET /timeline (ADR TD-023). */
   timeline_parity?: PlanBoardTimelineParityDto | undefined;
+  /** Consultant-only digest when Epic 2.1-C flag is enabled (empty string when queue is empty). */
+  manifest_draft_revision_digest?: string;
+  manifest_draft_revision_pending_canonical_keys?: string[];
+};
+
+/** `POST …/plan/board/reconcile/preview` — pure projection counts + bounded samples (server `PlanBoardReconcilePreviewDto`). */
+export type PlanBoardReconcilePreviewDto = {
+  orchestration_pack_version: number;
+  matched: number;
+  orphaned_node_removed: number;
+  orphaned_lane_changed: number;
+  auto_created: number;
+  sample_new_backlog_cards: Array<{ canonical_node_key: string; title: string }>;
+  sample_orphan_node_removed: Array<{ canonical_node_key: string; title: string }>;
 };
 
 export type PlanBoardCardPatchBody = {
@@ -270,6 +314,23 @@ export type PlanBoardCardPatchBody = {
 export type PlanBoardCardDeleteBody = {
   expected_pack_version: number;
 };
+
+export type PlanBoardColumnPolicyReplaceBody = {
+  schema_version: 1;
+  columns: Array<{ id: string; title: string }>;
+  semantics: {
+    backlog: string;
+    next_up: string;
+    in_progress: string;
+    review: string;
+    done: string;
+    blocked: string;
+  };
+};
+
+export type PlanBoardColumnPolicyPatchBody =
+  | { kind: 'reset' }
+  | { kind: 'replace'; policy: PlanBoardColumnPolicyReplaceBody };
 
 export type PipelinePhaseResultPatchBody = {
   result: Record<string, unknown>;
@@ -303,6 +364,16 @@ export const auditsOrchestrationApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+
+  async postRoadmapManifestDraftRevision(auditId: string, body: ManifestDraftRevisionPostBody) {
+    return apiFetch<{ ok: true; pending_count: number; digest: string }>(
+      apiAuditsRoadmapManifestDraftRevisions(auditId),
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
   },
 
   /** `GET /api/audits/:id/orchestration/pack` — matches server JSON (governance, revision, optional revision_history). */
@@ -452,6 +523,13 @@ export const auditsOrchestrationApi = {
     return apiFetch<PlanBoardGetBody>(apiAuditsPlanBoard(auditId), { method: 'GET' });
   },
 
+  async patchPlanBoardColumnPolicy(auditId: string, body: PlanBoardColumnPolicyPatchBody) {
+    return apiFetch<{ ok: boolean }>(apiAuditsPlanBoardColumnPolicy(auditId), {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
   async patchPlanBoardCard(
     auditId: string,
     cardId: string,
@@ -478,6 +556,12 @@ export const auditsOrchestrationApi = {
 
   async postPlanBoardReconcile(auditId: string) {
     return apiFetch<{ ok: boolean; orchestration_pack_version: number }>(`${apiAuditsPlanBoard(auditId)}/reconcile`, {
+      method: 'POST',
+    });
+  },
+
+  async postPlanBoardReconcilePreview(auditId: string) {
+    return apiFetch<PlanBoardReconcilePreviewDto>(apiAuditsPlanBoardReconcilePreview(auditId), {
       method: 'POST',
     });
   },

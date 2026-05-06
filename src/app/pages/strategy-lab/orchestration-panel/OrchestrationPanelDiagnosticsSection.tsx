@@ -18,6 +18,8 @@ import { OrchestrationPlanGovernanceCard } from './OrchestrationPlanGovernanceCa
 import { RevisionHistoryPanel } from '../../../features/strategy-lab/RevisionHistoryPanel';
 
 export type OrchestrationPanelDiagnosticsSectionProps = {
+  /** When nested under Advanced, drop the top border spacing. */
+  embeddedInAdvanced?: boolean;
   planGovernance: OrchestrationPlanGovernanceDto | null;
   governanceHints: ReadonlyArray<string>;
   pack: GlcOrchestrationPackView | null;
@@ -48,6 +50,7 @@ export type OrchestrationPanelDiagnosticsSectionProps = {
  * Extracted from {@link StrategyLabOrchestrationPanel} to keep the parent focused on manifest / pack actions.
  */
 export function OrchestrationPanelDiagnosticsSection({
+  embeddedInAdvanced,
   planGovernance,
   governanceHints,
   pack,
@@ -67,7 +70,11 @@ export function OrchestrationPanelDiagnosticsSection({
   return (
     <section
       aria-labelledby="strategy-lab-orch-diagnostics-heading"
-      className="space-y-4 border-t border-border pt-4"
+      className={
+        embeddedInAdvanced
+          ? 'space-y-4'
+          : 'space-y-4 border-t border-border pt-4'
+      }
     >
       <div className="space-y-1">
         <h3 id="strategy-lab-orch-diagnostics-heading" className="text-foreground text-sm font-semibold">

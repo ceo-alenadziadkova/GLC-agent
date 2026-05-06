@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildPlanSurfaceHrefWithFocus,
   buildPlanUrlWithViewPreservingForeignParams,
   mergeFocusIntoPlanHref,
   readPlanFocusCanonicalKey,
@@ -21,6 +22,18 @@ describe('plan-cross-nav', () => {
     const cleared = mergeFocusIntoPlanHref('/plan/x?view=roadmap&focus=old', null);
     const sp2 = new URLSearchParams(cleared.split('?')[1] ?? '');
     expect(sp2.get('focus')).toBeNull();
+  });
+
+  it('buildPlanSurfaceHrefWithFocus merges roadmap view and focus token', () => {
+    const href = buildPlanSurfaceHrefWithFocus({
+      auditId: 'audit-z',
+      isClient: false,
+      view: 'roadmap',
+      focusCanonicalKey: 'cnk_v1_focus',
+    });
+    expect(href).toContain('/plan/audit-z');
+    expect(href).toContain('view=roadmap');
+    expect(href).toContain('focus=cnk_v1_focus');
   });
 
   it('preserves focus and arbitrary params when changing view', () => {

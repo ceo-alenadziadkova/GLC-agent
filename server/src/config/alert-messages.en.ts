@@ -7,6 +7,7 @@ export const pipelineAlertTitlesEn = {
   failureRateHigh: 'Pipeline failure rate high',
   latencyP95High: 'Pipeline latency high',
   tokenBurnHigh: 'Token burn high',
+  planBoardConflictBurstPostReconcile: 'Delivery Board conflict burst after reconcile',
 } as const;
 
 export function formatPipelineFailureRateMessageEn(input: {
@@ -35,4 +36,14 @@ export function formatPipelineTokenBurnMessageEn(input: {
   traceSuffix: string;
 }): string {
   return `Token burn ${input.tokenBurn} in last ${input.windowMin}m (threshold=${input.threshold})${input.traceSuffix}`;
+}
+
+export function formatPlanBoardConflictBurstMessageEn(input: {
+  auditId: string;
+  conflictCount: number;
+  threshold: number;
+  windowMin: number;
+  traceSuffix: string;
+}): string {
+  return `Audit ${input.auditId}: ${input.conflictCount} plan_board_conflict_409 after plan_board_reconciled in last ${input.windowMin}m (threshold=${input.threshold})${input.traceSuffix}`;
 }

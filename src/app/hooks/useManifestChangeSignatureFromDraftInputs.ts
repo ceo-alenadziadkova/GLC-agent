@@ -12,16 +12,20 @@ export function useManifestChangeSignatureFromDraftInputs(deps: {
   season: OrchestrationSeasonPreset;
   planHorizonStart: string;
   planHorizonEnd: string;
+  manifestDraftRevisionDigest?: string | null | undefined;
 }): string {
-  const { scenario, season, planHorizonStart, planHorizonEnd } = deps;
+  const { scenario, season, planHorizonStart, planHorizonEnd, manifestDraftRevisionDigest } = deps;
   return useMemo(
     () =>
-      manifestChangeSignatureFromDraft({
-        change_scenario: scenario,
-        season_preset: season,
-        plan_start_raw: planHorizonStart,
-        plan_end_raw: planHorizonEnd,
-      }),
-    [scenario, season, planHorizonStart, planHorizonEnd],
+      manifestChangeSignatureFromDraft(
+        {
+          change_scenario: scenario,
+          season_preset: season,
+          plan_start_raw: planHorizonStart,
+          plan_end_raw: planHorizonEnd,
+        },
+        manifestDraftRevisionDigest,
+      ),
+    [scenario, season, planHorizonStart, planHorizonEnd, manifestDraftRevisionDigest],
   );
 }

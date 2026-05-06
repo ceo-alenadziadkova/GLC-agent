@@ -45,6 +45,8 @@ type TaskDetailsDrawerProps = {
   /** Deep-link to Plan Board with `focus` on the pack graph node id (ADR cross-view contract). */
   deliveryBoardHref?: string | null;
   planBoardMove?: TaskDetailsPlanBoardMove | undefined;
+  /** Consultant Plan deep link (?view preserved) — shown as manual-task guidance on Roadmap drawer. */
+  consultantBoardPlanHref?: string | null;
 };
 
 export function TaskDetailsDrawer({
@@ -58,6 +60,7 @@ export function TaskDetailsDrawer({
   onFilterToLane,
   deliveryBoardHref,
   planBoardMove,
+  consultantBoardPlanHref,
 }: TaskDetailsDrawerProps) {
   const pb = planBoardMove ?? { status: 'off' as const };
   const patchMutation = usePatchPlanBoardCardMutation({ auditId: auditId ?? undefined });
@@ -223,6 +226,19 @@ export function TaskDetailsDrawer({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
+            {task.kind === 'task' && consultantBoardPlanHref ?
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {PLAN_BOARD_COPY.roadmapDrawerConsultantManualTaskHint}
+                <Link
+                  to={consultantBoardPlanHref}
+                  className="text-primary font-medium no-underline hover:underline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  {PLAN_BOARD_COPY.roadmapDrawerConsultantBoardTabLinkLabel}
+                </Link>
+                {' for backlog cards.'}
+              </p>
+            : null}
             <div className="rounded-md border border-[var(--border-default)] p-3">
               <div className="font-medium text-[var(--text-primary)]">Owner</div>
               <div className="text-[var(--text-secondary)]">{task.owner || '—'}</div>

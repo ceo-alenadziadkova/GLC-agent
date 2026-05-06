@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const ffMocks = vi.hoisted(() => ({ orchPackEnabled: true, strictManualInProgress: false }));
+const ffMocks = vi.hoisted(() => ({
+  orchPackEnabled: true,
+  strictManualInProgress: false,
+  manifestDraftFromBoard: false,
+}));
 
 /** Mutable row snapshot for GET card select in default supabase mock. */
 const cardRowMocks = vi.hoisted(() => ({
@@ -21,6 +25,7 @@ const pipelineMocks = vi.hoisted(() => ({
   emitMove: vi.fn(),
   emitPin: vi.fn(),
   emit409: vi.fn(),
+  emitManualBlocked: vi.fn(),
   countPinned: vi.fn(),
 }));
 
@@ -30,6 +35,7 @@ vi.mock('../config/feature-flags.js', async importOriginal => {
     ...actual,
     isOrchestrationPackApiEnabled: () => ffMocks.orchPackEnabled,
     isPlanBoardStrictManualInProgressBlocked: () => ffMocks.strictManualInProgress,
+    isManifestDraftRevisionsFromBoardEnabled: () => ffMocks.manifestDraftFromBoard,
   };
 });
 
@@ -52,6 +58,7 @@ vi.mock('../services/plan-board/plan-board-pipeline-events.js', () => ({
   emitPlanBoardCardMoved: pipelineMocks.emitMove,
   emitPlanBoardCardPinned: pipelineMocks.emitPin,
   emitPlanBoardConflict409: pipelineMocks.emit409,
+  emitPlanBoardManualInProgressBlocked: pipelineMocks.emitManualBlocked,
   countPinnedPlanBoardCards: pipelineMocks.countPinned,
 }));
 
@@ -64,6 +71,19 @@ const sendApiErrorMock = vi.hoisted(() => vi.fn());
 vi.mock('../routes/audits/mappers/audits-http.mapper.js', () => ({
   sendApiError: sendApiErrorMock,
 }));
+
+vi.mock('../services/plan-board/plan-board-column-policy.service.js', async importOriginal => {
+  const actual =
+    await importOriginal<typeof import('../services/plan-board/plan-board-column-policy.service.js')>();
+  return {
+    ...actual,
+    resolvePlanBoardPolicyForAuditId: vi.fn().mockResolvedValue({
+      resolved: actual.buildDefaultResolvedPlanBoardPolicy(),
+      ownerUserId: 'user-1',
+      ownerPlanBoardCustomColumnsEntitled: false,
+    }),
+  };
+});
 
 import { API_ERROR_CODES } from '../config/api-error-codes.js';
 import { patchPlanBoardCardController } from '../routes/audits/controllers/patch-plan-board-card.controller.js';
@@ -91,6 +111,7 @@ describe('patchPlanBoardCardController', () => {
     vi.clearAllMocks();
     ffMocks.orchPackEnabled = true;
     ffMocks.strictManualInProgress = false;
+    ffMocks.manifestDraftFromBoard = false;
     cardRowMocks.column_id = 'next_up';
     cardRowMocks.source = 'pack';
     accessMocks.resolve.mockResolvedValue({ ok: true, kind: 'consultant_owner' });
@@ -258,6 +279,28 @@ describe('patchPlanBoardCardController', () => {
     expect(pipelineMocks.emitMove).toHaveBeenCalled();
   });
 
+  it('returns 409 when lane PATCH is blocked under manifest draft-from-board flag', async () => {
+    ffMocks.manifestDraftFromBoard = true;
+    const req = createReq({
+      body: { lane: 'seo', expected_pack_version: 2 },
+      header: (k: string) => (k.toLowerCase() === 'idempotency-key' ? 'idem-lane-draft' : undefined),
+    });
+    const res = createRes();
+
+    await patchPlanBoardCardController(req, res);
+
+    expect(sendApiErrorMock).toHaveBeenCalledWith(
+      expect.anything(),
+      409,
+      API_ERROR_CODES.PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED,
+      expect.any(String),
+      expect.objectContaining({
+        code: 'lane_requires_manifest_draft',
+      }),
+    );
+    expect(pipelineMocks.emitMove).not.toHaveBeenCalled();
+  });
+
   it('returns 409 for manual cards moving into in_progress when strict flag is enabled', async () => {
     ffMocks.strictManualInProgress = true;
     cardRowMocks.source = 'manual';
@@ -270,16 +313,8 @@ describe('patchPlanBoardCardController', () => {
 
     await patchPlanBoardCardController(req, res);
 
-    expect(pipelineMocks.emit409).toHaveBeenCalledWith(
-      expect.objectContaining({
-        auditId: 'audit-1',
-        payload: expect.objectContaining({
-          reason: 'manual_in_progress_blocked',
-          pack_version_seen: 2,
-          pack_version_actual: 2,
-        }),
-      }),
-    );
+    expect(pipelineMocks.emitManualBlocked).toHaveBeenCalledWith({ auditId: 'audit-1' });
+    expect(pipelineMocks.emit409).not.toHaveBeenCalled();
     expect(sendApiErrorMock).toHaveBeenCalledWith(
       expect.anything(),
       409,

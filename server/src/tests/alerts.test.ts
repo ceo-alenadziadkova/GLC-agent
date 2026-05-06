@@ -53,6 +53,7 @@ vi.mock('../services/logger.js', () => ({
 }));
 
 vi.mock('../config/alerts-config.js', () => ({
+  ALERT_BOARD_CONFLICT_BURST_THRESHOLD: 3,
   ALERT_CHECK_INTERVAL_MS: 60_000,
   ALERT_CHECK_WINDOW_MINUTES: 15,
   ALERT_COOLDOWN_MS: 900_000,

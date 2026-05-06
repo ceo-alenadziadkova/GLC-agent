@@ -1,12 +1,9 @@
-import type { PlanBoardColumnId } from '../../config/plan-board-columns.js';
+import { PLAN_BOARD_CLIENT_VISIBLE_SEMANTICS } from '../../config/plan-board-semantics.js';
 
-/** Portal client may only see workflow columns (ADR §10); no backlog, blocked, or archived. */
-export const PLAN_BOARD_CLIENT_VISIBLE_COLUMN_IDS = new Set<PlanBoardColumnId>([
-  'next_up',
-  'in_progress',
-  'review',
-  'done',
-]);
+/** Default client-visible column ids when semantics map is identity (`id === semantic`). */
+export function defaultPlanBoardClientVisibleColumnIds(): ReadonlySet<string> {
+  return new Set(PLAN_BOARD_CLIENT_VISIBLE_SEMANTICS) as ReadonlySet<string>;
+}
 
 export type PlanBoardCardRowLike = {
   source: string;
@@ -14,15 +11,22 @@ export type PlanBoardCardRowLike = {
   delivery_area: string;
 };
 
-export function filterPlanBoardCardsForClientView<T extends PlanBoardCardRowLike>(cards: readonly T[]): T[] {
+/**
+ * Portal client may only see pack workflow columns (ADR §10); semantics `next_up`…`done` projected to concrete ids via policy.
+ */
+export function filterPlanBoardCardsForClientView<T extends PlanBoardCardRowLike>(
+  cards: readonly T[],
+  clientVisibleColumnIds?: ReadonlySet<string>,
+): T[] {
+  const visible = clientVisibleColumnIds ?? defaultPlanBoardClientVisibleColumnIds();
   return cards.filter(
-    (c) =>
-      c.source === 'pack' &&
-      c.delivery_area !== 'archived' &&
-      PLAN_BOARD_CLIENT_VISIBLE_COLUMN_IDS.has(c.column_id as PlanBoardColumnId),
+    (c) => c.source === 'pack' && c.delivery_area !== 'archived' && visible.has(c.column_id),
   );
 }
 
-export function isPlanBoardCardRowVisibleToClient(row: PlanBoardCardRowLike): boolean {
-  return filterPlanBoardCardsForClientView([row]).length > 0;
+export function isPlanBoardCardRowVisibleToClient(
+  row: PlanBoardCardRowLike,
+  clientVisibleColumnIds?: ReadonlySet<string>,
+): boolean {
+  return filterPlanBoardCardsForClientView([row], clientVisibleColumnIds).length > 0;
 }

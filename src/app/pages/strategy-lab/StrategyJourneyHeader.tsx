@@ -4,6 +4,7 @@ import { Check } from '@phosphor-icons/react';
 
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { STRATEGY_LAB_PAGE_ANCHORS } from '../../config/strategy-lab';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import { buildAppRoute } from '../../config/route-paths';
 import { cn } from '../../components/ui/utils';
 import type { StrategyJourneyStepComputed, StrategyJourneyStepId } from '../../lib/strategy-journey-status';
@@ -35,10 +36,10 @@ function strategyLabStepTo(
   const pathname = isClient ? buildAppRoute.portalStrategy(auditId) : buildAppRoute.strategy(auditId);
   const hashKey =
     id === 'context'
-      ? STRATEGY_LAB_PAGE_ANCHORS.reference
+      ? STRATEGY_LAB_PAGE_ANCHORS.definePhase
       : id === 'manifest'
         ? STRATEGY_LAB_PAGE_ANCHORS.planSetup
-        : STRATEGY_LAB_PAGE_ANCHORS.inspectPack;
+        : STRATEGY_LAB_PAGE_ANCHORS.shapePack;
   return { pathname, hash: `#${hashKey}` };
 }
 
@@ -57,7 +58,10 @@ export type StrategyJourneyHeaderProps = {
  */
 export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: StrategyJourneyHeaderProps) {
   const descriptionId = useId();
-  const planEntryHref = isClient ? buildAppRoute.portalPlan(auditId) : buildAppRoute.plan(auditId);
+  const planView = primaryPlanWorkbenchViewForStrategyLinks();
+  const planEntryHref = isClient
+    ? buildAppRoute.portalPlan(auditId, planView)
+    : buildAppRoute.plan(auditId, planView);
 
   if (!visible) return null;
 

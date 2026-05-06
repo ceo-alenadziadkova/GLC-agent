@@ -40,6 +40,8 @@ export const PIPELINE_EVENT_TYPES = {
   planBoardCardMoved: 'plan_board_card_moved',
   planBoardCardPinned: 'plan_board_card_pinned',
   planBoardConflict409: 'plan_board_conflict_409',
+  /** Strict manual→in_progress policy blocked a move or POST manual-card into in_progress. */
+  planBoardManualInProgressBlocked: 'plan_board_manual_in_progress_blocked',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

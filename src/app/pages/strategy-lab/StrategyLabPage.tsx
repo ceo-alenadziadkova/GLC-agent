@@ -1,17 +1,13 @@
 import { useMemo, useEffect, useCallback, useId, useState, type KeyboardEvent } from 'react';
 import { useQueryClient } from '../../lib/tanstack-react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
-import {
-  MapTrifold, ArrowRight,
-  ArrowsClockwise, SlidersHorizontal,
-  Path,
-} from '@phosphor-icons/react';
+import { MapTrifold, ArrowRight, ArrowsClockwise } from '@phosphor-icons/react';
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
 import { useAudit } from '../../hooks/useAudit';
 import { useBrowserOnline } from '../../hooks/useBrowserOnline';
 import { useProfile } from '../../hooks/useProfile';
-import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
+import { DOMAIN_KEYS } from '../../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../../data/api/benchmarks';
 import { api } from '../../data/apiService';
 import {
@@ -19,11 +15,6 @@ import {
   STRATEGY_LAB_LAYOUT_POLICY,
   STRATEGY_LAB_PAGE_ANCHORS,
 } from '../../config/strategy-lab';
-import {
-  STRATEGY_LAB_UI_BUDGET_BANDS,
-  STRATEGY_LAB_UI_COMPANY_STAGES,
-  STRATEGY_LAB_UI_TEAM_SCALES,
-} from '../../config/strategy-lab-constraints';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
@@ -34,24 +25,21 @@ import {
   ORCHESTRATION_UI_LIMITS,
 } from '../../config/orchestration-ui-limits';
 import { buildAppRoute } from '../../config/route-paths';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import { StrategyPlanningChrome } from './StrategyPlanningChrome';
+import { StrategyLabPhaseNav } from './StrategyLabPhaseNav';
+import { StrategyLabInspectPackScrollBody } from './strategy-lab-inspect-pack-scroll-body';
 import { useStrategyJourneyStepStatuses } from '../../hooks/useStrategyJourneyStepStatuses';
-import {
-  StrategyLabOrchestratorListBody,
-  type StrategyLabOrchestratorTabId,
-} from './StrategyLabOrchestratorListBody';
+import type { StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
 import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
-import { cn } from '../../components/ui/utils';
-import { Button } from '../../components/ui/button';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '../../components/ui/accordion';
+  StrategyLabInitiativeEditDrawer,
+  type StrategyInitiativeBucket,
+} from './StrategyLabInitiativeEditDrawer';
+import { Button } from '../../components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
 import {
   Sheet,
@@ -65,7 +53,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { UI_BREAKPOINTS } from '../../config/ui-breakpoints';
 import { toast } from 'sonner';
 import { ApiError } from '../../data/api-error';
-import type { StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
+import type { StrategyInitiative, StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
   if (raw == null) return null;
@@ -89,6 +77,7 @@ export function StrategyLab() {
   const { isClient } = useProfile();
   const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
   const orchestratorTablistOverviewId = useId();
+  const definePhaseHeadingId = useId();
   const [domainBenchmarks, setDomainBenchmarks] = useState<
     Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>
   >({});
@@ -100,6 +89,9 @@ export function StrategyLab() {
   const [constraintOverridesSaveErrorMessage, setConstraintOverridesSaveErrorMessage] = useState<string | null>(null);
   /** Mobile-only Plan summary Sheet open state. On desktop the same content lives in a side `<ResizablePanel>` and this flag stays unused. */
   const [isSummarySheetOpen, setIsSummarySheetOpen] = useState(false);
+  const [initiativeEditOpen, setInitiativeEditOpen] = useState(false);
+  const [initiativeEditBucket, setInitiativeEditBucket] = useState<StrategyInitiativeBucket>('quick_wins');
+  const [initiativeEditTarget, setInitiativeEditTarget] = useState<StrategyInitiative | null>(null);
 
   const glcPackView = useMemo(() => {
     const raw = audit?.strategy?.glc_orchestration_pack;
@@ -161,6 +153,12 @@ export function StrategyLab() {
     },
     [setSearchParams],
   );
+
+  const openInitiativeEditor = useCallback((bucket: StrategyInitiativeBucket, initiative: StrategyInitiative) => {
+    setInitiativeEditBucket(bucket);
+    setInitiativeEditTarget(initiative);
+    setInitiativeEditOpen(true);
+  }, []);
 
   useEffect(() => {
     const focus = searchParams.get(ORCHESTRATION_LAB_FOCUS_QUERY_KEY);
@@ -446,10 +444,11 @@ export function StrategyLab() {
     : isClient
       ? '/portal/reports'
       : '/reports';
-  const timelineHref = id
+  const primaryPlanSurface = primaryPlanWorkbenchViewForStrategyLinks();
+  const planExecutionHref = id
     ? isClient
-      ? buildAppRoute.portalPlan(id, 'timeline')
-      : buildAppRoute.plan(id, 'timeline')
+      ? buildAppRoute.portalPlan(id, primaryPlanSurface)
+      : buildAppRoute.plan(id, primaryPlanSurface)
     : reportHref;
 
   if (!audit.strategy) {
@@ -508,242 +507,37 @@ export function StrategyLab() {
       ).replace('{summary}', constraintsSummary);
 
   const inspectPackScrollInner = (
-    <>
-          {!isClient && (
-            <section
-              id={STRATEGY_LAB_PAGE_ANCHORS.reference}
-              className="border-border bg-card scroll-mt-20 border-b"
-            >
-              <Accordion
-                type="single"
-                collapsible
-                className="px-4 [&_[data-slot=accordion-item]]:border-b-0"
-              >
-                <AccordionItem value="reference">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <span className="flex flex-1 flex-col items-start gap-1 text-left">
-                      <span className="text-foreground text-sm font-semibold">
-                        {STRATEGY_LAB_COPY.referenceDisclosure.summary}
-                      </span>
-                      <span className="text-muted-foreground text-[length:var(--text-2xs)] font-normal leading-snug">
-                        {referencePreviewBenchmarks} · {referencePreviewConstraints}
-                      </span>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4 pt-1">
-                    <p className="text-muted-foreground pb-4 text-xs leading-relaxed max-w-prose">{STRATEGY_LAB_COPY.referenceDisclosure.hint}</p>
-                    <div className="space-y-3 border-b border-border pb-4">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="text-info h-4 w-4" aria-hidden />
-                    <span className="text-foreground text-sm font-semibold">
-                      {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground text-xs max-w-prose">{STRATEGY_LAB_COPY.panel.domainBenchmarksHint}</p>
-                  <div className="space-y-2">
-                    {DOMAIN_KEYS.map((dk) => {
-                      const row = domainBenchmarks[dk];
-                      const label = DOMAIN_LABELS[dk] ?? dk;
-                      return (
-                        <div
-                          key={dk}
-                          className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
-                        >
-                          <span className="text-muted-foreground">{label}</span>
-                          <span className="text-foreground font-mono tabular-nums">
-                            {row
-                              ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
-                              : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="space-y-3 pt-4">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="text-info h-4 w-4" aria-hidden />
-                    <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
-                  </div>
-                  <p className="text-muted-foreground text-xs max-w-prose">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
-                  {constraintOverridesSaveErrorMessage ? (
-                    <div
-                      id={constraintOverridesErrorRegionId}
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                      className="bg-card flex flex-wrap items-start justify-between gap-2 rounded-lg border border-border px-3 py-2"
-                    >
-                      <p className="text-destructive m-0 text-xs leading-relaxed max-w-prose">
-                        {constraintOverridesSaveErrorMessage}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 shrink-0 text-xs"
-                        onClick={dismissConstraintOverridesSaveError}
-                      >
-                        {STRATEGY_LAB_COPY.constraints.dismissSaveError}
-                      </Button>
-                    </div>
-                  ) : null}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
-                      <select
-                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                        value={constraintStageDraft}
-                        onChange={e => setConstraintStageDraft(e.target.value)}
-                      >
-                        {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
-                          <option key={s} value={s}>
-                            {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
-                      <select
-                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                        value={constraintBudgetDraft}
-                        onChange={e => setConstraintBudgetDraft(e.target.value)}
-                      >
-                        {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
-                          <option key={b} value={b}>
-                            {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex min-w-[length:var(--strategy-lab-form-field-min-width)] flex-1 flex-col gap-1">
-                      <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
-                      <select
-                        className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                        value={constraintTeamDraft}
-                        onChange={e => setConstraintTeamDraft(e.target.value)}
-                      >
-                        {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
-                          <option key={t} value={t}>
-                            {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button
-                      type="button"
-                      variant="default"
-                      disabled={constraintSaving}
-                      aria-describedby={constraintOverridesSaveErrorMessage ? constraintOverridesErrorRegionId : undefined}
-                      onClick={() => void handleSaveConstraintOverrides()}
-                    >
-                      {STRATEGY_LAB_COPY.constraints.save}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={constraintSaving}
-                      aria-describedby={constraintOverridesSaveErrorMessage ? constraintOverridesErrorRegionId : undefined}
-                      onClick={() => void handleClearConstraintOverrides()}
-                    >
-                      {STRATEGY_LAB_COPY.constraints.useBrief}
-                    </Button>
-                  </div>
-                </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </section>
-          )}
-
-          <div className="p-4">
-            {glcPackView && !isClient ? (
-              <div className="space-y-4">
-                <p id={orchestratorTablistOverviewId} className="sr-only">
-                  {STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaDescription}
-                </p>
-                <div
-                  role="tablist"
-                  aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
-                  aria-describedby={orchestratorTablistOverviewId}
-                  className="flex flex-wrap gap-2 border-b border-border pb-3"
-                  onKeyDown={handleOrchestratorTabListKeyDown}
-                >
-                  {(
-                    [
-                      ['now', STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
-                      ['next', STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
-                      [
-                        'dependencies',
-                        STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
-                        STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
-                      ],
-                      ['risks', STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
-                    ] as const
-                  ).map(([key, label, desc]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      id={`strategy-lab-orchestrator-tab-${key}`}
-                      role="tab"
-                      aria-selected={orchestratorTab === key}
-                      aria-controls="strategy-lab-orchestrator-panel"
-                      tabIndex={orchestratorTab === key ? 0 : -1}
-                      onClick={() => setOrchestratorTab(key)}
-                      className={cn(
-                        'flex min-w-[length:var(--strategy-lab-orchestrator-tab-min-width)] flex-1 flex-col items-start rounded-lg border px-3 py-2 text-left text-xs transition-colors sm:min-w-0 sm:flex-none',
-                        orchestratorTab === key
-                          ? 'border-primary/40 bg-primary/10 text-foreground'
-                          : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      <span className="font-semibold">{label}</span>
-                      <span className="text-[length:var(--text-2xs)] leading-snug opacity-90">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-                <div
-                  role="tabpanel"
-                  id="strategy-lab-orchestrator-panel"
-                  aria-labelledby={`strategy-lab-orchestrator-tab-${orchestratorTab}`}
-                >
-                  <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-                    {orchestratorPanelAnnouncement}
-                  </span>
-                  <StrategyLabOrchestratorListBody
-                    pack={glcPackView}
-                    tab={orchestratorTab}
-                    selectedNodeId={selectedPackNodeId}
-                    onSelectNode={setSelectedPackNodeId}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="bg-background rounded-xl border p-4">
-                <p className="text-foreground text-sm font-semibold">
-                  {ORCHESTRATION_UI_COPY.timelineTitle}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs leading-relaxed max-w-prose">
-                  {ORCHESTRATION_UI_COPY.timelineHint}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm" className="no-underline">
-                    <Link to={timelineHref}>
-                      <Path className="h-4 w-4" aria-hidden />
-                      {ORCHESTRATION_UI_COPY.clientOpenFullTimeline}
-                    </Link>
-                  </Button>
-                  <Button asChild variant="ghost" size="sm" className="no-underline">
-                    <Link to={reportHref}>{STRATEGY_LAB_COPY.panel.viewReport}</Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-    </>
+    <StrategyLabInspectPackScrollBody
+      isClient={isClient}
+      definePhaseHeadingId={definePhaseHeadingId}
+      domainBenchmarks={domainBenchmarks}
+      strategy={audit.strategy}
+      referencePreviewBenchmarks={referencePreviewBenchmarks}
+      referencePreviewConstraints={referencePreviewConstraints}
+      constraintOverridesErrorRegionId={constraintOverridesErrorRegionId}
+      constraintOverridesSaveErrorMessage={constraintOverridesSaveErrorMessage}
+      dismissConstraintOverridesSaveError={dismissConstraintOverridesSaveError}
+      constraintStageDraft={constraintStageDraft}
+      constraintBudgetDraft={constraintBudgetDraft}
+      constraintTeamDraft={constraintTeamDraft}
+      constraintSaving={constraintSaving}
+      onConstraintStageChange={setConstraintStageDraft}
+      onConstraintBudgetChange={setConstraintBudgetDraft}
+      onConstraintTeamChange={setConstraintTeamDraft}
+      onSaveConstraintOverrides={() => void handleSaveConstraintOverrides()}
+      onClearConstraintOverrides={() => void handleClearConstraintOverrides()}
+      glcPackView={glcPackView}
+      orchestratorTablistOverviewId={orchestratorTablistOverviewId}
+      orchestratorTab={orchestratorTab}
+      orchestratorPanelAnnouncement={orchestratorPanelAnnouncement}
+      selectedPackNodeId={selectedPackNodeId}
+      onOrchestratorTabChange={setOrchestratorTab}
+      onOrchestratorTabListKeyDown={handleOrchestratorTabListKeyDown}
+      onSelectPackNodeId={setSelectedPackNodeId}
+      openInitiativeEditor={openInitiativeEditor}
+      planExecutionHref={planExecutionHref}
+      reportHref={reportHref}
+    />
   );
 
   /** Node inspector + dashed empty state (shared desktop panel + mobile Sheet). */
@@ -804,7 +598,7 @@ export function StrategyLab() {
         <div className="bg-card flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.clientTimelineReadOnlyHint}</p>
           <Button asChild variant="outline" size="sm" className="no-underline w-fit">
-            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.clientOpenFullTimeline}</Link>
+            <Link to={planExecutionHref}>{ORCHESTRATION_UI_COPY.clientOpenPlanSurface}</Link>
           </Button>
         </div>
       ) : orchestrationUiEnabled && isClient ? (
@@ -821,6 +615,10 @@ export function StrategyLab() {
           variant={{ kind: 'strategy-lab' }}
           steps={journeySteps}
         />
+      ) : null}
+
+      {orchestrationUiEnabled && !isClient && audit.strategy ? (
+        <StrategyLabPhaseNav />
       ) : null}
 
       {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
@@ -926,6 +724,18 @@ export function StrategyLab() {
           </ResizablePanel>
         </ResizablePanelGroup>
       )}
+      {id && !isClient ? (
+        <StrategyLabInitiativeEditDrawer
+          open={initiativeEditOpen}
+          onOpenChange={setInitiativeEditOpen}
+          auditId={id}
+          bucket={initiativeEditBucket}
+          initiative={initiativeEditTarget}
+          onSaved={() => {
+            void reload();
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 }

@@ -13,6 +13,26 @@ describe('manifestChangeSignatureFromDraft', () => {
       }),
     ).toContain('rolling_90d');
   });
+
+  it('appends roadmap draft revision digest when hintsDigest is provided', () => {
+    const without = manifestChangeSignatureFromDraft({
+      change_scenario: 'hybrid',
+      season_preset: 'rolling_90d',
+      plan_start_raw: ' ',
+      plan_end_raw: '',
+    });
+    const withDigest = manifestChangeSignatureFromDraft(
+      {
+        change_scenario: 'hybrid',
+        season_preset: 'rolling_90d',
+        plan_start_raw: ' ',
+        plan_end_raw: '',
+      },
+      'sha256:test',
+    );
+    expect(without).not.toContain('hints');
+    expect(withDigest).toContain('::hints::sha256:test');
+  });
 });
 
 describe('manifestChangeSignatureFromPayload', () => {

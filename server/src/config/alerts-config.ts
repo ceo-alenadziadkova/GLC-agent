@@ -9,6 +9,9 @@ const D = SYSTEM_DEFAULTS.alerts;
 /** Rolling window (minutes) for pipeline event samples in alert checks. */
 export const ALERT_CHECK_WINDOW_MINUTES = D.windowMinutes;
 
+/** Same window as `ALERT_CHECK_WINDOW_MINUTES` — used for post-reconcile board conflict burst detection (PB-022). */
+export const ALERT_BOARD_CONFLICT_WINDOW_MINUTES = D.windowMinutes;
+
 /** Worker tick interval (ms). */
 export const ALERT_CHECK_INTERVAL_MS = D.intervalMs;
 
@@ -32,3 +35,6 @@ export const ALERT_COOLDOWN_MS = D.cooldownMs;
 
 /** Redis distributed lock TTL for alert worker (ms). */
 export const ALERT_LOCK_TTL_MS = D.lockTtlMs;
+
+/** Min `plan_board_conflict_409` rows after a `plan_board_reconciled` in the same audit within the alert window. */
+export const ALERT_BOARD_CONFLICT_BURST_THRESHOLD = D.boardConflictBurstMinCount;

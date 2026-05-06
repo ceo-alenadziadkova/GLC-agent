@@ -66,6 +66,9 @@ export const ORCHESTRATION_UI_COPY = {
   manifestSaved: 'Manifest snapshot saved',
   packBuilt: 'Orchestration pack saved',
   manifestSaveFailed: 'Could not save manifest',
+  manifestDraftQueueBanner:
+    'Delivery Board lane or owner hints are queued for signing. Save the manifest snapshot below to merge them into the roadmap contract.',
+  manifestDraftLaneQueuedToast: 'Execution hint queued. Save manifest snapshot in Strategy Lab to sign it.',
   /** Strategy Lab — POST orchestration pack failed */
   packBuildFailed: 'Could not build orchestration pack',
   /** 409 from plan governance: title line (body lists blocking reason codes in toast description) */
@@ -95,7 +98,7 @@ export const ORCHESTRATION_UI_COPY = {
     'Audit data could not be refreshed. You are seeing the last loaded information. Try again or reload the page.',
   /** Single-line “next” hint replacing numbered quick-start + flow mini tiles in Strategy Lab */
   strategyLabNextActionInline:
-    'Next: tune scenario and planning window, save a manifest snapshot, then build the pack. Open Plan when you need lanes or the seasonal timeline.',
+    'Next: tune scenario and planning window, save a manifest snapshot, then build the pack. Open Plan for the Board, Gantt Roadmap, or legacy Timeline.',
   /** Execution realism — plan sequencing vs people/calendar capacity. */
   timelineExecutionRealismNote:
     'This view sequences work by dependencies and lanes — it does not replace team capacity planning, FTE load, or your real sprint calendar.',
@@ -288,6 +291,8 @@ export const ORCHESTRATION_UI_COPY = {
   clientTimelineReadOnlyHint:
     'The full seasonal timeline and lanes live in the dedicated timeline view. Open it to review ordering and dependencies, then return here for node detail.',
   clientOpenFullTimeline: 'Open timeline',
+  /** Primary Plan entry (Board/Roadmap) when Timeline is no longer the default CTA. */
+  clientOpenPlanSurface: 'Open Plan',
   synthesisSectionTitle: 'Orchestrator synthesis',
   synthesisSectionHint:
     'Cross-domain trade-offs from the optional synthesis pass (when enabled on the server). Deterministic graph and lanes are unchanged.',
@@ -307,9 +312,17 @@ export const ORCHESTRATION_UI_COPY = {
   commercialBeforeLabel: 'Current scope',
   commercialAfterLabel: 'If accepted',
   commercialAcceptedReviewTimeline:
-    'Coverage update applied. Open the execution timeline to review seasons, lanes, and dependencies for the new roadmap version.',
+    'Coverage update applied. Open Plan to review the delivery board, schedule, or seasonal view for the new roadmap version.',
+  /** Legacy timeline CTA label — prefer `commercialAcceptedOpenPlanBoard` / `commercialAcceptedOpenPlanRoadmap` for primary Plan links. */
   commercialAcceptedOpenTimeline: 'Open execution timeline',
-  commercialAcceptedCompareHint: 'Use revision history below to compare this pack to the previous version.',
+  /** CTA when Delivery Board rollout is active (explicit links). */
+  commercialAcceptedOpenPlanBoard: 'Open delivery board',
+  /** CTA when Board is off — schedule is primary. */
+  commercialAcceptedOpenPlanRoadmap: 'Open roadmap',
+  /** Legacy seasonal lanes tab when still exposed. */
+  commercialAcceptedOpenPlanTimeline: 'Open execution timeline',
+  commercialAcceptedCompareHint:
+    'Use Plan quality and history (Advanced) to compare this pack to the previous version.',
   governanceTitle: 'Plan governance',
   governanceDecisionHintLabel: 'Decision hint',
   governanceInputHeaderLabel: 'Input quality gate',
@@ -339,6 +352,8 @@ export const ORCHESTRATION_UI_COPY = {
   consultantCockpitCriticalPathHeading: 'Critical path',
   consultantCockpitInitiativesHeading: 'Initiatives',
   consultantCockpitTimelineLinkLabel: 'Timeline',
+  /** Primary Plan entry from cockpit (Board/Roadmap via rollout). */
+  consultantCockpitPlanLinkLabel: 'Plan',
   consultantCockpitManifestWizardLinkLabel: 'Manifest wizard',
   consultantCockpitTableColTitle: 'Title',
   consultantCockpitTableColLane: 'Lane',
@@ -843,6 +858,9 @@ export function formatTimelineCalendarPlanWindowLineClient(startIso: string, end
  * IA: timeline-first vs Strategy Lab (ADR Phase 4). Single narrative SSOT for portal, Lab, cockpit.
  */
 export const ORCHESTRATION_IA_COPY = {
+  /** One line under Strategy / Plan chrome — Strategy Lab defines contract; Plan runs delivery surfaces. */
+  strategyVsPlanMicroHint:
+    'Strategy Lab defines context, manifest, and pack rebuilds. Plan runs delivery — Board, Roadmap schedule, or legacy Timeline.',
   /** Long-form IA note (portal timeline, cockpit); Strategy Lab avoids repeating this on-page. */
   timelineVsLabRole:
     'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
@@ -854,7 +872,7 @@ export const ORCHESTRATION_IA_COPY = {
     'Sequencing and seasonal buckets live on the execution timeline; Strategy Lab remains the place for manifest and pack tooling.',
   /** Strategy Lab AppShell — single canonical line (duplicated Timeline vs Lab copy removed from the page body). */
   strategyLabAppShellSubtitle:
-    'Configure inputs, save a snapshot, and build the execution pack — then use the execution timeline for sequencing.',
+    'Define context, configure the manifest, and build the execution pack — then continue in Plan (Board, Roadmap, or Timeline).',
   /** Secondary line on client navigation cards (timeline). */
   clientNavTimelineCardSubtitle: 'Primary sequencing — seasonal buckets, lanes, and dependencies.',
   /** Secondary line on client navigation cards (Lab). */

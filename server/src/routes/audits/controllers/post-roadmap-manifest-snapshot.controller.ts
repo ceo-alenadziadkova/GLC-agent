@@ -20,6 +20,11 @@ import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { RoadmapManifestPayloadSchema } from '../../../schemas/roadmap-manifest.js';
 import {
+  clearManifestDraftRevisionsForAudit,
+  listManifestDraftRevisionsForAudit,
+  mergeQueuedDraftRevisionsIntoManifestPayload,
+} from '../../../services/orchestration/manifest-draft-revision.service.js';
+import {
   assertManifestMatchesExecutionPlan,
   insertRoadmapManifestSnapshot,
   RoadmapManifestMismatchError,
@@ -93,11 +98,70 @@ export async function postRoadmapManifestSnapshotController(req: AuthRequest, re
       throw e;
     }
 
+    let payloadToPersist = parsedBody.data;
+    const { rows: queuedDraftRows, error: queuedDraftErr } = await listManifestDraftRevisionsForAudit({ auditId });
+    if (queuedDraftErr) {
+      logger.warn('route.roadmap_manifest_snapshot_rejected', {
+        component: 'audits',
+        reason: 'draft_revision_list_failed',
+        metric: 'roadmap_manifest_snapshot.draft_revision_list_failed',
+      });
+      sendApiError(
+        res,
+        500,
+        API_ERROR_CODES.AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED,
+        AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED_MESSAGE,
+      );
+      return;
+    }
+    if (queuedDraftRows.length > 0) {
+      const mergedPayload = mergeQueuedDraftRevisionsIntoManifestPayload({
+        base: parsedBody.data,
+        draftRows: queuedDraftRows,
+      });
+      const revalidated = RoadmapManifestPayloadSchema.safeParse(mergedPayload);
+      if (!revalidated.success) {
+        sendApiError(
+          res,
+          400,
+          API_ERROR_CODES.AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID,
+          AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID_MESSAGE,
+          { detail: revalidated.error.flatten() },
+        );
+        return;
+      }
+      try {
+        assertManifestMatchesExecutionPlan(revalidated.data, auditCtx.plan);
+      } catch (e) {
+        if (e instanceof RoadmapManifestMismatchError) {
+          sendApiError(
+            res,
+            400,
+            API_ERROR_CODES.AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH,
+            AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE,
+          );
+          return;
+        }
+        throw e;
+      }
+      payloadToPersist = revalidated.data;
+    }
+
     const { id } = await insertRoadmapManifestSnapshot({
       auditId,
       userId: req.userId!,
-      payload: parsedBody.data,
+      payload: payloadToPersist,
     });
+    if (queuedDraftRows.length > 0) {
+      const { error: clearErr } = await clearManifestDraftRevisionsForAudit(auditId);
+      if (clearErr) {
+        logger.warn('route.roadmap_manifest_draft_revision_clear_failed', {
+          auditId,
+          snapshot_id: id,
+          error: clearErr.message,
+        });
+      }
+    }
     logger.info('route.roadmap_manifest_snapshot_success', {
       component: 'audits',
       metric: 'roadmap_manifest_snapshot.success',

@@ -9,8 +9,14 @@ import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 
+import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
 import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
 import { PlanBoardOperationalCard } from '../BoardView';
+
+const DEFAULT_MOVE_MENU = PLAN_BOARD_UI_COLUMNS.map((id) => ({
+  id,
+  title: PLAN_BOARD_COLUMN_HEADINGS_EN[id],
+}));
 
 const BASE_CARD: PlanBoardCardDto = {
   id: 'card-row-a11y',
@@ -42,6 +48,7 @@ describe('PlanBoardOperationalCard a11y', () => {
         columnId="next_up"
         dragLocked={false}
         expectedPackVersion={3}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
       />,
     );
@@ -58,6 +65,7 @@ describe('PlanBoardOperationalCard a11y', () => {
         columnId="backlog"
         dragLocked={false}
         expectedPackVersion={2}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
       />,
     );
@@ -78,6 +86,7 @@ describe('PlanBoardOperationalCard a11y', () => {
         columnId="in_progress"
         dragLocked
         expectedPackVersion={2}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
       />,
     );

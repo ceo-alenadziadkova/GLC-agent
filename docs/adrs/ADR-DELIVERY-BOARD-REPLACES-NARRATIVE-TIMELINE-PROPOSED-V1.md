@@ -7,7 +7,7 @@
 | **Scope** | One execution contour: Pack (structural truth) + `plan_task_delivery` (soft state) + three Plan views (**Board**, **Roadmap Gantt**, **Strategy Lab**). Narrative `?view=timeline` sunsets after parity ([`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) Appendix F/G). |
 | **Supersedes** | — (does **not** replace engineering SSOT yet) |
 | **Superseded by** | — |
-| **Relationship to OPERATIONAL-LAYER** | **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md` remains Accepted** engineering + implementation SSOT (**Appendix D** = spec vs shipped). **This ADR** is the **product decision matrix §2**, **risk register**, and **ticket skeleton (GLC-PB-xxx)** aligned to that codebase. Promotion to **Accepted** here would mean product explicitly adopts this wording as authoritative for scope tickets—without invalidating OPERATIONAL-LAYER until a superseding engineering ADR states otherwise. |
+| **Relationship to OPERATIONAL-LAYER** | **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md` remains Accepted** engineering + implementation SSOT (**Appendix D** = spec vs shipped). **This ADR** (**Accepted**) is the **product decision matrix §2**, **risk register**, and **ticket skeleton (GLC-PB-xxx)** aligned to that codebase—authoritative for scope tickets alongside Operational-layer SSOT until a superseding engineering ADR replaces implementation SSOT. |
 | **Decision owners** | Product + Consulting + AI Platform |
 
 ### Related artefacts
@@ -102,7 +102,7 @@ The clause in **[`ORCHESTRATOR-INSTRUCTIONS.md`](../instructions/ORCHESTRATOR-IN
 
 | ID | Phase | Description | Repo status |
 | --- | --- | --- | --- |
-| **GLC-PB-001** | P0 | ADR §2 locked by product + UX contract synced | **Split:** engineering **Accepted** in **Operational-layer** ADR; **this document** carries **Proposed** product framing. |
+| **GLC-PB-001** | P0 | ADR §2 locked by product + UX contract synced | **Done** — dual SSOT: engineering **Accepted** in **Operational-layer** ADR; product §2 / GLC-PB framing **Accepted** in **this** ADR (**§9**). |
 | **GLC-PB-002** | P0 | `?view=board` parser + segmented **Board \| Roadmap \| Timeline** | **Done** — [`portal-plan.ts`](../../src/app/config/portal-plan.ts), [`PortalPlanPage.tsx`](../../src/app/pages/portal-plan/PortalPlanPage.tsx); redirect tests [`LegacyPlanPathRedirect`](../../src/app/pages/portal-plan/LegacyPlanPathRedirect.tsx). |
 | **GLC-PB-003** | P0 | Read-only prototype from timeline projection only | **Superseded / differs** — shipped **persisted operational** Board + parity (`timeline_parity` on GET)—see Operational ADR SSOT mapping. |
 | **GLC-PB-004** | P1 | Migration `074` / adjunct `075` `plan_task_delivery` | **Done** — [`074_plan_task_delivery.sql`](../../server/migrations/074_plan_task_delivery.sql), [`075_plan_task_delivery_manual_title.sql`](../../server/migrations/075_plan_task_delivery_manual_title.sql). |
@@ -133,7 +133,7 @@ Canonical engineering truth: **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER` Appendix D
 | Board enable flag | **`PLAN_DELIVERY_BOARD`** boolean default false | **Rollout facade** **`planDeliveryBoardRolloutMode`** / **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`** (**`shadow`…`ga`**) per [`feature-flags.ts`](../../server/src/config/feature-flags.ts) |
 | Narrative Timeline | Flagged fallback | Retired: canonical route keeps permanent redirect `?view=timeline` → `?view=board` |
 | Reconcile module path | `services/plan-board-reconcile.ts` | **`services/plan-board/reconcile.ts`** + persistence adapter |
-| §**2.3** strict enforce | Ban manual **`in_progress`** without pack promote | **Current policy allows** flagged transition with UI warning—tightening = product change + server transition matrix update |
+| §**2.3** strict enforce | Ban manual **`in_progress`** without pack promote | **Shipped default: strict on** — **`source='manual'`** cannot enter **`in_progress`** (`409` **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** + telemetry). Set **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=false`** to relax (Operational ADR Appendix D). |
 
 ---
 
@@ -141,3 +141,19 @@ Canonical engineering truth: **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER` Appendix D
 
 - This ADR is **Accepted** as the product-facing decision matrix and execution backlog frame; engineering implementation SSOT remains [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
 - If schema/flag behavior must tighten beyond Appendix Z, publish a new ADR (do not rewrite accepted decision sections in place).
+
+---
+
+## 10. Execution status matrix (GLC-PB-017…025)
+
+| Ticket | Status | Note |
+| --- | --- | --- |
+| `GLC-PB-017` | **Done** | Product ADR promoted to Accepted; UX contract wording aligned with Board-first execution. |
+| `GLC-PB-018` | **Done** | Master index hygiene completed. |
+| `GLC-PB-019` | **Done** | Legacy narrative Timeline flag path removed; canonical `timeline -> board` redirect retained. |
+| `GLC-PB-020` | **Done** | Dedicated initiative edit surface: [`StrategyLabInitiativeEditDrawer.tsx`](../../src/app/pages/strategy-lab/StrategyLabInitiativeEditDrawer.tsx); Epic 1 + Operational Appendix E ([`ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md`](./ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md)). |
+| `GLC-PB-021` | **Done** | Manifest-signature compatibility evidence added in shared tests. |
+| `GLC-PB-022` | **Done** | Monitoring thresholds and runbook criteria documented in `DEPLOYMENT.md`. |
+| `GLC-PB-023` | **Done** | Transactional apply: migration **`078_plan_board_reconcile_apply_batch.sql`**, flag **`FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`** (default on); legacy path on RPC failure. **Prod gate:** sustain TD-024 alert review before turning flag off except incident response. |
+| `GLC-PB-024` | **Done** | Product default **strict manual `in_progress` deny** (Appendix Z + Operational Appendix D); env rollback documented. |
+| `GLC-PB-025` | **Done** | Reconcile preview returns **counts + bounded title samples** for new backlog rows and node-removed orphans when preview flag is on. |

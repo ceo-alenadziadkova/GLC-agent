@@ -58,6 +58,19 @@ export async function emitPlanBoardCardPinned(args: {
   }
 }
 
+export async function emitPlanBoardManualInProgressBlocked(args: { auditId: string }): Promise<void> {
+  const { error } = await supabase.from('pipeline_events').insert({
+    audit_id: args.auditId,
+    phase: 0,
+    event_type: PIPELINE_EVENT_TYPES.planBoardManualInProgressBlocked,
+    message: PIPELINE_EVENT_TYPES.planBoardManualInProgressBlocked,
+    data: {},
+  });
+  if (error) {
+    logger.warn('plan_board.telemetry_manual_in_progress_blocked_failed', { auditId: args.auditId, error: error.message });
+  }
+}
+
 export async function emitPlanBoardConflict409(args: {
   auditId: string;
   payload: PlanBoardConflictPayload;

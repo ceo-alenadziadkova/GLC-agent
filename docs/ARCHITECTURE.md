@@ -147,6 +147,27 @@ Track these metrics in PR review (and automation where possible):
 - Count of new raw color literals (`#`, `rgb`, `rgba`) outside token files.
 - Count of duplicate badge/progress/card implementations outside `src/app/components/ui/*`.
 
+#### Plan workspace (Delivery Board vs Roadmap)
+
+The SPA exposes a unified **Plan** route with tabs; **Roadmap** is a **schedule projection** (pack + execution timeline API), while **Delivery Board** is **operational workflow** persisted in `plan_task_delivery` (columns, ordering, reconcile on pack saves). Moving cards on the board does **not** rewrite the pack graph. User-facing loader copy is aligned via `src/app/config/plan-workspace-ui-copy.en.ts`.
+
+```mermaid
+flowchart TB
+  userTouches[User_drag_and_crud_on_Board_tab]
+  userReads[User_reads_Roadmap_Gantt_projection]
+  pack[glc_orchestration_pack]
+  timeline[GET_timeline_projection]
+  opRows[plan_task_delivery_rows]
+  reconcile[Deterministic_reconcile_on_pack_save]
+  pack --> timeline
+  pack --> userReads
+  timeline --> userReads
+  userTouches --> opRows
+  pack --> reconcile
+  reconcile --> opRows
+  opRows --> userTouches
+```
+
 ### Strict layer boundaries (operational policy)
 
 Tightening boundaries is **rules + structure + checks**, not one large refactor. Env allowlist lives in `[server/.env.example](../server/.env.example)` (secrets + deploy wiring + integrations); product numerics belong in **`SYSTEM_DEFAULTS`**. See [DEPLOYMENT.md — Environment layers](./DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides).
