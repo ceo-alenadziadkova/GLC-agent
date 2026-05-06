@@ -489,3 +489,24 @@ export function isBriefEarlyIntelligenceSnapshotEnabled(): boolean {
 export function isBriefCloneFromAuditEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_BRIEF_CLONE_FROM_AUDIT, FF.briefCloneFromAuditEnabled);
 }
+
+/** Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE */
+export function getPlanDeliveryBoardRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(process.env.FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE, FF.planDeliveryBoardRolloutMode);
+}
+
+/** Env: FEATURE_PLAN_NARRATIVE_TIMELINE */
+export function isPlanNarrativeTimelineEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PLAN_NARRATIVE_TIMELINE, FF.planNarrativeTimelineEnabled);
+}
+
+/**
+ * When true, **`source='manual'`** cards cannot enter **`in_progress`** (PATCH moves + POST manual-card `column_id`).
+ * Env: `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`
+ */
+export function isPlanBoardStrictManualInProgressBlocked(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS,
+    FF.planBoardStrictManualInProgressBlocked,
+  );
+}

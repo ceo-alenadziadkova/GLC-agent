@@ -4,6 +4,7 @@ import {
 } from '../../config/context-builder-limits.js';
 import { CONTEXT_BUILDER_PROMPT } from '../../config/context-builder-prompt.js';
 import { formatClientBriefSection } from './format-client-brief.js';
+import { escapePromptContent } from './lib/escape-prompt.js';
 import { formatCompanyUrlForPrompt } from './lib/format-company-url-for-prompt.js';
 import { trimJsonByTopLevelKeys } from './lib/trim-json-by-keys.js';
 import type { AgentContext } from './agent-context.types.js';
@@ -148,7 +149,7 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
         truncatedKeys.push(key);
       }
       sections.push(
-        `${P.collectedDataSubheadingPrefix}${key}\n${P.collectedDataJsonFenceOpen}${json}${P.collectedDataJsonFenceClose}`,
+        `${P.collectedDataSubheadingPrefix}${key}\n${P.collectedDataJsonFenceOpen}${escapePromptContent(json)}${P.collectedDataJsonFenceClose}`,
       );
       totalRawChars += json.length;
     }
@@ -196,6 +197,19 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
     }
     if (ctx.slice_domain === 'strategy') {
       sections.push(P.consultantNotesStrategyInitiativesReminder);
+    }
+  }
+
+  const retryNotes = ctx.retry_notes ?? [];
+  if (retryNotes.length > 0) {
+    sections.push(P.retryNotesHeading);
+    for (const retryNote of retryNotes) {
+      sections.push(
+        P.retryNotesLine
+          .replace('{{phase}}', String(retryNote.phase))
+          .replace('{{createdAt}}', retryNote.created_at)
+          .replace('{{comment}}', retryNote.retry_comment),
+      );
     }
   }
 

@@ -225,11 +225,14 @@ describe('pipeline route use-cases with mocked repositories', () => {
     if (!result.ok) {
       expect(result.error.status).toBe(400);
       expect(result.error.body.code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
-      const readiness = (result.error.body as { readiness?: Record<string, unknown> }).readiness;
-      expect(readiness).toBeDefined();
+      const rawBody = result.error.body as { details?: { readiness?: Record<string, unknown>; triage_blocking_trace_codes?: string[] } };
+      expect(rawBody.details?.readiness).toBeDefined();
+      const readiness = rawBody.details?.readiness;
       expect(['flow_ready', 'blocked']).toContain(readiness?.flowReadinessStatus);
       expect(['audit_ready', 'blocked', 'ready_with_caveats']).toContain(readiness?.auditReadinessStatus);
       expect(Array.isArray(readiness?.trace)).toBe(true);
+      expect(rawBody.details?.triage_blocking_trace_codes).toContain('test_block');
+      expect(typeof (result.error.body as { error?: string }).error).toBe('string');
     }
   });
 
@@ -259,6 +262,56 @@ describe('pipeline route use-cases with mocked repositories', () => {
       auditId: 'a1',
       userId: 'u1',
       role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
+  });
+
+  it('runPipelineStart passes admin_presale executionContext for consultant role', async () => {
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.executionContext).toBe('admin_presale');
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'u1',
+      role: 'consultant',
+      disableAutoRemediate: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(envSpy).toHaveBeenCalled();
+  });
+
+  it('runPipelineStart keeps default executionContext for client role', async () => {
+    mocks.fetchAuditForStart.mockResolvedValueOnce({
+      id: 'a1',
+      status: 'created',
+      current_phase: 0,
+      tokens_used: 10,
+      token_budget: 100,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      user_id: 'owner-1',
+      client_id: 'client-1',
+      product_mode: 'full',
+      execution_plan: null,
+    });
+    const envSpy = vi.spyOn(intakeCore, 'evaluateIntakeReadinessEnvelope').mockImplementation(input => {
+      expect(input.executionContext).toBe('default');
+      return {
+        flowReadinessStatus: 'flow_ready',
+        auditReadinessStatus: 'audit_ready',
+        trace: [],
+      };
+    });
+    const result = await runPipelineStart({
+      auditId: 'a1',
+      userId: 'client-1',
+      role: 'client',
       disableAutoRemediate: false,
     });
     expect(result.ok).toBe(true);
@@ -459,11 +512,14 @@ describe('pipeline route use-cases with mocked repositories', () => {
     if (!result.ok) {
       expect(result.error.status).toBe(400);
       expect(result.error.body.code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
-      const readiness = (result.error.body as { readiness?: Record<string, unknown> }).readiness;
-      expect(readiness).toBeDefined();
+      const rawBody = result.error.body as { details?: { readiness?: Record<string, unknown>; triage_blocking_trace_codes?: string[] } };
+      expect(rawBody.details?.readiness).toBeDefined();
+      const readiness = rawBody.details?.readiness;
       expect(['flow_ready', 'blocked']).toContain(readiness?.flowReadinessStatus);
       expect(['audit_ready', 'blocked', 'ready_with_caveats']).toContain(readiness?.auditReadinessStatus);
       expect(Array.isArray(readiness?.trace)).toBe(true);
+      expect(rawBody.details?.triage_blocking_trace_codes).toContain('next_block');
+      expect(((result.error.body as { error?: string }).error ?? '').length).toBeGreaterThan(10);
     }
   });
 
@@ -901,6 +957,8 @@ describe('pipeline route use-cases with mocked repositories', () => {
       expect(result.response.status).toBe('review');
       expect(result.response.execution_scheduled).toBe(false);
       expect(result.response.current_phase).toBe(0);
+      expect(result.response.auto_next_blocked).toBe(true);
+      expect(result.response.auto_next_error_code).toBe('PIPELINE_REVIEW_PENDING');
     }
     expect(mocks.schedulePipelineExecution).not.toHaveBeenCalled();
   });
@@ -942,6 +1000,13 @@ describe('pipeline route use-cases with mocked repositories', () => {
       expect(result.response.status).toBe('review');
       expect(result.response.execution_scheduled).toBe(false);
       expect(result.response.current_phase).toBe(0);
+      expect(result.response.auto_next_blocked).toBe(true);
+      expect(result.response.auto_next_error_code).toBe('PIPELINE_INTAKE_READINESS_BLOCKED');
+      const det = result.response.auto_next_error_details as {
+        readiness?: Record<string, unknown>;
+        triage_blocking_trace_codes?: string[];
+      } | undefined;
+      expect(det?.triage_blocking_trace_codes).toContain('resume_next_block');
     }
     expect(mocks.schedulePipelineExecution).not.toHaveBeenCalled();
   });

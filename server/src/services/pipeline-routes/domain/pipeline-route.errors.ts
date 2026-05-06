@@ -1,5 +1,7 @@
+import type { IntakeReadinessEnvelope } from '@glc/intake-core';
 import {
   API_ERROR_CODES,
+  PIPELINE_INTAKE_CONTINUE_READINESS_BLOCKED_MESSAGE,
   PIPELINE_INTAKE_READINESS_BLOCKED_MESSAGE,
   PIPELINE_ACCESS_DENIED_MESSAGE,
   PIPELINE_ALL_PHASES_COMPLETE_MESSAGE,
@@ -22,6 +24,7 @@ import {
   type ApiErrorCode,
 } from '../../../config/api-error-codes.js';
 import type { PipelineRouteErr } from './pipeline-route.types.js';
+import { buildPipelineIntakeReadinessBlockedDetails } from './intake-readiness-error-details.js';
 
 function buildErr(status: number, code: ApiErrorCode, message: string, extra?: Record<string, unknown>): PipelineRouteErr {
   const base = apiErrorJson(code, message);
@@ -67,8 +70,21 @@ export const pipelineRouteErr = {
     buildErr(400, API_ERROR_CODES.PIPELINE_RESUME_NOT_CANCELLED, PIPELINE_RESUME_NOT_CANCELLED_MESSAGE, { status }),
   resumeClaimConflict: () =>
     buildErr(409, API_ERROR_CODES.PIPELINE_RESUME_CLAIM_CONFLICT, PIPELINE_RESUME_CLAIM_CONFLICT_MESSAGE),
-  intakeReadinessBlocked: (readiness: Record<string, unknown>) =>
-    buildErr(400, API_ERROR_CODES.PIPELINE_INTAKE_READINESS_BLOCKED, PIPELINE_INTAKE_READINESS_BLOCKED_MESSAGE, {
-      readiness,
-    }),
+  intakeReadinessBlocked: (
+    envelope: IntakeReadinessEnvelope,
+    boundary: 'pipeline_start' | 'pipeline_next',
+  ): PipelineRouteErr => {
+    const message =
+      boundary === 'pipeline_start'
+        ? PIPELINE_INTAKE_READINESS_BLOCKED_MESSAGE
+        : PIPELINE_INTAKE_CONTINUE_READINESS_BLOCKED_MESSAGE;
+    return {
+      status: 400,
+      body: apiErrorJson(
+        API_ERROR_CODES.PIPELINE_INTAKE_READINESS_BLOCKED,
+        message,
+        buildPipelineIntakeReadinessBlockedDetails(envelope),
+      ),
+    };
+  },
 };

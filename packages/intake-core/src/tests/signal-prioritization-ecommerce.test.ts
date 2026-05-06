@@ -10,7 +10,6 @@ describe('computeSignalPrioritization ecommerce vertical', () => {
       primary_problem: 'medium' as const,
       operations_bottleneck: 'medium' as const,
       audit_focus: 'low' as const,
-      delivery_shape_baseline: 'medium' as const,
     };
     const { bySignalKey } = computeSignalPrioritization({
       responses: { a2: 'E-commerce', f1: ['Growth'] },
@@ -28,7 +27,6 @@ describe('computeSignalPrioritization SaaS and Retail verticals', () => {
     primary_problem: 'medium' as const,
     operations_bottleneck: 'low' as const,
     audit_focus: 'low' as const,
-    delivery_shape_baseline: 'low' as const,
   };
 
   it('elevates operations/audit focus for SaaS', () => {
@@ -40,12 +38,11 @@ describe('computeSignalPrioritization SaaS and Retail verticals', () => {
     expect(bySignalKey.audit_focus?.currentPriority).toBe('P0');
   });
 
-  it('elevates operations/delivery for Retail', () => {
+  it('elevates operations bottleneck for Retail', () => {
     const { bySignalKey } = computeSignalPrioritization({
       responses: { a2: 'Retail chain' },
       confidenceByKey,
     });
     expect(bySignalKey.operations_bottleneck?.currentPriority).toBe('P0');
-    expect(bySignalKey.delivery_shape_baseline?.currentPriority).toBe('P0');
   });
 });

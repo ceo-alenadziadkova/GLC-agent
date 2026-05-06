@@ -13,6 +13,8 @@ export type PortalPlanOrchestrationValue = {
   reloadAudit: ReturnType<typeof useAudit>['reload'];
   timelineQuery: ReadModel['timelineQuery'];
   packQuery: ReadModel['packQuery'];
+  /** False when unified Plan defers `GET /timeline` on the Board tab (parity from plan/board only). */
+  includeTimelineFetch: boolean;
 };
 
 const PortalPlanOrchestrationContext = createContext<PortalPlanOrchestrationValue | null>(null);
@@ -24,16 +26,19 @@ const PortalPlanOrchestrationContext = createContext<PortalPlanOrchestrationValu
 export function PortalPlanOrchestrationProvider({
   auditId,
   children,
+  includeTimeline = true,
 }: {
   auditId: string;
   children: ReactNode;
+  /** When false, skips `GET /timeline` (Roadmap/Timeline tabs should pass true). */
+  includeTimeline?: boolean;
 }) {
   const { audit, loading, error, reload } = useAudit(auditId);
   const orchestrationEnabled = Boolean(auditId) && !loading && !error && Boolean(audit);
   const { packQuery, timelineQuery } = useOrchestrationReadModel(auditId, {
     enabled: orchestrationEnabled,
     includePack: true,
-    includeTimeline: true,
+    includeTimeline,
   });
 
   const value = useMemo(
@@ -45,8 +50,9 @@ export function PortalPlanOrchestrationProvider({
       reloadAudit: reload,
       timelineQuery,
       packQuery,
+      includeTimelineFetch: includeTimeline,
     }),
-    [auditId, audit, loading, error, reload, timelineQuery, packQuery],
+    [auditId, audit, loading, error, reload, timelineQuery, packQuery, includeTimeline],
   );
 
   return <PortalPlanOrchestrationContext.Provider value={value}>{children}</PortalPlanOrchestrationContext.Provider>;

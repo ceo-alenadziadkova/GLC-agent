@@ -4,6 +4,7 @@ import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../config/new-audit-coverage-pol
 import type { BriefResponses } from '../data/briefQuestions';
 
 export const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
+export const CONSULTANT_NEW_AUDIT_DRAFT_KEY = 'glc_consultant_new_audit_draft_v1';
 
 function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -34,7 +35,8 @@ function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
   return null;
 }
 
-export type ClientPortalNewAuditDraftV1 = {
+/** Persisted wizard state shared by portal and consultant `/audit/new` flows. */
+export type NewAuditDraftV1 = {
   v: 1;
   step: 0 | 1 | 2 | 3;
   url: string;
@@ -53,6 +55,9 @@ export type ClientPortalNewAuditDraftV1 = {
   selectedDomains?: DomainKey[];
 };
 
+/** Alias preserved for callers that referenced the portal-specific name */
+export type ClientPortalNewAuditDraftV1 = NewAuditDraftV1;
+
 function parseDraftCoveragePackage(raw: unknown): AuditCoveragePackage | undefined {
   return AUDIT_COVERAGE_PACKAGES.includes(raw as AuditCoveragePackage) ? (raw as AuditCoveragePackage) : undefined;
 }
@@ -64,11 +69,11 @@ function parseDraftSelectedDomains(raw: unknown): DomainKey[] | undefined {
   return out.length > 0 ? out : undefined;
 }
 
-export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
+export function parseNewAuditDraftV1(raw: string): NewAuditDraftV1 | null {
   try {
     const o = JSON.parse(raw) as unknown;
     if (!o || typeof o !== 'object') return null;
-    const d = o as Partial<ClientPortalNewAuditDraftV1>;
+    const d = o as Partial<NewAuditDraftV1>;
     if (d.v !== 1) return null;
     const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 3 ? (d.step as 0 | 1 | 2 | 3) : 0;
     const bl = d.briefLayoutChoice;
@@ -100,18 +105,22 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
   }
 }
 
-export function readClientPortalNewAuditDraft(): ClientPortalNewAuditDraftV1 | null {
+export function parseClientPortalNewAuditDraft(raw: string): NewAuditDraftV1 | null {
+  return parseNewAuditDraftV1(raw);
+}
+
+export function readClientPortalNewAuditDraft(): NewAuditDraftV1 | null {
   if (typeof sessionStorage === 'undefined') return null;
   try {
     const raw = sessionStorage.getItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
     if (!raw) return null;
-    return parseClientPortalNewAuditDraft(raw);
+    return parseNewAuditDraftV1(raw);
   } catch {
     return null;
   }
 }
 
-export function writeClientPortalNewAuditDraft(data: ClientPortalNewAuditDraftV1): void {
+export function writeClientPortalNewAuditDraft(data: NewAuditDraftV1): void {
   if (typeof sessionStorage === 'undefined') return;
   try {
     sessionStorage.setItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY, JSON.stringify(data));
@@ -124,6 +133,35 @@ export function clearClientPortalNewAuditDraft(): void {
   if (typeof sessionStorage === 'undefined') return;
   try {
     sessionStorage.removeItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
+  } catch {
+    /* */
+  }
+}
+
+export function readConsultantNewAuditDraft(): NewAuditDraftV1 | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(CONSULTANT_NEW_AUDIT_DRAFT_KEY);
+    if (!raw) return null;
+    return parseNewAuditDraftV1(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function writeConsultantNewAuditDraft(data: NewAuditDraftV1): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.setItem(CONSULTANT_NEW_AUDIT_DRAFT_KEY, JSON.stringify(data));
+  } catch {
+    /* quota or private mode */
+  }
+}
+
+export function clearConsultantNewAuditDraft(): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.removeItem(CONSULTANT_NEW_AUDIT_DRAFT_KEY);
   } catch {
     /* */
   }

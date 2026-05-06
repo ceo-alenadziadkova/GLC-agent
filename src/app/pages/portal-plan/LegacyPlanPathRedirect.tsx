@@ -7,7 +7,7 @@ export type LegacyPlanPathRedirectProps = {
   surface: 'roadmap' | 'timeline';
 };
 
-/** Merges deep-link params (e.g. Gantt toolbar) onto the canonical plan URL; preserves tab (`view`) from `surface`. */
+/** Merges deep-link params (e.g. Gantt toolbar) onto the canonical plan URL. Legacy **`/timeline`** maps to **`view=board`** (narrative tab retired — ADR Delivery Board P3). */
 export function canonicalPlanHrefWithLegacySearch(
   canonicalBase: string,
   legacySearch: string,
@@ -23,9 +23,9 @@ export function canonicalPlanHrefWithLegacySearch(
     out.set(key, value);
   });
   if (surface === 'timeline') {
-    out.set('view', 'timeline');
+    out.set('view', 'board');
   } else {
-    out.delete('view');
+    out.set('view', 'roadmap');
   }
   const serialized = out.toString();
   return serialized ? `${pathOnly}?${serialized}` : pathOnly;
@@ -45,11 +45,11 @@ export function LegacyPlanPathRedirect({ variant, surface }: LegacyPlanPathRedir
   const canonicalBase =
     variant === 'portal'
       ? surface === 'timeline'
-        ? buildAppRoute.portalPlan(id, 'timeline')
-        : buildAppRoute.portalPlan(id)
+        ? buildAppRoute.portalPlan(id, 'board')
+        : buildAppRoute.portalPlan(id, 'roadmap')
       : surface === 'timeline'
-        ? buildAppRoute.plan(id, 'timeline')
-        : buildAppRoute.plan(id);
+        ? buildAppRoute.plan(id, 'board')
+        : buildAppRoute.plan(id, 'roadmap');
 
   const to = canonicalPlanHrefWithLegacySearch(canonicalBase, location.search ?? '', surface);
   return <Navigate to={to} replace />;

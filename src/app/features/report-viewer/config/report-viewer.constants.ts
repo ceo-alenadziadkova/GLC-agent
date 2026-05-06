@@ -34,6 +34,15 @@ export const REPORT_VIEWER_CONSTANTS = {
       executionRoadmap: ORCHESTRATION_PANEL_DOM_ID,
     },
   },
+  sectionAnchors: {
+    hero: 'report-hero',
+    analysis: 'report-analysis',
+    coverage: 'report-coverage',
+    scorecard: 'report-scorecard',
+    findings: 'report-findings',
+    followUp: 'report-follow-up',
+    executionLog: 'report-execution-log',
+  },
   motion: {
     heroEnterOffsetY: 14,
     heroEnterDurationSec: 0.38,

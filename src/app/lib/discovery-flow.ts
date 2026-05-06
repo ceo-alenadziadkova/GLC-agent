@@ -20,6 +20,7 @@ import {
   fillDiscoveryFindingTemplate,
   getQuestionBankSchemaMeta,
   includesCrmTool,
+  INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL,
   normalizeIndustry,
   normalizeOnlinePresence,
   normalizePrimaryGoal,
@@ -179,7 +180,11 @@ export function computeScore(answers: DiscoveryAnswers): number {
 // ── Findings engine ───────────────────────────────────────────────────────────
 
 function industryLabel(answers: DiscoveryAnswers): string {
-  return (answers['a2'] as string | null) ?? GLUE.industryDefault;
+  const raw = answers['a2'] as string | null;
+  if (raw == null || !String(raw).trim()) return GLUE.industryDefault;
+  const lower = String(raw).trim().toLowerCase();
+  if (lower.includes("don't know") || lower.includes('dont know')) return GLUE.industryDefault;
+  return String(raw).trim();
 }
 
 function teamLabel(answers: DiscoveryAnswers): string {
@@ -227,7 +232,15 @@ function d1SoloWeakTools(tools: string[]): boolean {
 }
 
 function d1EffectivelyEmpty(tools: string[]): boolean {
-  return tools.length === 0 || (tools.length === 1 && tools[0] === FC.d1EffectivelyEmptyIfOnlyOption);
+  if (tools.length === 0) return true;
+  if (
+    tools.length === 1 &&
+    (tools[0] === FC.d1EffectivelyEmptyIfOnlyOption ||
+      tools[0] === INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function pushDiscoveryCopyFinding(

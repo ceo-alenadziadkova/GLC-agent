@@ -5,9 +5,8 @@ import { NewAudit } from '../NewAudit';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../../config/new-audit-coverage-policy';
 
-const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
-  searchParamsState: { value: '' },
-  mockDraft: {
+const { mockDraft, consultantDraftSeed, apiMock, searchParamsState } = vi.hoisted(() => {
+  const mockDraft = {
     v: 1 as const,
     step: 1 as 0 | 1 | 2 | 3,
     url: '',
@@ -22,30 +21,35 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     draftIntakeVersions: null,
     coveragePackage: 'complete' as const,
     selectedDomains: [] as string[],
-  },
-  apiMock: {
-    createAudit: vi.fn(),
-    saveBrief: vi.fn(),
-    startPipeline: vi.fn(),
-    linkIntakeTokenToAudit: vi.fn(),
-    postAuditsBriefIntelligenceSnapshot: vi.fn(),
-    postAuditsBriefIntelligenceWording: vi.fn(),
-    postAuditsBriefCloneFrom: vi.fn(),
-    getClientProjectContext: vi.fn(),
-    getLegalConsents: vi.fn(),
-    getBrief: vi.fn(),
-    postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
-    getDiscoverySession: vi.fn(),
-    postIntakeNextQuestion: vi.fn().mockResolvedValue({
-      ok: true,
-      action: 'ask' as const,
-      questionId: 'a2',
-      reason: 'test',
-      source: 'deterministic',
-      caseKeys: [] as string[],
-    }),
-  },
-}));
+  };
+  return {
+    searchParamsState: { value: '' },
+    consultantDraftSeed: { value: null as (typeof mockDraft) | null },
+    mockDraft,
+    apiMock: {
+      createAudit: vi.fn(),
+      saveBrief: vi.fn(),
+      startPipeline: vi.fn(),
+      linkIntakeTokenToAudit: vi.fn(),
+      postAuditsBriefIntelligenceSnapshot: vi.fn(),
+      postAuditsBriefIntelligenceWording: vi.fn(),
+      postAuditsBriefCloneFrom: vi.fn(),
+      getClientProjectContext: vi.fn(),
+      getLegalConsents: vi.fn(),
+      getBrief: vi.fn(),
+      postBriefAnalyticsEvents: vi.fn().mockResolvedValue({ ok: true, received: 1 }),
+      getDiscoverySession: vi.fn(),
+      postIntakeNextQuestion: vi.fn().mockResolvedValue({
+        ok: true,
+        action: 'ask' as const,
+        questionId: 'a2',
+        reason: 'test',
+        source: 'deterministic',
+        caseKeys: [] as string[],
+      }),
+    },
+  };
+});
 
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'u1' } }),
@@ -119,8 +123,11 @@ vi.mock('../../components/IntakeBankWizard', () => ({
 
 vi.mock('../../lib/client-portal-new-audit-draft', () => ({
   readClientPortalNewAuditDraft: () => mockDraft,
-  writeClientPortalNewAuditDraft: () => {},
+  readConsultantNewAuditDraft: () => consultantDraftSeed.value,
+  writeClientPortalNewAuditDraft: vi.fn(),
+  writeConsultantNewAuditDraft: vi.fn(),
   clearClientPortalNewAuditDraft: () => {},
+  clearConsultantNewAuditDraft: vi.fn(),
 }));
 
 vi.mock('../../data/apiService', () => ({
@@ -177,6 +184,7 @@ vi.mock('react-router', async importOriginal => {
 describe('NewAudit wizard state wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    consultantDraftSeed.value = null;
     searchParamsState.value = '';
     localStorage.clear();
     mockDraft.step = 1;
@@ -251,6 +259,19 @@ describe('NewAudit wizard state wiring', () => {
       next_recommended: [],
     });
     apiMock.getDiscoverySession.mockResolvedValue({ answers: {} });
+  });
+
+  it('shows restored draft banner and seeds brief when consultant session draft exists', () => {
+    consultantDraftSeed.value = { ...mockDraft, step: 1, selectedDomains: [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] };
+
+    render(
+      <MemoryRouter>
+        <NewAudit />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(WORKSPACE_PAGE_COPY.newAudit.draftRestoredTitle)).toBeInTheDocument();
+    expect(screen.getByTestId('wizard-responses').textContent).toContain('old_key');
   });
 
   it('applies wizard next state directly in client self-serve flow', () => {

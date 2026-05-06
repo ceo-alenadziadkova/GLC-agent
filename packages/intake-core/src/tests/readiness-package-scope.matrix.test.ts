@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { INTAKE_EXECUTION_PLAN_READINESS_POLICY } from '../config/intake-execution-plan-readiness.js';
 import { evaluateExecutionPlanScopeReadiness } from '../core/diagnostic-intake/phase-bc-stubs.js';
 
 const scopeAwarePolicy = {
@@ -31,6 +32,18 @@ describe('execution-plan-aware readiness', () => {
     });
     expect(res.ready).toBe(false);
     expect(res.blockedBy).toBe('in_scope_gaps');
+  });
+
+  it('does not block complete package on in-scope gaps when product policy is baseline_only', () => {
+    const res = evaluateExecutionPlanScopeReadiness({
+      packageName: 'complete',
+      baselineReady: true,
+      outOfScopeMissingSignals: ['out_of_scope'],
+      inScopeMissingSignals: ['a8', 'b4'],
+      policy: INTAKE_EXECUTION_PLAN_READINESS_POLICY,
+    });
+    expect(res.ready).toBe(true);
+    expect(res.blockedBy).toBeNull();
   });
 });
 

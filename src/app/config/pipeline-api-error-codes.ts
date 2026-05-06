@@ -1,0 +1,7 @@
+/** Mirrors `server/src/config/api-error-codes.ts` for pipeline UX branching. */
+
+export const PIPELINE_API_ERROR_CODES = {
+  INTAKE_READINESS_BLOCKED: 'PIPELINE_INTAKE_READINESS_BLOCKED',
+  REVIEW_PENDING: 'PIPELINE_REVIEW_PENDING',
+  TOKEN_BUDGET_EXCEEDED: 'PIPELINE_TOKEN_BUDGET_EXCEEDED',
+} as const;

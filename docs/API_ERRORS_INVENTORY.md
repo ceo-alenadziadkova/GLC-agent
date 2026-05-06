@@ -25,8 +25,12 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 | `AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED` | 500 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview` |
 | `AUDITS_ROADMAP_MANIFEST_LIST_FAILED` | 500 | Same JSON | `GET /api/audits/:id/roadmap/manifest-snapshots` |
 | `AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID`, `AUDITS_ORCHESTRATION_PACK_NOT_READY`, `AUDITS_ORCHESTRATION_PACK_FAILED` | 400 / 409 / 500 | Same JSON | `POST /api/audits/:id/orchestration/pack` |
-| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack` when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
+| `ORCHESTRATION_PACK_API_DISABLED` | 403 | Same JSON | `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST/GET /api/audits/:id/orchestration/pack`, `GET/PATCH/POST` under **`/api/audits/:id/plan/board`** when **`FEATURE_ORCHESTRATION_PACK_API=false`** |
+| `PLAN_BOARD_GOVERNANCE_BLOCKED` | 409 | Same JSON | `PATCH` / `POST` Delivery Board routes when persisted pack **`input_quality.degraded`** |
+| `PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED` | 409 | Same JSON | `PATCH …/plan/board/cards/:id`, `POST …/plan/board/cards` when **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=true`** blocks **`source='manual'`** entering **`in_progress`** |
+| `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_PAYLOAD_MISMATCH` | 400 / 409 | Same JSON | `PATCH /api/audits/:id/plan/board/cards/:cardId` (**`Idempotency-Key`** required; replay safety) |
 | `AUDITS_NOT_FOUND`, `AUDITS_FETCH_FAILED` | 404 / 500 | Same JSON | `GET /api/audits/:id/orchestration/pack` |
+| `AUDITS_TOKEN_BUDGET_TOPUP_INVALID`, `AUDITS_TOKEN_BUDGET_TOPUP_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/token-budget` (platform admin only; reuses `PLATFORM_ADMIN_ONLY` for **403**) |
 
 ---
 

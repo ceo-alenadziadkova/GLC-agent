@@ -27,17 +27,17 @@ vi.mock('../../PortalRoadmapGanttPage', async () => {
   };
 });
 
-vi.mock('../../PortalTimelinePage', async () => {
+vi.mock('../board/BoardView', async () => {
   const { PortalPlanSurfaceChrome } = await import('../PortalPlanUnifiedShell');
   return {
-    PortalTimelineSurface: ({ unifiedShellTabActive }: { unifiedShellTabActive?: boolean }) => (
+    PortalDeliveryBoardSurface: ({ unifiedShellTabActive }: { unifiedShellTabActive?: boolean }) => (
       <PortalPlanSurfaceChrome
-        branch="timeline"
+        branch="board"
         tabActive={unifiedShellTabActive}
-        title="Timeline shell title"
-        subtitle="Timeline subtitle"
+        title="Board shell title"
+        subtitle="Board subtitle"
       >
-        <div data-testid="timeline-surface-stub">timeline</div>
+        <div data-testid="board-surface-stub">board</div>
       </PortalPlanSurfaceChrome>
     ),
   };
@@ -52,7 +52,7 @@ vi.mock('../../../components/AppShell', () => ({
 }));
 
 describe('PortalPlanPage unified shell landmarks', () => {
-  it('exposes exactly one document main landmark with real coordinator after both tabs were visited', async () => {
+  it('keeps exactly one document main landmark when switching from defaulted board shell to roadmap', async () => {
     const router = createMemoryRouter(
       [{ path: '/portal/plan/:id', element: <PortalPlanPage /> }],
       { initialEntries: ['/portal/plan/e2e-audit'] },
@@ -60,12 +60,12 @@ describe('PortalPlanPage unified shell landmarks', () => {
 
     render(<RouterProvider router={router} />);
 
-    expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('board-surface-stub')).toBeInTheDocument();
 
     await act(async () => {
-      await router.navigate('/portal/plan/e2e-audit?view=timeline');
+      await router.navigate('/portal/plan/e2e-audit?view=roadmap');
     });
-    await waitFor(() => expect(screen.getByTestId('timeline-surface-stub')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument());
 
     expect(document.querySelectorAll('main')).toHaveLength(1);
     expect(screen.getAllByRole('main')).toHaveLength(1);

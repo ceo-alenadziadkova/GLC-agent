@@ -21,3 +21,9 @@ export const CONTEXT_BUILDER_DEFAULT_BRIEF_RESPONSE_SOURCE = C.defaultBriefRespo
 
 /** Sort key for brief entries missing from the bank order index (stable tail). */
 export const BRIEF_ENTRY_SORT_FALLBACK_ORDER = 9999;
+
+/** Retry intent notes kept for current phase in prompt context (newest first). */
+export const CONTEXT_BUILDER_RETRY_NOTES_CURRENT_PHASE_MAX = 3;
+
+/** Retry intent notes kept for other phases in prompt context (newest first). */
+export const CONTEXT_BUILDER_RETRY_NOTES_OTHER_PHASES_MAX = 2;

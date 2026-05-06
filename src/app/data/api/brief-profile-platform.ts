@@ -376,6 +376,9 @@ export const briefProfilePlatformApi = {
       current_phase: number;
       resumed: boolean;
       execution_scheduled?: boolean;
+      auto_next_blocked?: boolean;
+      auto_next_error_code?: string;
+      auto_next_error_details?: unknown;
     }>(apiPlatformAuditPipelineResumeCancelled(auditId), { method: 'POST' });
   },
 

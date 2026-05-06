@@ -1,6 +1,11 @@
 import { LEGAL_DOCUMENT_SPA_ROUTES } from '@glc/api-paths';
 import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
 
+import { defaultPortalPlanViewWhenQueryMissing, type PortalPlanViewParam } from './portal-plan';
+
+/** Query param for `/audit/new`: load wizard state from a `created` audit (consultant intake not launched). */
+export const NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY = 'draft_audit' as const;
+
 export const APP_ROUTE_PATHS = {
   home: '/',
   login: `/${P.login}`,
@@ -44,16 +49,22 @@ export const buildAppRoute = {
   portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
   /**
    * Canonical plan URL (`/plan/:id`). Legacy `/roadmap/:id` and `/timeline/:id` redirect here (query merged).
-   * Use `view: 'timeline'` for the seasonal execution surface.
+   * Without explicit `view`, defaults follow {@link defaultPortalPlanViewWhenQueryMissing} (board once Delivery Board rollout is `ga`).
    */
-  plan: (auditId: string, view: 'roadmap' | 'timeline' = 'roadmap'): string =>
-    view === 'timeline'
-      ? `/${P.planById.replace(':id', auditId)}?view=timeline`
-      : `/${P.planById.replace(':id', auditId)}`,
-  portalPlan: (auditId: string, view: 'roadmap' | 'timeline' = 'roadmap'): string =>
-    view === 'timeline'
-      ? `/${P.portalPlanById.replace(':id', auditId)}?view=timeline`
-      : `/${P.portalPlanById.replace(':id', auditId)}`,
+  plan: (auditId: string, view?: PortalPlanViewParam): string => {
+    const path = `/${P.planById.replace(':id', auditId)}`;
+    const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
+    if (resolved === 'roadmap') return `${path}?view=roadmap`;
+    if (resolved === 'board') return `${path}?view=board`;
+    return `${path}?view=timeline`;
+  },
+  portalPlan: (auditId: string, view?: PortalPlanViewParam): string => {
+    const path = `/${P.portalPlanById.replace(':id', auditId)}`;
+    const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
+    if (resolved === 'roadmap') return `${path}?view=roadmap`;
+    if (resolved === 'board') return `${path}?view=board`;
+    return `${path}?view=timeline`;
+  },
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>
     `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
@@ -62,6 +73,8 @@ export const buildAppRoute = {
   /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
   auditNewWithIntakeToken: (token: string): string =>
     `${APP_ROUTE_PATHS.auditNew}?intake=${encodeURIComponent(token)}`,
+  auditNewResumeDraft: (auditId: string): string =>
+    `${APP_ROUTE_PATHS.auditNew}?${NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY}=${encodeURIComponent(auditId)}`,
   loginWithHashAndSearch: (search: string, hash: string): string => `${APP_ROUTE_PATHS.login}${search}${hash}`,
   loginWithNext: (nextPath: string): string =>
     `${APP_ROUTE_PATHS.login}?next=${encodeURIComponent(nextPath)}`,

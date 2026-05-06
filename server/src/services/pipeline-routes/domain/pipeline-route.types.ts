@@ -46,6 +46,13 @@ export type PipelineResumeFromCancelledResult =
         resumed: true;
         execution_scheduled: boolean;
         status: 'review' | 'running' | 'completed';
+        /**
+         * Present when resumed successfully but owner's best-effort `pipeline/next` was rejected
+         * (same shape as standalone next/start errors, e.g. intake readiness gate).
+         */
+        auto_next_blocked?: boolean;
+        auto_next_error_code?: string;
+        auto_next_error_details?: unknown;
       };
     }
   | { ok: false; error: PipelineRouteErr };

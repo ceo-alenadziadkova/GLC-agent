@@ -50,6 +50,25 @@ describe('buildBriefSchemaSnapshot', () => {
     expect(schema.collection_mode).toBe('discovery');
   });
 
+  it('applies admin_presale executionContext curation in schema output', () => {
+    const schema = buildBriefSchemaSnapshot({
+      responses: {
+        a2: 'Healthcare',
+        a5: 'multi_page_website',
+        f1: ['Too much manual work and operational overload'],
+        f2: ['Process automation and efficiency (less manual work and handoffs)'],
+      },
+      productMode: 'full',
+      collectionMode: 'interview',
+      surface: 'consultant_interview',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+      executionContext: 'admin_presale',
+    });
+    expect(schema.deferred).toContain('f5');
+    expect(schema.visible).not.toContain('f5');
+    expect(schema.next_recommended).not.toContain('f5');
+  });
+
   it('exposes question intelligence only when required_now contract is complete', () => {
     const schema = buildBriefSchemaSnapshot({
       responses: {},

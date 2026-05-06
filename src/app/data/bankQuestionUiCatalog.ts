@@ -2,11 +2,12 @@
  * Maps question-bank v1 ids to BriefField-ready definitions (labels from question-bank.v1.json).
  * Option sets and hints: single source in `@glc/intake-core` (`bank-question-ui-overrides.ts`).
  */
-import type { BriefQuestion, BriefPriority, BriefQuestionType } from './briefQuestions';
+import type { BriefQuestion, BriefPriority } from './briefQuestions';
 import bankRaw from '@glc/intake-core/question-bank.v1.json';
 import {
+  buildBriefQuestionStemFromBankId,
   getBankQuestionUiOptions,
-  getBankQuestionUiOverride,
+  INTAKE_BRIEF_CONSULTANT_HINTS,
 } from '@glc/intake-core';
 
 type RawQ = { id: string; section: string; label: string };
@@ -29,15 +30,16 @@ export { getBankQuestionUiOptions };
 /** BriefField-ready question for a bank id (visibility handled separately). */
 export function bankIdToBriefQuestion(id: string, priority: BriefPriority): BriefQuestion {
   const letter = SECTION_BY_ID.get(id) ?? 'A';
-  const ov = getBankQuestionUiOverride(id) ?? {};
-  const t: BriefQuestionType = ov.type ?? 'free_text';
+  const stem = buildBriefQuestionStemFromBankId(id);
+  const consultantHint = INTAKE_BRIEF_CONSULTANT_HINTS[id];
   return {
     id,
     priority,
     section: SECTION_TITLE[letter] ?? `Section ${letter}`,
     question: LABEL_BY_ID.get(id) ?? id,
-    hint: ov.hint,
-    type: t,
-    options: ov.options ? [...ov.options] : undefined,
+    hint: stem.hint,
+    ...(consultantHint ? { consultant_hint: consultantHint } : {}),
+    type: stem.type,
+    options: stem.options,
   };
 }

@@ -205,4 +205,20 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_BRIEF_CLONE_FROM_AUDIT
    */
   briefCloneFromAuditEnabled: true,
+  /**
+   * Delivery Board (`/plan` `view=board`) rollout — `shadow` hides UI gates; consult ADR Delivery Board.
+   * Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE
+   */
+  planDeliveryBoardRolloutMode: 'ga',
+  /**
+   * Legacy narrative Timeline tab — default **off** now that Delivery Board is the primary parity surface for operational state.
+   * Env: `FEATURE_PLAN_NARRATIVE_TIMELINE`. ADR: `docs/adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`.
+   */
+  planNarrativeTimelineEnabled: false,
+  /**
+   * Blocks **manual** `plan_task_delivery` rows from entering the **in_progress** column (PATCH + POST manual-card).
+   * Default **off**: UI may warn without hard server deny; flip on for strict appendix §2.3 enforcement.
+   * Env: `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`
+   */
+  planBoardStrictManualInProgressBlocked: false,
 } as const;

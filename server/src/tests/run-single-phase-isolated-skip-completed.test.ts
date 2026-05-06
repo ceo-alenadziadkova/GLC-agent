@@ -57,4 +57,43 @@ describe('runSinglePhaseWithLifecycle (isolated) skip completed domain', () => {
       expect.objectContaining({ skipped: true, reason: 'already_completed' }),
     );
   });
+
+  it('runs isolated phase when bypass flag is set even if latest row is completed', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { status: 'completed' }, error: null });
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn(() => chain);
+    chain.eq = vi.fn(() => chain);
+    chain.order = vi.fn(() => chain);
+    chain.limit = vi.fn(() => chain);
+    chain.maybeSingle = maybeSingle;
+    chain.update = vi.fn(() => chain);
+    supabaseFromMock.mockImplementation(() => chain);
+
+    runPhaseDomainExecutionMock.mockResolvedValue({
+      score: 4,
+      label: 'Good',
+      summary: 'ok',
+      strengths: [],
+      weaknesses: [],
+      issues: [],
+      quick_wins: [],
+      recommendations: [],
+      unknown_items: [],
+    });
+
+    await runSinglePhaseWithLifecycle({
+      mode: 'isolated',
+      auditId: 'audit-1',
+      phase: 1,
+      agentClass: class MockAgent {} as unknown as PhaseAgentConstructor,
+      emitEvent: vi.fn().mockResolvedValue(undefined),
+      assertNotCancelled: async () => {},
+      updateAuditIfNotCancelled: async () => true,
+      attachPriorControlObjects: async () => {},
+      publishControlObjectGovernance: async () => {},
+      isolationConsultantRetryBypassAlreadyCompleted: true,
+    });
+
+    expect(runPhaseDomainExecutionMock).toHaveBeenCalledOnce();
+  });
 });

@@ -51,8 +51,7 @@
       "pipeline": "Pipeline",
       "timeline": "Execution timeline",
       "reports": "Reports",
-      "strategyLab": "Strategy Lab",
-      "strategyLabDetailLayer": "Plan details"
+      "strategyLab": "Strategy Lab"
     },
     "client": {
       "myPortal": "My Portal",
@@ -60,8 +59,7 @@
       "pipeline": "Pipeline",
       "timeline": "Execution timeline",
       "reports": "Report",
-      "strategyLab": "Strategy Lab",
-      "strategyLabDetailLayer": "Plan details"
+      "strategyLab": "Strategy Lab"
     },
     "guest": {
       "freeSnapshot": "Free snapshot"

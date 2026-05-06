@@ -11,6 +11,7 @@ import type {
   IntakeReadinessCaveatClass,
   IntakeReadinessEnvelope,
   IntakeReadinessTraceEntry,
+  IntakeReadinessExecutionContext,
   IntakeVersionTuple,
   ProductMode,
 } from '../audit-contract.js';
@@ -39,7 +40,6 @@ const PILOT_BANK_TO_SIGNAL: Record<string, string> = {
   f1: 'primary_problem',
   f2: 'audit_focus',
   d2: 'operations_bottleneck',
-  d_closing_flow: 'delivery_shape_baseline',
 };
 
 /** Confidence band at which we treat pilot evidence as sufficient to close uncertainty without a second source. */
@@ -202,6 +202,8 @@ export interface EvaluateIntakeReadinessInput {
     string,
     { value: unknown; source?: 'recon_confirmed' | 'consultant_prefill' | 'imported' }
   >;
+  /** Admin presale mode softens unknown-source blocking to caveats. */
+  executionContext?: IntakeReadinessExecutionContext;
 }
 
 export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessInput): IntakeReadinessEnvelope {
@@ -217,6 +219,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     executionSelectedDomains,
     executionIncludeStrategy,
     hypothesisCrossCheckByQuestionId,
+    executionContext,
   } = input;
   const critMode = criticalSignalsMode ?? 'full';
   const enforcementPoint = input.enforcementPoint ?? 'pipeline_start';
@@ -268,6 +271,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
     intakeVersionTuple: tuple,
   });
 
+  const readinessExecutionContext = executionContext ?? 'default';
   const critical =
     critMode === 'sla_only'
       ? {
@@ -281,7 +285,11 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
             },
           ],
         }
-      : evaluateCriticalSignalsPilot({ responses, plan: fullPlan });
+      : evaluateCriticalSignalsPilot({
+          responses,
+          plan: fullPlan,
+          executionContext: readinessExecutionContext,
+        });
   trace.push(...critical.trace);
 
   const auditBlockedBySla =
@@ -403,7 +411,26 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
       if (trace.some(entry => entry.code === 'critical_signal_unknown_source')) {
         pushCaveat('unknown_source_signal_evidence');
       }
+      if (trace.some(entry => entry.code === 'critical_signal_unknown_source_allowed_admin_presale')) {
+        pushCaveat('presale_missing_data_allowed');
+      }
     }
+  }
+
+  if (
+    readinessExecutionContext === 'admin_presale' &&
+    trace.some(entry => entry.code === 'critical_signal_unknown_source_allowed_admin_presale')
+  ) {
+    if (auditReadinessStatus === 'audit_ready') {
+      auditReadinessStatus = 'ready_with_caveats';
+    }
+    pushCaveat('presale_missing_data_allowed');
+    pushCaveat('unknown_source_signal_evidence');
+    trace.push({
+      code: 'admin_presale_readiness_advisory',
+      semanticCause:
+        'Admin presale execution context allows unknown critical signals and marks readiness as advisory with caveats',
+    });
   }
 
   if (packageReadiness.ready && critical.satisfied) {
@@ -450,14 +477,7 @@ export function evaluateIntakeReadinessEnvelope(input: EvaluateIntakeReadinessIn
 }
 
 /** Pilot bank ids that map to progressive-certainty cross-checks (align with `PILOT_BANK_TO_SIGNAL`). */
-const PILOT_CROSS_CHECK_BANK_IDS = [
-  'a2',
-  'a5',
-  'f1',
-  'f2',
-  'd2',
-  'd_closing_flow',
-] as const;
+const PILOT_CROSS_CHECK_BANK_IDS = ['a2', 'a5', 'f1', 'f2', 'd2'] as const;
 
 /**
  * Build `hypothesisCrossCheckByQuestionId` for `evaluateIntakeReadinessEnvelope` from `recon_prefills`.

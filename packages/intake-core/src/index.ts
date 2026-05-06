@@ -80,6 +80,7 @@ export {
   getResponseString,
   getResponseStringLower,
   isIntakeAnswered,
+  isIntakeAnsweredIncludingChoiceSpecify,
   unwrapIntakeValue,
 } from './unwrap.js';
 export {
@@ -149,6 +150,12 @@ export {
   choiceSpecifyResponseKey,
   choiceValueNeedsSpecify,
 } from './choice-specify-triggers.js';
+export {
+  appendUniversalIntakeChoiceEscapes,
+  INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL,
+  INTAKE_UNIVERSAL_CHOICE_OTHER_LABEL,
+  isUniversalIntakeDeferChoiceLabel,
+} from './intake-universal-choice-escapes.js';
 export {
   freeTextImpliesCrmTool,
   includesCrmTool,
@@ -255,6 +262,10 @@ export {
   INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES,
 } from './audit-contract.js';
 export {
+  operatorTriageReadinessTraceCodes,
+  READINESS_TRACE_CODES_EXCLUDED_FROM_OPERATOR_TRIAGE,
+} from './core/readiness-trace-triage.js';
+export {
   INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
   INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,
   INTAKE_SURFACE_VALUES,
@@ -332,3 +343,32 @@ export {
   type DiscoveryUsesCrmInference,
   type NormalizedUsesCrmBrief,
 } from './discovery-brief-mapping.js';
+export {
+  ORCHESTRATION_CHANGE_SCENARIOS,
+  ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
+  ORCHESTRATION_PLAN_HORIZON_ISO,
+  ORCHESTRATION_PREVIEW_COMPRESSION_HINTS,
+  ORCHESTRATION_PREVIEW_LANE_DENSITY_BANDS,
+  ORCHESTRATION_RISK_TOLERANCE_PRESETS,
+  ORCHESTRATION_SEASON_PRESETS,
+  encodeManifestChangeSignature,
+  manifestPlanHorizonKey,
+  manifestSignatureArgsFromDraft,
+  parseOptionalOrchestrationPlanHorizon,
+  type OrchestrationChangeScenario,
+  type OrchestrationManifestSchemaVersion,
+  type OrchestrationPlanHorizon,
+  type OrchestrationPreviewCompressionHint,
+  type OrchestrationPreviewLaneDensityBand,
+  type OrchestrationRiskTolerancePreset,
+  type OrchestrationSeasonPreset,
+} from './orchestration-roadmap-manifest.js';
+export {
+  CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS,
+  CANONICAL_NODE_KEY_TITLE_MAX_CHARS,
+  canonicalNodeKeyFromManifestAndNode,
+  canonicalNodeKeyFromParts,
+  normalizeBoardIdentityKeyForCanonicalNodeKey,
+  normalizeLaneKeyForCanonicalNodeKey,
+  normalizeTitleForCanonicalNodeKey,
+} from './canonical-node-key.js';

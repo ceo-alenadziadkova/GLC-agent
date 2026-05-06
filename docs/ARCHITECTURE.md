@@ -371,13 +371,14 @@ ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAY
 
 - `audit_strategy.glc_orchestration_pack` (JSONB) + `orchestration_pack_version` (monotonic counter when a new pack is saved) + optional `glc_orchestration_last_revision_diff` (JSONB diff from the prior pack when version ≥ 2).
 - `audit_roadmap_manifest_snapshots` — immutable manifest rows (`payload` JSON); `glc_orchestration_pack.manifest_snapshot_id` references the confirming snapshot.
+- `plan_task_delivery` rows — Delivery Board operational state keyed by deterministic `canonical_node_key` (`source=pack`), optional consultant manual cards (`canonical_node_key` null), reconcile-on-pack-persist hooks (`runPlanBoardReconcileAfterPackPersist`), SPA **`PATCH`** moves gated by **`Idempotency-Key`** + optimistic `expected_pack_version`. When **`pack.input_quality.degraded`** (same signal as Timeline `degraded`), the API forbids operational writes (**`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`**). Pack JSON remains immutable per persisted version (`server/src/services/plan-board/`, migrations **`074_*`**, **`075_*`**).
 - `audits.execution_plan` stays the canonical **coverage** contract only ([partial audit ADR](./adrs/ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md)); manifest `selected_domains` must match `execution_plan.selected_domains` (same set).
 
 **Code:** `server/src/services/orchestration/` (see README there), schema `server/src/schemas/glc-orchestration-pack.ts`, feature flag `isOrchestrationConflictSynthesisEnabled()` (`FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS`, default off) for an optional single Claude tool call (`orchestration-pack-synthesis-claude.ts`) that appends `conflicts_resolved` rows (`synthesis_applied` / `synthesis_pending`) after the deterministic graph build, without changing per-domain FactChecker semantics. Persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` with bounded retries from config.
 
 **Checklist:** Orchestrator services must not import FactChecker for orchestration output; domain-phase CO semantics remain unchanged.
 
-ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md).
+ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md), [ADR-Delivery Board operational layer](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
 
 ### Director deep-dive two-stage
 

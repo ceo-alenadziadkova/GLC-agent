@@ -17,13 +17,13 @@ export const STRATEGY_LAB_COPY = {
   workbenchSegment: {
     ariaLabel: 'Strategy Lab workspace mode',
     description:
-      'Orchestration builds the manifest and pack in Strategy Lab. Plan opens the Roadmap schedule first; on that page, switch between Roadmap and Timeline to move from lane-based schedule to the seasonal execution timeline.',
+      'Orchestration builds the manifest and pack in Strategy Lab. Plan opens the seasonal timeline by default; switch to Board (when enabled) or Roadmap from the Plan tabs.',
     orchestrationLabel: 'Orchestration',
     /** Entry to plan execution (`/roadmap`) — pair with Timeline under Plan tabs. */
     planLabel: 'Plan',
     /** Visible under the control: disambiguates Plan vs in-page Roadmap/Timeline (no second progress UI). */
     surfaceHint:
-      'Plan opens Roadmap (schedule, dependencies, baseline). On that page, pick Timeline for the seasonal lanes view.',
+      'Plan opens the seasonal timeline by default. Switch to Delivery Board when enabled, or Roadmap for the dependency schedule.',
   },
   /** Cross-surface journey: Strategy Lab preparation then Plan execution (consultant-facing header). */
   journeyStrip: {
@@ -37,7 +37,7 @@ export const STRATEGY_LAB_COPY = {
     step3Title: 'Pack',
     step3Hint: 'Built orchestration pack — inspect dependency map below.',
     step4Title: 'Plan',
-    step4Hint: 'Roadmap schedule and seasonal Timeline — switch tabs on the Plan surface.',
+    step4Hint: 'Plan surface: Delivery Board (when enabled), Roadmap schedule, and seasonal Timeline — switch tabs there.',
     statusDone: 'Done',
     statusCurrent: 'Now',
     statusPending: 'Next',
@@ -45,20 +45,24 @@ export const STRATEGY_LAB_COPY = {
   /** Helper text under breadcrumb when Plan tabs are omitted (manifest wizard surface). */
   manifestWizardChrome: {
     contextHint:
-      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Roadmap or Timeline from Strategy Lab once the pack is ready.',
+      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Plan (Board, Roadmap, or Timeline) from Strategy Lab once the pack is ready.',
   },
   /** Nested Plan view tabs (schedule lanes vs timeline). */
   planViewSegment: {
     ariaLabel: 'Plan presentation',
-    description: 'Switch between the multi-lane schedule and the seasonal execution timeline.',
+    description: 'Switch between delivery execution, schedule, and seasonal narrative projections.',
+    boardTabLabel: 'Board',
     roadmapTabLabel: 'Roadmap',
     timelineTabLabel: 'Timeline',
-    /** Visible under the segment control: how the two surfaces differ. */
+    /** Visible under the segment control: how surfaces differ. */
     differentiationIntro:
-      'Roadmap is the lane-based Gantt schedule with dependencies, search, and baseline comparison. Timeline is the seasonal execution view with pack narrative and read-focused lane stories.',
+      'Delivery Board groups critical-path work by horizon for execution flow (read-only in early rollout). Roadmap is the Gantt schedule with dependencies and baseline comparison. Timeline is the legacy seasonal narrative lanes view.',
     /** Shown when Roadmap is active. */
     roadmapContextHint:
       'You are on the schedule: navigate tasks and lanes, inspect dependency paths, and compare to a saved baseline. Use keyboard shortcuts for the grid; lane changes are available from the task menu when applicable.',
+    /** Shown when Board is active. */
+    boardContextHint:
+      'You are on the delivery board preview: horizon buckets projected from the pack critical path — status controls arrive in the next rollout phase.',
     /** Shown when Timeline is active. */
     timelineContextHint:
       'You are on the execution timeline: seasonal buckets, lane stories and read-focused navigation — not the interactive Gantt.',

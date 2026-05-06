@@ -40,6 +40,7 @@ const {
   getInsertCalls,
   setProductMode,
   clearCalls,
+  setAuditDomainMaybeSingleData,
 } = vi.hoisted(() => {
   const updateCalls: Array<{ table: string; payload: Record<string, unknown>; filters: Record<string, string> }> = [];
   const insertCalls: Array<{ table: string; payload: Record<string, unknown> }> = [];
@@ -48,7 +49,20 @@ const {
   const setProductMode = (m: string) => { productMode = m; };
   const getUpdateCalls = () => updateCalls;
   const getInsertCalls = () => insertCalls;
-  const clearCalls = () => { updateCalls.length = 0; insertCalls.length = 0; };
+
+  const defaultAuditDomainProbe: Record<string, unknown> = { id: 'audit-domain-row-default', status: 'pending' };
+  let auditDomainMaybeSingleData: Record<string, unknown> | null = { ...defaultAuditDomainProbe };
+  const resetAuditDomainMaybeSingleData = () => {
+    auditDomainMaybeSingleData = { ...defaultAuditDomainProbe };
+  };
+  const setAuditDomainMaybeSingleData = (data: Record<string, unknown> | null) => {
+    auditDomainMaybeSingleData = data === null ? null : { ...data };
+  };
+  const clearCalls = () => {
+    updateCalls.length = 0;
+    insertCalls.length = 0;
+    resetAuditDomainMaybeSingleData();
+  };
 
   const mockAssertBriefReady = vi.fn().mockResolvedValue(undefined);
 
@@ -92,6 +106,25 @@ const {
       }
       return Promise.resolve({ data: null, error: null });
     });
+    chain.maybeSingle = vi.fn(() => {
+      if (table === 'audit_domains') {
+        const d = auditDomainMaybeSingleData;
+        return Promise.resolve({
+          data: d && Object.keys(d).length > 0 ? { ...d } : null,
+          error: null,
+        });
+      }
+      if (table === 'audits') {
+        return Promise.resolve({
+          data: { product_mode: productMode },
+          error: null,
+        });
+      }
+      if (table === 'review_points') {
+        return Promise.resolve({ data: null, error: { code: 'PGRST116' } });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     chain.update = vi.fn((payload: Record<string, unknown>) => {
       updatePayload = payload;
       const capturedFilters = { ...filters };
@@ -130,6 +163,7 @@ const {
     getInsertCalls,
     setProductMode,
     clearCalls,
+    setAuditDomainMaybeSingleData,
   };
 });
 
@@ -258,6 +292,15 @@ describe('PipelineOrchestrator.retryDomainPhase()', () => {
     await expect(orch.retryDomainPhase(0)).rejects.toThrow(/expects integer phase 1–6/i);
     await expect(orch.retryDomainPhase(7)).rejects.toThrow(/expects integer phase 1–6/i);
     await expect(orch.retryDomainPhase(1.5 as unknown as number)).rejects.toThrow(/expects integer phase 1–6/i);
+  });
+
+  it('re-runs the domain agent when the latest row is already completed (consultant retry)', async () => {
+    setAuditDomainMaybeSingleData({ id: 'audit-domain-v1', status: 'completed' });
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await orch.retryDomainPhase(1);
+    expect(mockAgentRun).toHaveBeenCalledOnce();
+    const collectingUpdate = getDomainUpdates().find(u => u.payload.status === 'collecting');
+    expect(collectingUpdate?.filters.id).toBe('audit-domain-v1');
   });
 });
 

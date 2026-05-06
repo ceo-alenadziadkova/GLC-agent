@@ -72,7 +72,7 @@ This page is the **engineering contract** for the ADR Diagnostic Adaptive Intake
 
 ## Six pilot critical signals
 
-Registry: `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json` — keys `industry`, `website_presence`, `primary_problem`, `operations_bottleneck`, `audit_focus`, `delivery_shape_baseline` (each maps to bank ids + `normalizerRef`).
+Registry: `packages/intake-core/src/artifacts/intake-critical-signals-pilot-1.0.0.json` — keys `industry`, `website_presence`, `primary_problem`, `operations_bottleneck`, `audit_focus` (each maps to bank ids + `normalizerRef`). Recommended-only banks such as `d_closing_flow` are not execution-blocking pilot critical signals.
 
 ## Unknown handling
 
@@ -214,7 +214,7 @@ This checklist is the single execution tracker for rollout phases (no separate c
 
 - Default: pilot flag **off** (`SYSTEM_DEFAULTS.featureFlags.diagnosticIntakePilotEnabled`).
 - Ops: `FEATURE_DIAGNOSTIC_INTAKE_PILOT=true` to enable blocking + structured `intake_readiness_blocked` logs on start.
-- Post-KPI (optional): `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true` **with** pilot flag enables execution-plan domain slice for in-scope coverage gaps on pipeline preflight (see `docs/DEPLOYMENT.md` — Diagnostic Adaptive Intake pilot).
+- Post-KPI (optional): `FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE=true` **with** pilot flag enables execution-plan domain slice for in-scope coverage gaps on pipeline preflight (see `docs/DEPLOYMENT.md` — Diagnostic Adaptive Intake pilot). **`INTAKE_EXECUTION_PLAN_READINESS_POLICY`** keeps **Starter/Pro** on `scope_aware` (in-scope gaps can still block) while **Complete** uses `baseline_only` so the trace remains useful but pipeline start/next is not held on exhaustive recommended in-scope gaps across all domains.
 
 **Structured log keys (dashboards / alerts):**
 
@@ -250,7 +250,7 @@ Until then, keep Phase-B/C rollout gated and reversible behind feature flags.
 
 Canonical expansion order remains:
 
-1. execution-plan-aware readiness (Starter/Pro/Complete scope-aware) — **engineering:** pipeline preflight already forwards execution-plan fields into `evaluateIntakeReadinessEnvelope` when `**FEATURE_DIAGNOSTIC_INTAKE_PILOT`** and `**FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE**` are both enabled (default off until KPI `expand`); product turns this on only after the gate,
+1. execution-plan-aware readiness (Starter/Pro scope-aware; Complete baseline-only for hard block) — **engineering:** pipeline preflight already forwards execution-plan fields into `evaluateIntakeReadinessEnvelope` when `**FEATURE_DIAGNOSTIC_INTAKE_PILOT`** and `**FEATURE_EXECUTION_PLAN_COVERAGE_SCOPE**` are both enabled (default off until KPI `expand`); product turns this on only after the gate,
 2. richer critical-signal registry metadata (`sourcesByPriority`, conflict rules),
 3. limited `ready_with_caveats` taxonomy expansion (2-3 classes first),
 4. Project Context Envelope before ContextBuilder,
@@ -319,7 +319,7 @@ Use this checklist when support/QA asks “why was this question shown now?”:
   - `PUT /api/audits/:id/brief`: recompute trace only (no write rejection),
   - `POST /api/discover/:token/convert`: `criticalSignalsMode: 'sla_only'`,
   - `POST /api/audits/:id/pipeline/start`: `criticalSignalsMode: 'full'` under pilot flag.
-4. For blocked outcomes, confirm top semantic causes are deterministic and map to known pilot signal keys (`industry`, `website_presence`, `primary_problem`, `operations_bottleneck`, `audit_focus`, `delivery_shape_baseline`).
+4. For blocked outcomes, confirm top semantic causes are deterministic and map to known pilot signal keys (`industry`, `website_presence`, `primary_problem`, `operations_bottleneck`, `audit_focus`).
 
 ## KPI decision checkpoint (expand vs hold)
 

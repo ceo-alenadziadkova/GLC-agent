@@ -61,7 +61,7 @@ export class ReconAgent extends BaseAgent {
 
     // Step 2: Assemble context
     await this.emit('assembling_context', ev.assemblingContext);
-    const context = await this.contextBuilder.build(this.auditId, 'recon', {
+    const context = await this.contextBuilder.build(this.auditId, this.phaseNumber, 'recon', {
       crawler: crawlResult.data,
       ...(newAuditSiteRecon ? { new_audit_site_recon: newAuditSiteRecon } : {}),
     }, this.instructions);
@@ -96,7 +96,14 @@ export class ReconAgent extends BaseAgent {
     const crawlSignals = extractReconCrawlSignalsForSummary({
       tech_stack: crawlResult.data.tech_stack as Record<string, unknown> | undefined,
       social_profiles: crawlResult.data.social_profiles as Record<string, unknown> | undefined,
-      contact_info: crawlResult.data.contact_info,
+      contact_info: crawlResult.data.contact_info as
+        | {
+            emails?: unknown[] | null;
+            phones?: unknown[] | null;
+            addresses?: unknown[] | null;
+          }
+        | null
+        | undefined,
     });
 
     const reconContextSummary = buildReconContextSummary({

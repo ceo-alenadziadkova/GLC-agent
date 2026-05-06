@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ArrowsClockwise, CaretDoubleRight } from '@phosphor-icons/react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'motion/react';
-import { Link } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { AppShell } from '../../components/AppShell';
 import { StatusPill } from '../../components/glc/StatusPill';
 import { useAudit } from '../../hooks/useAudit';
@@ -31,6 +31,7 @@ import { EnrichmentSection } from './sections/EnrichmentSection';
 import { Button } from '../../components/ui/button';
 import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
 import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
+import { buildAppRoute } from '../../config/route-paths';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
@@ -84,6 +85,10 @@ export function AuditWorkspaceScreen() {
         </div>
       </AppShell>
     );
+  }
+
+  if (audit.meta.status === 'created' && id) {
+    return <Navigate to={buildAppRoute.auditNewResumeDraft(id)} replace />;
   }
 
   const domainEntries = visibleDomainKeys

@@ -535,7 +535,36 @@ supabase
 - After each Claude call the backend writes a `token_usage` event to `pipeline_events` and updates `audits.tokens_used`.
 - The pipeline service checks `tokens_used < token_budget` before starting each phase. If exceeded, the phase fails with an error event.
 
-See [PIPELINE.md#token-tracking](./PIPELINE.md#token-tracking).
+### `audit_token_budget_grants` (migration **`076`**)
+
+Append-only audit log of platform-admin token-budget top-ups.
+
+```sql
+audit_token_budget_grants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  audit_id uuid NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+  granted_by_user_id uuid NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
+  delta_tokens integer NOT NULL CHECK (delta_tokens > 0),
+  previous_budget integer NOT NULL CHECK (previous_budget >= 0),
+  new_budget integer NOT NULL CHECK (new_budget >= 0),
+  reason text NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+)
+-- index: (audit_id, created_at DESC)
+```
+
+### RPC `apply_audit_token_budget_topup(p_audit_id, p_granted_by, p_delta, p_reason)`
+
+`SECURITY DEFINER` plpgsql function that, in a single transaction:
+
+1. `SELECT … FOR UPDATE` on the target `audits` row.
+2. Increments `audits.token_budget` by `p_delta`.
+3. Inserts a row into `audit_token_budget_grants` with the previous and new budgets.
+4. Returns `(grant_id, previous_budget, new_budget, tokens_used)` so the caller can emit a `token_budget_topup` `pipeline_events` row.
+
+Mirrors the atomicity guarantees of `increment_tokens_used` (migration **`011`**); always invoke through `applyAuditTokenBudgetTopup` (`server/src/services/audits/audit-token-budget-topup.service.ts`) rather than direct SQL so policy bounds and event emission stay consistent.
+
+See [PIPELINE.md#token-tracking](./PIPELINE.md#token-tracking) and [API.md](./API.md) (`PATCH /api/audits/:id/token-budget`).
 
 ## Для разработчиков
 

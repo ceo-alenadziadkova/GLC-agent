@@ -89,7 +89,7 @@
       "conflictRuleRef": "prefer_consultant_for_interview_mode"
     },
     "d_closing_flow": {
-      "unlocksSignals": ["delivery_shape_baseline"],
+      "unlocksSignals": ["operations_bottleneck"],
       "guardDomain": "automation_processes",
       "transitionRuleRef": "t_delivery_shape",
       "sourcesByPriority": ["client", "consultant"],

@@ -39,6 +39,11 @@ export interface ContextBuilderSnapshot {
     consultant_notes: string | null;
     interview_notes: string | null;
   }> | null;
+  retryNotes: Array<{
+    phase: number;
+    retry_comment: string;
+    created_at: string;
+  }> | null;
   brief: ContextBuilderBriefRow | null;
 }
 
@@ -85,7 +90,37 @@ export async function loadContextSnapshot(auditId: string): Promise<ContextBuild
     .from('review_points')
     .select('after_phase, consultant_notes, interview_notes')
     .eq('audit_id', auditId)
-    .eq('status', 'approved');
+    .eq('status', 'approved')
+    .order('after_phase', { ascending: true });
+
+  const { data: retryEvents } = await supabase
+    .from('pipeline_events')
+    .select('phase, data, created_at')
+    .eq('audit_id', auditId)
+    .eq('event_type', 'log')
+    .order('created_at', { ascending: true })
+    .limit(200);
+
+  const retryNotes =
+    (retryEvents ?? [])
+      .map((row) => {
+        const data = (row as { data?: unknown }).data;
+        if (!data || typeof data !== 'object') return null;
+        const payload = data as Record<string, unknown>;
+        if (payload.action !== 'retry_requested') return null;
+        const retryComment = payload.retry_comment;
+        if (typeof retryComment !== 'string' || retryComment.trim().length === 0) return null;
+        const phase = typeof (row as { phase?: unknown }).phase === 'number' ? (row as { phase: number }).phase : -1;
+        const createdAt = typeof (row as { created_at?: unknown }).created_at === 'string'
+          ? (row as { created_at: string }).created_at
+          : new Date(0).toISOString();
+        return {
+          phase,
+          retry_comment: retryComment.trim(),
+          created_at: createdAt,
+        };
+      })
+      .filter((note): note is { phase: number; retry_comment: string; created_at: string } => note !== null) ?? null;
 
   const { data: brief } = await supabase
     .from('intake_brief')
@@ -101,6 +136,7 @@ export async function loadContextSnapshot(auditId: string): Promise<ContextBuild
     completedDomains,
     failedDomains,
     reviews,
+    retryNotes,
     brief: brief as ContextBuilderBriefRow | null,
   };
 }

@@ -16,6 +16,8 @@ export const API_ERROR_UI_COPY = {
       'This audit has reached its usage limit. Please contact your consultant to continue.',
     PIPELINE_NEXT_CLAIM_CONFLICT:
       'Another request may have already advanced this audit (for example a second tab or a background action). Refresh the page or wait a moment, then check the pipeline status.',
+    PIPELINE_INTAKE_READINESS_BLOCKED:
+      'The intake brief is missing required answers or confirmations for pipeline execution. Use the workspace link below when shown, finish the intake, then Continue again.',
     AUDIT_CREATE_RATE_LIMITED: 'You reached the audit creation limit. Please retry later.',
   },
 } as const;

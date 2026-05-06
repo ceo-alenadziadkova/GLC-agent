@@ -36,6 +36,28 @@ export async function insertPipelineResumedFromCancelledEvent(params: {
   });
 }
 
+export async function insertPipelineRetryRequestedEvent(params: {
+  auditId: string;
+  phase: number;
+  actorUserId: string;
+  retryComment?: string;
+}): Promise<void> {
+  const { auditId, phase, actorUserId, retryComment } = params;
+  await supabase.from('pipeline_events').insert({
+    audit_id: auditId,
+    phase,
+    event_type: PIPELINE_EVENT_TYPES.log,
+    message: retryComment
+      ? `Consultant requested re-run for phase ${phase}. Comment: ${retryComment}`
+      : `Consultant requested re-run for phase ${phase}.`,
+    data: {
+      actor_user_id: actorUserId,
+      action: 'retry_requested',
+      retry_comment: retryComment ?? null,
+    },
+  });
+}
+
 export async function fetchPipelineEventsForAudit(
   auditId: string,
   query?: {

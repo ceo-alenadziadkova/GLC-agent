@@ -6,6 +6,8 @@
 /** Top-level HTTP prefix for all API routes (matches server `API_PREFIX` and Vite dev proxy). */
 export const API_HTTP_ROOT_PREFIX = '/api' as const;
 const withApiRoot = (segment: string): string => `${API_HTTP_ROOT_PREFIX}${segment}`;
+/** Shared payload contract: max length for `POST /pipeline/retry` comment. */
+export const PIPELINE_RETRY_COMMENT_MAX_LENGTH = 1000;
 
 /** Express `app.use` mount prefixes (must match `API_ROUTE_MOUNT_ENTRIES`). */
 export const API_HTTP_PATH_PREFIX = {
@@ -79,6 +81,11 @@ export function idempotencyPostKey(path: string): string {
   return `POST:${path}`;
 }
 
+/** `PATCH:${path}` for idempotent mutations (Delivery Board card updates). */
+export function idempotencyPatchKey(path: string): string {
+  return `PATCH:${path}`;
+}
+
 export function idempotencyPostAuditsCreateKey(): string {
   return idempotencyPostKey(API_HTTP_PATH_PREFIX.audits);
 }
@@ -114,6 +121,15 @@ export function apiAuditsPipelineStop(auditId: string): string {
 
 export function apiAuditsPipelineStatus(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/status`;
+}
+
+export function apiAuditsPipelinePhaseResult(auditId: string, phase: number): string {
+  return `${apiAuditsPath(auditId)}/pipeline/phases/${encodeURIComponent(String(phase))}/result`;
+}
+
+/** Platform admin only: PATCH per-audit token budget (top-up). */
+export function apiAuditsTokenBudget(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/token-budget`;
 }
 
 export function apiAuditsStrategyExecutionPack(auditId: string): string {
@@ -153,6 +169,22 @@ export function idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId: string
 
 export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
+}
+
+export function apiAuditsPlanBoard(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/plan/board`;
+}
+
+export function apiAuditsPlanBoardCard(auditId: string, cardId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/cards/${cardId}`;
+}
+
+export function apiAuditsPlanBoardTelemetryViewOpened(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/telemetry/view-opened`;
+}
+
+export function idempotencyPatchAuditsPlanBoardCardKey(auditId: string, cardId: string): string {
+  return idempotencyPatchKey(apiAuditsPlanBoardCard(auditId, cardId));
 }
 
 export function apiAuditsOrchestrationSelectedInitiative(auditId: string): string {

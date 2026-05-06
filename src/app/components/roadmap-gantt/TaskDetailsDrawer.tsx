@@ -1,14 +1,40 @@
 import dayjs from 'dayjs';
+import { Link } from 'react-router';
+import { CaretDownIcon } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 
 import {
   ORCHESTRATION_UI_COPY,
   formatRoadmapGanttUnlocksCopy,
 } from '../../config/orchestration-roadmap-ui-copy.en';
+import {
+  PLAN_BOARD_COLUMN_HEADINGS_EN,
+  PLAN_BOARD_UI_COLUMNS,
+  isPlanBoardUiColumnId,
+  type PlanBoardUiColumnId,
+} from '../../config/plan-board-ui-columns';
+import { PLAN_BOARD_COPY } from '../../config/plan-board-copy.en';
+import { isPlanBoardDrawerMoveAllowed } from '../../config/plan-board-transitions';
+import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import { usePatchPlanBoardCardMutation } from '../../data/api/plan-board-queries';
 import type { RoadmapGanttDependency, RoadmapGanttLaneId, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
 import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';
+import { Button } from '../ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../ui/drawer';
 
+/** Delivery Board move affordance from Roadmap drawer (ADR cross-view mutation surface §5). */
+export type TaskDetailsPlanBoardMove =
+  | { status: 'off' }
+  | { status: 'loading' }
+  | { status: 'no_row' }
+  | { status: 'blocked_no_pack' }
+  | { status: 'blocked_governance' }
+  | { status: 'query_failed' }
+  | { status: 'ready'; row: PlanBoardCardDto; packVersion: number; role: 'consultant' | 'client' };
+
 type TaskDetailsDrawerProps = {
+  auditId?: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: RoadmapGanttTask | null;
@@ -16,9 +42,13 @@ type TaskDetailsDrawerProps = {
   taskTitleById: Map<string, string>;
   downstreamTaskCount: number;
   onFilterToLane?: (laneId: RoadmapGanttLaneId) => void;
+  /** Deep-link to Plan Board with `focus` on the pack graph node id (ADR cross-view contract). */
+  deliveryBoardHref?: string | null;
+  planBoardMove?: TaskDetailsPlanBoardMove | undefined;
 };
 
 export function TaskDetailsDrawer({
+  auditId,
   open,
   onOpenChange,
   task,
@@ -26,9 +56,35 @@ export function TaskDetailsDrawer({
   taskTitleById,
   downstreamTaskCount,
   onFilterToLane,
+  deliveryBoardHref,
+  planBoardMove,
 }: TaskDetailsDrawerProps) {
+  const pb = planBoardMove ?? { status: 'off' as const };
+  const patchMutation = usePatchPlanBoardCardMutation({ auditId: auditId ?? undefined });
+
   const incomingDependencies = task ? dependencies.filter((dep) => dep.to === task.id) : [];
   const isBlocked = incomingDependencies.some((dep) => dep.blocking);
+
+  let currentDeliveryColumnLabel: PlanBoardUiColumnId | null = null;
+  if (pb.status === 'ready') {
+    const cid = pb.row.column_id;
+    currentDeliveryColumnLabel = isPlanBoardUiColumnId(cid) ? cid : null;
+  }
+
+  async function submitMove(colId: PlanBoardUiColumnId) {
+    if (pb.status !== 'ready' || !auditId || currentDeliveryColumnLabel == null) return;
+    if (!isPlanBoardDrawerMoveAllowed(pb.role, currentDeliveryColumnLabel, colId)) return;
+
+    try {
+      await patchMutation.mutateAsync({
+        cardId: pb.row.id,
+        body: { to_column: colId, expected_pack_version: pb.packVersion },
+      });
+      toast.success(PLAN_BOARD_COPY.roadmapDrawerMoveSuccessToast);
+    } catch {
+      toast.error(PLAN_BOARD_COPY.roadmapDrawerMoveErrorToast);
+    }
+  }
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -97,6 +153,75 @@ export function TaskDetailsDrawer({
               >
                 {ORCHESTRATION_UI_COPY.roadmapGanttFilterToLaneCta}
               </button>
+            ) : null}
+            {task.kind === 'task' && deliveryBoardHref ? (
+              <Link
+                to={deliveryBoardHref}
+                className="flex w-full items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-xs font-medium ds-text-primary no-underline hover:bg-[var(--surface-base)]"
+                onClick={() => onOpenChange(false)}
+              >
+                {PLAN_BOARD_COPY.roadmapDrawerDeliveryBoardCta}
+              </Link>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'loading' ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {ORCHESTRATION_UI_COPY.previewLoading}
+              </p>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'no_row' ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {PLAN_BOARD_COPY.roadmapDrawerMoveNoCardHint}
+              </p>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'blocked_no_pack' ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {PLAN_BOARD_COPY.roadmapDrawerMoveNoPackHint}
+              </p>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'blocked_governance' ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {PLAN_BOARD_COPY.roadmapDrawerMoveGovernanceBlockedHint}
+              </p>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'query_failed' ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {PLAN_BOARD_COPY.roadmapDrawerMoveErrorToast}
+              </p>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'ready' && currentDeliveryColumnLabel ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-border bg-[var(--surface-raised)] w-full justify-between text-xs font-medium"
+                    aria-label={PLAN_BOARD_COPY.roadmapDrawerMoveMenuAriaLabel}
+                    disabled={patchMutation.isPending}
+                  >
+                    <span>{PLAN_BOARD_COPY.roadmapDrawerMoveMenuHeading}</span>
+                    <CaretDownIcon size={16} aria-hidden className="shrink-0 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[12rem]" collisionPadding={8}>
+                  {PLAN_BOARD_UI_COLUMNS.map((colId) => (
+                    <DropdownMenuItem
+                      key={colId}
+                      disabled={
+                        patchMutation.isPending ||
+                        colId === currentDeliveryColumnLabel ||
+                        !isPlanBoardDrawerMoveAllowed(pb.role, currentDeliveryColumnLabel, colId)
+                      }
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        void submitMove(colId);
+                      }}
+                    >
+                      {PLAN_BOARD_COLUMN_HEADINGS_EN[colId]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
             <div className="rounded-md border border-[var(--border-default)] p-3">
               <div className="font-medium text-[var(--text-primary)]">Owner</div>

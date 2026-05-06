@@ -91,11 +91,12 @@ import {
   roadmapGanttOverviewPageStepPx,
   roadmapGanttToolbarScrollDeltaPx,
 } from '../../lib/roadmap-gantt-scroll-math';
+import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
 import type { RoadmapGanttDependency, RoadmapGanttProjection, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
 import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';
 import { RoadmapGanttDependencyGraphSvg } from './RoadmapGanttDependencyGraphSvg';
 import { RoadmapGanttOverviewStrip } from './RoadmapGanttOverviewStrip';
-import { TaskDetailsDrawer } from './TaskDetailsDrawer';
+import { TaskDetailsDrawer, type TaskDetailsPlanBoardMove } from './TaskDetailsDrawer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import {
   DropdownMenu,
@@ -127,13 +128,36 @@ type GanttTaskItem = TimelineItemBase<number> & {
   confidence: RoadmapGanttTask['confidence'];
 };
 
+/** Optional read model for Delivery Board PATCH from Roadmap drawer (ADR cross-view §5). */
+export type RoadmapGanttPlanBoardHydration =
+  | undefined
+  | {
+      enabled: boolean;
+      pending: boolean;
+      fetchFailed: boolean;
+      blockedNoPack: boolean;
+      blockedGovernance: boolean;
+      cards: readonly PlanBoardCardDto[];
+      packVersionUsed: number;
+      role: 'consultant' | 'client';
+    };
+
 type RoadmapGanttViewProps = {
   auditId: string;
   projection: RoadmapGanttProjection;
   strategyHref: string;
+  /** When set, task drawer links to Delivery Board (`?focus=<pack node id>`). */
+  getDeliveryBoardHrefForPackNode?: (packGraphNodeId: string) => string | null | undefined;
+  planBoardHydration?: RoadmapGanttPlanBoardHydration;
 };
 
-export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapGanttViewProps) {
+export function RoadmapGanttView({
+  auditId,
+  projection,
+  strategyHref,
+  getDeliveryBoardHrefForPackNode,
+  planBoardHydration,
+}: RoadmapGanttViewProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => searchParams.get(ROADMAP_SEARCH_PARAM_TASK));
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
@@ -313,6 +337,24 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
   const drawerTask = selectedTask?.kind === 'task' ? selectedTask : null;
   const downstreamTaskCount =
     drawerTask != null ? (projection.downstreamByTask.get(drawerTask.id)?.size ?? 0) : 0;
+  const deliveryBoardHref = drawerTask ? (getDeliveryBoardHrefForPackNode?.(drawerTask.id) ?? null) : null;
+
+  const taskPlanBoardMove = useMemo((): TaskDetailsPlanBoardMove => {
+    const h = planBoardHydration;
+    if (!h?.enabled) return { status: 'off' };
+    if (h.fetchFailed) return { status: 'query_failed' };
+    if (h.pending) return { status: 'loading' };
+    if (h.blockedNoPack) return { status: 'blocked_no_pack' };
+    if (h.blockedGovernance) return { status: 'blocked_governance' };
+    const dt = drawerTask;
+    if (!dt || dt.kind !== 'task') return { status: 'off' };
+    const row =
+      [...h.cards].find((c) => c.pack_graph_node_id === dt.id) ??
+      [...h.cards].find((c) => c.canonical_node_key === dt.id) ??
+      null;
+    if (!row) return { status: 'no_row' };
+    return { status: 'ready', row, packVersion: h.packVersionUsed, role: h.role };
+  }, [planBoardHydration, drawerTask]);
   const focusedTask = useMemo(
     () => filteredTasks.find((task) => task.id === focusedTaskId) ?? null,
     [filteredTasks, focusedTaskId],
@@ -1833,6 +1875,7 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         </div>
       ) : null}
       <TaskDetailsDrawer
+        auditId={auditId}
         open={drawerTask != null}
         onOpenChange={(open) => {
           if (!open) setSelectedTaskId(null);
@@ -1841,6 +1884,8 @@ export function RoadmapGanttView({ auditId, projection, strategyHref }: RoadmapG
         dependencies={projection.dependencies}
         taskTitleById={taskTitleById}
         downstreamTaskCount={downstreamTaskCount}
+        deliveryBoardHref={deliveryBoardHref}
+        planBoardMove={taskPlanBoardMove}
         onFilterToLane={(laneId) => {
           setLaneFilter(String(laneId));
           setRoadmapToolbarMoreOpen(true);

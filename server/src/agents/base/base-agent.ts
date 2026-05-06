@@ -132,9 +132,23 @@ export abstract class BaseAgent {
     await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId,
+      this.phaseNumber,
       this.domainKey,
       collectedData,
       this.getEffectiveInstructions(),
+    );
+
+    const reviewPhasesInContext = context.review_notes
+      .filter(n => Boolean(n.consultant_notes || n.interview_notes))
+      .map(n => n.phase)
+      .sort((a, b) => a - b);
+    await this.emit(
+      PIPELINE_EVENT_TYPES.log,
+      `Loaded approved review notes into prompt context (count=${reviewPhasesInContext.length}, phases=${reviewPhasesInContext.join(',') || 'none'})`,
+      {
+        review_notes_count: reviewPhasesInContext.length,
+        review_note_phases: reviewPhasesInContext,
+      },
     );
 
     await this.emit('analyzing', ev.analyzing);

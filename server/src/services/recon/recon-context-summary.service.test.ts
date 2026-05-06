@@ -16,7 +16,7 @@ const baseReconResult = {
   key_services_products: [],
   value_proposition: null,
   competitive_landscape_notes: null,
-  mallorca_relevance: null,
+  regional_relevance: null,
   initial_observations: ['Signal from intake only'],
   suggested_interview_questions: [],
 };

@@ -22,6 +22,7 @@ import {
 import { validatePdfReportInput } from '../services/pdf-generator/lib/pdf-input-guard.js';
 
 export const reportsRouter = Router();
+const REPORT_FORMATS = ['json', 'markdown', 'csv', 'pdf'] as const;
 
 reportsRouter.use(generalLimiter);
 reportsRouter.use(requireAuth);
@@ -44,6 +45,15 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, reportPdf
       ? (rawProfile as ReportProfile)
       : 'full';
     const format = String(req.query.format ?? 'json');
+    if (!REPORT_FORMATS.includes(format as (typeof REPORT_FORMATS)[number])) {
+      res.status(400).json(
+        apiErrorJson(API_ERROR_CODES.REPORTS_GENERATE_FAILED, REPORTS_GENERATE_FAILED_MESSAGE, {
+          reason: 'unsupported_format',
+          allowed_formats: REPORT_FORMATS,
+        }),
+      );
+      return;
+    }
 
     // Pre-auth short-circuit: reject unauthorized/not-found before fan-out reads.
     const uid = req.userId!;

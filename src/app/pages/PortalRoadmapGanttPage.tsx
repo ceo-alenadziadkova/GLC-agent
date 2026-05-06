@@ -1,12 +1,18 @@
+import { useCallback, useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/ui/button';
-import { useProfile } from '../hooks/useProfile';
-import { buildRoadmapGanttProjection } from '../lib/roadmap-gantt-mapper';
 import { RoadmapGanttView } from '../components/roadmap-gantt/RoadmapGanttView';
+import type { RoadmapGanttPlanBoardHydration } from '../components/roadmap-gantt/RoadmapGanttView';
+import { useProfile } from '../hooks/useProfile';
+import { usePlanBoardQuery } from '../data/api/plan-board-queries';
+import { buildRoadmapGanttProjection } from '../lib/roadmap-gantt-mapper';
+import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
+import { isPlanDeliveryBoardUiEnabled } from '../config/plan-delivery-board-ui';
 import { buildAppRoute } from '../config/route-paths';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
+import { mergeFocusIntoPlanHref } from '../lib/plan-cross-nav';
 import { PortalPlanLayout } from './portal-plan/PortalPlanLayout';
 import {
   PortalPlanOrchestrationProvider,
@@ -35,6 +41,59 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
 
   const strategyHref = isClient ? buildAppRoute.portalStrategy(id) : buildAppRoute.strategy(id);
   const timelineHref = isClient ? buildAppRoute.portalPlan(id, 'timeline') : buildAppRoute.plan(id, 'timeline');
+
+  const getDeliveryBoardHrefForPackNode = useCallback(
+    (nodeId: string) => {
+      if (!isPlanDeliveryBoardUiEnabled()) return null;
+      const base = isClient ? buildAppRoute.portalPlan(id, 'board') : buildAppRoute.plan(id, 'board');
+      return mergeFocusIntoPlanHref(base, nodeId);
+    },
+    [id, isClient],
+  );
+
+  /** Match legacy branches: do not subscribe to plan-board until timeline body is ready (avoids hook order shifts). */
+  const canRenderRoadmapBody =
+    !loading &&
+    !timelineQuery.isPending &&
+    !error &&
+    !timelineQuery.isError &&
+    Boolean(timelineQuery.data?.timeline);
+
+  const pack = packQuery.data?.pack ?? null;
+  const boardPackEligible = Boolean(pack) && isGlcOrchestrationPackView(pack);
+  const boardSurfaceEnabled =
+    isPlanDeliveryBoardUiEnabled() && boardPackEligible && canRenderRoadmapBody;
+
+  const boardQuery = usePlanBoardQuery({
+    auditId: id,
+    enabled: Boolean(id) && boardSurfaceEnabled,
+  });
+
+  const planBoardHydration = useMemo((): RoadmapGanttPlanBoardHydration => {
+    if (!boardSurfaceEnabled) return undefined;
+    const issues = boardQuery.data?.issues ?? [];
+    return {
+      enabled: true,
+      pending: boardQuery.isPending || boardQuery.isFetching,
+      fetchFailed: boardQuery.isError,
+      blockedNoPack: issues.some(i => i.code === 'no_pack'),
+      blockedGovernance: issues.some(i => i.code === 'governance_blocked'),
+      cards: boardQuery.data?.cards ?? [],
+      packVersionUsed:
+        boardQuery.data?.pack_version_used ?? packQuery.data?.orchestration_pack_version ?? 0,
+      role: isClient ? 'client' : 'consultant',
+    };
+  }, [
+    boardSurfaceEnabled,
+    boardQuery.data?.cards,
+    boardQuery.data?.issues,
+    boardQuery.data?.pack_version_used,
+    boardQuery.isError,
+    boardQuery.isFetching,
+    boardQuery.isPending,
+    isClient,
+    packQuery.data?.orchestration_pack_version,
+  ]);
 
   if (loading || timelineQuery.isPending) {
     const roadmapLoadSubtitle =
@@ -133,7 +192,13 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
     >
       <div className="mx-auto max-w-6xl space-y-4">
         <PortalPlanLayout auditId={id} isClient={isClient} audit={audit} activePlanView="roadmap">
-          <RoadmapGanttView auditId={id} projection={projection} strategyHref={strategyHref} />
+          <RoadmapGanttView
+            auditId={id}
+            projection={projection}
+            strategyHref={strategyHref}
+            getDeliveryBoardHrefForPackNode={getDeliveryBoardHrefForPackNode}
+            planBoardHydration={planBoardHydration}
+          />
         </PortalPlanLayout>
       </div>
     </PortalPlanSurfaceChrome>

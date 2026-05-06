@@ -4,6 +4,7 @@
 
 export {
   API_PATHS,
+  PIPELINE_RETRY_COMMENT_MAX_LENGTH,
   type ApiLogPath,
   apiBenchmarksQuery,
   apiAuditsBriefHelpRequest,
@@ -18,6 +19,8 @@ export {
   apiAuditsPipelineStart,
   apiAuditsPipelineStop,
   apiAuditsPipelineStatus,
+  apiAuditsPipelinePhaseResult,
+  apiAuditsTokenBudget,
   apiAuditsStrategyExecutionPack,
   apiAuditsStrategyExecutionPacks,
   apiAuditsStrategyLabContext,
@@ -25,6 +28,9 @@ export {
   apiAuditsRoadmapManifestSnapshots,
   apiAuditsRoadmapManifestSnapshotsLatest,
   apiAuditsOrchestrationPack,
+  apiAuditsPlanBoard,
+  apiAuditsPlanBoardCard,
+  apiAuditsPlanBoardTelemetryViewOpened,
   apiAuditsOrchestrationSprintExport,
   apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,

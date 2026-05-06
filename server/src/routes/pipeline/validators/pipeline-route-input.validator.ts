@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PIPELINE_MAX_PHASE_INDEX, PIPELINE_MIN_PHASE } from '../../../config/pipeline-phases.js';
+import { PIPELINE_RETRY_COMMENT_MAX_LENGTH } from '../../../config/api-http-paths.js';
 
 export const pipelineAuditIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -17,11 +18,13 @@ export const pipelineRetryBodySchema = z
   .object({
     phase: z.number().int().min(PIPELINE_MIN_PHASE).max(PIPELINE_MAX_PHASE_INDEX),
     disable_auto_remediate: z.unknown().optional(),
+    retry_comment: z.string().trim().max(PIPELINE_RETRY_COMMENT_MAX_LENGTH).optional(),
   })
   .passthrough()
   .transform((d) => ({
     phase: d.phase,
     disable_auto_remediate: Boolean(d.disable_auto_remediate),
+    retry_comment: typeof d.retry_comment === 'string' && d.retry_comment.length > 0 ? d.retry_comment : undefined,
   }));
 
 /** Matches legacy `readDisableAutoRemediateFromBody`: any truthy value enables the flag. */

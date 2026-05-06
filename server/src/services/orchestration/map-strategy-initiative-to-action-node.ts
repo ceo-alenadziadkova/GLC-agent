@@ -37,6 +37,9 @@ export function mapStrategyInitiativeToActionNode(initiative: StrategyInitiative
     title: initiative.title,
     domain: initiative.domain,
     lane,
+    ...(initiative.board_identity_key != null && initiative.board_identity_key.trim() !== ''
+      ? { board_identity_key: initiative.board_identity_key.trim() }
+      : {}),
     dependencies: initiative.dependencies ?? [],
     weight,
     source: ORCHESTRATION_NODE_SOURCE_STRATEGY,

@@ -9,7 +9,7 @@ import {
   STRATEGY_INITIATIVE_PRIORITIES,
   type StrategyInitiativeDomainKey,
 } from '../config/strategy-initiative-policy.js';
-import { DOMAIN_KEYS } from '@glc/intake-core';
+import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS, DOMAIN_KEYS } from '@glc/intake-core';
 
 import { GlcDirectorOrchestrationSliceSchema } from './glc-director-orchestration-slice.js';
 
@@ -37,7 +37,7 @@ export const ReconOutputSchema = z.object({
   key_services_products: z.array(z.string()),
   value_proposition: z.string().nullable(),
   competitive_landscape_notes: z.string().nullable(),
-  mallorca_relevance: z.string().nullable(),
+  regional_relevance: z.string().nullable(),
   initial_observations: z.array(z.string()),
   suggested_interview_questions: z.array(z.string()),
 });
@@ -229,6 +229,11 @@ export const StrategyInitiativeSchema = z.object({
   }),
   /** Set server-side after evidence link validation. */
   evidence_verified: z.boolean().optional(),
+  /**
+   * Optional stable hint for Delivery Board `canonical_node_key` (Epic 1).
+   * When set, renaming `title` does not orphan the card while manifest signature + lane match.
+   */
+  board_identity_key: z.string().min(1).max(CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS).optional(),
 });
 
 /** One initiative's generated execution pack (on-demand Claude output). */

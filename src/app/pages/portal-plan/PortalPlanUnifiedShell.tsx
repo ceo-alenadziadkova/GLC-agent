@@ -14,8 +14,9 @@ import {
   ORCHESTRATION_IA_COPY,
   ORCHESTRATION_UI_COPY,
 } from '../../config/orchestration-roadmap-ui-copy.en';
+import { PLAN_BOARD_COPY } from '../../config/plan-board-copy.en';
 
-export type PlanSurfaceBranch = 'roadmap' | 'timeline';
+export type PlanSurfaceBranch = 'roadmap' | 'timeline' | 'board';
 
 export type PlanShellPublication = {
   title: string;
@@ -34,6 +35,11 @@ const DEFAULT_TIMELINE_SUBTITLE = APP_FEATURE_FLAGS.orchestrationTimelinePrimary
 const DEFAULT_TIMELINE_META: PlanShellPublication = {
   title: ORCHESTRATION_UI_COPY.timelineTitle,
   subtitle: DEFAULT_TIMELINE_SUBTITLE,
+};
+
+const DEFAULT_BOARD_META: PlanShellPublication = {
+  title: PLAN_BOARD_COPY.shellTitle,
+  subtitle: PLAN_BOARD_COPY.shellSubtitleReadOnly,
 };
 
 type UnifiedRegistryApi = {
@@ -56,19 +62,28 @@ export function PortalPlanUnifiedShellCoordinator({
 }) {
   const [roadmapMeta, setRoadmapMeta] = useState<PlanShellPublication | null>(null);
   const [timelineMeta, setTimelineMeta] = useState<PlanShellPublication | null>(null);
+  const [boardMeta, setBoardMeta] = useState<PlanShellPublication | null>(null);
 
   const setPublication = useCallback((branch: PlanSurfaceBranch, value: PlanShellPublication | null) => {
     if (branch === 'roadmap') {
       setRoadmapMeta(value);
-    } else {
-      setTimelineMeta(value);
+      return;
     }
+    if (branch === 'timeline') {
+      setTimelineMeta(value);
+      return;
+    }
+    setBoardMeta(value);
   }, []);
 
   const registry = useMemo((): UnifiedRegistryApi => ({ activeView, setPublication }), [activeView, setPublication]);
 
   const display =
-    activeView === 'timeline' ? timelineMeta ?? DEFAULT_TIMELINE_META : roadmapMeta ?? DEFAULT_ROADMAP_META;
+    activeView === 'timeline'
+      ? timelineMeta ?? DEFAULT_TIMELINE_META
+      : activeView === 'board'
+        ? boardMeta ?? DEFAULT_BOARD_META
+        : roadmapMeta ?? DEFAULT_ROADMAP_META;
 
   return (
     <PortalUnifiedShellRegistryContext.Provider value={registry}>

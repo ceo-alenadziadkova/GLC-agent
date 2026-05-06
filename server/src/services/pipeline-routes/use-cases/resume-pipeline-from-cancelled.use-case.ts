@@ -85,10 +85,14 @@ export async function runPipelineResumeFromCancelled(params: {
     };
   }
 
+  const skippedBody = nextResult.error.body as Record<string, unknown> | undefined;
+  const skippedCode = typeof skippedBody?.code === 'string' ? skippedBody.code : undefined;
+  const skippedDetails = skippedBody?.details;
+
   logger.info('pipeline.resume_cancelled_auto_next_skipped', {
     auditId,
     status: nextResult.error.status,
-    code: typeof nextResult.error.body?.code === 'string' ? nextResult.error.body.code : undefined,
+    code: skippedCode,
   });
 
   return {
@@ -98,6 +102,9 @@ export async function runPipelineResumeFromCancelled(params: {
       current_phase: currentPhase,
       resumed: true,
       execution_scheduled: false,
+      auto_next_blocked: true,
+      auto_next_error_code: skippedCode,
+      auto_next_error_details: skippedDetails,
     },
   };
 }

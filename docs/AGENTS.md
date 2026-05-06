@@ -214,7 +214,7 @@ All Claude calls use `tool_use` with a JSON schema. Zod schemas in `server/src/s
 ```typescript
 const DomainOutputSchema = z.object({
   score: z.number().int().min(1).max(5),
-  label: z.enum(['Critical', 'Needs Work', 'Moderate', 'Good', 'Excellent']),
+  label: z.string(),
   summary: z.string().min(50),
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),

@@ -32,6 +32,7 @@ import {
 } from './roadmap-manifest.service.js';
 import { summarizeOrchestrationPackRevisionDiff } from './orchestration-pack-diff.js';
 import { applySelectedActionHint } from './apply-selected-action-hint.js';
+import { runPlanBoardReconcileAfterPackPersist } from '../plan-board/reconcile-pack.service.js';
 
 export type OrchestrationPackPersistLogComponent =
   | 'route.orchestration_pack'
@@ -154,6 +155,18 @@ export async function tryPersistOrchestrationPackWithGovernance(args: {
   }
 
   const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(last_revision_diff);
+  void runPlanBoardReconcileAfterPackPersist({
+    auditId: args.auditId,
+    consultantUserId: args.userId,
+    pack: args.pack,
+    orchestration_pack_version,
+  }).catch((e: unknown) =>
+    logger.error('plan_board.reconcile_after_pack_failed', {
+      auditId: args.auditId,
+      error: String((e as Error)?.message ?? e),
+    }),
+  );
+
   logger.info('orchestration_pack_success', {
     component: args.logComponent,
     auditId: args.auditId,

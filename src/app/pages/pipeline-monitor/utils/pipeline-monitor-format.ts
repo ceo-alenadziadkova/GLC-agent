@@ -24,7 +24,7 @@ export function getPipelineMonitorCompanyName(audit: AuditLite): string {
 
 export function getWorkspacePath(id: string | undefined, isClient: boolean): string {
   if (!id) return '/';
-  return isClient ? `/portal/audit/${id}` : `/audit/${id}`;
+  return isClient ? `/${APP_ROUTE_SEGMENTS.portalAuditById.replace(':id', id)}` : `/audit/${id}`;
 }
 
 /** Strategy phase output is shown in Strategy Lab; domain phases use audit workspace. */

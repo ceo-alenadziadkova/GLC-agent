@@ -17,6 +17,8 @@ export interface AgentContext {
     weaknesses: string[];
   }>;
   review_notes: Array<{ phase: number; consultant_notes: string | null; interview_notes: string | null }>;
+  /** Retry intent notes provided by consultant/operator before re-running a phase. */
+  retry_notes?: Array<{ phase: number; retry_comment: string; created_at: string }>;
   domain_weight: number;
   /** Answered brief responses relevant to this domain (empty object when no brief) */
   brief_responses: Record<string, string | string[] | number | boolean | null>;

@@ -594,6 +594,8 @@ export const ORCHESTRATION_UI_COPY = {
   dataGapsMissingConfidenceLabel: 'Missing confidence:',
   dataGapsMissingRiskLabel: 'Missing risk:',
   dataGapsDanglingDependenciesLabel: 'Dangling dependencies:',
+  roadmapSelectedScopeLabel: 'Scope: {count} selected domain{pluralSuffix}',
+  roadmapPlanningWindowLabel: 'Planning window: {days} days',
   /** Client label when manifest state is unknown to the UI mapping (legacy payloads). */
   timelineManifestStateUnknown: 'Roadmap status: see your consultant if this looks wrong.',
   marketingTeaserTitle: 'Get a delivery-ready roadmap',

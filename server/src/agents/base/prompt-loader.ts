@@ -8,6 +8,10 @@ import { fileURLToPath } from 'url';
 
 import { DOMAIN_KEYS } from '@glc/intake-core';
 
+import { CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } from '../../config/agent-claude-contract.js';
+import { ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME } from '../../config/orchestration-synthesis-policy.js';
+import { renderPromptIndustryHeuristics } from '../../config/prompt-industry-heuristics.js';
+import { STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME } from '../../config/strategy-initiative-policy.js';
 import { logger } from '../../services/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -96,6 +100,19 @@ const NON_DOMAIN_SECURITY_CORE_APPEND = (() => {
   }
 })();
 
+const PIPELINE_TRUST_BOUNDARY_APPEND = (() => {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, '_append-pipeline-trust-boundary.md'), 'utf-8');
+    return stripVersionHeader(raw).trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-pipeline-trust-boundary.md',
+    });
+    return '';
+  }
+})();
+
 const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
   try {
     const raw = readFileSync(join(PROMPTS_DIR, '_append-runtime-output-contract.md'), 'utf-8');
@@ -110,9 +127,27 @@ const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
 })();
 
 const DOMAIN_PROMPT_SET = new Set<string>(DOMAIN_KEYS);
+const PIPELINE_TRUST_BOUNDARY_PROMPT_SET = new Set<string>([
+  'recon',
+  'strategy',
+]);
 const NON_DOMAIN_SECURITY_PROMPT_SET = new Set<string>([
+  'strategy',
   'strategy-execution-pack',
   'orchestration-pack-synthesis',
+]);
+
+/**
+ * Canonical Claude tool name per prompt. Sourced from the same constants the
+ * runtime uses when calling Anthropic — single source of truth, no hardcoded
+ * tool names in base prompt files.
+ */
+const PROMPT_TOOL_NAME_MAP: ReadonlyMap<string, string> = new Map<string, string>([
+  ['recon', CLAUDE_DOMAIN_SUBMIT_TOOL_NAME],
+  ...DOMAIN_KEYS.map((domainKey) => [domainKey, CLAUDE_DOMAIN_SUBMIT_TOOL_NAME] as const),
+  ['strategy', CLAUDE_DOMAIN_SUBMIT_TOOL_NAME],
+  ['strategy-execution-pack', STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME],
+  ['orchestration-pack-synthesis', ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME],
 ]);
 
 /**
@@ -138,8 +173,19 @@ export function loadPrompt(name: string): string {
     if (name.startsWith('sub-agents/') && SUB_AGENT_SAFETY_CORE_APPEND) {
       body = `${body}\n\n${SUB_AGENT_SAFETY_CORE_APPEND}`;
     }
+    if (PIPELINE_TRUST_BOUNDARY_PROMPT_SET.has(name) && PIPELINE_TRUST_BOUNDARY_APPEND) {
+      body = `${body}\n\n${PIPELINE_TRUST_BOUNDARY_APPEND}`;
+    }
     if (NON_DOMAIN_SECURITY_PROMPT_SET.has(name) && NON_DOMAIN_SECURITY_CORE_APPEND) {
       body = `${body}\n\n${NON_DOMAIN_SECURITY_CORE_APPEND}`;
+    }
+    const industryHeuristicsAppend = renderPromptIndustryHeuristics(name);
+    if (industryHeuristicsAppend) {
+      body = `${body}\n\n${industryHeuristicsAppend}`;
+    }
+    const toolName = PROMPT_TOOL_NAME_MAP.get(name);
+    if (toolName) {
+      body = `${body}\n\nUse the ${toolName} tool only. Output only the tool payload.`;
     }
     if (RUNTIME_OUTPUT_CONTRACT_APPEND) {
       body = `${body}\n\n${RUNTIME_OUTPUT_CONTRACT_APPEND}`;

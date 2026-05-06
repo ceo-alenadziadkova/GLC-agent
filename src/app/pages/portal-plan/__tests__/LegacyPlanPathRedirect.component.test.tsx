@@ -40,10 +40,10 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
     render(<RouterProvider router={router} />);
     await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/portal/plan/${auditId}`));
     await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain('from=legacy'));
-    expect(screen.getByTestId('sentinel').textContent).not.toMatch(/view=/);
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toMatch(/view=roadmap/));
   });
 
-  it('consultant timeline sets view=timeline on /plan/:id', async () => {
+  it('consultant legacy /timeline/:id sets view=board on /plan/:id', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -64,7 +64,7 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
     );
     render(<RouterProvider router={router} />);
     await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/plan/${auditId}`));
-    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toMatch(/view=timeline/));
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toMatch(/view=board/));
   });
 
   it('consultant roadmap entry without id navigates to dashboard', async () => {

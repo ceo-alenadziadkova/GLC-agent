@@ -4,7 +4,6 @@ import {
   SquaresFour,
   Pulse,
   FileText,
-  Flask,
   Path,
   MagnifyingGlass,
   Lightning,
@@ -61,34 +60,19 @@ export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePri
     label: n.timeline,
     badge: null,
   };
-  const pipelineItem: AppShellNavItem = {
-    to: auditId ? buildAppRoute.pipeline(auditId) : null,
-    icon: Pulse,
-    label: n.pipeline,
-    badge: null,
-  };
-  const sequencingPair = consultantTimelineEnabled
-    ? timelineFirst
-      ? [timelineItem, pipelineItem]
-      : [pipelineItem, timelineItem]
-    : [pipelineItem];
+  const sequencingPair = consultantTimelineEnabled ? [timelineItem] : [];
   return [
     { to: APP_ROUTE_PATHS.dashboard,                           icon: SquaresFour,    label: n.dashboard,       badge: null },
     { to: APP_ROUTE_PATHS.adminAudits,                        icon: Briefcase,      label: n.allAudits,      badge: null },
     { to: APP_ROUTE_PATHS.adminRequests,                      icon: Tray,           label: n.requestQueue,   badge: null },
     { to: APP_ROUTE_PATHS.adminSnapshots,                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
     { to: APP_ROUTE_PATHS.adminDiscovery,                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
+    { to: auditId ? buildAppRoute.pipeline(auditId) : null, icon: Pulse,          label: n.pipeline,       badge: null },
     // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
-    { to: auditId ? buildAppRoute.audit(auditId) : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
+    { to: auditId ? buildAppRoute.audit(auditId) : null,    icon: Briefcase,      label: n.auditWorkspace, badge: null },
     ...sequencingPair,
     { to: auditId ? buildAppRoute.reports(auditId) : null, icon: FileText,       label: n.reports,         badge: null },
-    {
-      to: auditId ? buildAppRoute.strategy(auditId) : null,
-      icon: Flask,
-      label: timelineFirst ? n.strategyLabDetailLayer : n.strategyLab,
-      badge: null,
-    },
   ];
 }
 
@@ -122,12 +106,6 @@ export function buildClientNav(
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
     ...sequencingPair,
     { to: auditId ? buildAppRoute.portalReports(auditId) : null, icon: FileText, label: n.reports, badge: null },
-    {
-      to: auditId ? buildAppRoute.portalStrategy(auditId) : null,
-      icon: Flask,
-      label: timelineFirst ? n.strategyLabDetailLayer : n.strategyLab,
-      badge: null,
-    },
   ];
 }
 

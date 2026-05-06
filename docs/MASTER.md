@@ -68,6 +68,10 @@ Selected ADR quick links:
 | CTO Director orchestration (deep technical rubric) | [ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md](adrs/ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md) |
 | GLC Orchestrator v1.1 (meta orchestration) | [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md](adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md) |
 | Client unified roadmap (multi-lane timeline, lab split, pre-commit manifest) | [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) |
+| Delivery Board (operational state, Plan `view=board`, Timeline sunset path) | [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md](adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
+| Delivery Board vs narrative Timeline — product §2 matrix + GLC-PB ticket skeleton (Proposed v1; defers engineering SSOT to Operational-layer ADR until promoted) | [ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md](adrs/ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md) |
+| Delivery Board deferred epics (rename identity, hybrid manifest, columns) — backlog | [ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](adrs/ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) |
+| Delivery Board Epic 1 — preserve canonical node key on rename (Proposed) | [ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](adrs/ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) |
 | Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
 | Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |

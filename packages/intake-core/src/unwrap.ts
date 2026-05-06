@@ -2,6 +2,8 @@
  * Normalize brief response cells: flat values or { value, source }.
  */
 
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from './choice-specify-triggers.js';
+
 export function unwrapIntakeValue(value: unknown): unknown {
   if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as Record<string, unknown>)) {
     return (value as { value: unknown }).value;
@@ -21,6 +23,22 @@ export function isIntakeAnswered(value: unknown): boolean {
   if (typeof raw === 'boolean') return true;
   if (Array.isArray(raw)) return raw.length > 0;
   return false;
+}
+
+/**
+ * SLA / pipeline readiness parity with pre-brief slot checks (`brief-gates`): when the primary bank cell
+ * picks an option label that requires free-text clarification, the keyed specify field must also satisfy
+ * `isIntakeAnswered` (`choiceSpecifyResponseKey`, e.g. `c3__other`, `intake_industry_specify` for `a2`).
+ */
+export function isIntakeAnsweredIncludingChoiceSpecify(
+  responses: Record<string, unknown>,
+  bankId: string,
+): boolean {
+  if (!isIntakeAnswered(responses[bankId])) return false;
+  const primary = unwrapIntakeValue(responses[bankId]);
+  if (!choiceValueNeedsSpecify(primary)) return true;
+  const specKey = choiceSpecifyResponseKey(bankId);
+  return isIntakeAnswered(responses[specKey]);
 }
 
 export function getResponseString(responses: Record<string, unknown>, key: string): string {

@@ -54,6 +54,8 @@ export interface OrchestrationActionNode {
   season_index?: number;
   time_bucket?: 'now' | 'next' | 'later';
   target_window_days?: number;
+  /** Persists onto pack graph nodes; feeds Delivery Board canonical key materialisation. */
+  board_identity_key?: string;
   /** Director Layer-1 evidence buckets (counts of string entries in director output). */
   evidence_taxonomy?: {
     observed: number;

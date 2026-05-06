@@ -21,13 +21,22 @@
     "twoFinal": "Review Point #2 (Final)",
     "three": "Review Point #3"
   },
+  "postReviewRerun": {
+    "title": "Refresh saved Auto Wing domains?",
+    "intro": "Your notes are stored and will guide later phases. Saved scores and narratives for domains that already finished stay unchanged unless you re-run them. Select any Auto Wing phases to refresh now, or continue and use “Re-run this phase” on each step later.",
+    "phaseLabelPrefix": "Phase",
+    "continueWithout": "Continue without re-running domains",
+    "retrySelected": "Re-run selected phases",
+    "busy": "Working…"
+  },
   "parallelWing": {
     "runningSuffix": " · Running in parallel",
     "autoName": "Auto Wing",
     "analyticName": "Analytic Wing"
   },
   "header": {
-    "retryFailedPipeline": "Retry failed step"
+    "retryFailedPipeline": "Retry failed step",
+    "runningMoreSuffix": "(+{count} more)"
   },
   "detail": {
     "agentRunning": "Agent running...",
@@ -43,6 +52,9 @@
     "phaseSkippedBundleSubtitle": "Shorter audits omit later domain phases entirely. Expand scope in a Full audit when you need this area analysed.",
     "pipelineFailedPendingTitle": "Pipeline failed before this phase could finish",
     "pipelineFailedPendingSubtitle": "The run was stopped (timeout, error, or worker interruption). Retry restarts from the last recorded phase on the server. If a specific domain shows Failed in the sidebar, open that phase and use Retry there.",
+    "phaseStalledTitle": "This phase appears stalled",
+    "phaseStalledBody": "No completion signal was received for this step. Recommended recovery: Stop Pipeline, ask a platform admin to reopen the run, then retry this phase.",
+    "phaseStalledBodyTimeoutFallback": "No new activity was detected for this running phase for over {minutes} minutes. Recommended recovery: Stop Pipeline, ask a platform admin to reopen the run, then retry this phase.",
     "domainUnavailableTitle": "Domain unavailable",
     "domainUnavailableBody": "This domain could not be analysed. The pipeline has continued and the Strategy Agent will note this gap explicitly.",
     "agentLogPrefix": "Agent Log ·",
@@ -57,7 +69,15 @@
     "pipelineCancelledConsultantTitle": "Pipeline is stopped",
     "pipelineCancelledConsultantBody": "Start, Continue, and Retry are disabled while the audit is cancelled. Ask a platform administrator to reopen the pipeline, or use the support flow your organization agreed on.",
     "resumeCancelledPlatformBusy": "Reopening…",
+    "intakeReadinessBlockedWorkspaceCta": "Open audit workspace",
+    "intakeReadinessBlockedResumeAutoNextTitle": "Pipeline reopened — next step did not start automatically",
+    "intakeReadinessBlockedResumeAutoNextBody": "Complete the intake brief or clear the blocking condition, then press Continue Pipeline below.",
+    "intakeReadinessBlockedTriageCodesLabel": "Diagnostics (for support)",
+    "intakeReadinessBlockedMissingFieldsTitle": "Complete these intake fields (saved in the workspace brief)",
+    "resumeAutoNextBlockedCodeLabel": "Blocking code",
     "retryFailedPhase": "Retry this phase",
+    "retryCommentLabel": "Retry comment (optional)",
+    "retryCommentPlaceholder": "Explain why this phase is being re-run",
     "rerunPhaseManual": "Re-run this phase",
     "rerunPhaseManualHint": "Restarts this step using the pipeline retry endpoint. Requires the audit to not be actively running.",
     "stopPipeline": "Stop Pipeline",
@@ -86,7 +106,7 @@
   "reviewModal": {
     "defaultNote": "Add your observations before continuing",
     "requestMissingDataCta": "Request Missing Data",
-    "strategyReviseHint": "If you add consultant or client notes and approve, the Strategy phase runs again so the roadmap incorporates your corrections, then this gate reopens. If you have no changes, leave notes empty and approve to mark the audit complete.",
+    "strategyReviseHint": "If you add substantive consultant or client notes (enough text to count as a deliberate correction) and approve, the Strategy phase runs again so the roadmap incorporates your corrections, then this gate reopens. Short tokens or empty notes approve without re-running Strategy.",
     "governanceRefineSectionTitle": "Phases flagged for manual review",
     "governanceRefineSectionIntro": "The Decision Layer recommended refine for the following completed phases. The pipeline continued; use notes below to capture context before approving.",
     "reconSnapshotCorrectionHint": "The recon table above is a saved crawler snapshot — it does not update while you type. If anything is wrong (for example a social profile, contact, or page signal), write the correction in Consultant notes below. Approved notes override conflicting automation for all later phases and the report.",
@@ -144,6 +164,23 @@
   },
   "phaseCard": {
     "skip": "SKIP"
+  },
+  "adminTokenBudgetTopup": {
+    "lowTitle": "Token budget is running low",
+    "lowBody": "Only {remaining} of {budget} tokens remain ({remainingPct}%). Top up the budget to keep the pipeline from stopping mid-run.",
+    "exhaustedTitle": "Token budget is exhausted",
+    "exhaustedBody": "The audit cannot start or resume any phase until the budget is increased. Pick an amount below to top up immediately.",
+    "presetButtonLabel": "+{amount}",
+    "customAmountLabel": "Custom amount",
+    "customAmountPlaceholder": "e.g. 75000",
+    "reasonLabel": "Reason (optional, max {max} chars)",
+    "reasonPlaceholder": "Why is this top-up needed?",
+    "submit": "Increase budget",
+    "submitting": "Updating budget…",
+    "success": "Token budget increased by {amount}. Pipeline can resume.",
+    "validationDeltaInvalid": "Enter an amount between {min} and {max}.",
+    "validationReasonTooLong": "Reason must be {max} characters or fewer.",
+    "errorGeneric": "Could not update the token budget. Try again."
   },
   "miniCard": {
     "done": "Done",

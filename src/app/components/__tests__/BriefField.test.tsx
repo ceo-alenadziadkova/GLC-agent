@@ -160,4 +160,50 @@ describe('BriefField interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: /i'll answer myself instead/i }));
     expect(onChange).toHaveBeenCalledWith(null);
   });
+
+  it('treats unicode dash variants as same single-choice value', () => {
+    const q: BriefQuestion = {
+      id: 'f5',
+      priority: 'optional',
+      question: 'Budget range (3–12 months)',
+      type: 'single_choice',
+      options: ['No clear budget yet — depends on the recommendations'],
+    };
+    const onChange = vi.fn();
+
+    render(
+      <BriefField
+        q={q}
+        value="No clear budget yet - depends on the recommendations"
+        onChange={onChange}
+        onSetUnknown={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'No clear budget yet — depends on the recommendations' }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('removes selected multi-choice option when apostrophe variant differs', () => {
+    const q: BriefQuestion = {
+      id: 'x1',
+      priority: 'optional',
+      question: 'Pick channels',
+      type: 'multi_choice',
+      options: ["Customer's referrals"],
+    };
+    const onChange = vi.fn();
+
+    render(
+      <BriefField
+        q={q}
+        value={['Customer’s referrals']}
+        onChange={onChange}
+        onSetUnknown={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: "Customer's referrals" }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
 });

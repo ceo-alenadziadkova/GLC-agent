@@ -62,11 +62,18 @@ export async function runPhaseDomainExecution(
   const { auditId, phase, domainKey, AgentClass, attachPriorControlObjects, publishControlObjectGovernance } = deps;
 
   if (domainKey !== 'recon' && domainKey !== 'strategy') {
-    await supabase
+    const { data: latestRow } = await supabase
       .from('audit_domains')
-      .update({ status: 'collecting' })
+      .select('id')
       .eq('audit_id', auditId)
-      .eq('domain_key', domainKey);
+      .eq('domain_key', domainKey)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestRow?.id) {
+      await supabase.from('audit_domains').update({ status: 'collecting' }).eq('id', latestRow.id);
+    }
   }
 
   const agent = new AgentClass(auditId);

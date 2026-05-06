@@ -619,6 +619,18 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 Это уходит в `source: "unknown"` в state и в `unknown_items[]` у агента.
 
+**Admin presale readiness exception (pipeline boundaries):**
+
+- Для admin execution context (`consultant`; platform-operator flows where applicable) `unknown` в pilot critical signals больше **не блокирует** `pipeline/start|next`.
+- Вместо `blocked` возвращается `ready_with_caveats` с caveat-классами `presale_missing_data_allowed` и `unknown_source_signal_evidence`, плюс trace-коды `critical_signal_unknown_source_allowed_admin_presale` / `admin_presale_readiness_advisory`.
+- Для non-admin context baseline неизменен: `unknown` в critical-signal по-прежнему может блокировать `audit_ready`.
+
+**Admin presale Stage-2 curated profile (proposal-overview):**
+
+- Контекст `admin_presale` на поверхности `consultant_interview` применяет curated Stage-2 deferral для low-value глубокой детализации (например, `d3`, `d4`, `d4b`, `d6`, `e3`, `e4`, `f5`, `f6`) при отсутствии ответа.
+- Required и уже заполненные поля не скрываются этим правилом.
+- Цель среза: дать proposal-ready верхнеуровневый контекст и не перегружать потенциального клиента deep-diagnostic вопросами до discovery/implementation этапа.
+
 ### Progress & nudge copy
 
 - After pre-brief: *"You're all set for our first meeting. We've already started analyzing your online presence."*
@@ -885,9 +897,9 @@ Current enforcement matrix:
 
 Deterministic baseline snapshot (**must match** `intake-intelligence-contract.test.ts`):
 - `question_count = 78`
-- `P0_question_count = 17` (derived from critical signals ∪ section **F**)
+- `P0_question_count = 16` (derived from critical signals ∪ section **F**)
 - `fully_covered_questions = 78` (`required_now` present via `hasIntakeIntelligenceRequiredNow`) = **100%**
-- `fully_covered_P0_questions = 17` (**100%** of P0)
+- `fully_covered_P0_questions = 16` (**100%** of P0)
 - `Sprint_2_gate_question_count = 47`; **`Sprint_2_complete_questions = 47`** (`getIntakeIntelligenceSprint2CoverageSummary`, ratio **1**)
 
 Baseline release gate policy:
@@ -924,7 +936,7 @@ Editorial guidance for authors is unchanged; only CI severity differs by row.
 | Non-P0 outside Sprint-2-complete has valid `todo` | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | All such ids pass `isValidIntakeIntelligenceTodo` |
 | Sprint 2 gate fully enriched | `intake-intelligence-sprint2.ts`, `intake-intelligence-gate-metadata.ts`, `intake-intelligence-contract.test.ts` | same Vitest file | `gateQuestionCount === 47` and `sprint2CompleteRatio === 1` |
 | Runtime fallback never crashes on incomplete metadata | `packages/intake-core/src/core/build-intake-plan.ts`, `packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | `pnpm -w exec vitest run packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Plan build succeeds and emits `intelligence_metadata_incomplete` trace when applicable |
-| Baseline remains deterministic (`78` / `17` P0 / `54` required_now / `47` Sprint2 / P0 `100%`) | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts`, this doc section | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | Snapshot numbers match tests and docs |
+| Baseline remains deterministic (`78` / `16` P0 / `54` required_now / `47` Sprint2 / P0 `100%`) | `packages/intake-core/src/tests/intake-intelligence-contract.test.ts`, this doc section | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts` | Snapshot numbers match tests and docs |
 | Package-level verification is green | `packages/intake-core/src/tests/` | `pnpm -w exec vitest run packages/intake-core/src/tests/intake-intelligence-contract.test.ts packages/intake-core/src/tests/lint-intelligence-contract.test.ts packages/intake-core/src/tests/intelligence-fallback-runtime.test.ts` | Command exits 0 |
 
 Release `go/no-go` rule:

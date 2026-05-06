@@ -12,6 +12,11 @@ import { isPipelineAuditActiveStatus } from '../lib/pipeline-monitor-helpers';
 /** Server `API_ERROR_CODES.PIPELINE_NEXT_CLAIM_CONFLICT` — optimistic-lock / concurrent next. */
 const PIPELINE_NEXT_CLAIM_CONFLICT_CODE = 'PIPELINE_NEXT_CLAIM_CONFLICT';
 
+export type PipelineErrorExtras = {
+  code?: string;
+  details: unknown;
+};
+
 interface PipelineState {
   status: string;
   current_phase: number;
@@ -36,6 +41,8 @@ export function usePipeline(
   const [state, setState] = useState<PipelineState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Structured API error from the last failed pipeline load or mutation (for example intake readiness `details`). */
+  const [pipelineErrorExtras, setPipelineErrorExtras] = useState<PipelineErrorExtras | null>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stateRef = useRef<PipelineState | null>(null);
   const loadRequestIdRef = useRef(0);
@@ -45,6 +52,21 @@ export function usePipeline(
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  const captureFailure = useCallback((err: unknown) => {
+    if (err instanceof ApiError) {
+      setError(toUiApiErrorMessage(err));
+      setPipelineErrorExtras({ code: err.code, details: err.details ?? null });
+      return;
+    }
+    setError(err instanceof Error && err.message.trim() ? err.message : toUiApiErrorMessage(err));
+    setPipelineErrorExtras(null);
+  }, []);
+
+  const clearFailure = useCallback(() => {
+    setError(null);
+    setPipelineErrorExtras(null);
+  }, []);
 
   // Load initial state (only block UI when we have no cached pipeline snapshot yet)
   const load = useCallback(async (): Promise<PipelineState | null> => {
@@ -59,15 +81,15 @@ export function usePipeline(
       });
       if (requestId !== loadRequestIdRef.current) return null;
       setState(data);
-      setError(null);
+      clearFailure();
       return data as PipelineState;
     } catch (err) {
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [auditId, options?.detailLevel, options?.eventLimit]);
+  }, [auditId, captureFailure, clearFailure, options?.detailLevel, options?.eventLimit]);
 
   // Subscribe to realtime pipeline events
   useEffect(() => {
@@ -136,9 +158,9 @@ export function usePipeline(
       invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
     }
-  }, [auditId, load]);
+  }, [auditId, captureFailure, load]);
 
   const runNextPhase = useCallback(async () => {
     if (!auditId) return;
@@ -165,12 +187,12 @@ export function usePipeline(
           return;
         }
       }
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
     } finally {
       runNextPhaseInFlightRef.current = false;
       setRunNextPhaseBusy(false);
     }
-  }, [auditId, load]);
+  }, [auditId, captureFailure, load]);
 
   const stopPipeline = useCallback(async () => {
     if (!auditId) return;
@@ -181,22 +203,22 @@ export function usePipeline(
       invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
     }
-  }, [auditId, load]);
+  }, [auditId, captureFailure, load]);
 
-  const retryPhase = useCallback(async (phase: number) => {
+  const retryPhase = useCallback(async (phase: number, opts?: { retry_comment?: string }) => {
     if (!auditId) return;
     try {
-      await api.retryPhase(auditId, phase);
+      await api.retryPhase(auditId, phase, opts);
       const qc = getGlcQueryClient();
       invalidateAuditRelatedQueries(qc, auditId);
       invalidateAuditsListsAndDashboard(qc);
       await load();
     } catch (err) {
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
     }
-  }, [auditId, load]);
+  }, [auditId, captureFailure, load]);
 
   const approveReview = useCallback(async (
     phase: number,
@@ -213,10 +235,10 @@ export function usePipeline(
       await load();
       return true;
     } catch (err) {
-      setError(toUiApiErrorMessage(err));
+      captureFailure(err);
       return false;
     }
-  }, [auditId, load]);
+  }, [auditId, captureFailure, load]);
 
   const loadMoreEvents = useCallback(async () => {
     if (!auditId || !stateRef.current?.event_page?.next_before) return;
@@ -240,6 +262,7 @@ export function usePipeline(
     state,
     loading,
     error,
+    pipelineErrorExtras,
     runNextPhaseBusy,
     reload: load,
     startPipeline,

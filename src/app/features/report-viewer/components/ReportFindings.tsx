@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { CheckCircle, Clock, Lightning, Warning } from '@phosphor-icons/react';
 import { REPORT_VIEWER_LAYOUT } from '../../../../design-system/patterns/ReportViewer/layout';
 import { SectionLabel } from '../../../components/glc/SectionLabel';
@@ -21,11 +21,12 @@ export function ReportFindings({
   quickWins,
   maxItems,
 }: ReportFindingsProps) {
+  const shouldReduceMotion = useReducedMotion();
   const strengthItems = strengths
-    .slice(0, Math.min(REPORT_VIEWER_CONSTANTS.findings.maxPinnedItems, maxItems))
+    .slice(0, maxItems)
     .map((strength) => strength.text);
   const issueItems = criticalIssues
-    .slice(0, Math.min(REPORT_VIEWER_CONSTANTS.findings.maxPinnedItems, maxItems))
+    .slice(0, maxItems)
     .map((issue) => issue.title);
 
   return (
@@ -51,13 +52,15 @@ export function ReportFindings({
         ].map(({ title, icon: Icon, color, bg, border, items }) => (
           <motion.div
             key={title}
-            initial={{ opacity: 0, y: REPORT_VIEWER_CONSTANTS.motion.cardEnterOffsetY }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: REPORT_VIEWER_CONSTANTS.motion.cardEnterOffsetY }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.2,
-              duration: REPORT_VIEWER_CONSTANTS.motion.cardEnterDurationSec,
-              ease: REPORT_VIEWER_CONSTANTS.easing,
-            }}
+            transition={shouldReduceMotion
+              ? { duration: 0 }
+              : {
+                  delay: 0.2,
+                  duration: REPORT_VIEWER_CONSTANTS.motion.cardEnterDurationSec,
+                  ease: REPORT_VIEWER_CONSTANTS.easing,
+                }}
             className="ds-report-finding-well"
             style={
               {
@@ -73,17 +76,17 @@ export function ReportFindings({
             </div>
             <ul className="space-y-2">
               {items.length > 0 ? (
-                items.map((item) => (
+                items.map((item, index) => (
                   <li
-                    key={item}
-                    className="flex items-start gap-2 text-xs leading-relaxed ds-text-secondary"
+                    key={`${title}-${item}-${index}`}
+                    className="flex items-start gap-2 text-sm leading-relaxed ds-text-secondary"
                   >
                     <span className="ds-report-finding-list-dot" aria-hidden />
                     {item}
                   </li>
                 ))
               ) : (
-                <li className="text-xs ds-text-quaternary" >
+                <li className="text-sm ds-text-quaternary" >
                   {REPORT_VIEWER_COPY.findings.noDataYet}
                 </li>
               )}
@@ -102,19 +105,21 @@ export function ReportFindings({
           </div>
           <div className="divide-y divide-[color:var(--border-subtle)]">
             {quickWins
-              .slice(0, Math.min(REPORT_VIEWER_CONSTANTS.quickWins.maxItems, maxItems))
+              .slice(0, maxItems)
               .map((quickWin, index) => (
                 <motion.div
-                  key={quickWin.id || index}
-                  initial={{ opacity: 0, x: REPORT_VIEWER_CONSTANTS.motion.quickWinEnterOffsetX }}
+                  key={`${quickWin.id ?? 'no-id'}-${quickWin.title}-${quickWin.timeframe ?? 'na'}-${index}`}
+                  initial={shouldReduceMotion ? false : { opacity: 0, x: REPORT_VIEWER_CONSTANTS.motion.quickWinEnterOffsetX }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    delay:
-                      index * REPORT_VIEWER_CONSTANTS.motion.quickWinStaggerDelaySec +
-                      REPORT_VIEWER_CONSTANTS.motion.quickWinDelayStartSec,
-                    duration: REPORT_VIEWER_CONSTANTS.motion.quickWinEnterDurationSec,
-                    ease: REPORT_VIEWER_CONSTANTS.easing,
-                  }}
+                  transition={shouldReduceMotion
+                    ? { duration: 0 }
+                    : {
+                        delay:
+                          index * REPORT_VIEWER_CONSTANTS.motion.quickWinStaggerDelaySec +
+                          REPORT_VIEWER_CONSTANTS.motion.quickWinDelayStartSec,
+                        duration: REPORT_VIEWER_CONSTANTS.motion.quickWinEnterDurationSec,
+                        ease: REPORT_VIEWER_CONSTANTS.easing,
+                      }}
                   className="flex items-center gap-4 px-5 py-3.5"
                 >
                   <span className="ds-report-quick-win-index">
@@ -124,7 +129,7 @@ export function ReportFindings({
                     {quickWin.title}
                   </span>
                   {quickWin.timeframe && (
-                    <span className="flex items-center gap-1 text-xs ds-text-tertiary" >
+                    <span className="flex items-center gap-1 text-sm ds-text-tertiary" >
                       <Clock className="w-3 h-3" />
                       {quickWin.timeframe}
                     </span>

@@ -9,8 +9,8 @@ vi.mock('../../PortalRoadmapGanttPage', () => ({
   PortalRoadmapGanttSurface: () => <div data-testid="roadmap-surface-stub">roadmap stub</div>,
 }));
 
-vi.mock('../../PortalTimelinePage', () => ({
-  PortalTimelineSurface: () => <div data-testid="timeline-surface-stub">timeline stub</div>,
+vi.mock('../board/BoardView', () => ({
+  PortalDeliveryBoardSurface: () => <div data-testid="board-surface-stub">board stub</div>,
 }));
 
 vi.mock('../PortalPlanOrchestrationProvider', () => ({
@@ -25,8 +25,14 @@ vi.mock('../PortalPlanUnifiedShell', () => ({
   ),
 }));
 
-vi.mock('../../hooks/useProfile', () => ({
+vi.mock('../../../hooks/useProfile', () => ({
   useProfile: () => ({ isClient: false }),
+}));
+
+/** Mirror production: Board rollout on; defer timeline fetch on Board tab. */
+vi.mock('../../../config/plan-delivery-board-ui', () => ({
+  isPlanDeliveryBoardUiEnabled: () => true,
+  planOrchestrationIncludeTimelineForUnifiedPlanView: (v: string) => v !== 'board',
 }));
 
 describe('PortalPlanPage lazy dual-mount', () => {
@@ -40,42 +46,51 @@ describe('PortalPlanPage lazy dual-mount', () => {
     );
   }
 
-  it('roadmap-first URL mounts roadmap only until timeline visited', () => {
+  it('default plan URL mounts board until roadmap visited (rollout ga)', async () => {
     renderPlan('/plan/test-audit?foo=1');
-    expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument();
-    expect(document.querySelector('[data-testid="portal-plan-timeline-panel"]')).toBeNull();
-    const roadmapPanel = document.querySelector('[data-testid="portal-plan-roadmap-panel"]');
-    expect(roadmapPanel).not.toHaveAttribute('hidden');
+    await screen.findByTestId('board-surface-stub');
+    expect(document.querySelector('[data-testid="portal-plan-roadmap-panel"]')).toBeNull();
+    const boardPanel = document.querySelector('[data-testid="portal-plan-board-panel"]');
+    expect(boardPanel).not.toHaveAttribute('hidden');
   });
 
-  it('timeline-first deep link mounts timeline only until roadmap visited', () => {
-    renderPlan('/plan/test-audit?view=timeline');
-    expect(screen.getByTestId('timeline-surface-stub')).toBeInTheDocument();
-    expect(document.querySelector('[data-testid="portal-plan-roadmap-panel"]')).toBeNull();
-    const timelinePanel = document.querySelector('[data-testid="portal-plan-timeline-panel"]');
-    expect(timelinePanel).not.toHaveAttribute('hidden');
+  it('explicit roadmap mounts roadmap only until board visited', async () => {
+    renderPlan('/plan/test-audit?view=roadmap');
+    expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="portal-plan-board-panel"]')).toBeNull();
+    const roadmapPanel = document.querySelector('[data-testid="portal-plan-roadmap-panel"]');
+    expect(roadmapPanel).not.toHaveAttribute('hidden');
   });
 
   it('after visiting both tabs, inactive panel stays mounted hidden + inert', async () => {
     const router = createMemoryRouter(
       [{ path: '/plan/:id', element: <PortalPlanPage /> }],
-      { initialEntries: ['/plan/test-audit'] },
+      { initialEntries: ['/plan/test-audit?view=board'] },
     );
 
     render(<RouterProvider router={router} />);
 
-    expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument();
-    expect(document.querySelector('[data-testid="portal-plan-timeline-panel"]')).toBeNull();
+    await screen.findByTestId('board-surface-stub');
+    expect(document.querySelector('[data-testid="portal-plan-roadmap-panel"]')).toBeNull();
 
     await act(async () => {
-      await router.navigate('/plan/test-audit?view=timeline');
+      await router.navigate('/plan/test-audit?view=roadmap');
     });
-    await waitFor(() => expect(screen.getByTestId('timeline-surface-stub')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument());
 
     const roadmapPanel = document.querySelector('[data-testid="portal-plan-roadmap-panel"]');
-    const timelinePanel = document.querySelector('[data-testid="portal-plan-timeline-panel"]');
-    expect(roadmapPanel).toHaveAttribute('hidden');
-    expect(roadmapPanel).toHaveAttribute('inert');
-    expect(timelinePanel).not.toHaveAttribute('hidden');
+    const boardPanel = document.querySelector('[data-testid="portal-plan-board-panel"]');
+    expect(boardPanel).toHaveAttribute('hidden');
+    expect(boardPanel).toHaveAttribute('inert');
+    expect(roadmapPanel).not.toHaveAttribute('hidden');
+  });
+
+  it('legacy view=timeline in URL redirects to board and drops timeline panel', async () => {
+    const router = createMemoryRouter([{ path: '/plan/:id', element: <PortalPlanPage /> }], {
+      initialEntries: ['/plan/test-audit?view=timeline'],
+    });
+    render(<RouterProvider router={router} />);
+    await waitFor(() => expect(router.state.location.search).toContain('view=board'));
+    expect(screen.queryByTestId('timeline-surface-stub')).toBeNull();
   });
 });

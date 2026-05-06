@@ -55,7 +55,7 @@ const WAVE2_REVIEW_DATES = [
   '2026-06-19',
   '2026-06-26',
 ] as const;
-const WAVE2_SIGNAL_KEYS = ['primary_problem', 'audit_focus', 'operations_bottleneck', 'delivery_shape_baseline'] as const;
+const WAVE2_SIGNAL_KEYS = ['primary_problem', 'audit_focus', 'operations_bottleneck'] as const;
 
 const DEFAULT_TODO: IntakeIntelligenceTodo = {
   ownerDomain: 'strategy',

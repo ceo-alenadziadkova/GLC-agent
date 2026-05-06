@@ -82,7 +82,9 @@ export function buildBriefContext(args: {
   const briefMode = intakeBriefGateModeFromPartialPlan(
     (args.audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
   );
-  return { responses, collectionMode, perspective, surface, intakeTuple, briefMode };
+  const executionContext =
+    perspective === 'consultant' && args.audit.client_id == null ? 'admin_presale' : 'default';
+  return { responses, collectionMode, perspective, surface, intakeTuple, briefMode, executionContext };
 }
 
 export function buildBriefSchemaPayload(args: {
@@ -97,6 +99,7 @@ export function buildBriefSchemaPayload(args: {
     collectionMode: context.collectionMode,
     surface: context.surface,
     intakeVersionTuple: context.intakeTuple,
+    executionContext: context.executionContext,
   });
 }
 
@@ -125,6 +128,7 @@ export function buildBriefReadPayload(args: {
     collectionMode: context.collectionMode,
     surface: context.surface,
     intakeVersionTuple: context.intakeTuple,
+    executionContext: context.executionContext,
   });
   return {
     questions: getBriefQuestionsByIds(snapshot.visible),

@@ -42,6 +42,49 @@ import type {
   QuestionReason,
 } from './types.js';
 
+const ADMIN_PRESALE_STAGE2_CURATED_DEFER_IDS = [
+  'd3',
+  'd4',
+  'd4b',
+  'd6',
+  'e3',
+  'e4',
+  'f5',
+  'f6',
+] as const;
+
+function applyAdminPresaleStage2Curation(args: {
+  visible: string[];
+  deferred: string[];
+  requiredSet: Set<string>;
+  responses: IntakeResponsesMap;
+  reasonsById: Record<string, QuestionReason[]>;
+}): { visible: string[]; deferred: string[] } {
+  const deferSet = new Set(args.deferred);
+  const curatedSet = new Set(ADMIN_PRESALE_STAGE2_CURATED_DEFER_IDS);
+  const nextVisible: string[] = [];
+  for (const id of args.visible) {
+    const isCurated = curatedSet.has(id as (typeof ADMIN_PRESALE_STAGE2_CURATED_DEFER_IDS)[number]);
+    if (!isCurated) {
+      nextVisible.push(id);
+      continue;
+    }
+    if (args.requiredSet.has(id) || isAnsweredValue(args.responses[id])) {
+      nextVisible.push(id);
+      continue;
+    }
+    deferSet.add(id);
+    mergeReasonEntry(args.reasonsById, id, {
+      questionId: id,
+      layer: 'policy',
+      state: 'deferred',
+      code: 'ADMIN_PRESALE_STAGE2_CURATED',
+      detail: 'proposal_overview_focus',
+    });
+  }
+  return { visible: nextVisible, deferred: sortUniqueIds([...deferSet]) };
+}
+
 function sortUniqueIds(ids: string[]): string[] {
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
 }
@@ -258,6 +301,21 @@ function buildIntakePlanInternal(
       slot[step.stepId] = [...step.questionIds];
     }
     layoutSlots = slot;
+  }
+
+  if (
+    input.executionContext === 'admin_presale' &&
+    input.surface === 'consultant_interview'
+  ) {
+    const curated = applyAdminPresaleStage2Curation({
+      visible: finalVisible,
+      deferred,
+      requiredSet: new Set(req.ids),
+      responses: r,
+      reasonsById,
+    });
+    finalVisible = curated.visible;
+    deferred = curated.deferred;
   }
 
   const derived = computeIntakePlanDerived({

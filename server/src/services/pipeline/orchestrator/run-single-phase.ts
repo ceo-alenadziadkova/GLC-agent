@@ -49,6 +49,11 @@ export type RunSinglePhaseLifecycleParams = {
   publishControlObjectGovernance: PhaseDomainExecutionDeps['publishControlObjectGovernance'];
   /** Required when mode is `sequential` (plan gates + review). */
   getExecutionPlan?: () => Promise<AuditExecutionPlan>;
+  /**
+   * Consultant `POST .../pipeline/retry` for phases 1–6 only. Parallel wing runs keep the default
+   * `false` so idempotent replays skip domains that already saved `completed`.
+   */
+  isolationConsultantRetryBypassAlreadyCompleted?: boolean;
 };
 
 async function markAuditDomainFailed(auditId: string, domainKey: DomainKey): Promise<void> {
@@ -85,13 +90,18 @@ export async function runSinglePhaseWithLifecycle(
     attachPriorControlObjects,
     publishControlObjectGovernance,
     getExecutionPlan,
+    isolationConsultantRetryBypassAlreadyCompleted = false,
   } = params;
 
   const domainKey = PHASE_DOMAIN_MAP[phase];
 
   try {
     await assertNotCancelled();
-    if (mode === 'isolated' && auditDomainRowShouldTrackFailure(domainKey)) {
+    if (
+      mode === 'isolated' &&
+      auditDomainRowShouldTrackFailure(domainKey) &&
+      !isolationConsultantRetryBypassAlreadyCompleted
+    ) {
       const alreadyCompleted = await isDomainPhaseAlreadyCompleted(auditId, domainKey);
       if (alreadyCompleted) {
         await emitEvent(

@@ -18,6 +18,8 @@ type PipelineJobPayload = {
   phase?: number;
   /** When true, skip Phase 9 auto-remediation for this job. */
   disable_auto_remediate?: boolean;
+  /** Optional operator note captured when consultant triggers retry from UI. */
+  retry_comment?: string;
 };
 
 const QUEUE_NAME = 'pipeline_execution';

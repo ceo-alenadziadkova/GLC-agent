@@ -17,13 +17,40 @@ import {
   QUESTION_BANK_OPTION_CATALOGS,
   QUESTION_BANK_V1_STUBS,
 } from './question-bank.js';
+import { appendUniversalIntakeChoiceEscapes } from './intake-universal-choice-escapes.js';
 import type { IntakeAnswerContract, IntakeQuestionStub } from './types.js';
 
-function resolveOptions(contract: IntakeAnswerContract): readonly string[] | null {
+function resolveBaseCanonOptions(contract: IntakeAnswerContract): readonly string[] | null {
   if (contract.options && contract.options.length > 0) return contract.options;
   if (contract.optionsRef) {
     const cat = QUESTION_BANK_OPTION_CATALOGS[contract.optionsRef];
     if (cat && cat.length > 0) return cat;
+  }
+  return null;
+}
+
+function selectAllowlistedOptions(contract: IntakeAnswerContract): string[] | null {
+  const base = resolveBaseCanonOptions(contract);
+  if (!base?.length) return null;
+  return appendUniversalIntakeChoiceEscapes(base);
+}
+
+function normalizeChoiceComparable(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findEquivalentAllowlistedOption(raw: string, opts: readonly string[]): string | null {
+  const rawNorm = normalizeChoiceComparable(raw);
+  for (const opt of opts) {
+    if (normalizeChoiceComparable(opt) === rawNorm) {
+      return opt;
+    }
   }
   return null;
 }
@@ -38,16 +65,24 @@ function sanitizeRawValue(raw: unknown, contract: IntakeAnswerContract): unknown
       return raw;
     }
     case 'single_select': {
-      const opts = resolveOptions(contract);
-      if (opts && typeof raw === 'string' && !opts.includes(raw)) {
-        return null;
+      const opts = selectAllowlistedOptions(contract);
+      if (opts && typeof raw === 'string') {
+        if (opts.includes(raw)) return raw;
+        return findEquivalentAllowlistedOption(raw, opts);
       }
       return raw;
     }
     case 'multi_select': {
-      const opts = resolveOptions(contract);
+      const opts = selectAllowlistedOptions(contract);
       if (opts && Array.isArray(raw)) {
-        return raw.filter(v => opts.includes(String(v)));
+        const mapped = raw
+          .map(v => {
+            const s = String(v);
+            if (opts.includes(s)) return s;
+            return findEquivalentAllowlistedOption(s, opts);
+          })
+          .filter((v): v is string => typeof v === 'string');
+        return mapped;
       }
       return raw;
     }

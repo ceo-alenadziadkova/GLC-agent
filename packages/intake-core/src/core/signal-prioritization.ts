@@ -37,10 +37,10 @@ export function computeSignalPrioritization(args: {
         : { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'foundation_signal_unconfirmed' };
     }
 
-    if (stage.includes('launch') && (signalKey === 'operations_bottleneck' || signalKey === 'delivery_shape_baseline')) {
+    if (stage.includes('launch') && signalKey === 'operations_bottleneck') {
       state = { currentPriority: 'P2', skipPolicy: 'defer', reason: 'launching_stage_defer_operations_depth' };
     }
-    if (stage.includes('scal') && (signalKey === 'operations_bottleneck' || signalKey === 'delivery_shape_baseline')) {
+    if (stage.includes('scal') && signalKey === 'operations_bottleneck') {
       state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'scaling_stage_prioritize_operations' };
     }
     if (signalKey === 'primary_problem' && primaryProblem.includes('compliance')) {
@@ -60,10 +60,7 @@ export function computeSignalPrioritization(args: {
     ) {
       state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'saas_vertical_elevates_ops_and_focus' };
     }
-    if (
-      industry.includes('retail') &&
-      (signalKey === 'operations_bottleneck' || signalKey === 'delivery_shape_baseline')
-    ) {
+    if (industry.includes('retail') && signalKey === 'operations_bottleneck') {
       state = { currentPriority: 'P0', skipPolicy: 'ask_now', reason: 'retail_vertical_elevates_ops_and_delivery' };
     }
 

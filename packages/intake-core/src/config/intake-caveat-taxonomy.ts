@@ -25,6 +25,13 @@ export const INTAKE_READINESS_CAVEAT_TAXONOMY: Record<
     semanticIntent:
       'Readiness relies on evidence that is unknown-sourced and should be treated as advisory',
   },
+  presale_missing_data_allowed: {
+    owner: 'product',
+    severity: 'warning',
+    rolloutPhase: 'phase_bc',
+    semanticIntent:
+      'Admin presale mode allows launching with unknown-sourced critical evidence while marking readiness caveats',
+  },
   surface_limited_context: {
     owner: 'product',
     severity: 'warning',

@@ -88,6 +88,15 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps plan delivery board + narrative timeline flags aligned', () => {
+    expect(APP_FEATURE_FLAGS.planDeliveryBoardRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode,
+    );
+    expect(APP_FEATURE_FLAGS.planNarrativeTimelineEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planNarrativeTimelineEnabled,
+    );
+  });
+
   it('keeps roadmap narrative base toggle default aligned (server env default vs APP_FEATURE_FLAGS static map)', () => {
     expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled,

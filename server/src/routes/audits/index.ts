@@ -9,6 +9,7 @@ import { createAuditLimiter, generalLimiter } from '../../middleware/rate-limit.
 import { createAuditController } from './controllers/create-audit.controller.js';
 import { listAuditsController } from './controllers/list-audits.controller.js';
 import { tokenUsageSummaryController } from './controllers/token-usage-summary.controller.js';
+import { patchAuditTokenBudgetController } from './controllers/patch-audit-token-budget.controller.js';
 import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
 import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
 import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
@@ -27,6 +28,13 @@ import { postOrchestratorPreviewController } from './controllers/post-orchestrat
 import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
 import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
+import { getPlanBoardController } from './controllers/get-plan-board.controller.js';
+import { patchPlanBoardCardController } from './controllers/patch-plan-board-card.controller.js';
+import { deletePlanBoardCardController } from './controllers/delete-plan-board-card.controller.js';
+import { postPlanBoardManualCardController } from './controllers/post-plan-board-manual-card.controller.js';
+import { postPlanBoardReconcileController } from './controllers/post-plan-board-reconcile.controller.js';
+import { postPlanBoardViewOpenedController } from './controllers/post-plan-board-view-opened.controller.js';
+import { patchPipelinePhaseResultController } from './controllers/patch-pipeline-phase-result.controller.js';
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
 import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
 import { getDirectorDeepDiveQuotaController } from './controllers/get-director-deep-dive-quota.controller.js';
@@ -59,6 +67,12 @@ auditsRouter.get(
   ...consultantGuard,
   rejectGuestFromPortal,
   tokenUsageSummaryController,
+);
+auditsRouter.patch(
+  '/:id/token-budget',
+  ...consultantGuard,
+  rejectGuestFromPortal,
+  patchAuditTokenBudgetController,
 );
 auditsRouter.post(
   '/:id/strategy/execution-pack',
@@ -161,6 +175,48 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getAuditTimelineController,
+);
+auditsRouter.get(
+  '/:id/plan/board',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanBoardController,
+);
+auditsRouter.patch(
+  '/:id/plan/board/cards/:cardId',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardCardController,
+);
+auditsRouter.delete(
+  '/:id/plan/board/cards/:cardId',
+  attachProfile,
+  rejectGuestFromPortal,
+  deletePlanBoardCardController,
+);
+auditsRouter.patch(
+  '/:id/pipeline/phases/:phase/result',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPipelinePhaseResultController,
+);
+auditsRouter.post(
+  '/:id/plan/board/cards',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardManualCardController,
+);
+auditsRouter.post(
+  '/:id/plan/board/reconcile',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardReconcileController,
+);
+auditsRouter.post(
+  '/:id/plan/board/telemetry/view-opened',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardViewOpenedController,
 );
 auditsRouter.get(
   '/:id/directors/:domain/deep-dive/quota',

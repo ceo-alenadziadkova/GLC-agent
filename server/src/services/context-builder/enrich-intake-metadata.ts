@@ -52,12 +52,14 @@ export function enrichIntakeMetadata(params: {
   const storedTuple = brief?.intake_versions as IntakeVersionTuple | null | undefined;
   const intakeTuple =
     storedTuple && isSupportedIntakeArtifactTuple(storedTuple) ? storedTuple : currentIntakeVersionTuple();
+  const executionContext = collectedBy === 'consultant' ? 'admin_presale' : 'default';
   const intakePlan = buildIntakePlan({
     responses: allResponses,
     productMode,
     collectionMode,
     surface: intakeSurface,
     intakeVersionTuple: intakeTuple,
+    executionContext,
   });
 
   const intakeMissingReportDomains =
@@ -76,6 +78,7 @@ export function enrichIntakeMetadata(params: {
     intakeVersionTuple: intakeTuple,
     enforcementPoint: 'brief_recompute',
     hypothesisCrossCheckByQuestionId,
+    executionContext,
   });
   const criticalMissingKeys = Object.entries(intakePlan.criticalSignals?.confidenceByKey ?? {})
     .filter(([, confidence]) => confidence === 'unknown')

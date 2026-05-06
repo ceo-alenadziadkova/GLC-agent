@@ -14,6 +14,7 @@ import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { getAuditListPillPresentation } from '../lib/pipeline-monitor-helpers';
 import { QueueInlineActionLink } from './queue-inline-action-link';
+import { buildAppRoute } from '../config/route-paths';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -259,7 +260,14 @@ export function AdminAllAudits() {
                   )}
                 >
                   <div className="min-w-0">
-                    <Link to={`/audit/${audit.id}`} className="text-foreground block truncate text-sm font-semibold no-underline">
+                    <Link
+                      to={
+                        audit.status === 'created'
+                          ? buildAppRoute.auditNewResumeDraft(audit.id)
+                          : buildAppRoute.audit(audit.id)
+                      }
+                      className="text-foreground block truncate text-sm font-semibold no-underline"
+                    >
                       {companyLabel}
                     </Link>
                     <div className="text-muted-foreground truncate text-xs">
@@ -280,7 +288,11 @@ export function AdminAllAudits() {
                     : <span className="text-muted-foreground text-sm">—</span>}
                   <div className="flex items-center justify-end gap-1">
                     <QueueInlineActionLink
-                      to={audit.status === 'created' ? `/pipeline/${audit.id}` : `/audit/${audit.id}`}
+                      to={
+                        audit.status === 'created'
+                          ? buildAppRoute.auditNewResumeDraft(audit.id)
+                          : buildAppRoute.audit(audit.id)
+                      }
                       tone="info"
                       className="h-7 w-7 rounded-md p-0"
                       ariaLabel={formatOpenAriaLabel(copy.table.openIconAriaLabel, companyLabel)}

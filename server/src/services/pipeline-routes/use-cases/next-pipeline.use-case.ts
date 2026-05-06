@@ -90,6 +90,7 @@ export async function runPipelineNext(params: {
         isDiagnosticIntakePilotEnabled() && isExecutionPlanCoverageScopeEnabled(),
       executionSelectedDomains: gatePlanForReadiness.selected_domains,
       executionIncludeStrategy: gatePlanForReadiness.include_strategy === true,
+      readinessRole: role,
     });
     if (preflight.blocked) {
       logger.info('pipeline.next.intake_readiness_blocked', {

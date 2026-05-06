@@ -27,6 +27,27 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     logEntryDurationSec: 0.24,
     cursorBlinkDurationSec: 0.65,
   },
+  resilience: {
+    /** Mirrors server stalled watchdog threshold (`SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin`). */
+    stalledPhaseWarningTimeoutMin: 15,
+  },
+  /**
+   * Platform-admin only token-budget top-up suggestion.
+   * Server policy (source of truth): `server/src/config/audit-token-budget-topup-policy.ts`.
+   * Keep in sync; values mirrored here so the UI never blocks/permits a request the API would reject.
+   */
+  tokenBudgetTopup: {
+    /** Show the admin banner when remaining budget falls to or below this percentage. */
+    lowPct: 15,
+    /** Quick-pick top-up amounts (matches server PRESETS). */
+    presets: [50_000, 100_000, 200_000] as const,
+    /** Smallest value accepted by the API. */
+    minDelta: 1_000,
+    /** Largest single grant accepted by the API. */
+    maxDelta: 500_000,
+    /** Max length of optional reason text. */
+    reasonMaxLength: 500,
+  },
   status: {
     nonStoppable: [
       PIPELINE_MONITOR_AUDIT_STATUS.completed,

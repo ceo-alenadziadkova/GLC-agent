@@ -56,6 +56,15 @@ export const APP_FEATURE_FLAGS = {
    * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
    */
   orchestrationTimelinePrimaryUxEnabled: true,
+  /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
+  planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
+  /** Narrative Timeline tab until Board parity + sunset. Mirrors server `planNarrativeTimelineEnabled`. */
+  planNarrativeTimelineEnabled: false,
+  /**
+   * When true, unified Plan (`PortalPlanPage`) skips `GET /timeline` while `view=board` if `timeline_parity`
+   * on `GET …/plan/board` is sufficient (ADR Delivery Board follow-up). SPA-only; redeploy to change.
+   */
+  planBoardDeferTimelineFetchOnBoardTabEnabled: true,
   /**
    * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
    * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
@@ -159,4 +168,9 @@ export const APP_FEATURE_FLAGS = {
    * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.briefCloneFromAuditEnabled`.
    */
   briefCloneFromAuditEnabled: true,
+  /**
+   * Pipeline Monitor: after approving a mid-pipeline review gate with substantive notes, offer optional
+   * multi-select Auto Wing domain re-runs before Continue. Disable to only use per-phase “Re-run this phase”.
+   */
+  pipelineMonitorPostReviewDomainRerunPromptEnabled: true,
 } as const;

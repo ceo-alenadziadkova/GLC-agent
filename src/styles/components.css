@@ -927,6 +927,18 @@ html:not(.dark) .glc-hover-row:hover {
   line-height: 1.2;
 }
 
+@media (min-width: 48rem) {
+  .ds-report-hero-title {
+    font-size: var(--text-3xl);
+  }
+}
+
+@media (min-width: 80rem) {
+  .ds-report-hero-title {
+    font-size: var(--text-4xl);
+  }
+}
+
 .ds-report-hero-meta {
   color: var(--report-hero-meta-fg);
   font-size: var(--text-sm);
@@ -956,6 +968,18 @@ html:not(.dark) .glc-hover-row:hover {
   filter: var(--report-hero-ring-glow);
 }
 
+.ds-stroke-brand {
+  stroke: var(--glc-blue);
+}
+
+.ds-icon-critical {
+  color: var(--score-1);
+}
+
+.ds-icon-success {
+  color: var(--glc-green);
+}
+
 .ds-report-hero-score-label {
   color: var(--report-hero-score-label-fg);
   font-size: var(--text-2xs);
@@ -973,6 +997,16 @@ html:not(.dark) .glc-hover-row:hover {
   font-weight: 700;
   fill: var(--report-hero-score-value-fg);
   font-family: var(--font-mono);
+}
+
+@media (width < 48rem) {
+  .ds-report-hero-shell {
+    padding: var(--space-5);
+  }
+
+  .ds-report-hero-summary {
+    max-width: none;
+  }
 }
 
 /* Marketing AuditCompare matrix: token-driven surfaces (no inline visual styles in TSX). */
@@ -2530,6 +2564,17 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-report-scorecard-row:hover {
   background: var(--report-scorecard-row-hover-bg);
+}
+
+.ds-report-scorecard-row:focus-within {
+  background: var(--report-scorecard-row-hover-bg);
+}
+
+@media (min-width: 48rem) {
+  .ds-report-scorecard-row {
+    padding-top: var(--space-2-5);
+    padding-bottom: var(--space-2-5);
+  }
 }
 
 .ds-icon-orange-fill {

@@ -121,6 +121,33 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     expect(crit.confidenceByKey.primary_problem).toBe('low');
   });
 
+  it('admin_presale execution context does not block on unknown-sourced critical signals', () => {
+    const env = evaluateIntakeReadinessEnvelope({
+      responses: {
+        a2: 'Healthcare',
+        a5: 'multi_page_website',
+        a1: 'https://hotel.example',
+        a6: 'Yes',
+        a10: ['One-time services (projects, consulting)'],
+        b1: 'Boutique hotel groups',
+        f1: { value: ['Operational delays'], source: 'unknown' },
+        f2: ['Website performance and technology (speed, stability, technical health)'],
+        d2: 'Managing team tasks and handoffs',
+        d_closing_flow: ['I send a quote or price manually'],
+      },
+      slaProductMode: 'express',
+      collectionMode: 'self_serve',
+      surface: 'client_form',
+      intakeVersionTuple: currentIntakeVersionTuple(),
+      enforcementPoint: 'pipeline_start',
+      executionContext: 'admin_presale',
+    });
+    expect(env.auditReadinessStatus).toBe('ready_with_caveats');
+    expect(env.caveats).toContain('presale_missing_data_allowed');
+    expect(env.caveats).toContain('unknown_source_signal_evidence');
+    expect(env.trace.some(t => t.code === 'critical_signal_unknown_source_allowed_admin_presale')).toBe(true);
+  });
+
   it('source not listed in sourcesByPriority is bounded to low confidence with trace', () => {
     const responses = {
       a2: 'Healthcare',
@@ -134,6 +161,21 @@ describe('diagnostic intake readiness (ADR pilot)', () => {
     const crit = evaluateCriticalSignalsPilot({ responses, plan });
     expect(crit.confidenceByKey.website_presence).toBe('low');
     expect(crit.trace.some(t => t.code === 'critical_signal_source_priority_miss')).toBe(true);
+  });
+
+  it('treats consultant and client answer provenance as explicit for critical-signal source priority', () => {
+    const responses = {
+      a2: { value: 'Healthcare', source: 'consultant' },
+      a5: { value: 'multi_page_website', source: 'consultant' },
+      f1: { value: ['Operational delays'], source: 'client' },
+      d2: { value: 'Managing team tasks and handoffs', source: 'client' },
+      f2: { value: ['Website performance and technology (speed, stability, technical health)'], source: 'client' },
+      d_closing_flow: ['I send a quote or price manually'],
+    };
+    const plan = planFromResponses(responses);
+    const crit = evaluateCriticalSignalsPilot({ responses, plan });
+    expect(crit.satisfied).toBe(true);
+    expect(crit.trace.some(t => t.code === 'critical_signal_source_priority_miss')).toBe(false);
   });
 
   it('sequencing pilot emits sequencing_dep_prerequisite_pending when dependency bank (a1) is unanswered', () => {

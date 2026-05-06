@@ -152,7 +152,7 @@ This is the **minimum approved implementation package**:
     - `primary_problem`,
     - `operations_bottleneck`,
     - `audit_focus`,
-    - `delivery_shape_baseline` (minimum operations/delivery shape signal).
+    - Closing-flow bank ids (e.g. `d_closing_flow`) remain **recommended** in the question bank; they are not pilot **critical-signal execution gates** so SLA labels stay aligned with pipeline readiness.
 3. Deterministic sequencing transitions (no probabilistic routing).
 4. Fallback clarification selector.
 5. Readiness gate with Phase-1 statuses:

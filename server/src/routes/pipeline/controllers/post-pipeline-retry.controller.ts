@@ -14,6 +14,7 @@ import {
   sendPipelineRetryNotifications,
 } from '../../../services/pipeline-routes/pipeline-route.service.js';
 import { pipelineAuditIdParamsSchema, pipelineRetryBodySchema } from '../validators/pipeline-route-input.validator.js';
+import { insertPipelineRetryRequestedEvent } from '../../../services/pipeline-routes/repository/pipeline-event.repository.js';
 
 export async function postPipelineRetryController(req: AuthRequest, res: Response) {
   try {
@@ -29,7 +30,7 @@ export async function postPipelineRetryController(req: AuthRequest, res: Respons
       return;
     }
 
-    const { phase, disable_auto_remediate: disableRaw } = bodyParse.data;
+    const { phase, disable_auto_remediate: disableRaw, retry_comment: retryComment } = bodyParse.data;
     const disableAutoRemediate = Boolean(disableRaw);
 
     const result = await runPipelineRetry({
@@ -52,11 +53,19 @@ export async function postPipelineRetryController(req: AuthRequest, res: Respons
       phase,
     });
 
+    await insertPipelineRetryRequestedEvent({
+      auditId: idParse.data.id,
+      phase,
+      actorUserId: req.userId!,
+      retryComment,
+    });
+
     void schedulePipelineExecution({
       auditId: idParse.data.id,
       action: 'retry',
       phase,
       disableAutoRemediate: result.disableAutoRemediate,
+      retryComment,
     });
   } catch (err) {
     logger.error('Pipeline retry route failed', { error: (err as Error).message });

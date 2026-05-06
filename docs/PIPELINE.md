@@ -158,6 +158,15 @@ When a gate is reached:
 5. Backend includes notes in context for all subsequent phases
 6. Pipeline resumes with next phase
 
+**Consultant corrections vs persisted scores:**
+
+- Approving a gate **does not** mutate existing `audit_domains.score` rows or re-run earlier phases by itself.
+- Approved notes become part of **`ContextBuilder` for later agent calls**, so downstream phases (especially Strategy) see both stored scores and human “ground truth” and should align narrative and initiatives accordingly.
+- To **rescope or rescale an already-completed domain** (phases **1–6**), consultants use **`POST /api/audits/:id/pipeline/retry`** with the phase number: the server runs the agent again even when the latest row is `completed`, then **`saveCompletedDomainRow`** appends a new `audit_domains` version when the prior row is no longer `pending`.
+- Phase **7 (Strategy)** and **0 (Recon)** still use the sequential **`start`/pipeline orchestration paths**, not isolated domain retry — rerun those only via the supported product flows for those phases (not `pipeline/retry`).
+
+**Pipeline Monitor (consultant SPA):** After approving a **non-final** review gate, if consultant and interview notes together meet a **minimum combined trimmed length** (`PIPELINE_MONITOR_REVIEW_POLICY` in `src/app/config/pipeline-monitor-review-policy.ts`), the UI may show an optional dialog to **re-run selected Auto Wing domain phases** before `POST .../pipeline/next`. Disable that prompt with `pipelineMonitorPostReviewDomainRerunPromptEnabled` in `src/app/config/app-feature-flags.ts`. On the **final Strategy gate**, the client re-runs Strategy only when notes meet the same **substantive** threshold; very short or empty notes approve without re-running Strategy.
+
 ---
 
 ## Pipeline Monitor — terminal activity panel (deliberate product UX)
@@ -178,7 +187,8 @@ Code: `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`, mappers un
 
 ## Retry & Recovery
 
-- **Phase-level retry**: A failed phase can be re-run without re-running previous phases
+- **Phase-level retry** (`POST /api/audits/:id/pipeline/retry`, consultant-only, phases **1–6**): Re-runs the domain agent for that phase. **Intended for recovery after failures and for voluntary rescoring** after human review: the orchestrator **does not** skip merely because the latest `audit_domains` row is already `completed` (parallel-wing idempotency is unchanged and still skips completed domains when the orchestrator replays a wing internally).
+- **Failed phase** retry: same route — restores analysis without restarting earlier phases where results already exist.
 - Cached `collected_data` is reused on retry — only the Claude call is repeated
 - **Exponential retry with jitter**: up to 3 retries on Claude API errors (429, 500, timeout), based on `SYSTEM_DEFAULTS.claudeHttp` (`retryBaseMs=1500`, doubling per attempt, plus jitter).
 - **Per-call HTTP timeout** (`AbortController`): default `timeoutMs` applies to domain/recon calls; **strategy (phase 7)** uses `timeoutMsStrategy` (larger — see `SYSTEM_DEFAULTS_CLAUDE_HTTP`). If the ceiling is hit, the Anthropic SDK often reports `Request was aborted.`
@@ -206,6 +216,17 @@ Every Claude call logs token usage via `TokenTracker`:
 - Default budget: **200,000 tokens** per audit (~$3 at current rates)
 - Budget is configurable per audit via `audits.token_budget`
 - Frontend shows running token total in PipelineMonitor
+
+### Token budget top-up (platform admin)
+
+When an audit approaches or exceeds its token budget, a **Platform Admin** (`canManagePlatformSettings`) can grow `audits.token_budget` without redeploying. The flow is fully audited:
+
+- **API:** `PATCH /api/audits/:id/token-budget` — `{ delta_tokens: 1_000–500_000, reason?: string ≤ 500 chars }`. See [API.md](./API.md#audits) for the access matrix and error codes.
+- **Atomicity:** the controller delegates to `applyAuditTokenBudgetTopup` (`server/src/services/audits/audit-token-budget-topup.service.ts`), which calls the SQL RPC `apply_audit_token_budget_topup` (migration **`076`**). The RPC locks the audit row, increments `token_budget`, and writes a row in `audit_token_budget_grants` in a single transaction.
+- **Audit trail:** every grant is preserved in `audit_token_budget_grants` and a `token_budget_topup` row is appended to `pipeline_events` (`{ delta_tokens, previous_budget, new_budget, granted_by, reason? }`).
+- **UI:** `AdminTokenBudgetTopupBanner` (Pipeline Monitor → `PhaseDetailPanel`) is visible only to platform admins and only when remaining budget ≤ `AUDIT_TOKEN_BUDGET_LOW_PCT` (15%) or the API surfaces `PIPELINE_TOKEN_BUDGET_EXCEEDED`. Server thresholds and presets live in `server/src/config/audit-token-budget-topup-policy.ts`; the UI mirror sits in `pipeline-monitor-ui-policy.ts` (`tokenBudgetTopup`).
+
+After a successful top-up, the page reloads pipeline and audit state so the footer (`PipelineSummaryFooter`) and the orchestrator’s `assertTokenBudgetAvailable` guard see the new budget on the next Continue/Retry.
 
 ---
 

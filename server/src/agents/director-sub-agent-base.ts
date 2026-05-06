@@ -36,6 +36,7 @@ export abstract class DirectorSubAgentBase extends BaseAgent {
   async runSubAgent(args: { context: string; mode: string; maxTokens: number }): Promise<unknown> {
     const builtContext = await this.contextBuilder.build(
       this.auditId,
+      this.phaseNumber,
       this.domainKey,
       {},
       this.buildInstructions(args.context, args.mode),

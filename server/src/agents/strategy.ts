@@ -76,7 +76,7 @@ export class StrategyAgent extends BaseAgent {
     const ev = pipelineStrategyEventCopy();
     await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
-      this.auditId, 'strategy', {}, this.instructions
+      this.auditId, this.phaseNumber, 'strategy', {}, this.instructions
     );
 
     await this.emit('analyzing', ev.analyzing);

@@ -62,7 +62,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
       </button>
       <p className="text-muted-foreground m-0 text-center text-xs leading-relaxed">
-        {WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote}
+        {isClientSelfServe
+          ? WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote
+          : WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNoteConsultant}
       </p>
     </div>
   );
@@ -144,7 +146,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             }}
           />
 
-          {isClientSelfServe && wizard.draftRestoredVisible && (
+          {wizard.draftRestoredVisible && (
             <div className="bg-info/10 border-info/40 mb-5 flex items-start gap-3 rounded-xl border px-4 py-3">
               <ClipboardText className="text-info mt-0.5 h-4 w-4 flex-shrink-0" />
               <div className="flex-1 min-w-0">
@@ -152,7 +154,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   {WORKSPACE_PAGE_COPY.newAudit.draftRestoredTitle}
                 </p>
                 <p className="text-muted-foreground m-0 mt-1 text-xs leading-relaxed">
-                  {WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody}
+                  {isClientSelfServe
+                    ? WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody
+                    : WORKSPACE_PAGE_COPY.newAudit.draftRestoredBodyConsultant}
                 </p>
               </div>
               <button

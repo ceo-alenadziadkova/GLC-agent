@@ -8,13 +8,15 @@ export async function schedulePipelineExecution(params: {
   action: PipelineAction;
   phase: number;
   disableAutoRemediate: boolean;
+  retryComment?: string;
 }): Promise<void> {
-  const { auditId, action, phase, disableAutoRemediate } = params;
+  const { auditId, action, phase, disableAutoRemediate, retryComment } = params;
   const queued = await enqueuePipelineJob({
     auditId,
     action,
     phase,
     disable_auto_remediate: disableAutoRemediate,
+    retry_comment: retryComment,
   });
   if (queued) return;
 

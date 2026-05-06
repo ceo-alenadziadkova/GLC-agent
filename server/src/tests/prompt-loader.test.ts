@@ -3,12 +3,20 @@ import { readdirSync, readFileSync } from 'fs';
 import { join, relative, sep } from 'path';
 import { fileURLToPath } from 'url';
 
+import { DOMAIN_KEYS } from '@glc/intake-core';
+
 import { loadPrompt } from '../agents/base/prompt-loader.js';
+import { CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } from '../config/agent-claude-contract.js';
+import { GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION } from '../config/director-orchestration-policy.js';
+import { ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME } from '../config/orchestration-synthesis-policy.js';
+import { PROMPT_INDUSTRY_HEURISTICS } from '../config/prompt-industry-heuristics.js';
+import { STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME } from '../config/strategy-initiative-policy.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const PROMPTS_DIR = join(__dirname, '../../prompts');
 const APPEND_FILES = {
   runtime: '_append-runtime-output-contract.md',
+  pipelineTrustBoundary: '_append-pipeline-trust-boundary.md',
   domainSecurity: '_append-domain-security-core.md',
   domainReadable: '_append-domain-readable-output.md',
   domainDirector: '_append-glc-director-execution.md',
@@ -138,6 +146,21 @@ describe('prompt-loader', () => {
     }
   });
 
+  it('appends pipeline trust boundary to recon and strategy prompts', () => {
+    const recon = loadPrompt('recon');
+    const strategy = loadPrompt('strategy');
+    const trustAppend = readAppend(APPEND_FILES.pipelineTrustBoundary);
+
+    expect(recon).toContain(trustAppend);
+    expect(strategy).toContain(trustAppend);
+  });
+
+  it('appends non-domain safety guardrails to strategy prompt', () => {
+    const strategy = loadPrompt('strategy');
+    const nonDomainAppend = readAppend(APPEND_FILES.nonDomainSafety);
+    expect(strategy).toContain(nonDomainAppend);
+  });
+
   it('keeps non-domain verified-gate strict and non-inferential', () => {
     const nonDomainAppend = readAppend(APPEND_FILES.nonDomainSafety);
     expect(nonDomainAppend).toContain('exactly boolean `true`');
@@ -171,6 +194,88 @@ describe('prompt-loader', () => {
       const raw = readFileSync(filePath, 'utf-8');
       expect(raw).toMatch(/<!-- version: \d+\.\d+ date: \d{4}-\d{2}-\d{2} -->/);
     }
+  });
+
+  it('keeps director execution append schema_version literal aligned with schema constant', () => {
+    const directorAppend = readAppend(APPEND_FILES.domainDirector);
+    const versionMatch = directorAppend.match(/`schema_version`:\s*must be `(\d+)`/);
+    expect(versionMatch).not.toBeNull();
+    expect(Number(versionMatch?.[1])).toBe(GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION);
+  });
+});
+
+describe('prompt-loader tool name centralization', () => {
+  function expectToolGate(promptBody: string, toolName: string): void {
+    expect(promptBody).toContain(`Use the ${toolName} tool only. Output only the tool payload.`);
+  }
+
+  it('injects canonical submit_analysis tool gate into recon, strategy, and every domain prompt', () => {
+    expectToolGate(loadPrompt('recon'), CLAUDE_DOMAIN_SUBMIT_TOOL_NAME);
+    expectToolGate(loadPrompt('strategy'), CLAUDE_DOMAIN_SUBMIT_TOOL_NAME);
+    for (const domainKey of DOMAIN_KEYS) {
+      expectToolGate(loadPrompt(domainKey), CLAUDE_DOMAIN_SUBMIT_TOOL_NAME);
+    }
+  });
+
+  it('injects strategy-execution-pack tool gate from canonical constant', () => {
+    expectToolGate(loadPrompt('strategy-execution-pack'), STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME);
+  });
+
+  it('injects orchestration-pack-synthesis tool gate from canonical constant', () => {
+    expectToolGate(
+      loadPrompt('orchestration-pack-synthesis'),
+      ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME,
+    );
+  });
+
+  it('keeps tool gate immediately before runtime output contract', () => {
+    const recon = loadPrompt('recon');
+    const toolGateIndex = recon.indexOf(
+      `Use the ${CLAUDE_DOMAIN_SUBMIT_TOOL_NAME} tool only. Output only the tool payload.`,
+    );
+    const runtimeIndex = recon.indexOf(readAppend(APPEND_FILES.runtime));
+    expect(toolGateIndex).toBeGreaterThan(-1);
+    expect(runtimeIndex).toBeGreaterThan(toolGateIndex);
+  });
+
+  it('does not hardcode tool gate sentence in base phase prompt files on disk', () => {
+    const phasePromptNames = [
+      'recon',
+      ...DOMAIN_KEYS,
+      'strategy',
+      'strategy-execution-pack',
+      'orchestration-pack-synthesis',
+    ];
+    for (const promptName of phasePromptNames) {
+      const raw = readFileSync(join(PROMPTS_DIR, `${promptName}.md`), 'utf-8');
+      expect(raw).not.toMatch(/Use the .*tool only\. No prose outside the tool\./);
+      expect(raw).not.toMatch(/Output: use the `[^`]+` tool only\. No prose outside the tool\./);
+    }
+  });
+});
+
+describe('prompt-loader industry heuristics centralization', () => {
+  it('injects centralized industry heuristics into configured prompts', () => {
+    for (const promptName of Object.keys(PROMPT_INDUSTRY_HEURISTICS)) {
+      const promptBody = loadPrompt(promptName);
+      const heuristics = PROMPT_INDUSTRY_HEURISTICS[promptName as keyof typeof PROMPT_INDUSTRY_HEURISTICS];
+      expect(promptBody).toContain(`## ${heuristics.title}`);
+      for (const bullet of heuristics.bullets) {
+        expect(promptBody).toContain(`- ${bullet}`);
+      }
+    }
+  });
+
+  it('keeps base prompt files free from duplicated industry-heuristic sections', () => {
+    const baseAutomation = readFileSync(join(PROMPTS_DIR, 'automation_processes.md'), 'utf-8');
+    const baseMarketing = readFileSync(join(PROMPTS_DIR, 'marketing_utp.md'), 'utf-8');
+    const baseUx = readFileSync(join(PROMPTS_DIR, 'ux_conversion.md'), 'utf-8');
+    const baseSeo = readFileSync(join(PROMPTS_DIR, 'seo_digital.md'), 'utf-8');
+
+    expect(baseAutomation).not.toContain('## Industry Context');
+    expect(baseMarketing).not.toContain('## Location-Aware Considerations');
+    expect(baseUx).not.toContain('hospitality needs booking CTAs');
+    expect(baseSeo).not.toContain('business targets multiple language markets');
   });
 });
 

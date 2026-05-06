@@ -213,5 +213,17 @@ describe('apiService pipeline status contract', () => {
 
     await expect(api.retryPhase('audit-001', 1)).rejects.toThrow(/pipeline retry/);
   });
+
+  it('retryPhase sends trimmed retry_comment when provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockJsonResponse({ status: 'retrying', phase: 1 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.retryPhase('audit-001', 1, { retry_comment: '  Re-running after manual fixes  ' });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(requestInit?.body).toBeTruthy();
+    const body = JSON.parse(String(requestInit?.body)) as Record<string, unknown>;
+    expect(body.retry_comment).toBe('Re-running after manual fixes');
+  });
 });
 

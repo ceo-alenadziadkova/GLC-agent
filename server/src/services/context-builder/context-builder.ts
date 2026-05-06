@@ -2,6 +2,10 @@ import type { IntakeSliceDomain } from '@glc/intake-core';
 import type { DomainKey, ReconConflict, ReconData } from '../../types/audit.js';
 import { getDomainWeight } from '../../config/industry-weights.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
+import {
+  CONTEXT_BUILDER_RETRY_NOTES_CURRENT_PHASE_MAX,
+  CONTEXT_BUILDER_RETRY_NOTES_OTHER_PHASES_MAX,
+} from '../../config/context-builder-limits.js';
 import { assembleBriefResponses, prepareAllBriefResponses } from './assemble-brief-responses.js';
 import { enrichIntakeMetadata } from './enrich-intake-metadata.js';
 import { loadContextSnapshot } from './load-context-snapshot.js';
@@ -16,12 +20,13 @@ import type { AgentContext } from './agent-context.types.js';
 export class ContextBuilder {
   async build(
     auditId: string,
+    phaseNumber: number,
     domainKey: DomainKey | 'recon' | 'strategy',
     collectedData: Record<string, Record<string, unknown>>,
     instructions: string,
   ): Promise<AgentContext> {
     const snapshot = await loadContextSnapshot(auditId);
-    const { audit, recon, completedDomains, failedDomains, reviews, brief } = snapshot;
+    const { audit, recon, completedDomains, failedDomains, reviews, retryNotes, brief } = snapshot;
 
     const allResponses = prepareAllBriefResponses(brief?.responses);
 
@@ -56,6 +61,19 @@ export class ContextBuilder {
         consultant_notes: r.consultant_notes,
         interview_notes: r.interview_notes,
       })),
+      retry_notes: (retryNotes ?? [])
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .reduce<Array<{ phase: number; retry_comment: string; created_at: string }>>((acc, note) => {
+          const currentPhaseCount = acc.filter(item => item.phase === phaseNumber).length;
+          const otherPhasesCount = acc.filter(item => item.phase !== phaseNumber).length;
+          if (note.phase === phaseNumber) {
+            if (currentPhaseCount >= CONTEXT_BUILDER_RETRY_NOTES_CURRENT_PHASE_MAX) return acc;
+            return [...acc, note];
+          }
+          if (domainKey !== 'strategy') return acc;
+          if (otherPhasesCount >= CONTEXT_BUILDER_RETRY_NOTES_OTHER_PHASES_MAX) return acc;
+          return [...acc, note];
+        }, []),
       domain_weight:
         typeof domainKey === 'string' && domainKey !== 'recon' && domainKey !== 'strategy'
           ? getDomainWeight(industry, domainKey)

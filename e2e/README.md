@@ -52,6 +52,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | `orchestration-cockpit-stale-banner.spec.ts` | Consultant cockpit: stale pack banner after govern `POST` 409 (needs `E2E_CONSULTANT_E2E_*` + `E2E_ORCHESTRATION_UI=1`) |
 | `orchestration-consultant-cockpit-ui.spec.ts` | Login → open cockpit: heading + settled state (no pack, error, or critical path) — `E2E_ORCHESTRATION_UI=1` + consultant + audit id |
 | `orchestration-plan-legacy-canonical.spec.ts` | Consultant: `/roadmap/:id` and `/timeline/:id` → `/plan/:id` (+ `view=timeline`, query merge). Portal: `/portal/roadmap|timeline/:id` → `/portal/plan/:id`. Needs `E2E_ORCHESTRATION_UI=1` + `E2E_ORCHESTRATION_AUDIT_ID`; consultant gate uses `E2E_CONSULTANT_E2E_*`; portal gate uses `E2E_PORTAL_E2E_*` and optional `E2E_PORTAL_PLAN_AUDIT_ID` |
+| `orchestration-plan-board.spec.ts` | Consultant: `/plan/:id?view=board` — Delivery Board shell, roadmap↔board nav, optional per-card Move menu when cards exist (`E2E_ORCHESTRATION_UI=1` + `E2E_CONSULTANT_E2E_*` + audit id; Move test skips on empty board) |
 | `orchestration-deep-dive.spec.ts` | `GET` quota for `marketing_utp` and `ux_conversion` deep-dive API; optional `E2E_ORCHESTRATION_DEEP_DIVE_UI=1` runs the marketing quota check under a mobile viewport project |
 
 ## Scope

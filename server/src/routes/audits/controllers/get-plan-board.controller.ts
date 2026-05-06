@@ -1,0 +1,114 @@
+import type { Response } from 'express';
+
+import {
+  API_ERROR_CODES,
+  AUDITS_FETCH_FAILED_MESSAGE,
+  AUDITS_NOT_FOUND_MESSAGE,
+  ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
+} from '../../../config/api-error-codes.js';
+import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import { isPlanBoardOperationalReadOnlyPack } from '../../../config/plan-board-operational-policy.js';
+import type { AuthRequest } from '../../../middleware/auth.js';
+import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
+import { buildPlanBoardTimelineParity } from '../../../services/orchestration/orchestrator-timeline-read.service.js';
+import { resolveAuditPlanBoardAccess } from '../../../services/plan-board/plan-board-access.js';
+import { filterPlanBoardCardsForClientView } from '../../../services/plan-board/plan-board-client-view.js';
+import { listPlanBoardCardsForAudit } from '../../../services/plan-board/plan-board-cards.service.js';
+import { logger } from '../../../services/logger.js';
+import { sendApiError } from '../mappers/audits-http.mapper.js';
+
+export async function getPlanBoardController(req: AuthRequest, res: Response) {
+  try {
+    if (!isOrchestrationPackApiEnabled()) {
+      sendApiError(res, 403, API_ERROR_CODES.ORCHESTRATION_PACK_API_DISABLED, ORCHESTRATION_PACK_API_DISABLED_MESSAGE);
+      return;
+    }
+
+    const auditId = req.params.id as string;
+    const access = await resolveAuditPlanBoardAccess({ auditId, userId: req.userId!, userRole: req.userRole });
+    if (!access.ok) {
+      sendApiError(
+        res,
+        access.reason === 'denied' ? 403 : 404,
+        API_ERROR_CODES.AUDITS_NOT_FOUND,
+        AUDITS_NOT_FOUND_MESSAGE,
+      );
+      return;
+    }
+
+    const persisted = await fetchPersistedGlcOrchestrationPackForUser({
+      auditId,
+      userId: req.userId!,
+    });
+    if (persisted.status !== 'ok') {
+      sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
+      return;
+    }
+
+    if (!persisted.pack) {
+      res.json({
+        pack_version_used: persisted.orchestration_pack_version,
+        cards: [],
+        issues: [{ code: 'no_pack' as const }],
+      });
+      return;
+    }
+
+    const metaByNode = new Map(
+      persisted.pack.graph.nodes.map((n) => [
+        n.id,
+        { title: n.title, lane: n.lane as string },
+      ]),
+    );
+
+    const { cards: rows, error } = await listPlanBoardCardsForAudit({ auditId });
+    if (error) {
+      logger.error('route.plan_board_list_failed', { auditId, error: error.message });
+      sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
+      return;
+    }
+
+    const visibleRows = access.kind === 'client' ? filterPlanBoardCardsForClientView(rows) : rows;
+
+    const cards = visibleRows.map((r) => {
+      const nodeId = r.pack_graph_node_id;
+      const meta = nodeId ? metaByNode.get(nodeId) : undefined;
+      return {
+        id: r.id,
+        source: r.source,
+        column_id: r.column_id,
+        position: r.position,
+        pinned: r.pinned,
+        delivery_area: r.delivery_area,
+        canonical_node_key: r.canonical_node_key,
+        pack_graph_node_id: r.pack_graph_node_id,
+        orphaned_reason: r.orphaned_reason,
+        title: r.manual_title ?? meta?.title ?? null,
+        lane: r.pack_lane_snapshot ?? meta?.lane ?? null,
+      };
+    });
+
+    const governanceBlocked = isPlanBoardOperationalReadOnlyPack(persisted.pack);
+    const issues: Array<{ code: 'governance_blocked' }> = governanceBlocked ? [{ code: 'governance_blocked' }] : [];
+
+    const parityResult = await buildPlanBoardTimelineParity({
+      auditId,
+      pack: persisted.pack,
+    });
+    const timelineParityPayload = 'error' in parityResult ? undefined : parityResult;
+    if ('error' in parityResult) {
+      logger.warn('route.plan_board_timeline_parity_failed', { auditId, error: parityResult.error.message });
+    }
+
+    res.json({
+      pack_version_used: persisted.orchestration_pack_version,
+      cards,
+      issues,
+      ...(timelineParityPayload != null ? { timeline_parity: timelineParityPayload } : {}),
+    });
+  } catch (err) {
+    const error = err as Error;
+    logger.error('route.plan_board_get_unhandled', { error: error.message });
+    sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
+  }
+}

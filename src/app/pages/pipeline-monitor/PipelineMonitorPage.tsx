@@ -13,6 +13,7 @@ import { MonitorHeaderActions } from './sections/MonitorHeaderActions';
 import { PhaseSidebar } from './sections/PhaseSidebar';
 import { PhaseDetailPanel } from './sections/PhaseDetailPanel';
 import { StopPipelineDialog } from './sections/StopPipelineDialog';
+import { PostReviewDomainRerunDialog } from './sections/PostReviewDomainRerunDialog';
 import { pipelineHasReconCrawlerTruncationWarning } from '../../lib/pipeline-recon-truncation';
 import type { PipelineReview } from './types-pipeline-state';
 import { plannedExecutionPhaseIdSet } from '../../lib/audit-execution-plan';
@@ -31,6 +32,7 @@ export function PipelineMonitorPage() {
     pipelineState,
     pipeLoading,
     pipeError,
+    pipelineErrorExtras,
     runNextPhaseBusy,
     startPipeline,
     runNextPhase,
@@ -62,7 +64,14 @@ export function PipelineMonitorPage() {
     canManagePlatformSettings,
     resumeCancelledBusy,
     resumeCancelledError,
+    resumeAutoNextBlockedNotice,
     handleResumeCancelledPlatform,
+    postReviewRerunPrompt,
+    postReviewRerunBusy,
+    handlePostReviewContinueWithoutRerun,
+    handlePostReviewRetrySelectedThenContinue,
+    reloadAudit,
+    reloadPipeline,
   } = controller;
 
   const companyName = getPipelineMonitorCompanyName(audit);
@@ -129,6 +138,8 @@ export function PipelineMonitorPage() {
           isExpress={isExpress}
           progressPct={progressPct}
           auditStatus={auditStatus}
+          currentPhaseId={currentPhaseId}
+          phases={phases}
           canStopPipeline={canStopPipeline}
           isStopping={isStopping}
           onOpenStopDialog={() => setStopDialogOpen(true)}
@@ -154,6 +165,7 @@ export function PipelineMonitorPage() {
                 plannedExecutionPhaseIds={plannedExecutionPhaseIds}
                 pipelineState={pipelineState}
                 pipeError={pipeError}
+                pipelineErrorExtras={pipelineErrorExtras}
                 isCreated={isCreated}
                 isClient={isClient}
                 isExpress={isExpress}
@@ -163,13 +175,26 @@ export function PipelineMonitorPage() {
                 governance={governance}
                 auditStatus={auditStatus}
                 canManagePlatformSettings={canManagePlatformSettings}
+                canStopPipeline={canStopPipeline}
+                isStopping={isStopping}
                 resumeCancelledBusy={resumeCancelledBusy}
                 resumeCancelledError={resumeCancelledError}
+                resumeAutoNextBlockedNotice={resumeAutoNextBlockedNotice}
+                onOpenStopDialog={() => setStopDialogOpen(true)}
                 onResumeCancelledPlatform={handleResumeCancelledPlatform}
                 onStartPipeline={startPipeline}
                 onRunNextPhase={runNextPhase}
                 runNextPhaseBusy={runNextPhaseBusy}
                 onRetryPhase={retryPhase}
+                audit={audit}
+                onRefreshAfterPhaseEdit={async () => {
+                  reloadAudit();
+                  await reloadPipeline();
+                }}
+                onTokenBudgetTopupSuccess={async () => {
+                  reloadAudit();
+                  await reloadPipeline();
+                }}
               />
               <PhaseSidebar
                 phases={phases}
@@ -205,6 +230,7 @@ export function PipelineMonitorPage() {
                 plannedExecutionPhaseIds={plannedExecutionPhaseIds}
                 pipelineState={pipelineState}
                 pipeError={pipeError}
+                pipelineErrorExtras={pipelineErrorExtras}
                 isCreated={isCreated}
                 isClient={isClient}
                 isExpress={isExpress}
@@ -214,13 +240,26 @@ export function PipelineMonitorPage() {
                 governance={governance}
                 auditStatus={auditStatus}
                 canManagePlatformSettings={canManagePlatformSettings}
+                canStopPipeline={canStopPipeline}
+                isStopping={isStopping}
                 resumeCancelledBusy={resumeCancelledBusy}
                 resumeCancelledError={resumeCancelledError}
+                resumeAutoNextBlockedNotice={resumeAutoNextBlockedNotice}
+                onOpenStopDialog={() => setStopDialogOpen(true)}
                 onResumeCancelledPlatform={handleResumeCancelledPlatform}
                 onStartPipeline={startPipeline}
                 onRunNextPhase={runNextPhase}
                 runNextPhaseBusy={runNextPhaseBusy}
                 onRetryPhase={retryPhase}
+                audit={audit}
+                onRefreshAfterPhaseEdit={async () => {
+                  reloadAudit();
+                  await reloadPipeline();
+                }}
+                onTokenBudgetTopupSuccess={async () => {
+                  reloadAudit();
+                  await reloadPipeline();
+                }}
               />
             </>
           )}
@@ -271,6 +310,7 @@ export function PipelineMonitorPage() {
               plannedExecutionPhaseIds={plannedExecutionPhaseIds}
               pipelineState={pipelineState}
               pipeError={pipeError}
+              pipelineErrorExtras={pipelineErrorExtras}
               isCreated={isCreated}
               isClient={isClient}
               isExpress={isExpress}
@@ -280,13 +320,26 @@ export function PipelineMonitorPage() {
               governance={governance}
               auditStatus={auditStatus}
               canManagePlatformSettings={canManagePlatformSettings}
+              canStopPipeline={canStopPipeline}
+              isStopping={isStopping}
               resumeCancelledBusy={resumeCancelledBusy}
               resumeCancelledError={resumeCancelledError}
+              resumeAutoNextBlockedNotice={resumeAutoNextBlockedNotice}
+              onOpenStopDialog={() => setStopDialogOpen(true)}
               onResumeCancelledPlatform={handleResumeCancelledPlatform}
               onStartPipeline={startPipeline}
               onRunNextPhase={runNextPhase}
               runNextPhaseBusy={runNextPhaseBusy}
               onRetryPhase={retryPhase}
+              audit={audit}
+              onRefreshAfterPhaseEdit={async () => {
+                reloadAudit();
+                await reloadPipeline();
+              }}
+              onTokenBudgetTopupSuccess={async () => {
+                reloadAudit();
+                await reloadPipeline();
+              }}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -325,6 +378,14 @@ export function PipelineMonitorPage() {
         isStopping={isStopping}
         onOpenChange={setStopDialogOpen}
         onConfirmStop={handleStopPipeline}
+      />
+
+      <PostReviewDomainRerunDialog
+        open={!isClient && postReviewRerunPrompt !== null}
+        selectablePhaseIds={postReviewRerunPrompt ?? []}
+        busy={postReviewRerunBusy}
+        onDismissContinue={handlePostReviewContinueWithoutRerun}
+        onRetrySelectedPhases={handlePostReviewRetrySelectedThenContinue}
       />
     </AppShell>
   );

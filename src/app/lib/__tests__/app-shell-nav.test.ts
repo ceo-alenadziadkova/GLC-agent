@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { APP_SHELL_COPY } from '../../config/app-shell-copy';
 import { buildAppRoute } from '../../config/route-paths';
 import {
   buildConsultantNav,
@@ -22,38 +21,31 @@ describe('app-shell-nav', () => {
       null,
       null,
       null,
-      null,
     ]);
   });
 
-  it('buildConsultantNav fills audit-scoped links when auditId is set (timeline-first)', () => {
+  it('buildConsultantNav fills audit-scoped links when auditId is set', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id, { timelinePrimaryUx: true });
-    expect(nav[5]?.to).toBe(`/audit/${id}`);
-    expect(nav[6]?.to).toBe(buildAppRoute.plan(id, 'timeline'));
-    expect(nav[7]?.to).toBe(`/pipeline/${id}`);
-    expect(nav[8]?.to).toBe(`/reports/${id}`);
-    expect(nav[9]?.to).toBe(`/strategy/${id}`);
-    expect(nav[9]?.label).toBe(APP_SHELL_COPY.nav.consultant.strategyLabDetailLayer);
-  });
-
-  it('buildConsultantNav orders pipeline before timeline when timeline-first is off', () => {
-    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
-    expect(nav[6]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[5]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[6]?.to).toBe(`/audit/${id}`);
     expect(nav[7]?.to).toBe(buildAppRoute.plan(id, 'timeline'));
+    expect(nav[8]?.to).toBe(`/reports/${id}`);
   });
 
-  it('buildConsultantNav uses Strategy Lab label when timeline-first UX is off', () => {
+  it('buildConsultantNav keeps pipeline before timeline when timeline-first is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
-    expect(nav[9]?.label).toBe(APP_SHELL_COPY.nav.consultant.strategyLab);
+    expect(nav[5]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[6]?.to).toBe(`/audit/${id}`);
+    expect(nav.some(i => i.to === buildAppRoute.plan(id, 'timeline'))).toBe(true);
   });
 
   it('buildConsultantNav omits timeline when orchestration roadmap UI flag is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id, { timelinePrimaryUx: true, orchestrationRoadmapUiEnabled: false });
-    expect(nav[6]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[5]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[6]?.to).toBe(`/audit/${id}`);
     expect(nav[7]?.to).toBe(`/reports/${id}`);
     expect(nav.some(i => i.to === buildAppRoute.plan(id, 'timeline'))).toBe(false);
   });
@@ -81,7 +73,7 @@ describe('app-shell-nav', () => {
     expect(bottom.map(i => i.to)).toEqual(['/portal', '/portal/audit/new']);
   });
 
-  it('buildClientNav includes report and strategy links for selected audit (timeline-first)', () => {
+  it('buildClientNav includes report link for selected audit (timeline-first)', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildClientNav(id, true, { timelinePrimaryUx: true });
     expect(nav.map(i => i.to)).toEqual([
@@ -90,15 +82,7 @@ describe('app-shell-nav', () => {
       buildAppRoute.portalPlan(id, 'timeline'),
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
-      `/portal/strategy/${id}`,
     ]);
-    expect(nav[5]?.label).toBe(APP_SHELL_COPY.nav.client.strategyLabDetailLayer);
-  });
-
-  it('buildClientNav uses Strategy Lab label when timeline-first UX is off', () => {
-    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildClientNav(id, true, { timelinePrimaryUx: false });
-    expect(nav[5]?.label).toBe(APP_SHELL_COPY.nav.client.strategyLab);
   });
 
   it('buildClientNav orders pipeline before timeline when timeline-first is off', () => {
@@ -110,7 +94,6 @@ describe('app-shell-nav', () => {
       `/portal/pipeline/${id}`,
       buildAppRoute.portalPlan(id, 'timeline'),
       `/portal/reports/${id}`,
-      `/portal/strategy/${id}`,
     ]);
   });
 
@@ -122,7 +105,6 @@ describe('app-shell-nav', () => {
       `/portal/audit/${id}`,
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
-      `/portal/strategy/${id}`,
     ]);
   });
 

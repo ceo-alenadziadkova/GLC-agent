@@ -19,6 +19,8 @@ export const PIPELINE_EVENT_TYPES = {
   cancelled: 'cancelled',
   /** Platform admin cleared `audits.status` from `cancelled` back to a claimable pause (`review`). */
   resumedFromCancelled: 'resumed_from_cancelled',
+  /** Platform admin increased `audits.token_budget`; payload includes delta_tokens, previous_budget, new_budget. */
+  tokenBudgetTopup: 'token_budget_topup',
   reviewApproved: 'review_approved',
   reviewNeeded: 'review_needed',
   phaseStalled: 'phase_stalled',
@@ -32,6 +34,12 @@ export const PIPELINE_EVENT_TYPES = {
   intakeIntelligenceSnapshot: 'intake_intelligence_snapshot',
   /** POST /api/audits/:id/brief/intelligence-wording — B1 display phrasing / label overrides (second LLM pass). */
   intakeIntelligenceWording: 'intake_intelligence_wording',
+  /** Delivery Board reconcile after orchestration pack bump (counts only; no task text). */
+  planBoardReconciled: 'plan_board_reconciled',
+  planBoardViewOpened: 'plan_board_view_opened',
+  planBoardCardMoved: 'plan_board_card_moved',
+  planBoardCardPinned: 'plan_board_card_pinned',
+  planBoardConflict409: 'plan_board_conflict_409',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

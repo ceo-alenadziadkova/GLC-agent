@@ -15,12 +15,14 @@ type ExecutionLogPanelProps = {
   auditId: string | undefined;
   title?: string;
   compact?: boolean;
+  unavailableMessage?: string;
 };
 
 export function ExecutionLogPanel({
   auditId,
   title = PIPELINE_UI_COPY.executionLog.defaultTitle,
   compact = false,
+  unavailableMessage,
 }: ExecutionLogPanelProps) {
   const { isAdmin } = useProfile();
   const [showExecutionTracePanels, setShowExecutionTracePanels] = useState(
@@ -33,7 +35,14 @@ export function ExecutionLogPanel({
 
   const canViewExecutionTrace = isAdmin && showExecutionTracePanels;
   if (!canViewExecutionTrace) {
-    return null;
+    if (!unavailableMessage) {
+      return null;
+    }
+    return (
+      <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <p className="text-xs text-[var(--text-secondary)]">{unavailableMessage}</p>
+      </div>
+    );
   }
 
   return <ExecutionLogPanelContent auditId={auditId} title={title} compact={compact} />;
@@ -80,6 +89,9 @@ function ExecutionLogPanelContent({
       </div>
 
       <div className={compact ? 'max-h-56 overflow-auto space-y-2' : 'max-h-80 overflow-auto space-y-2'}>
+        {!loading && events.length === 0 ? (
+          <p className="text-xs text-[var(--text-secondary)]">{PIPELINE_UI_COPY.executionLog.emptyState}</p>
+        ) : null}
         {events.map((event: PipelineEvent) => (
           <article key={event.id} className="rounded border border-[var(--border-subtle)] p-2 text-xs">
             <p className="font-medium text-[var(--text-primary)]">

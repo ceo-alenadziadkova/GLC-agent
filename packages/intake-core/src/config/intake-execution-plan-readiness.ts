@@ -7,6 +7,12 @@
 export const INTAKE_EXECUTION_PLAN_READINESS_POLICY = {
   starter: 'scope_aware',
   pro: 'scope_aware',
-  complete: 'scope_aware',
+  /**
+   * Complete runs all domains; `scope_aware` would block pipeline start until every in-scope
+   * recommended bank tied to missing report domains is answered — far stricter than SLA/critical-signal baseline.
+   * Baseline-only keeps execution-plan coverage observability (`execution_plan_coverage_scope_active` trace)
+   * without hard-blocking `POST .../pipeline/start|next` on exhaustive recommended gaps.
+   */
+  complete: 'baseline_only',
 } as const;
 

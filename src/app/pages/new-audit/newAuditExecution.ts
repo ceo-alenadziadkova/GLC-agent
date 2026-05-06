@@ -16,7 +16,10 @@ import { getGlcQueryClient } from '../../lib/glc-query-client';
 import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../../lib/glc-invalidate-queries';
 import {
   clearClientPortalNewAuditDraft,
+  clearConsultantNewAuditDraft,
+  type NewAuditDraftV1,
   writeClientPortalNewAuditDraft,
+  writeConsultantNewAuditDraft,
 } from '../../lib/client-portal-new-audit-draft';
 
 export type NewAuditExecutionPlan = {
@@ -142,30 +145,54 @@ export type SaveClientDraftParams = {
   setDraftSaving: (v: boolean) => void;
 };
 
+function newAuditDraftPayloadFromSaveParams(
+  params: Pick<
+    SaveClientDraftParams,
+    | 'step'
+    | 'url'
+    | 'noPublicWebsite'
+    | 'name'
+    | 'industry'
+    | 'industrySpecify'
+    | 'productMode'
+    | 'responses'
+    | 'briefLayoutChoice'
+    | 'draftAuditId'
+    | 'draftIntakeVersions'
+    | 'coveragePackage'
+    | 'selectedDomains'
+  >,
+): NewAuditDraftV1 {
+  return {
+    v: 1,
+    step: params.step,
+    url: params.url,
+    noPublicWebsite: params.noPublicWebsite,
+    name: params.name,
+    industry: params.industry,
+    industrySpecify: params.industrySpecify,
+    productMode: params.productMode,
+    responses: params.responses,
+    briefLayoutChoice: params.briefLayoutChoice,
+    draftAuditId: params.draftAuditId,
+    draftIntakeVersions: params.draftIntakeVersions,
+    ...(params.coveragePackage != null
+      ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
+      : {}),
+  };
+}
+
 export async function saveClientDraft(params: SaveClientDraftParams): Promise<void> {
   params.setDraftError(null);
   params.setDraftNotice(null);
   params.setDraftSaving(true);
 
   try {
+    const persistLocalDraft = newAuditDraftPayloadFromSaveParams(params);
     if (params.isClientSelfServe) {
-      writeClientPortalNewAuditDraft({
-        v: 1,
-        step: params.step,
-        url: params.url,
-        noPublicWebsite: params.noPublicWebsite,
-        name: params.name,
-        industry: params.industry,
-        industrySpecify: params.industrySpecify,
-        productMode: params.productMode,
-        responses: params.responses,
-        briefLayoutChoice: params.briefLayoutChoice,
-        draftAuditId: params.draftAuditId,
-        draftIntakeVersions: params.draftIntakeVersions,
-        ...(params.coveragePackage != null
-          ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
-          : {}),
-      });
+      writeClientPortalNewAuditDraft(persistLocalDraft);
+    } else {
+      writeConsultantNewAuditDraft(persistLocalDraft);
     }
 
     if (!params.step0Valid) {
@@ -198,7 +225,7 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
       params.setDraftAuditId(auditId);
     }
 
-    const basicsSource: BriefResponseSource = 'client';
+    const basicsSource: BriefResponseSource = params.isClientSelfServe ? 'client' : 'consultant';
     const localWithBasics: BriefResponses = {
       ...params.responses,
       ...buildStep0IntakePatch(
@@ -222,30 +249,21 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
 
     params.setDraftIntakeVersions(savePayload.brief.intake_versions ?? null);
 
+    const afterServerPayload = newAuditDraftPayloadFromSaveParams({
+      ...params,
+      draftAuditId: auditId,
+      draftIntakeVersions: savePayload.brief.intake_versions ?? null,
+    });
     if (params.isClientSelfServe) {
-      writeClientPortalNewAuditDraft({
-        v: 1,
-        step: params.step,
-        url: params.url,
-        noPublicWebsite: params.noPublicWebsite,
-        name: params.name,
-        industry: params.industry,
-        industrySpecify: params.industrySpecify,
-        productMode: params.productMode,
-        responses: params.responses,
-        briefLayoutChoice: params.briefLayoutChoice,
-        draftAuditId: auditId,
-        draftIntakeVersions: savePayload.brief.intake_versions ?? null,
-        ...(params.coveragePackage != null
-          ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
-          : {}),
-      });
+      writeClientPortalNewAuditDraft(afterServerPayload);
+    } else {
+      writeConsultantNewAuditDraft(afterServerPayload);
     }
 
     params.setDraftNotice(
       params.isClientSelfServe
         ? WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowser
-        : WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountOnly,
+        : WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowserConsultant,
     );
   } catch (err) {
     if (isSelfServeOwnerConfigApiError(err)) {
@@ -331,8 +349,10 @@ export async function launchNewAudit(e: FormEvent, params: LaunchNewAuditParams)
 
     if (params.isClientSelfServe) {
       clearClientPortalNewAuditDraft();
-      params.setDraftIntakeVersions(null);
+    } else {
+      clearConsultantNewAuditDraft();
     }
+    params.setDraftIntakeVersions(null);
 
     params.navigate(params.isClientSelfServe ? `/portal/pipeline/${auditId}` : `/pipeline/${auditId}`);
   } catch (err) {

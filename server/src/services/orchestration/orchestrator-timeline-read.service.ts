@@ -6,6 +6,7 @@ import {
   partitionCriticalPathForTimelineDisplay,
 } from '../../config/orchestration-timeline-policy.js';
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
+import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 import { OrchestratorTimelineDtoSchema, type OrchestratorTimelineDto } from '../../schemas/orchestrator-timeline.js';
 import { fetchPersistedGlcOrchestrationPackForUser, loadAuditExecutionPlanRow } from './orchestration-read.service.js';
 import { buildRoadmapManifestPreview } from './roadmap-manifest-preview.js';
@@ -299,3 +300,62 @@ export async function buildClientTimelineReadModel(args: {
   return { status: 'ok', timeline: dto };
 }
 
+/** Timeline-derived fields for Delivery Board parity without subscribing to GET /timeline (TD-023). */
+export type PlanBoardTimelineParityDto = {
+  season_preset: RoadmapSeasonPreset | null;
+  top_7d: string[];
+  top_30d: string[];
+  top_priorities: Array<{ bucket: '7d' | '30d'; action_id: string; reason_code: string }>;
+  milestones: Array<{ id: string; label: string; target_window_days: number; unlocks: string[] }>;
+};
+
+export async function buildPlanBoardTimelineParity(args: {
+  auditId: string;
+  pack: GlcOrchestrationPack;
+}): Promise<PlanBoardTimelineParityDto | { error: Error }> {
+  const latestSnapshotRes = await listRoadmapManifestSnapshotsForAudit({
+    auditId: args.auditId,
+    limit: ORCHESTRATION_TIMELINE_POLICY.latestManifestSnapshotsPeekLimit,
+  });
+  if (latestSnapshotRes.error) return { error: latestSnapshotRes.error };
+
+  const latestSnapshot = latestSnapshotRes.snapshots[0] ?? null;
+  const latestPayload = latestSnapshot?.payload ?? null;
+  const manifestSnapshotId = args.pack.manifest_snapshot_id ?? null;
+
+  const versionManifest = await resolveManifestForTimelinePartition({
+    auditId: args.auditId,
+    packManifestSnapshotId: manifestSnapshotId,
+    latestSnapshotPayload: latestPayload,
+  });
+
+  const nodeById = new Map(args.pack.graph.nodes.map((node) => [node.id, node] as const));
+  const top_7d = (args.pack.top_7d ?? args.pack.top_actions?.top_actions_7d ?? []).slice(
+    0,
+    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
+  );
+  const top_30d = (args.pack.top_30d ?? args.pack.top_actions?.top_actions_30d ?? []).slice(
+    0,
+    ORCHESTRATION_TIMELINE_POLICY.maxTopActionsPerWindow,
+  );
+  const partitionHints = new Map(
+    args.pack.graph.nodes.map((n) => [n.id, { target_window_days: n.target_window_days }] as const),
+  );
+  const milestones = buildTimelineMilestones({
+    criticalPathIds: args.pack.critical_path,
+    nodesById: nodeById,
+  });
+  const top_priorities = buildTopPriorities({
+    top7d: top_7d,
+    top30d: top_30d,
+    nodesById: partitionHints,
+  });
+
+  return {
+    season_preset: versionManifest.seasonPreset,
+    top_7d,
+    top_30d,
+    top_priorities,
+    milestones,
+  };
+}

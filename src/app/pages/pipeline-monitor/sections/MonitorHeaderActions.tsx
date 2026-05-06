@@ -12,6 +12,8 @@ export function MonitorHeaderActions(props: {
   isExpress: boolean;
   progressPct: number;
   auditStatus: string;
+  currentPhaseId: number;
+  phases: Array<{ id: number; name: string; status: string }>;
   /** True while POST /pipeline/next is in flight but DB row may still be `review` — show running pulse in the header. */
   isAdvancingFromReview?: boolean;
   canStopPipeline: boolean;
@@ -25,6 +27,8 @@ export function MonitorHeaderActions(props: {
     isExpress,
     progressPct,
     auditStatus,
+    currentPhaseId,
+    phases,
     isAdvancingFromReview = false,
     canStopPipeline,
     isStopping,
@@ -38,6 +42,18 @@ export function MonitorHeaderActions(props: {
   const headerPill = isAdvancingFromReview
     ? { status: 'running' as const, pulse: true }
     : getPipelineMonitorHeaderPresentation(auditStatus);
+  const runningPhases = phases.filter(phase => phase.status === 'running');
+  const currentPhase = phases.find(phase => phase.id === currentPhaseId) ?? null;
+  const primaryRunningPhase = runningPhases[0] ?? currentPhase;
+  const runningMoreCount = runningPhases.length > 1 ? runningPhases.length - 1 : 0;
+  const runningMoreSuffix =
+    runningMoreCount > 0
+      ? ` ${PM.header.runningMoreSuffix.replace('{count}', String(runningMoreCount))}`
+      : '';
+  const runningLabel =
+    headerPill.status === 'running' && primaryRunningPhase
+      ? `Running · ${PM.phasePrefix} ${primaryRunningPhase.id} ${primaryRunningPhase.name}${runningMoreSuffix}`
+      : undefined;
 
   if (isClient) {
     const cp = PIPELINE_MONITOR_UI_POLICY.clientPortal;
@@ -53,7 +69,7 @@ export function MonitorHeaderActions(props: {
           </div>
           <span className={cp.headerPercentClassName}>{progressPct}%</span>
         </div>
-        <StatusPill status={headerPill.status} pulse={headerPill.pulse} />
+        <StatusPill status={headerPill.status} pulse={headerPill.pulse} label={runningLabel} />
       </div>
     );
   }
@@ -79,7 +95,7 @@ export function MonitorHeaderActions(props: {
           {progressPct}%
         </span>
       </div>
-      <StatusPill status={headerPill.status} pulse={headerPill.pulse} />
+      <StatusPill status={headerPill.status} pulse={headerPill.pulse} label={runningLabel} />
       {showHeaderRetry && (
         <Button
           type="button"

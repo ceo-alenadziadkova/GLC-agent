@@ -6,6 +6,10 @@ import {
   apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
+  apiAuditsPlanBoard,
+  apiAuditsPlanBoardCard,
+  apiAuditsPlanBoardTelemetryViewOpened,
+  apiAuditsPipelinePhaseResult,
   apiAuditsOrchestratorLatest,
   apiAuditsOrchestratorPreview,
   apiAuditsOrchestratorRun,
@@ -216,6 +220,61 @@ export type OrchestrationPackConditionalGetResult =
   | { kind: 'ok'; data: OrchestrationPackGetBody }
   | { kind: 'not_modified' };
 
+export type PlanBoardCardDto = {
+  id: string;
+  source: 'pack' | 'manual';
+  column_id: string;
+  position: number;
+  pinned: boolean;
+  delivery_area: string;
+  canonical_node_key: string | null;
+  pack_graph_node_id: string | null;
+  orphaned_reason: 'node_removed' | 'lane_changed' | null;
+  title: string | null;
+  lane: string | null;
+};
+
+export type PlanBoardIssueCode = 'no_pack' | 'governance_blocked';
+
+export type PlanBoardTimelineParityDto = {
+  season_preset: OrchestrationSeasonPreset | null;
+  top_7d: string[];
+  top_30d: string[];
+  top_priorities: Array<{ bucket: '7d' | '30d'; action_id: string; reason_code: string }>;
+  milestones: Array<{
+    id: string;
+    label: string;
+    target_window_days: number;
+    unlocks: string[];
+  }>;
+};
+
+export type PlanBoardGetBody = {
+  pack_version_used: number;
+  cards: PlanBoardCardDto[];
+  issues: Array<{ code: PlanBoardIssueCode }>;
+  /** Mirrors narrative Timeline parity fields without a separate GET /timeline (ADR TD-023). */
+  timeline_parity?: PlanBoardTimelineParityDto | undefined;
+};
+
+export type PlanBoardCardPatchBody = {
+  to_column?: string;
+  position?: number;
+  pinned?: boolean;
+  delivery_area?: string;
+  title?: string;
+  lane?: string;
+  expected_pack_version: number;
+};
+
+export type PlanBoardCardDeleteBody = {
+  expected_pack_version: number;
+};
+
+export type PipelinePhaseResultPatchBody = {
+  result: Record<string, unknown>;
+};
+
 export const auditsOrchestrationApi = {
   async postRoadmapManifestPreview(auditId: string, body: RoadmapManifestRequestBody) {
     return apiFetch<{ preview: RoadmapManifestPreviewDto }>(apiAuditsRoadmapManifestPreview(auditId), {
@@ -387,6 +446,61 @@ export const auditsOrchestrationApi = {
 
   async getAuditTimeline(auditId: string) {
     return apiFetch<{ timeline: AuditTimelineDto }>(apiAuditsTimeline(auditId), { method: 'GET' });
+  },
+
+  async getPlanBoard(auditId: string) {
+    return apiFetch<PlanBoardGetBody>(apiAuditsPlanBoard(auditId), { method: 'GET' });
+  },
+
+  async patchPlanBoardCard(
+    auditId: string,
+    cardId: string,
+    body: PlanBoardCardPatchBody,
+  ) {
+    return apiFetch<{ pack_version_used: number; ok: boolean }>(apiAuditsPlanBoardCard(auditId, cardId), {
+      method: 'PATCH',
+      headers: {
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postPlanBoardManualCard(
+    auditId: string,
+    body: { title: string; lane: string; column_id?: string },
+  ) {
+    return apiFetch<{ card_id: string; pack_version_used: number }>(`${apiAuditsPlanBoard(auditId)}/cards`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postPlanBoardReconcile(auditId: string) {
+    return apiFetch<{ ok: boolean; orchestration_pack_version: number }>(`${apiAuditsPlanBoard(auditId)}/reconcile`, {
+      method: 'POST',
+    });
+  },
+
+  async deletePlanBoardCard(auditId: string, cardId: string, body: PlanBoardCardDeleteBody) {
+    return apiFetch<{ pack_version_used: number; ok: boolean }>(apiAuditsPlanBoardCard(auditId, cardId), {
+      method: 'DELETE',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async patchPipelinePhaseResult(auditId: string, phase: number, body: PipelinePhaseResultPatchBody) {
+    return apiFetch<{ ok: boolean; phase_number: number; updated: boolean }>(apiAuditsPipelinePhaseResult(auditId, phase), {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async postPlanBoardViewOpenedTelemetry(auditId: string, body: { pack_version: number; has_pack: boolean }) {
+    return apiFetch<void>(apiAuditsPlanBoardTelemetryViewOpened(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
 
   async postDirectorDeepDive(auditId: string, domainKey: DomainKey, body: DirectorDeepDiveRequestBody) {

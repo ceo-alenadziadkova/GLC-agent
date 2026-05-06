@@ -17,6 +17,7 @@ import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import {
   readClientPortalNewAuditDraft,
+  readConsultantNewAuditDraft,
   type ClientPortalNewAuditDraftV1,
 } from '../../lib/client-portal-new-audit-draft';
 import type { BriefIntakeAnalyticsSurface } from '../../lib/brief-intake-analytics';
@@ -61,8 +62,19 @@ import { useWizardPrefillEffects } from './wizard-effects/useWizardPrefillEffect
 import { resolveResponseSource } from './wizard-services/response-source.resolver';
 import { createPreBriefToken, validatePreBriefInput } from './wizard-services/prebrief-token.service';
 import { BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS } from '../../config/client-analytics-batching';
-import { BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST, NEW_AUDIT_WIZARD_STEPS } from './wizard-config/wizard-constants';
+import {
+  BRIEF_LAYOUT_CLASSIC as BRIEF_LAYOUT_CLASSIC_CONST,
+  BRIEF_LAYOUT_UNSET as BRIEF_LAYOUT_UNSET_CONST,
+  BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST,
+  NEW_AUDIT_WIZARD_STEPS,
+} from './wizard-config/wizard-constants';
 import type { NewAuditVariant, NewAuditWizardContract } from './wizard-contract/useNewAuditWizard.types';
+import {
+  APP_ROUTE_PATHS,
+  NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY,
+} from '../../config/route-paths';
+import { resolveConsultantBriefLayout } from '../../lib/client-brief-layout-preference';
+import { bootstrapConsultantNewAuditWizardFromAuditState } from './wizard-services/consultant-resume-draft-audit.bootstrap';
 
 export type { NewAuditVariant } from './wizard-contract/useNewAuditWizard.types';
 
@@ -90,17 +102,27 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const intakeTokenFromUrl = searchParams.get('intake')?.trim() ?? '';
   const fromDiscovery = searchParams.get('from_discovery') ?? '';
   const isClientSelfServe = variant === 'client_self_serve';
+  const resumeDraftAuditIdFromQuery = !isClientSelfServe
+    ? (searchParams.get(NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY)?.trim() ?? '')
+    : '';
+  const [resumeDraftQueryHydrateComplete, setResumeDraftQueryHydrateComplete] = useState(
+    () => resumeDraftAuditIdFromQuery === '',
+  );
 
-  const [portalDraftSeed] = useState<ClientPortalNewAuditDraftV1 | null>(() =>
-    variant === 'client_self_serve' ? readClientPortalNewAuditDraft() : null,
+  const [newAuditDraftSeed] = useState<ClientPortalNewAuditDraftV1 | null>(() =>
+    variant === 'client_self_serve'
+      ? readClientPortalNewAuditDraft()
+      : variant === 'consultant'
+        ? readConsultantNewAuditDraft()
+        : null,
   );
 
   // Step 1 fields
-  const [url, setUrl] = useState(() => portalDraftSeed?.url ?? '');
-  const [noPublicWebsite, setNoPublicWebsite] = useState(() => portalDraftSeed?.noPublicWebsite ?? false);
-  const [name, setName] = useState(() => portalDraftSeed?.name ?? '');
-  const [industry, setIndustry] = useState(() => portalDraftSeed?.industry ?? '');
-  const [industrySpecify, setIndustrySpecify] = useState(() => portalDraftSeed?.industrySpecify ?? '');
+  const [url, setUrl] = useState(() => newAuditDraftSeed?.url ?? '');
+  const [noPublicWebsite, setNoPublicWebsite] = useState(() => newAuditDraftSeed?.noPublicWebsite ?? false);
+  const [name, setName] = useState(() => newAuditDraftSeed?.name ?? '');
+  const [industry, setIndustry] = useState(() => newAuditDraftSeed?.industry ?? '');
+  const [industrySpecify, setIndustrySpecify] = useState(() => newAuditDraftSeed?.industrySpecify ?? '');
 
   const briefProductMode: 'express' | 'full' = INTAKE_BRIEF_SLA_PRODUCT_MODE as 'express' | 'full';
 
@@ -114,12 +136,12 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   } = useCoverageSelectionState({
     industry,
     isClientSelfServe,
-    seedCoveragePackage: portalDraftSeed?.coveragePackage,
-    seedSelectedDomains: portalDraftSeed?.selectedDomains,
+    seedCoveragePackage: newAuditDraftSeed?.coveragePackage,
+    seedSelectedDomains: newAuditDraftSeed?.selectedDomains,
   });
 
   // Step 2 fields
-  const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
+  const [responses, setResponses] = useState<BriefResponses>(() => newAuditDraftSeed?.responses ?? {});
   const [intakePrefillActive, setIntakePrefillActive] = useState(false);
   const [discoveryPrefilled, setDiscoveryPrefilled] = useState(false);
 
@@ -137,12 +159,12 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     handleChangeConsultantBriefLayout,
   } = useBriefLayoutState({
     isClientSelfServe,
-    seededChoice: portalDraftSeed?.briefLayoutChoice ?? null,
+    seededChoice: newAuditDraftSeed?.briefLayoutChoice ?? null,
   });
 
   // UI state
   const [step, setStep] = useState<0 | 1 | 2 | 3>(() => {
-    const s = portalDraftSeed?.step ?? 0;
+    const s = newAuditDraftSeed?.step ?? 0;
     return s >= NEW_AUDIT_WIZARD_STEPS.min && s <= NEW_AUDIT_WIZARD_STEPS.max ? s : 0;
   });
   const [basicsSubStep, setBasicsSubStep] = useState<0 | 1>(0);
@@ -177,14 +199,14 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const [consultantDpaChecked, setConsultantDpaChecked] = useState(false);
 
   // Client draft
-  const [draftAuditId, setDraftAuditId] = useState<string | null>(() => portalDraftSeed?.draftAuditId ?? null);
+  const [draftAuditId, setDraftAuditId] = useState<string | null>(() => newAuditDraftSeed?.draftAuditId ?? null);
   const [draftIntakeVersions, setDraftIntakeVersions] = useState<IntakeVersionTuple | null>(
-    () => portalDraftSeed?.draftIntakeVersions ?? null,
+    () => newAuditDraftSeed?.draftIntakeVersions ?? null,
   );
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
-  const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(portalDraftSeed));
+  const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(newAuditDraftSeed));
   const [clientProjectContextSyncTick, setClientProjectContextSyncTick] = useState(0);
 
   useEffect(() => {
@@ -207,6 +229,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   const newAuditF1DebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newAuditF1RequestSeqRef = useRef(0);
+  const consultantResumeHydrateSeqRef = useRef(0);
   /** Preserves early vs full snapshot choice when a POST fails before the confirm step. */
   const lastIntelligenceSnapshotRequestEarlyRef = useRef(false);
 
@@ -258,6 +281,75 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setDiscoveryPrefilled,
   });
 
+  useEffect(() => {
+    if (isClientSelfServe || !resumeDraftAuditIdFromQuery) return;
+
+    consultantResumeHydrateSeqRef.current += 1;
+    const hydrateSeq = consultantResumeHydrateSeqRef.current;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const audit = await api.getAudit(resumeDraftAuditIdFromQuery);
+        if (cancelled || hydrateSeq !== consultantResumeHydrateSeqRef.current) return;
+        if (audit.meta.status !== 'created') {
+          navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
+          return;
+        }
+
+        const layoutStored = resolveConsultantBriefLayout(audit.meta.id);
+        const resolvedBriefLayout =
+          layoutStored === BRIEF_LAYOUT_WIZARD_CONST
+            ? BRIEF_LAYOUT_WIZARD_CONST
+            : layoutStored === BRIEF_LAYOUT_CLASSIC_CONST
+              ? BRIEF_LAYOUT_CLASSIC_CONST
+              : BRIEF_LAYOUT_UNSET_CONST;
+
+        const boot = bootstrapConsultantNewAuditWizardFromAuditState({
+          audit,
+          resolvedBriefLayout,
+        });
+
+        setDraftAuditId(boot.draftAuditId);
+        setUrl(boot.url);
+        setNoPublicWebsite(boot.noPublicWebsite);
+        setName(boot.name);
+        setIndustry(boot.industry);
+        setIndustrySpecify(boot.industrySpecify);
+        setResponses(boot.responses);
+        setDraftIntakeVersions(boot.draftIntakeVersions);
+        setCoveragePackage(boot.coveragePackage);
+        setSelectedDomains(boot.selectedDomains);
+        setBriefTailoredPhaseUnlocked(boot.briefTailoredPhaseUnlocked);
+        setBriefLayoutChoice(boot.briefLayoutChoice);
+        setInterviewMode(boot.interviewMode);
+        setStep(boot.step);
+        setBasicsSubStep(boot.basicsSubStep);
+        setDraftRestoredVisible(true);
+        setResumeDraftQueryHydrateComplete(true);
+        navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
+      } catch (e) {
+        if (cancelled || hydrateSeq !== consultantResumeHydrateSeqRef.current) return;
+        setError(
+          e instanceof ApiError ? e.message : WORKSPACE_PAGE_COPY.newAudit.resumeDraftAuditLoadFailed,
+        );
+        navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
+      } finally {
+        if (!cancelled && hydrateSeq === consultantResumeHydrateSeqRef.current) {
+          setLoading(false);
+          setResumeDraftQueryHydrateComplete(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isClientSelfServe, resumeDraftAuditIdFromQuery, navigate]);
+
   useDraftIntakeVersionsEffect({
     isClientSelfServe,
     draftAuditId,
@@ -265,7 +357,11 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   });
 
   useDraftAutosaveEffect({
-    isClientSelfServe,
+    persistNewAuditDraft: isClientSelfServe
+      ? 'portal'
+      : resumeDraftAuditIdFromQuery && !resumeDraftQueryHydrateComplete
+        ? 'none'
+        : 'consultant',
     step: step as 0 | 1 | 2 | 3,
     url,
     noPublicWebsite,
