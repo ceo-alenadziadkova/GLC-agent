@@ -108,7 +108,7 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   }, [strategy?.glc_orchestration_pack]);
 
   const reportHref = buildAppRoute.portalReports(auditId);
-  const timelineHref = buildAppRoute.portalPlan(auditId, 'timeline');
+  const timelineHref = buildAppRoute.portalPlan(auditId);
   const labHref = buildAppRoute.portalStrategy(auditId);
   const adjustScopeHref = `${labHref}?${ORCHESTRATION_LAB_FOCUS_QUERY_KEY}=${ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE}`;
   const manifestWizardHref = buildAppRoute.portalRoadmapManifest(auditId);

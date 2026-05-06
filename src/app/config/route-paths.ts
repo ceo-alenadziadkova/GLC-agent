@@ -56,14 +56,16 @@ export const buildAppRoute = {
     const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
     if (resolved === 'roadmap') return `${path}?view=roadmap`;
     if (resolved === 'board') return `${path}?view=board`;
-    return `${path}?view=timeline`;
+    if (resolved === 'table') return `${path}?view=table`;
+    return `${path}?view=board`;
   },
   portalPlan: (auditId: string, view?: PortalPlanViewParam): string => {
     const path = `/${P.portalPlanById.replace(':id', auditId)}`;
     const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
     if (resolved === 'roadmap') return `${path}?view=roadmap`;
     if (resolved === 'board') return `${path}?view=board`;
-    return `${path}?view=timeline`;
+    if (resolved === 'table') return `${path}?view=table`;
+    return `${path}?view=board`;
   },
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>

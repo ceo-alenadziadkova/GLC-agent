@@ -4,6 +4,26 @@
  */
 
 export const PLAN_WORKSPACE_UI_COPY = {
+  /** Define / Shape / Execute strip on canonical `/plan` (screen reader). */
+  modeBarAriaLabel: 'Plan workspace mode',
+  modeBarDefine: 'Define',
+  modeBarShape: 'Shape',
+  modeBarExecute: 'Execute',
+  /** Cmd/Ctrl+K command palette (Plan workspace). */
+  commandPaletteTitle: 'Plan commands',
+  commandPaletteDescription: 'Jump to a mode, view, or run compile from the keyboard.',
+  commandPalettePlaceholder: 'Search commands…',
+  commandPaletteEmpty: 'No matching commands.',
+  commandPaletteGroupModes: 'Modes',
+  commandPaletteGroupViews: 'Execute views',
+  commandPaletteGroupActions: 'Actions',
+  commandPaletteModeDefine: 'Define — constraints & benchmarks',
+  commandPaletteModeShape: 'Shape — manifest & compile',
+  commandPaletteModeExecute: 'Execute — board, roadmap, table',
+  commandPaletteViewBoard: 'Board view',
+  commandPaletteViewRoadmap: 'Roadmap view',
+  commandPaletteViewTable: 'Table view',
+  commandPaletteRunCompile: 'Run compile pack',
   /** Shared loading headline while audit, pack, and/or timeline are resolving. */
   loadingHeadline: 'Loading plan workspace…',
   /** Single secondary line — avoids mismatched subtitles between Board and Roadmap loaders. */
@@ -38,4 +58,25 @@ export const PLAN_WORKSPACE_UI_COPY = {
   /** Sticky Plan chrome — client lands on operational board when rollout allows, else roadmap. */
   planWorkbenchClientPrimaryLabel: "This week's priorities",
   planWorkbenchClientPrimaryAriaLabel: 'Go to Delivery Board when available, otherwise the roadmap schedule.',
+
+  /** Unified Plan shell title/subtitle when `view=table` is active. */
+  tableShellTitle: 'Plan · table',
+  tableShellSubtitle: 'All delivery tasks in one sortable list — inline edits sync with the board.',
+  tableLoadError: 'Could not load audit for plan table.',
+  /** Until full table UX ships, short guidance (replaces legacy narrative Timeline tab). */
+  tablePlaceholderBody:
+    'Table view lists plan_task_delivery rows with filters and grouping. Use Board for drag-and-drop columns or Roadmap for the schedule.',
+
+  /** Right sheet — orchestration Advanced (diagnostics, Stage-2, snapshots, commercial). */
+  advancedDrawerTitle: 'Advanced · manifest & pack',
+  advancedDrawerDescription:
+    'Diagnostics, Stage-2 intent, snapshot history, and commercial options for this audit.',
+  /** Plan studio (define/shape): in-panel accordion replaced by drawer; point users to overflow. */
+  advancedMovedToPlanMenuHint:
+    'Advanced controls live in the side panel. Use the overflow menu (top right) or open below.',
+  advancedDrawerOpenCta: 'Open Advanced panel',
+  /** Overflow item label (matches sheet title intent). */
+  advancedDrawerMenuLabel: 'Advanced · manifest & pack',
+  /** Screen reader label for the ⋯ trigger in Plan studio chrome. */
+  advancedDrawerOverflowTriggerAriaLabel: 'More plan studio actions',
 } as const;

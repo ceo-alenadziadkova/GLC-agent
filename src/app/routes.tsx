@@ -13,13 +13,13 @@ import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
 import { PipelineMonitor }  from './pages/PipelineMonitor';
 import { ReportViewer }     from './pages/ReportViewer';
-import { StrategyLab }      from './pages/strategy-lab/StrategyLabPage';
 import { Login }            from './pages/Login';
 import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
 import { LegacyPlanPathRedirect } from './pages/portal-plan/LegacyPlanPathRedirect';
+import { LegacyStrategyPathRedirect } from './pages/portal-plan/LegacyStrategyPathRedirect';
 import { PortalPlanPage } from './pages/portal-plan/PortalPlanPage';
 import { ConsultantOrchestrationCockpitPage } from './pages/ConsultantOrchestrationCockpitPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
@@ -148,7 +148,7 @@ export const router = createBrowserRouter([
       { path: P.roadmapById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="roadmap" /></Consultant> },
       { path: P.planById, element: <Consultant><PortalPlanPage /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
-      { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
+      { path: P.strategyById, element: <Consultant><LegacyStrategyPathRedirect variant="consultant" /></Consultant> },
       { path: P.auditOrchestrationById, element: <Consultant><ConsultantOrchestrationCockpitPage /></Consultant> },
       { path: P.settings, element: <PNoGuest><SettingsPage /></PNoGuest> },
 
@@ -159,7 +159,7 @@ export const router = createBrowserRouter([
       { path: P.portalTimelineById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="timeline" /></ClientPortalShell> },
       { path: P.portalRoadmapById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="roadmap" /></ClientPortalShell> },
       { path: P.portalPlanById, element: <ClientPortalShell><PortalPlanPage /></ClientPortalShell> },
-      { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
+      { path: P.portalStrategyById, element: <ClientPortalShell><LegacyStrategyPathRedirect variant="portal" /></ClientPortalShell> },
       { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
       { path: P.portal, element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },

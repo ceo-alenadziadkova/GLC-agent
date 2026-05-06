@@ -11,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../../components/ui/sheet';
+import type { StrategyInitiativeBucket } from '../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { PIPELINE_STRATEGY_PHASE_INDEX } from '../../config/pipeline-phase-policy';
 import type { StrategyInitiative } from '../../data/audit/contracts/report/report-domain.types';
@@ -18,7 +19,7 @@ import { api } from '../../data/apiService';
 import { ApiError } from '../../data/api-error';
 import { toast } from 'sonner';
 
-export type StrategyInitiativeBucket = 'quick_wins' | 'medium_term' | 'strategic';
+export type { StrategyInitiativeBucket };
 
 function stableBoardIdentityKey(bucket: StrategyInitiativeBucket, initiativeId: string): string {
   const raw = `${bucket}:${initiativeId}`;

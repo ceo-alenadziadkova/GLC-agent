@@ -33,6 +33,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Literal `error` string inventory (generated; see [API.md](./API.md#error-responses)) | [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) |
 | Auth, roles, JWT | [AUTH.md](./AUTH.md) |
 | Threat model, rate limits, CORS, snapshot log redaction | [SECURITY.md](./SECURITY.md) |
+| Horizontal API scale (Redis limiters/locks, `generateLockToken` leases — not PID), multi-instance posture | [ARCHITECTURE.md § Public routes…](./ARCHITECTURE.md#public-routes-abuse-control-and-scaling) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Local dev, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase), env matrix, monitoring hooks | [DEPLOYMENT.md](./DEPLOYMENT.md) |
@@ -72,6 +73,7 @@ Selected ADR quick links:
 | Delivery Board vs narrative Timeline — product §2 matrix + GLC-PB ticket skeleton (Accepted v1; additive product framing aligned with Operational-layer ADR) | [ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md](adrs/ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md) |
 | Delivery Board deferred epics stub (Epics 2–3 backlog; Epic 1 shipped — see Preserve key ADR) | [ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](adrs/ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) |
 | Delivery Board Epic 1 — preserve canonical node key on rename (Accepted) | [ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](adrs/ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) |
+| Plan Workspace unified IA (`/plan/:id?mode=`, single compile, focus symmetry) — **Accepted** (Phases 1–3 implemented) | [ADR-PLAN-WORKSPACE-UNIFIED-V1.md](adrs/ADR-PLAN-WORKSPACE-UNIFIED-V1.md) |
 | Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
 | Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |

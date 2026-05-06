@@ -10,12 +10,14 @@ import { Button } from '../components/ui/button';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { buildAppRoute } from '../config/route-paths';
+import { buildPlanWorkspaceHref } from '../lib/plan-cross-nav';
 import { primaryPlanWorkbenchViewForStrategyLinks } from '../config/plan-delivery-board-ui';
 import { api } from '../data/apiService';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { useAudit } from '../hooks/useAudit';
 import { useStrategyJourneyStepStatuses } from '../hooks/useStrategyJourneyStepStatuses';
 import { glcKeys } from '../lib/glc-keys';
+import { invalidatePlanWorkspaceQueries } from '../lib/plan-workspace-queries';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { orchestrationNodeTitleMap } from '../lib/orchestration-timeline-projection';
 import { ApiError } from '../data/api-error';
@@ -61,8 +63,7 @@ export function ConsultantOrchestrationCockpitPage() {
     setStalePack(false);
     try {
       await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
+      await invalidatePlanWorkspaceQueries(queryClient, auditId);
       await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(auditId) });
       toast.success(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackSuccess);
     } catch {
@@ -82,14 +83,13 @@ export function ConsultantOrchestrationCockpitPage() {
     setStalePack(false);
     try {
       await api.postOrchestrationPack(auditId, { govern_action, expected_orchestration_pack_version: v });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
+      await invalidatePlanWorkspaceQueries(queryClient, auditId);
       toast.success(ORCHESTRATION_UI_COPY.consultantCockpitGovernanceRecordedToast);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'AUDITS_ORCHESTRATION_PACK_STALE_VERSION') {
         setStalePack(true);
         toast.error(ORCHESTRATION_UI_COPY.consultantCockpitStaleBanner);
-        await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
+        await invalidatePlanWorkspaceQueries(queryClient, auditId);
       } else {
         toast.error(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackError);
       }
@@ -131,10 +131,19 @@ export function ConsultantOrchestrationCockpitPage() {
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.strategy(auditId)}>{ORCHESTRATION_UI_COPY.consultantCockpitRefineCta}</Link>
+              <Link to={buildPlanWorkspaceHref({ auditId, isClient: false, mode: 'shape' })}>
+                {ORCHESTRATION_UI_COPY.consultantCockpitRefineCta}
+              </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.plan(auditId, primaryPlanWorkbenchViewForStrategyLinks())}>
+              <Link
+                to={buildPlanWorkspaceHref({
+                  auditId,
+                  isClient: false,
+                  mode: 'execute',
+                  view: primaryPlanWorkbenchViewForStrategyLinks(),
+                })}
+              >
                 {ORCHESTRATION_UI_COPY.consultantCockpitPlanLinkLabel}
               </Link>
             </Button>

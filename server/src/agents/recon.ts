@@ -2,6 +2,11 @@ import { BaseAgent, loadPrompt } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
+import { logger } from '../services/logger.js';
+import {
+  assertPhaseRunLeaseHeld,
+  getPhaseRunLeaseContext,
+} from '../services/pipeline/phase-run-lease-context.js';
 import {
   interpolatePipelineEventMessage,
   pipelineReconEventCopy,
@@ -115,8 +120,18 @@ export class ReconAgent extends BaseAgent {
       crawlSignals,
     });
 
+    const leaseCtx = getPhaseRunLeaseContext();
+    if (leaseCtx) {
+      await assertPhaseRunLeaseHeld({
+        auditId: this.auditId,
+        phase: this.phaseNumber,
+        attempt: leaseCtx.attempt,
+        expectedOwner: leaseCtx.leaseOwner,
+      });
+    }
+
     // Save to audit_recon
-    await supabase.from('audit_recon').update({
+    const { error: reconUpdateErr } = await supabase.from('audit_recon').update({
       status: 'completed',
       company_name: reconResult.company_name,
       industry: reconResult.industry,
@@ -129,6 +144,15 @@ export class ReconAgent extends BaseAgent {
       recon_context_summary: reconContextSummary,
     }).eq('audit_id', this.auditId);
 
+    if (reconUpdateErr) {
+      logger.error('recon.audit_recon_update_failed', {
+        component: 'recon',
+        audit_id: this.auditId,
+        error: reconUpdateErr.message,
+      });
+      throw reconUpdateErr;
+    }
+
     if (!noPublicSite) {
       await writeReconPrefillsAfterPhase0(
         this.auditId,
@@ -137,12 +161,21 @@ export class ReconAgent extends BaseAgent {
     }
 
     // Update audit with discovered info
-    await supabase.from('audits').update({
+    const { error: auditUpdateErr } = await supabase.from('audits').update({
       company_name: reconResult.company_name ?? undefined,
       industry: reconResult.industry ?? undefined,
       status: 'review',
       current_phase: 0,
     }).eq('id', this.auditId);
+
+    if (auditUpdateErr) {
+      logger.error('recon.audits_update_failed', {
+        component: 'recon',
+        audit_id: this.auditId,
+        error: auditUpdateErr.message,
+      });
+      throw auditUpdateErr;
+    }
 
     await this.emit('completed', ev.completed, {
       company_name: reconResult.company_name,

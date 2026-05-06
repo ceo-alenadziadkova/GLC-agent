@@ -42,12 +42,12 @@ test.describe('plan legacy URLs normalize to canonical /plan after login', () =>
       .toEqual({ pathname: `/plan/${auditId}`, view: null, keep: null });
   });
 
-  test('timeline path becomes /plan/:id?view=timeline', async ({ page }) => {
+  test('timeline path becomes /plan/:id?view=board (narrative timeline retired)', async ({ page }) => {
     await loginConsultantBrowser(page);
     await page.goto(`/timeline/${auditId}`, { waitUntil: 'domcontentloaded' });
     await expect
       .poll(() => planUrlDigest(page.url()), { timeout: 30_000 })
-      .toEqual({ pathname: `/plan/${auditId}`, view: 'timeline', keep: null });
+      .toEqual({ pathname: `/plan/${auditId}`, view: 'board', keep: null });
   });
 
   test('legacy roadmap merges non-view params onto canonical URL', async ({ page }) => {
@@ -85,12 +85,12 @@ test.describe('portal plan legacy URLs normalize to canonical /portal/plan after
       .toEqual({ pathname: `/portal/plan/${portalPlanAuditId}`, view: null, keep: null });
   });
 
-  test('portal timeline path becomes /portal/plan/:id?view=timeline', async ({ page }) => {
+  test('portal timeline path becomes /portal/plan/:id?view=board (narrative timeline retired)', async ({ page }) => {
     await loginClientPortalBrowser(page);
     await page.goto(`/portal/timeline/${portalPlanAuditId}`, { waitUntil: 'domcontentloaded' });
     await expect
       .poll(() => planUrlDigest(page.url()), { timeout: 30_000 })
-      .toEqual({ pathname: `/portal/plan/${portalPlanAuditId}`, view: 'timeline', keep: null });
+      .toEqual({ pathname: `/portal/plan/${portalPlanAuditId}`, view: 'board', keep: null });
   });
 
   test('portal legacy roadmap merges non-view params onto canonical URL', async ({ page }) => {

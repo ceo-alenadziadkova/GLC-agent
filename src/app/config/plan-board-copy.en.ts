@@ -60,7 +60,12 @@ export const PLAN_BOARD_COPY = {
   cardMenuAriaLabel: 'More actions',
   menuMoveHeading: 'Move to column',
   menuEditTitleLabel: 'Edit title',
+  /** Fallback when inline title edit is available — opens modal for edge cases. */
+  menuEditTitleDialogLabel: 'Edit title (dialog)…',
   menuEditLaneLabel: 'Edit lane',
+  menuEditLaneDialogLabel: 'Edit lane (dialog)…',
+  inlineTitleAriaLabel: 'Card title',
+  inlineLaneAriaLabel: 'Change lane',
   menuDeleteCardLabel: 'Delete card',
 
   cardTitleEditDialogTitle: 'Edit card title',

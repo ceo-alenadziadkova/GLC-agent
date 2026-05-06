@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { api } from '../data/apiService';
 import { ApiError } from '../data/api-error';
@@ -8,6 +9,14 @@ import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from
 import { UI_POLICY } from '../config/ui-policy';
 import { toUiApiErrorMessage } from '../lib/api-error-ui';
 import { isPipelineAuditActiveStatus } from '../lib/pipeline-monitor-helpers';
+import {
+  buildPipelineRealtimeAuditsUpdateSubscribe,
+  buildPipelineRealtimeEventsInsertSubscribe,
+  parseAuditsRealtimePatch,
+  parsePipelineEventInsertPayload,
+  type PipelineRealtimePostgresChangePayload,
+} from '../config/pipeline-realtime-schema';
+import { comparePipelineEventsNewestFirst } from '../lib/pipeline-event-sort';
 
 /** Server `API_ERROR_CODES.PIPELINE_NEXT_CLAIM_CONFLICT` — optimistic-lock / concurrent next. */
 const PIPELINE_NEXT_CLAIM_CONFLICT_CODE = 'PIPELINE_NEXT_CLAIM_CONFLICT';
@@ -34,10 +43,31 @@ interface PipelineState {
   event_page?: { limit: number; next_before: string | null; detail_level: 'default' | 'debug' };
 }
 
+/**
+ * Loads pipeline status, paginates events, and subscribes to Realtime inserts on `pipeline_events`
+ * plus `audits` updates for the given audit id.
+ *
+ * **Subscriptions:** the Supabase channel is created only when `auditId` changes — not when the
+ * `load` callback identity changes. Query shape (`detailLevel`, `eventLimit`) is normalized via
+ * `pipelineQueryOpts` so refetches track those primitives without tearing down Realtime.
+ *
+ * **Audit navigation:** on `auditId` change, `useLayoutEffect` clears errors, pipeline snapshot, and
+ * `runNextPhaseBusy` before paint, and invalidates in-flight `getPipelineStatus` results so stale
+ * payloads cannot repopulate state after route change.
+ */
 export function usePipeline(
   auditId: string | undefined,
   options?: { detailLevel?: 'default' | 'debug'; eventLimit?: number },
 ) {
+  const pipelineQueryOpts = useMemo(
+    () => ({
+      detailLevel: (options?.detailLevel ?? 'default') as 'default' | 'debug',
+      eventLimit: options?.eventLimit,
+      maxEventsInMemory: UI_POLICY.pipeline.maxEventsInMemory,
+    }),
+    [options?.detailLevel, options?.eventLimit],
+  );
+
   const [state, setState] = useState<PipelineState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +76,12 @@ export function usePipeline(
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stateRef = useRef<PipelineState | null>(null);
   const loadRequestIdRef = useRef(0);
+  const auditIdForLoadingRef = useRef<string | undefined>(auditId);
   const runNextPhaseInFlightRef = useRef(false);
   /** UI: POST /pipeline/next in flight (server may still show `review` until claim + orchestrator update land). */
   const [runNextPhaseBusy, setRunNextPhaseBusy] = useState(false);
-  useEffect(() => {
+  // Sync before paint so event handlers (e.g. loadMoreEvents) see the latest committed pipeline snapshot.
+  useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
 
@@ -68,73 +100,109 @@ export function usePipeline(
     setPipelineErrorExtras(null);
   }, []);
 
-  // Load initial state (only block UI when we have no cached pipeline snapshot yet)
+  // Before paint when `auditId` changes: drop stale snapshot, clear errors, and invalidate in-flight loads
+  // so a slow GET for the previous audit cannot call setState after navigation.
+  useLayoutEffect(() => {
+    const idChanged = auditIdForLoadingRef.current !== auditId;
+    auditIdForLoadingRef.current = auditId;
+
+    runNextPhaseInFlightRef.current = false;
+    setRunNextPhaseBusy(false);
+    clearFailure();
+
+    if (!auditId) {
+      setState(null);
+      setLoading(false);
+      if (idChanged) loadRequestIdRef.current += 1;
+      return;
+    }
+    if (idChanged) loadRequestIdRef.current += 1;
+    setState(null);
+    setLoading(true);
+  }, [auditId, clearFailure]);
+
+  // Refresh pipeline snapshot from GET /pipeline/status for the current audit.
   const load = useCallback(async (): Promise<PipelineState | null> => {
     if (!auditId) return null;
-    const initialEmpty = stateRef.current === null;
-    if (initialEmpty) setLoading(true);
+    const requestId = ++loadRequestIdRef.current;
+    setLoading(true);
     try {
-      const requestId = ++loadRequestIdRef.current;
       const data = await api.getPipelineStatus(auditId, {
-        detail_level: options?.detailLevel ?? 'default',
-        limit: options?.eventLimit ?? UI_POLICY.pipeline.maxEventsInMemory,
+        detail_level: pipelineQueryOpts.detailLevel,
+        limit: pipelineQueryOpts.eventLimit ?? pipelineQueryOpts.maxEventsInMemory,
       });
       if (requestId !== loadRequestIdRef.current) return null;
       setState(data);
       clearFailure();
       return data as PipelineState;
     } catch (err) {
-      captureFailure(err);
+      if (requestId === loadRequestIdRef.current) {
+        captureFailure(err);
+      }
       return null;
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [auditId, captureFailure, clearFailure, options?.detailLevel, options?.eventLimit]);
+  }, [
+    auditId,
+    captureFailure,
+    clearFailure,
+    pipelineQueryOpts.detailLevel,
+    pipelineQueryOpts.eventLimit,
+    pipelineQueryOpts.maxEventsInMemory,
+  ]);
 
-  // Subscribe to realtime pipeline events
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
+  const maxEventsInMemoryRef = useRef(pipelineQueryOpts.maxEventsInMemory);
+  maxEventsInMemoryRef.current = pipelineQueryOpts.maxEventsInMemory;
+
+  // Fetch when audit id or query shape changes — without tearing down the Realtime channel when only `load` identity changes.
   useEffect(() => {
     if (!auditId) return;
+    void loadRef.current();
+  }, [auditId, pipelineQueryOpts.detailLevel, pipelineQueryOpts.eventLimit]);
 
-    load();
+  // Subscribe to realtime pipeline events (lifecycle tied to auditId only).
+  useEffect(() => {
+    if (!auditId) return;
 
     const channel = supabase
       .channel(`pipeline-${auditId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'pipeline_events',
-          filter: `audit_id=eq.${auditId}`,
-        },
-        (payload) => {
-          const newEvent = payload.new as PipelineEvent;
+        buildPipelineRealtimeEventsInsertSubscribe(auditId),
+        (payload: PipelineRealtimePostgresChangePayload) => {
+          const newEvent = parsePipelineEventInsertPayload(payload.new);
+          if (!newEvent) return;
           setState(prev => {
             if (!prev) return prev;
+            const cap = maxEventsInMemoryRef.current;
             return {
               ...prev,
-              events: [newEvent, ...prev.events].slice(0, UI_POLICY.pipeline.maxEventsInMemory),
+              events: [newEvent, ...prev.events]
+                .sort(comparePipelineEventsNewestFirst)
+                .slice(0, cap),
             };
           });
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'audits',
-          filter: `id=eq.${auditId}`,
-        },
-        (payload) => {
-          const updated = payload.new as Record<string, unknown>;
+        buildPipelineRealtimeAuditsUpdateSubscribe(auditId),
+        (payload: PipelineRealtimePostgresChangePayload) => {
+          const updated = parseAuditsRealtimePatch(payload.new);
+          if (!updated) return;
           setState(prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              status: updated.status as string,
-              current_phase: updated.current_phase as number,
-              tokens_used: updated.tokens_used as number,
+              ...(updated.status !== undefined ? { status: updated.status } : {}),
+              ...(updated.current_phase !== undefined ? { current_phase: updated.current_phase } : {}),
+              ...(updated.tokens_used !== undefined ? { tokens_used: updated.tokens_used } : {}),
             };
           });
         }
@@ -146,7 +214,7 @@ export function usePipeline(
     return () => {
       channel.unsubscribe();
     };
-  }, [auditId, load]);
+  }, [auditId]);
 
   // Actions
   const startPipeline = useCallback(async () => {
@@ -164,9 +232,12 @@ export function usePipeline(
 
   const runNextPhase = useCallback(async () => {
     if (!auditId) return;
+    // Single-flight: read + assign synchronously before any await (same JS turn = atomic vs double-submit).
     if (runNextPhaseInFlightRef.current) return;
     runNextPhaseInFlightRef.current = true;
-    setRunNextPhaseBusy(true);
+    flushSync(() => {
+      setRunNextPhaseBusy(true);
+    });
     try {
       await api.runNextPhase(auditId);
       const qc = getGlcQueryClient();
@@ -243,20 +314,25 @@ export function usePipeline(
   const loadMoreEvents = useCallback(async () => {
     if (!auditId || !stateRef.current?.event_page?.next_before) return;
     const next = await api.getPipelineStatus(auditId, {
-      detail_level: options?.detailLevel ?? 'default',
-      limit: options?.eventLimit ?? UI_POLICY.pipeline.maxEventsInMemory,
+      detail_level: pipelineQueryOpts.detailLevel,
+      limit: pipelineQueryOpts.eventLimit ?? pipelineQueryOpts.maxEventsInMemory,
       before: stateRef.current.event_page.next_before,
     });
     setState(prev => {
       if (!prev) return prev;
-      const merged = [...prev.events, ...next.events].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const merged = [...prev.events, ...next.events].sort(comparePipelineEventsNewestFirst);
       return {
         ...prev,
         ...next,
-        events: merged.slice(0, UI_POLICY.pipeline.maxEventsInMemory),
+        events: merged.slice(0, pipelineQueryOpts.maxEventsInMemory),
       };
     });
-  }, [auditId, options?.detailLevel, options?.eventLimit]);
+  }, [
+    auditId,
+    pipelineQueryOpts.detailLevel,
+    pipelineQueryOpts.eventLimit,
+    pipelineQueryOpts.maxEventsInMemory,
+  ]);
 
   return {
     state,

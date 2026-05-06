@@ -1,16 +1,17 @@
 /**
- * Unified Plan surface (roadmap Gantt vs seasonal timeline vs delivery board) under `/plan/:id` and `/portal/plan/:id`.
+ * Unified Plan surface (roadmap Gantt vs delivery board; optional table in ADR Phase 3) under `/plan/:id` and `/portal/plan/:id`.
  * Legacy `/roadmap/:id` and `/timeline/:id` paths redirect to canonical plan URLs (`LegacyPlanPathRedirect`).
+ * Legacy `?view=timeline` is normalized to Board when the delivery board rollout is on.
  */
 import { APP_FEATURE_FLAGS, type FeatureRolloutMode } from './app-feature-flags';
 
 export const PORTAL_PLAN_VIEW_QUERY_KEY = 'view' as const;
 
-export type PortalPlanViewParam = 'roadmap' | 'timeline' | 'board';
+export type PortalPlanViewParam = 'roadmap' | 'board' | 'table';
 
 /** Default `view` when the query string omits `view` — board after Delivery Board rollout reaches `ga` (ADR Delivery Board). */
 export function defaultPortalPlanSurfaceFromRollout(mode: FeatureRolloutMode): PortalPlanViewParam {
-  return mode === 'ga' ? 'board' : 'timeline';
+  return mode === 'ga' ? 'board' : 'roadmap';
 }
 
 export function defaultPortalPlanViewWhenQueryMissing(): PortalPlanViewParam {
@@ -24,6 +25,12 @@ export function parsePortalPlanViewParam(raw: string | null): PortalPlanViewPara
   const t = String(raw).trim();
   if (t === 'roadmap' || t === 'Roadmap') return 'roadmap';
   if (t === 'board' || t === 'Board') return 'board';
-  if (t === 'timeline' || t === 'Timeline') return 'timeline';
-  return 'timeline';
+  if (t === 'table' || t === 'Table') return 'table';
+  /** Legacy narrative tab URL — treated as board when board rollout is active, else roadmap. */
+  if (t === 'timeline' || t === 'Timeline') {
+    return defaultPortalPlanSurfaceFromRollout(APP_FEATURE_FLAGS.planDeliveryBoardRolloutMode) === 'board'
+      ? 'board'
+      : 'roadmap';
+  }
+  return 'board';
 }

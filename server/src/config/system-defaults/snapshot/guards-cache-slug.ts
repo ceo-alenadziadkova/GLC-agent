@@ -10,6 +10,10 @@ export const SYSTEM_DEFAULTS_SNAPSHOT_ROBOTS = {
 
 export const SYSTEM_DEFAULTS_SNAPSHOT_DOMAIN_CACHE = {
   ttlHours: 48,
+  /** Cache read / write / delete: retry on likely-transient PostgREST / network errors. */
+  writeRetryMaxAttempts: 4,
+  writeRetryBaseDelayMs: 200,
+  writeRetryJitterMs: 120,
 } as const;
 
 export const SYSTEM_DEFAULTS_SNAPSHOT_LINK_SLUG = {

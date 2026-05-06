@@ -27,6 +27,7 @@ import { getOrchestrationSprintExportController } from './controllers/get-orches
 import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
 import { postOrchestratorPreviewController } from './controllers/post-orchestrator-preview.controller.js';
 import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
+import { postOrchestrationCompileController } from './controllers/post-orchestration-compile.controller.js';
 import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
 import { getPlanBoardController } from './controllers/get-plan-board.controller.js';
@@ -130,6 +131,12 @@ auditsRouter.post(
   attachProfile,
   rejectGuestFromPortal,
   postOrchestrationPackController,
+);
+auditsRouter.post(
+  '/:id/orchestration/compile',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationCompileController,
 );
 auditsRouter.post(
   '/:id/orchestration/pack/regenerate',

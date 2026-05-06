@@ -12,17 +12,17 @@ describe('planOrchestrationIncludeTimelineForUnifiedPlanView', () => {
     ).planBoardDeferTimelineFetchOnBoardTabEnabled = originalDefer;
   });
 
-  it('returns false for board when defer flag is on', () => {
+  it('returns false for board and table when defer flag is on', () => {
     (APP_FEATURE_FLAGS as { planBoardDeferTimelineFetchOnBoardTabEnabled: boolean }).planBoardDeferTimelineFetchOnBoardTabEnabled =
       true;
     expect(planOrchestrationIncludeTimelineForUnifiedPlanView('board')).toBe(false);
+    expect(planOrchestrationIncludeTimelineForUnifiedPlanView('table')).toBe(false);
   });
 
-  it('returns true for roadmap and timeline when defer flag is on', () => {
+  it('returns true for roadmap when defer flag is on', () => {
     (APP_FEATURE_FLAGS as { planBoardDeferTimelineFetchOnBoardTabEnabled: boolean }).planBoardDeferTimelineFetchOnBoardTabEnabled =
       true;
     expect(planOrchestrationIncludeTimelineForUnifiedPlanView('roadmap')).toBe(true);
-    expect(planOrchestrationIncludeTimelineForUnifiedPlanView('timeline')).toBe(true);
   });
 
   it('returns true for board when defer flag is off', () => {

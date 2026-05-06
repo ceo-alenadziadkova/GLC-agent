@@ -1,16 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import * as featureFlags from '../config/feature-flags.js';
 import { enrichIntakeMetadata } from '../services/context-builder/enrich-intake-metadata.js';
-
-const ORIGINAL_ENV = { ...process.env };
 
 describe('enrichIntakeMetadata project context envelope flag', () => {
   afterEach(() => {
-    process.env = { ...ORIGINAL_ENV };
+    vi.restoreAllMocks();
   });
 
-  it('omits intake_project_context_envelope when FEATURE_PROJECT_CONTEXT_ENVELOPE is not enabled', () => {
-    process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE = 'false';
+  it('omits intake_project_context_envelope when facade reports project context envelope off', () => {
+    vi.spyOn(featureFlags, 'isProjectContextEnvelopeEnabled').mockReturnValue(false);
     const out = enrichIntakeMetadata({
       allResponses: {
         a2: 'Healthcare',
@@ -23,8 +22,8 @@ describe('enrichIntakeMetadata project context envelope flag', () => {
     expect(out.intake_project_context_envelope).toBeUndefined();
   });
 
-  it('includes intake_project_context_envelope when FEATURE_PROJECT_CONTEXT_ENVELOPE is enabled', () => {
-    process.env.FEATURE_PROJECT_CONTEXT_ENVELOPE = 'true';
+  it('includes intake_project_context_envelope when facade reports project context envelope on', () => {
+    vi.spyOn(featureFlags, 'isProjectContextEnvelopeEnabled').mockReturnValue(true);
     const out = enrichIntakeMetadata({
       allResponses: {
         a2: 'Healthcare',

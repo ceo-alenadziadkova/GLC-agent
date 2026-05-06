@@ -1,9 +1,11 @@
 import { useId } from 'react';
 import { Link } from 'react-router';
 
-import { buildAppRoute } from '../../config/route-paths';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { cn } from '../../components/ui/utils';
+import { useProfile } from '../../hooks/useProfile';
+import { buildPlanWorkspaceHref } from '../../lib/plan-cross-nav';
 
 /** Consultant-only switch between Strategy Lab tooling and Plan execution surface. */
 export type StrategyLabWorkbenchSegmentActive = 'orchestration' | 'plan';
@@ -29,9 +31,16 @@ export function StrategyLabWorkbenchSegmentedNav({
   orchestrationHref: orchestrationHrefProp,
 }: StrategyLabWorkbenchSegmentedNavProps) {
   const descriptionId = useId();
+  const { isClient } = useProfile();
   const copy = STRATEGY_LAB_COPY.workbenchSegment;
-  const orchestrationHref = orchestrationHrefProp ?? buildAppRoute.strategy(auditId);
-  const roadmapHref = buildAppRoute.plan(auditId);
+  const planShapeHref = buildPlanWorkspaceHref({ auditId, isClient, mode: 'shape' });
+  const planExecuteHref = buildPlanWorkspaceHref({
+    auditId,
+    isClient,
+    mode: 'execute',
+    view: primaryPlanWorkbenchViewForStrategyLinks(),
+  });
+  const orchestrationHref = orchestrationHrefProp ?? planShapeHref;
 
   return (
     <nav aria-label={copy.ariaLabel} className="w-full">
@@ -55,7 +64,7 @@ export function StrategyLabWorkbenchSegmentedNav({
           {copy.orchestrationLabel}
         </Link>
         <Link
-          to={roadmapHref}
+          to={planExecuteHref}
           aria-current={active === 'plan' ? 'page' : undefined}
           className={cn(
             'focus-visible:ring-ring text-center text-sm font-semibold no-underline transition-colors rounded-md px-3 py-2 outline-none flex-1 min-w-0',

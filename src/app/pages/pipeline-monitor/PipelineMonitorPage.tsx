@@ -383,7 +383,7 @@ export function PipelineMonitorPage() {
       <PostReviewDomainRerunDialog
         open={!isClient && postReviewRerunPrompt !== null}
         selectablePhaseIds={postReviewRerunPrompt ?? []}
-        busy={postReviewRerunBusy}
+        busy={postReviewRerunBusy || runNextPhaseBusy}
         onDismissContinue={handlePostReviewContinueWithoutRerun}
         onRetrySelectedPhases={handlePostReviewRetrySelectedThenContinue}
       />

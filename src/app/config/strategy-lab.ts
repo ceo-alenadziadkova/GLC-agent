@@ -2,6 +2,9 @@ import { DOMAIN_KEYS } from '../data/auditTypes';
 
 export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
+/** Initiative list buckets on Strategy Lab (aligned with `audit_strategy` shape). */
+export type StrategyInitiativeBucket = 'quick_wins' | 'medium_term' | 'strategic';
+
 /** In-page anchors for Strategy Lab sticky section navigation (`/strategy/:id`). */
 export const STRATEGY_LAB_PAGE_ANCHORS = {
   /** IA phase 1: benchmarks + constraint overrides (consultant reference region). */

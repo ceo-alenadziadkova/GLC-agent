@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../../config/plan-delivery-board-ui';
 import { PLAN_WORKSPACE_UI_COPY } from '../../../config/plan-workspace-ui-copy.en';
-import { buildAppRoute } from '../../../config/route-paths';
+import { buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 import type { AuditState } from '../../../data/audit/contracts/state/audit-state.types';
 import type { StrategyJourneyStepComputed } from '../../../lib/strategy-journey-status';
 import { StrategyPlanningChrome } from '../StrategyPlanningChrome';
@@ -40,7 +41,10 @@ describe('StrategyPlanningChrome plan primary CTA', () => {
     const link = await screen.findByRole('link', {
       name: PLAN_WORKSPACE_UI_COPY.planWorkbenchConsultantPrimaryAriaLabel,
     });
-    expect(link).toHaveAttribute('href', buildAppRoute.strategy('audit-primary-cta-test'));
+    expect(link).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-primary-cta-test', isClient: false, mode: 'shape' }),
+    );
     expect(link).toHaveTextContent(PLAN_WORKSPACE_UI_COPY.planWorkbenchConsultantPrimaryLabel);
   });
 
@@ -50,7 +54,15 @@ describe('StrategyPlanningChrome plan primary CTA', () => {
     const link = await screen.findByRole('link', {
       name: PLAN_WORKSPACE_UI_COPY.planWorkbenchClientPrimaryAriaLabel,
     });
-    expect(link).toHaveAttribute('href', buildAppRoute.portalPlan('audit-primary-cta-test', 'board'));
+    expect(link).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({
+        auditId: 'audit-primary-cta-test',
+        isClient: true,
+        mode: 'execute',
+        view: primaryPlanWorkbenchViewForStrategyLinks(),
+      }),
+    );
     expect(link).toHaveTextContent(PLAN_WORKSPACE_UI_COPY.planWorkbenchClientPrimaryLabel);
   });
 });

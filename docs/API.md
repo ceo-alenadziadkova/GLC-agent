@@ -345,7 +345,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS; `strategy` initiatives are normalized to **v2** (decision/evidence/execution_paths) when possible |
 | `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
 | `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
-| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST /api/audits/:id/roadmap/manifest/draft-revisions`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + **`POST …/manifest/draft-revisions`** (consultant owner / platform admin; lane/owner **draft queue** behind **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`**) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, **draft-revisions**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **draft-revisions** also returns **`MANIFEST_DRAFT_REVISIONS_DISABLED`** when the board draft flag is off; **GET pack** is a thin read of `audit_strategy` after access check) |
+| `POST /api/audits/:id/roadmap/manifest-preview`, `POST/GET /api/audits/:id/roadmap/manifest-snapshots`, `POST /api/audits/:id/roadmap/manifest/draft-revisions`, `POST /api/audits/:id/orchestration/compile`, `POST/GET /api/audits/:id/orchestration/pack` | yes | yes | Roadmap manifest **preview** (no persist) + snapshots (immutable rows) + **`POST …/manifest/draft-revisions`** (consultant owner / platform admin; lane/owner **draft queue** behind **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`**) + **`POST …/orchestration/compile`** (snapshot + pack in one call) + deterministic GLC orchestration pack read/write (Strategy Lab UI behind `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`; **preview**, **manifest-snapshots**, **draft-revisions**, **compile**, and **orchestration/pack** return **403** `ORCHESTRATION_PACK_API_DISABLED` when **`FEATURE_ORCHESTRATION_PACK_API`** is off; **draft-revisions** also returns **`MANIFEST_DRAFT_REVISIONS_DISABLED`** when the board draft flag is off; **GET pack** is a thin read of `audit_strategy` after access check) |
 | `GET /api/audits/:id/orchestration/sprint-export` | yes | yes | Tabular **export** (JSON/CSV) of graph nodes; optional join with latest execution pack — same RLS/ownership as **GET pack**; portal **guest** rejected where pack routes reject guests |
 | `GET/PATCH /api/audits/:id/plan/board`, `PATCH …/cards/:cardId`, `POST …/cards`, `POST …/reconcile/preview`, `POST …/reconcile`, `POST …/telemetry/view-opened` | yes | partial | **Delivery Board** soft state (`plan_task_delivery`). **`GET`** returns `issues: [{ code: "no_pack" }]` or `issues: [{ code: "governance_blocked" }]` when pack input quality is degraded (Timeline parity). **`PATCH …/cards`** requires **`Idempotency-Key`** (UUID); **`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`** blocks mutations until the pack improves. When **`FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD=true`**, **`PATCH`** body **`lane`** returns **`409`** **`PLAN_BOARD_LANE_MANIFEST_DRAFT_REQUIRED`** (consultant must use **`POST …/roadmap/manifest/draft-revisions`**, then **Save manifest**). **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when strict manual policy is on (default): **`source='manual'`** rows may not enter **`in_progress`** (appendix §2.3). **`POST …/reconcile/preview`** is **`403`** **`PLAN_BOARD_RECONCILE_PREVIEW_DISABLED`** unless **`FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW=true`** (dry-run counts only). Portal **clients** see only pack-backed workflow columns (`next_up`–`done`). Telemetry endpoint records non-PII `plan_board_*` pipeline events — [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
 | `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
@@ -654,6 +654,16 @@ Returns the **client timeline read model** (seasonal buckets, lanes, truncated d
 **Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` when the pack API flag is off, `404` when the audit is missing or inaccessible.
 
 **Narrative gating (milestones, top_priorities):** the server may omit `milestones` and `top_priorities` when the caller is not entitled under `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` and staged `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (allowlist; mirrors SPA `orchestration-client-feature-gates`). Legacy `top_7d` / `top_30d` remain.
+
+---
+
+### `POST /api/audits/:id/orchestration/compile`
+
+**Preferred Strategy Lab path:** persists a **roadmap manifest snapshot** (same JSON body as `POST .../roadmap/manifest-snapshots`, plus optional `selected_action_ids`) and immediately runs the same pack build/persist flow as `POST .../orchestration/pack` with the new snapshot id. If pack build or persist fails after the snapshot insert, the controller **deletes** the new snapshot row so the audit does not retain a dangling compile attempt.
+
+**Response `200`:** `{ "manifest_snapshot_id", "pack", "orchestration_pack_version", "roadmap_version", "last_revision_diff", "last_revision_diff_summary", "plan_governance", "rollout_transition", "persisted_pack" }`.
+
+**Errors:** same families as manifest snapshot + pack run (`400` manifest validation / mismatch, `409` not ready / governance refine, `500` persist failures, `409 IDEMPOTENCY_PAYLOAD_MISMATCH`).
 
 ---
 
@@ -1066,6 +1076,8 @@ Returns `400` for terminal states (`completed`, `failed`, `cancelled`) and `409`
 
 Current pipeline state. Recent **`pipeline_events`** rows are capped at **`SYSTEM_DEFAULTS.routeQueries.pipelineStatusEventsLimit`** (default **50**; see `PIPELINE_STATUS_EVENTS_LIMIT` in `route_query_limits`).
 
+Events are returned newest-first, ordered by **`created_at` descending** with **`id` descending** as a tie-breaker when timestamps match. There is **no** separate **`ordering_seq`** column: the **`bigserial`** **`id`** is the contractual tie-breaker (see migration **`081`** and [`DATABASE.md`](./DATABASE.md#pipeline_events)).
+
 Orchestrator-emitted `error` rows may include **`data.error_code`** for stable downstream handling. Source of truth: **`PIPELINE_EVENT_ERROR_CODES`** in `pipeline_event_error_codes` (e.g. parallel block total failure, free snapshot capacity, free snapshot generic failure).
 
 **Response `200`:**
@@ -1114,6 +1126,8 @@ Submit review approval at a review gate. Optionally includes consultant and inte
 ```
 
 If the review was already approved earlier, route returns `{ "status": "already_approved" }`.
+
+The server applies the pending→approved transition on **`review_points`** and emits **`pipeline_events.event_type = review_approved`** in a **single Postgres transaction** (RPC **`pipeline_approve_review_emit_approved_event_atomic`**, migration **`082`**; notification delivery remains best-effort afterward).
 
 ---
 

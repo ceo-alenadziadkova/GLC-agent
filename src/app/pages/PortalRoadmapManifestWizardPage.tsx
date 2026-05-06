@@ -264,7 +264,7 @@ export function PortalRoadmapManifestWizardPage() {
   }
 
   const auditOverviewHref = buildAppRoute.portalAudit(auditId);
-  const timelineHref = buildAppRoute.portalPlan(auditId, 'timeline');
+  const timelineHref = buildAppRoute.portalPlan(auditId);
   const labHref = buildAppRoute.portalStrategy(auditId);
 
   return (

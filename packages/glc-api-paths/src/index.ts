@@ -179,6 +179,15 @@ export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
 }
 
+/** `POST` — atomically persist manifest snapshot then build/persist orchestration pack (preferred over split snapshot + run). */
+export function apiAuditsOrchestrationCompile(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/compile`;
+}
+
+export function idempotencyPostAuditsOrchestrationCompileKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationCompile(auditId));
+}
+
 export function apiAuditsPlanBoard(auditId: string): string {
   return `${apiAuditsPath(auditId)}/plan/board`;
 }

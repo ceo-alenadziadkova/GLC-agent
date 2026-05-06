@@ -1,9 +1,9 @@
 import { Link } from 'react-router';
 import { Path, SlidersHorizontal } from '@phosphor-icons/react';
 
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, RefCallback } from 'react';
 
-import type { StrategyInitiativeBucket } from './StrategyLabInitiativeEditDrawer';
+import type { StrategyInitiativeBucket } from '../../config/strategy-lab';
 import { StrategyLabOrchestratorListBody, type StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
 import { Button } from '../../components/ui/button';
 import {
@@ -51,7 +51,8 @@ export type StrategyLabInspectPackScrollBodyProps = {
   orchestratorPanelAnnouncement: string;
   selectedPackNodeId: string | null;
   onOrchestratorTabChange: (t: StrategyLabOrchestratorTabId) => void;
-  onOrchestratorTabListKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
+  onOrchestratorTablistKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
+  setOrchestratorTabButtonRef: (key: StrategyLabOrchestratorTabId) => RefCallback<HTMLButtonElement>;
   onSelectPackNodeId: (id: string | null) => void;
   openInitiativeEditor: (bucket: StrategyInitiativeBucket, initiative: StrategyInitiative) => void;
   planExecutionHref: string;
@@ -85,7 +86,8 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
     orchestratorPanelAnnouncement,
     selectedPackNodeId,
     onOrchestratorTabChange,
-    onOrchestratorTabListKeyDown,
+    onOrchestratorTablistKeyDown,
+    setOrchestratorTabButtonRef,
     onSelectPackNodeId,
     openInitiativeEditor,
     planExecutionHref,
@@ -101,7 +103,7 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
           className="scroll-mt-20"
         >
           <h2 id={definePhaseHeadingId} className="sr-only">
-            {STRATEGY_LAB_COPY.iaPhasesNav.defineLinkLabel}
+            {STRATEGY_LAB_COPY.strategyLabSectionAnchors.definePhaseHeading}
           </h2>
           <section id={STRATEGY_LAB_PAGE_ANCHORS.reference} className="border-border bg-card border-b">
             <Accordion type="single" collapsible className="px-4 [&_[data-slot=accordion-item]]:border-b-0">
@@ -249,7 +251,7 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
       <div className="p-4">
         {!isClient ? (
           <div id={STRATEGY_LAB_PAGE_ANCHORS.shapePack} tabIndex={-1} className="scroll-mt-20 outline-none" aria-hidden>
-            <span className="sr-only">{STRATEGY_LAB_COPY.iaPhasesNav.shapeLinkLabel}</span>
+            <span className="sr-only">{STRATEGY_LAB_COPY.strategyLabSectionAnchors.shapePackHeading}</span>
           </div>
         ) : null}
         {glcPackView && !isClient ? (
@@ -262,7 +264,7 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
               aria-label={STRATEGY_LAB_COPY.orchestratorTabs.tablistAriaLabel}
               aria-describedby={orchestratorTablistOverviewId}
               className="border-border flex flex-wrap gap-2 border-b pb-3"
-              onKeyDown={onOrchestratorTabListKeyDown}
+              onKeyDown={onOrchestratorTablistKeyDown}
             >
               {(
                 [
@@ -274,6 +276,7 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
               ).map(([key, label, desc]) => (
                 <button
                   key={key}
+                  ref={setOrchestratorTabButtonRef(key)}
                   type="button"
                   id={`strategy-lab-orchestrator-tab-${key}`}
                   role="tab"

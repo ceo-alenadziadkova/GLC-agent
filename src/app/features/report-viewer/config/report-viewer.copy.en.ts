@@ -62,7 +62,7 @@ export const REPORT_VIEWER_COPY = {
     actionPlanCsv: 'Action Plan CSV',
     exportPdf: 'Export PDF',
     viewStrategyLab: 'View Strategy Lab',
-    viewTimeline: 'Open timeline',
+    viewTimeline: 'Open Plan',
     actionPlanCsvTitle: 'Download Action Plan as CSV',
     exportPdfTitle: 'Download branded A4 PDF report',
     retry: 'Retry',
@@ -111,13 +111,13 @@ export const REPORT_VIEWER_COPY = {
   roadmapCockpit: {
     sectionTitle: 'What happens next',
     sectionHint:
-      'Open Timeline first to confirm scope, preview lanes, and generate or refresh roadmap versions.',
+      'Open Plan (Board, Roadmap, or Table) to confirm scope, delivery state, and schedule against the saved pack.',
     diagnosisLabel: 'Primary focus',
     diagnosisFallback:
-      'Review domain scores and findings below, then open Timeline to sequence execution across teams.',
-    ctaManifest: 'Open Timeline setup',
-    ctaTimeline: 'Open timeline',
-    ctaMarkNextStepOnTimeline: 'Open timeline priorities',
+      'Review domain scores and findings below, then open Plan to sequence execution across teams.',
+    ctaManifest: 'Open Plan setup',
+    ctaTimeline: 'Open Plan',
+    ctaMarkNextStepOnTimeline: 'Open Plan priorities',
     ctaCompare: 'Open roadmap comparison',
     ctaScorecard: 'Open domain scorecard',
     latestPlanChangeLabel: 'Latest plan change',
@@ -133,6 +133,6 @@ export const REPORT_VIEWER_COPY = {
     qualityFallbackLabel: 'Limited precision (strategy fallback)',
     qualityFallbackHint: 'Data gaps detected. Re-run director slices to improve roadmap confidence.',
     noPackCallout:
-      'No execution roadmap pack yet. After the audit completes, confirm your manifest in Timeline to generate the first version.',
+      'No execution roadmap pack yet. After the audit completes, confirm your manifest in Strategy Lab, then build the pack to populate Plan.',
   },
 } as const;

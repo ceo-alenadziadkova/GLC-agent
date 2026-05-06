@@ -4,10 +4,8 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { ReactNode } from 'react';
 
-import { buildAppRoute } from '../../../config/route-paths';
 import { ORCHESTRATION_LANE_LABELS } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../../config/orchestration-contract';
-import { STRATEGY_LAB_PAGE_ANCHORS } from '../../../config/strategy-lab';
 import { primaryPlanWorkbenchViewForStrategyLinks } from '../../../config/plan-delivery-board-ui';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import type { AuditState } from '../../../data/audit/contracts/state/audit-state.types';
@@ -15,6 +13,7 @@ import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/rep
 
 import { StrategyLab } from '../StrategyLabPage';
 import { QueryClient, QueryClientProvider } from '../../../lib/tanstack-react-query';
+import { buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 
 const useAuditMock = vi.fn();
 const reloadMock = vi.fn();
@@ -162,7 +161,7 @@ describe('StrategyLab steps strip', () => {
     featureFlagOverrides.clientOrchestrationLabReadOnlyEnabled = true;
   });
 
-  it('renders in-page Strategy Lab phase navigation for consultants', () => {
+  it('renders planning journey navigation for consultants (no duplicate in-page phase nav)', () => {
     useAuditMock.mockReturnValue({
       audit: buildAuditBase(),
       loading: false,
@@ -173,7 +172,7 @@ describe('StrategyLab steps strip', () => {
 
     renderLab();
 
-    expect(screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.iaPhasesNav.ariaLabel })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel })).toBeInTheDocument();
   });
 
   it('renders consultant workbench segmented navigation with orchestration selected', () => {
@@ -197,8 +196,19 @@ describe('StrategyLab steps strip', () => {
     const roadmap = within(wb).getByRole('link', {
       name: STRATEGY_LAB_COPY.workbenchSegment.planLabel,
     });
-    expect(orchestration).toHaveAttribute('href', buildAppRoute.strategy('audit-steps-strip'));
-    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-steps-strip'));
+    expect(orchestration).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-steps-strip', isClient: false, mode: 'shape' }),
+    );
+    expect(roadmap).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({
+        auditId: 'audit-steps-strip',
+        isClient: false,
+        mode: 'execute',
+        view: primaryPlanWorkbenchViewForStrategyLinks(),
+      }),
+    );
     expect(orchestration).toHaveAttribute('aria-current', 'page');
     expect(roadmap).not.toHaveAttribute('aria-current');
   });
@@ -220,13 +230,26 @@ describe('StrategyLab steps strip', () => {
 
     const links = within(nav).getAllByRole('link');
     expect(links).toHaveLength(4);
-    const strat = buildAppRoute.strategy('audit-steps-strip');
-    expect(links[0]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.definePhase}`);
-    expect(links[1]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.planSetup}`);
-    expect(links[2]).toHaveAttribute('href', `${strat}#${STRATEGY_LAB_PAGE_ANCHORS.shapePack}`);
+    expect(links[0]).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-steps-strip', isClient: false, mode: 'define' }),
+    );
+    expect(links[1]).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-steps-strip', isClient: false, mode: 'shape' }),
+    );
+    expect(links[2]).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-steps-strip', isClient: false, mode: 'shape' }),
+    );
     expect(links[3]).toHaveAttribute(
       'href',
-      buildAppRoute.plan('audit-steps-strip', primaryPlanWorkbenchViewForStrategyLinks()),
+      buildPlanWorkspaceHref({
+        auditId: 'audit-steps-strip',
+        isClient: false,
+        mode: 'execute',
+        view: primaryPlanWorkbenchViewForStrategyLinks(),
+      }),
     );
     expect(links[0]).toHaveAttribute('aria-current', 'step');
     expect(links[1]).not.toHaveAttribute('aria-current');

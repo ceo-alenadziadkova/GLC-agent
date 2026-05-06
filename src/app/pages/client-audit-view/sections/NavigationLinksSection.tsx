@@ -28,7 +28,7 @@ export function NavigationLinksSection({
       {isCompleted && !isFreeSnapshot && APP_FEATURE_FLAGS.clientTimelineEnabled && (
         <>
           <Link
-            to={buildAppRoute.portalPlan(auditId, 'timeline')}
+            to={buildAppRoute.portalPlan(auditId)}
             className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 no-underline transition-all mobile:px-4"
             style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
           >

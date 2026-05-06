@@ -1,8 +1,11 @@
 import type { PortalPlanViewParam } from '../config/portal-plan';
 import { PORTAL_PLAN_VIEW_QUERY_KEY } from '../config/portal-plan';
+import { PLAN_WORKSPACE_MODE_QUERY_KEY, type PlanWorkspaceMode } from '../config/plan-workspace-mode';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../config/plan-delivery-board-ui';
 import { buildAppRoute } from '../config/route-paths';
+import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 
-/** Shared deep-link parameter across Plan surfaces (Board / Roadmap / Timeline). */
+/** Shared deep-link parameter across Plan surfaces (Board / Roadmap / Table). */
 export const PORTAL_PLAN_FOCUS_QUERY_KEY = 'focus' as const;
 
 /**
@@ -26,9 +29,29 @@ export function readPlanFocusCanonicalKey(search: string): string | null {
 }
 
 /**
- * Adds or removes `focus` on a canonical plan href (`buildAppRoute.plan` / `portalPlan`).
+ * Maps `?focus=` (board canonical key or graph node id) to a pack graph node id for Roadmap timeline tasks.
  */
-export function mergeFocusIntoPlanHref(baseHref: string, focus: string | null | undefined): string {
+export function resolvePlanFocusToPackGraphNodeId(
+  focus: string | null | undefined,
+  pack: GlcOrchestrationPackView | null | undefined,
+): string | null {
+  const f = typeof focus === 'string' ? focus.trim() : '';
+  if (!f) return null;
+  const nodes = pack?.graph?.nodes;
+  if (!nodes?.length) return f;
+  if (nodes.some(n => n.id === f)) return f;
+  const byBoardKey = nodes.find(n => typeof n.board_identity_key === 'string' && n.board_identity_key === f);
+  return byBoardKey?.id ?? f;
+}
+
+/**
+ * Merges `mode` and/or `focus` onto a canonical plan href (`buildAppRoute.plan` / `portalPlan`).
+ * Omits `mode=execute` so execute is the default when the param is absent.
+ */
+export function mergePlanWorkspaceQueryIntoHref(
+  baseHref: string,
+  patch: { mode?: PlanWorkspaceMode; focus?: string | null },
+): string {
   const sharp = baseHref.indexOf('#');
   const pathPart = sharp === -1 ? baseHref : baseHref.slice(0, sharp);
   const hashPart = sharp === -1 ? '' : baseHref.slice(sharp);
@@ -36,13 +59,29 @@ export function mergeFocusIntoPlanHref(baseHref: string, focus: string | null | 
   const pathOnly = q === -1 ? pathPart : pathPart.slice(0, q);
   const rawQs = q === -1 ? '' : pathPart.slice(q + 1);
   const sp = new URLSearchParams(rawQs);
-  if (focus != null && String(focus).trim() !== '') {
-    sp.set(PORTAL_PLAN_FOCUS_QUERY_KEY, String(focus).trim());
-  } else {
-    sp.delete(PORTAL_PLAN_FOCUS_QUERY_KEY);
+  if (patch.mode !== undefined) {
+    if (patch.mode === 'execute') {
+      sp.delete(PLAN_WORKSPACE_MODE_QUERY_KEY);
+    } else {
+      sp.set(PLAN_WORKSPACE_MODE_QUERY_KEY, patch.mode);
+    }
+  }
+  if (patch.focus !== undefined) {
+    if (patch.focus != null && String(patch.focus).trim() !== '') {
+      sp.set(PORTAL_PLAN_FOCUS_QUERY_KEY, String(patch.focus).trim());
+    } else {
+      sp.delete(PORTAL_PLAN_FOCUS_QUERY_KEY);
+    }
   }
   const qs = sp.toString();
   return `${pathOnly}${qs ? `?${qs}` : ''}${hashPart}`;
+}
+
+/**
+ * Adds or removes `focus` on a canonical plan href (`buildAppRoute.plan` / `portalPlan`).
+ */
+export function mergeFocusIntoPlanHref(baseHref: string, focus: string | null | undefined): string {
+  return mergePlanWorkspaceQueryIntoHref(baseHref, { focus });
 }
 
 /**
@@ -63,4 +102,57 @@ export function buildPlanUrlWithViewPreservingForeignParams(args: {
   }
   const qs = sp.toString();
   return qs ? `${args.pathname}?${qs}` : args.pathname;
+}
+
+/** Sets `view=` and forces `mode=execute` (Board / Roadmap / Table strip). */
+export function buildPlanExecuteViewHref(args: {
+  pathname: string;
+  currentSearch: string;
+  nextView: PortalPlanViewParam;
+}): string {
+  const withView = buildPlanUrlWithViewPreservingForeignParams(args);
+  return mergePlanWorkspaceQueryIntoHref(withView, { mode: 'execute' });
+}
+
+/**
+ * Sets `mode=` while preserving `view`, `focus`, and other query pairs (toolbar deep-links).
+ */
+export function buildPlanUrlWithModePreservingForeignParams(args: {
+  pathname: string;
+  currentSearch: string;
+  nextMode: PlanWorkspaceMode;
+}): string {
+  const sp = new URLSearchParams(args.currentSearch.startsWith('?') ? args.currentSearch.slice(1) : args.currentSearch);
+  if (args.nextMode === 'execute') {
+    sp.delete(PLAN_WORKSPACE_MODE_QUERY_KEY);
+  } else {
+    sp.set(PLAN_WORKSPACE_MODE_QUERY_KEY, args.nextMode);
+  }
+  const qs = sp.toString();
+  return qs ? `${args.pathname}?${qs}` : args.pathname;
+}
+
+/**
+ * Canonical `/plan` / `/portal/plan` href with `view`, optional `focus`, and workspace `mode`.
+ */
+export function buildPlanWorkspaceHref(args: {
+  auditId: string;
+  isClient: boolean;
+  mode: PlanWorkspaceMode;
+  view?: PortalPlanViewParam;
+  focus?: string | null;
+}): string {
+  const view = args.view ?? primaryPlanWorkbenchViewForStrategyLinks();
+  const base = args.isClient ? buildAppRoute.portalPlan(args.auditId, view) : buildAppRoute.plan(args.auditId, view);
+  return mergePlanWorkspaceQueryIntoHref(base, { mode: args.mode, focus: args.focus });
+}
+
+/** ADR name — alias of {@link buildPlanWorkspaceHref}. */
+export function buildPlanModeHrefWithFocus(args: Parameters<typeof buildPlanWorkspaceHref>[0]): string {
+  return buildPlanWorkspaceHref(args);
+}
+
+/** True for consultant `/plan/:id` and client `/portal/plan/:id` workspace routes. */
+export function isCanonicalPlanWorkspacePathname(pathname: string): boolean {
+  return pathname.startsWith('/plan/') || pathname.startsWith('/portal/plan/');
 }

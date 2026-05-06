@@ -36,6 +36,7 @@ Larger product follow-ups: unified governance state machine service, IndexedDB f
 | --- | --- |
 | `smoke.spec.ts` | Public marketing, auth redirects, discovery wizard UX (step-by-step, f9) |
 | `protected-routes.spec.ts` | Extra protected deep links (pipeline, reports, strategy, plan/roadmap/timeline, settings, admin\*, portal\*) → `/login` |
+| _(server Vitest)_ | [`server/src/tests/user-isolation.test.ts`](../server/src/tests/user-isolation.test.ts) — cross-user API isolation (`GET`/`DELETE`/`pipeline/start|next` as non-owner → 404-style). [`server/src/tests/pipeline-route-concurrency.test.ts`](../server/src/tests/pipeline-route-concurrency.test.ts) — pipeline start/next/retry claim conflicts (`409`). Complements browser smoke; not a substitute for full RLS E2E against live Postgres. |
 | `snapshot-public-mocked.spec.ts` | Snapshot POST → poll → done with **Playwright network mocks** (guest cookie + pending token) |
 | `intake-public-mocked.spec.ts` | `IntakeBrief` shell with mocked `GET /api/intake/:token` |
 | `discovery-ui-fragment.spec.ts` | `GET /api/discover/ui-fragment` contract + both discovery URLs |

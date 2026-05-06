@@ -10,6 +10,7 @@ export {
   idempotencyPatchKey,
   idempotencyPostAuditRequestApproveKey,
   idempotencyPostAuditsCreateKey,
+  idempotencyPostAuditsOrchestrationCompileKey,
   idempotencyPostAuditsOrchestrationPackKey,
   idempotencyPostAuditsOrchestrationPackRegenerateKey,
   idempotencyPostAuditsOrchestrationSelectedInitiativeKey,

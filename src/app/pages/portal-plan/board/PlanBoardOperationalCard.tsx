@@ -17,6 +17,8 @@ import {
 } from '../../../components/ui/dropdown-menu';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
+import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
+import { InlineEditableText } from '../../../components/glc/InlineEditableText';
 import { laneDisplayLabel, manualCardNeedsPackAlignmentBanner } from './plan-board-card-helpers';
 
 export function PlanBoardOperationalCard(props: {
@@ -38,6 +40,12 @@ export function PlanBoardOperationalCard(props: {
   onEditLane?: () => Promise<void>;
   onDeleteCard?: () => Promise<void>;
   manifestDraftRevisionPending?: boolean;
+  /** When set with `canMutateCard`, title uses inline commit instead of opening the dialog by default. */
+  onCommitTitleInline?: (title: string) => Promise<void>;
+  /** When set with `laneInlineEnabled`, lane uses compact picker instead of the simple lane dialog. */
+  onCommitLaneInline?: (lane: string) => Promise<void>;
+  laneSelectOptions?: readonly InlineLaneOption[];
+  laneInlineEnabled?: boolean;
 }) {
   const focusLiRef = useRef<HTMLLIElement | null>(null);
 
@@ -97,7 +105,19 @@ export function PlanBoardOperationalCard(props: {
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="text-foreground flex flex-wrap items-center gap-2 text-sm leading-snug">
-            <span className="font-medium">{title}</span>
+            {props.canMutateCard && props.onCommitTitleInline ? (
+              <InlineEditableText
+                value={title}
+                ariaLabel={PLAN_BOARD_COPY.inlineTitleAriaLabel}
+                onCommit={props.onCommitTitleInline}
+                disabled={props.dragLocked}
+                minLength={2}
+                maxLength={200}
+                className="font-medium"
+              />
+            ) : (
+              <span className="font-medium">{title}</span>
+            )}
             {props.manifestDraftRevisionPending ? (
               <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
                 {PLAN_BOARD_COPY.manifestDraftPendingBadge}
@@ -106,8 +126,19 @@ export function PlanBoardOperationalCard(props: {
           </div>
 
           {props.card.lane ? (
-            <div className="text-muted-foreground text-xs">
-              {PLAN_BOARD_COPY.laneLabelPrefix}: {laneDisplayLabel(props.card.lane)}
+            <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
+              <span>{PLAN_BOARD_COPY.laneLabelPrefix}:</span>
+              {props.canMutateCard && props.laneInlineEnabled && props.onCommitLaneInline && props.laneSelectOptions?.length ? (
+                <InlineEditableLanePicker
+                  value={props.card.lane}
+                  options={props.laneSelectOptions}
+                  ariaLabel={PLAN_BOARD_COPY.inlineLaneAriaLabel}
+                  onCommit={props.onCommitLaneInline}
+                  disabled={props.dragLocked}
+                />
+              ) : (
+                <span>{laneDisplayLabel(props.card.lane)}</span>
+              )}
             </div>
           ) : null}
 
@@ -205,7 +236,7 @@ export function PlanBoardOperationalCard(props: {
                   void props.onEditTitle?.();
                 }}
               >
-                {PLAN_BOARD_COPY.menuEditTitleLabel}
+                {props.onCommitTitleInline ? PLAN_BOARD_COPY.menuEditTitleDialogLabel : PLAN_BOARD_COPY.menuEditTitleLabel}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!props.canMutateCard}
@@ -214,7 +245,9 @@ export function PlanBoardOperationalCard(props: {
                   void props.onEditLane?.();
                 }}
               >
-                {PLAN_BOARD_COPY.menuEditLaneLabel}
+                {props.laneInlineEnabled && props.onCommitLaneInline
+                  ? PLAN_BOARD_COPY.menuEditLaneDialogLabel
+                  : PLAN_BOARD_COPY.menuEditLaneLabel}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!props.canMutateCard}

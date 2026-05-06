@@ -29,7 +29,7 @@ describe('app-shell-nav', () => {
     const nav = buildConsultantNav(id, { timelinePrimaryUx: true });
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
-    expect(nav[7]?.to).toBe(buildAppRoute.plan(id, 'timeline'));
+    expect(nav[7]?.to).toBe(buildAppRoute.plan(id));
     expect(nav[8]?.to).toBe(`/reports/${id}`);
   });
 
@@ -38,7 +38,7 @@ describe('app-shell-nav', () => {
     const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
-    expect(nav.some(i => i.to === buildAppRoute.plan(id, 'timeline'))).toBe(true);
+    expect(nav.some(i => i.to === buildAppRoute.plan(id))).toBe(true);
   });
 
   it('buildConsultantNav omits timeline when orchestration roadmap UI flag is off', () => {
@@ -47,7 +47,7 @@ describe('app-shell-nav', () => {
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
     expect(nav[7]?.to).toBe(`/reports/${id}`);
-    expect(nav.some(i => i.to === buildAppRoute.plan(id, 'timeline'))).toBe(false);
+    expect(nav.some(i => i.to === buildAppRoute.plan(id))).toBe(false);
   });
 
   it('buildMobileBottomNavItems takes first four linked consultant destinations', () => {
@@ -79,7 +79,7 @@ describe('app-shell-nav', () => {
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,
-      buildAppRoute.portalPlan(id, 'timeline'),
+      buildAppRoute.portalPlan(id),
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
     ]);
@@ -92,7 +92,7 @@ describe('app-shell-nav', () => {
       '/portal',
       `/portal/audit/${id}`,
       `/portal/pipeline/${id}`,
-      buildAppRoute.portalPlan(id, 'timeline'),
+      buildAppRoute.portalPlan(id),
       `/portal/reports/${id}`,
     ]);
   });
@@ -124,18 +124,18 @@ describe('app-shell-nav', () => {
     expect(isNavItemActive('/admin/snapshots', '/admin/requests')).toBe(false);
   });
 
-  it('isNavItemActive distinguishes plan roadmap vs timeline tab via search', () => {
+  it('isNavItemActive distinguishes plan views via search', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const plan = buildAppRoute.plan(id, 'roadmap');
-    const planTl = buildAppRoute.plan(id, 'timeline');
-    expect(isNavItemActive(`/plan/${id}`, planTl, '?view=timeline')).toBe(true);
-    expect(isNavItemActive(`/plan/${id}`, planTl, '')).toBe(false);
-    expect(isNavItemActive(`/plan/${id}`, plan, '')).toBe(true);
-    expect(isNavItemActive(`/plan/${id}`, plan, '?view=timeline')).toBe(false);
+    const planRoadmap = buildAppRoute.plan(id, 'roadmap');
+    const planBoard = buildAppRoute.plan(id, 'board');
+    expect(isNavItemActive(`/plan/${id}`, planRoadmap, '?view=roadmap')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}`, planBoard, '?view=roadmap')).toBe(false);
+    expect(isNavItemActive(`/plan/${id}`, planBoard, '?view=board')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}`, planRoadmap, '?view=board')).toBe(false);
   });
 
-  it('isNavItemActive treats legacy timeline path as timeline tab nav target', () => {
+  it('isNavItemActive treats legacy timeline path as active for canonical plan board target', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    expect(isNavItemActive(`/timeline/${id}`, buildAppRoute.plan(id, 'timeline'), '')).toBe(true);
+    expect(isNavItemActive(`/timeline/${id}`, buildAppRoute.plan(id, 'board'), '')).toBe(true);
   });
 });

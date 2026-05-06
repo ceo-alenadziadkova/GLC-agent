@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import {
   DndContext,
   DragOverlay,
@@ -63,8 +63,9 @@ import {
 } from '../../../config/orchestration-roadmap-ui-copy.en';
 import type { OrchestrationLaneId } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { useProfile } from '../../../hooks/useProfile';
+import { usePlanFocusCanonicalToken } from '../../../hooks/usePlanFocusKey';
 import { useQueryClient } from '../../../lib/tanstack-react-query';
-import { buildPlanSurfaceHrefWithFocus, PORTAL_PLAN_FOCUS_QUERY_KEY } from '../../../lib/plan-cross-nav';
+import { buildPlanSurfaceHrefWithFocus, buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 import { invalidatePlanBoardQueriesAfterConflict } from '../../../lib/plan-board-query-invalidation';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
 import {
@@ -121,7 +122,7 @@ function resolveBoardSeasonPreset(args: {
 /** Operational columns + persisted `plan_task_delivery` rows alongside horizon buckets. */
 export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfaceProps) {
   const { unifiedShellTabActive } = props ?? {};
-  const [searchParams] = useSearchParams();
+  const focusToken = usePlanFocusCanonicalToken();
   const {
     auditId,
     audit,
@@ -132,13 +133,10 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   } = usePortalPlanOrchestration();
   const { isClient } = useProfile();
 
-  const focusCanonicalKey = searchParams.get(PORTAL_PLAN_FOCUS_QUERY_KEY);
-  const focusToken =
-    focusCanonicalKey != null && focusCanonicalKey.trim() !== '' ? focusCanonicalKey.trim() : null;
   const qc = useQueryClient();
   const showConsultantPlanTools = !isClient;
 
-  const strategyHref = isClient ? buildAppRoute.portalStrategy(auditId) : buildAppRoute.strategy(auditId);
+  const strategyStudioHref = buildPlanWorkspaceHref({ auditId, isClient, mode: 'shape' });
   const pack = packQuery.data?.pack ?? null;
 
   const loadPending =
@@ -203,6 +201,42 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   );
 
   const governanceReadOnly = Boolean(boardQuery.data?.issues?.some((i) => i.code === 'governance_blocked'));
+
+  const laneSelectOptions = useMemo(
+    () => ORCHESTRATION_LANE_IDS_ORDERED.map(laneId => ({ value: laneId, label: ORCHESTRATION_LANE_LABELS[laneId] })),
+    [],
+  );
+  const laneInlineEnabled = !(APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools);
+
+  const commitCardTitleInline = useCallback(
+    async (cardId: string, title: string) => {
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body: { expected_pack_version: orchestrationPackVersion, title: title.trim() },
+        });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        throw err;
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc],
+  );
+
+  const commitCardLaneInline = useCallback(
+    async (cardId: string, lane: string) => {
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body: { expected_pack_version: orchestrationPackVersion, lane },
+        });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        throw err;
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc],
+  );
 
   const dragLocked =
     orchestrationPackVersion <= 0 ||
@@ -408,7 +442,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
           <PortalPlanLayout auditId={auditId} isClient={isClient} audit={audit} activePlanView="board">
             <PortalPlanEmptyCallout title={PLAN_BOARD_COPY.emptyNoPackTitle} body={PLAN_BOARD_COPY.emptyNoPackBody}>
               <Button asChild variant="default" size="sm" className="no-underline">
-                <Link to={strategyHref}>{PLAN_BOARD_COPY.openStrategyLabCta}</Link>
+                <Link to={strategyStudioHref}>{PLAN_BOARD_COPY.openStrategyLabCta}</Link>
               </Button>
             </PortalPlanEmptyCallout>
           </PortalPlanLayout>
@@ -477,7 +511,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
 
             {boardOperationalVisible ?
               <PlanBoardUnifiedPlanStatusBanner
-                strategyHref={strategyHref}
+                strategyHref={strategyStudioHref}
                 governanceReadOnly={governanceReadOnly}
                 showOrphanReconcile={showConsultantPlanTools && orphanCount > 0}
                 reconcileProps={
@@ -501,7 +535,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
             {boardQuery.data?.issues?.some((i) => i.code === 'no_pack') ? (
               <PortalPlanEmptyCallout title={PLAN_BOARD_COPY.emptyNoPackTitle} body={PLAN_BOARD_COPY.emptyNoPackBody}>
                 <Button asChild variant="outline" size="sm" className="no-underline">
-                  <Link to={strategyHref}>{PLAN_BOARD_COPY.openStrategyLabCta}</Link>
+                  <Link to={strategyStudioHref}>{PLAN_BOARD_COPY.openStrategyLabCta}</Link>
                 </Button>
               </PortalPlanEmptyCallout>
             ) : null}
@@ -592,6 +626,10 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                                   canMutateCard={showConsultantPlanTools && !governanceReadOnly}
                                   onEditTitle={() => openTitleEdit(dto.id)}
                                   onEditLane={() => editCardLane(dto.id)}
+                                  onCommitTitleInline={t => commitCardTitleInline(dto.id, t)}
+                                  onCommitLaneInline={laneInlineEnabled ? l => commitCardLaneInline(dto.id, l) : undefined}
+                                  laneSelectOptions={laneSelectOptions}
+                                  laneInlineEnabled={laneInlineEnabled}
                                   onDeleteCard={() => setDeleteCardId(dto.id)}
                                   isFocusTarget={
                                     focusToken != null &&

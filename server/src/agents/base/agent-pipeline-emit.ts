@@ -2,8 +2,7 @@
  * Persist pipeline timeline events with observability trace fields.
  */
 
-import { supabase } from '../../services/supabase.js';
-import { getContext, updateContext } from '../../services/observability-context.js';
+import { insertPipelineEventRow } from '../../services/pipeline/events/insert-pipeline-event.js';
 
 export async function insertAgentPipelineEvent(params: {
   auditId: string;
@@ -13,17 +12,11 @@ export async function insertAgentPipelineEvent(params: {
   data?: Record<string, unknown>;
 }): Promise<void> {
   const { auditId, phase, eventType, message, data = {} } = params;
-  updateContext({ auditId });
-  const ctx = getContext();
-  await supabase.from('pipeline_events').insert({
-    audit_id: auditId,
+  await insertPipelineEventRow({
+    auditId,
     phase,
-    event_type: eventType,
+    eventType,
     message,
-    data: {
-      ...data,
-      trace_id: ctx?.traceId,
-      operation_id: ctx?.operationId,
-    },
+    data,
   });
 }

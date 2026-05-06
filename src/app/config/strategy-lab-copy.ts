@@ -11,28 +11,27 @@ export const STRATEGY_LAB_COPY = {
     all: 'All depths',
     baseline: 'Baseline only',
     deep: 'Deep only',
-    hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
+    hint: 'Filter nodes by director analysis depth. Roadmap remains the primary schedule surface.',
   },
   /** Consultant switch between orchestration tooling and plan execution surfaces (`/strategy` vs `/plan`). */
   workbenchSegment: {
     ariaLabel: 'Strategy Lab workspace mode',
     description:
-      'Strategy Lab defines the roadmap contract (context, manifest, pack). Plan is where delivery work runs — Board, Roadmap, or legacy Timeline tabs.',
+      'Strategy Lab defines the roadmap contract (context, manifest, pack). Plan is where delivery work runs — Board, Roadmap, or Table.',
     orchestrationLabel: 'Orchestration',
     /** Entry to plan execution (`/plan`) — pair with segmented Plan tabs. */
     planLabel: 'Plan',
     /** Visible under the control: disambiguates Plan vs in-page Roadmap/Timeline (no second progress UI). */
     surfaceHint:
-      'Strategy Lab = definition and rebuilds. Plan = Board (when rolled out), Gantt Roadmap, or legacy Timeline.',
+      'Strategy Lab = definition and rebuilds. Plan = Board (when rolled out), Gantt Roadmap, or Table.',
   },
-  /** In-page IA: three phases on `/strategy/:id` (consultant). */
-  iaPhasesNav: {
-    ariaLabel: 'Strategy Lab phases on this page',
-    intro:
-      'Work in three phases on this screen: define context, shape the saved pack, then publish and operate (manifest → build → Plan).',
-    defineLinkLabel: 'Define context',
-    shapeLinkLabel: 'Shape pack',
-    publishLinkLabel: 'Publish & operate',
+  /**
+   * SR-only headings for Strategy Lab in-page sections (`#define-phase`, `#shape-pack`).
+   * In-page hash jumps live on the planning journey strip (`StrategyJourneyHeader`); no separate phase nav.
+   */
+  strategyLabSectionAnchors: {
+    definePhaseHeading: 'Define context',
+    shapePackHeading: 'Shape pack',
   },
   /** Cross-surface journey: Strategy Lab preparation then Plan execution (consultant-facing header). */
   journeyStrip: {
@@ -49,7 +48,7 @@ export const STRATEGY_LAB_COPY = {
     step3Title: 'Pack',
     step3Hint: 'Critical path lists + initiatives — Shape pack section.',
     step4Title: 'Plan',
-    step4Hint: 'Open Plan for Board, Roadmap, or legacy Timeline — execution and ordering.',
+    step4Hint: 'Open Plan for Board, Roadmap, or Table — execution and ordering.',
     statusDone: 'Done',
     statusCurrent: 'Now',
     statusPending: 'Next',
@@ -57,29 +56,29 @@ export const STRATEGY_LAB_COPY = {
   /** Helper text under breadcrumb when Plan tabs are omitted (manifest wizard surface). */
   manifestWizardChrome: {
     contextHint:
-      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Plan (delivery board or roadmap when enabled, or legacy Timeline) from Strategy Lab once the pack is ready.',
+      'Set scenario and horizon here, save a manifest snapshot, then build your pack. Open Plan (Board, Roadmap, or Table) from Strategy Lab once the pack is ready.',
   },
   /** Nested Plan view tabs (schedule lanes vs timeline). */
   planViewSegment: {
     ariaLabel: 'Plan presentation',
-    description: 'Switch between delivery execution, schedule, and seasonal narrative projections.',
+    description: 'Switch between delivery execution, schedule, and tabular list projections.',
     boardTabLabel: 'Board',
     roadmapTabLabel: 'Roadmap',
-    timelineTabLabel: 'Timeline',
+    tableTabLabel: 'Table',
     /** Collapsible “learn more” control (reduces noise next to tabs). */
     learnMoreTrigger: 'How these views differ',
     learnMoreHide: 'Hide explanation',
     /** Visible under the segment control: how surfaces differ (expanded on demand). */
     differentiationIntro:
-      'Board: operational columns for delivery state (DnD and manual backlog). Roadmap: time-based schedule with filters and dependencies. Timeline: legacy seasonal narrative projection.',
+      'Board: operational columns for delivery state (DnD and manual backlog). Roadmap: time-based schedule with filters and dependencies. Table: all tasks in one list with filters and grouping.',
     /** Shown when Roadmap is active — one short line under tabs. */
     roadmapContextHint: 'Schedule view: inspect timing, filters, dependencies, baseline. Drag-and-drop workflow lives on Board.',
     /** Shown when Board is active. */
-    boardContextHint: 'Execution board: move cards across columns and add backlog work. Timeline bars follow the packed schedule.',
-    /** Shown when Timeline is active. */
-    timelineContextHint: 'Legacy seasonal lanes (read-focused). Prefer Roadmap or Board for structured delivery.',
-    /** Compact Plan toolbar: opens menu with Board vs Roadmap vs Timeline guidance. */
-    toolbarViewsHelpAriaLabel: 'Help: how Board, Roadmap, and Timeline differ',
+    boardContextHint: 'Execution board: move cards across columns and add backlog work. Dates follow the packed schedule on Roadmap.',
+    /** Shown when Table is active. */
+    tableContextHint: 'Table view: scan every delivery row, filter by lane or column, and batch edits where enabled.',
+    /** Compact Plan toolbar: opens menu with Board vs Roadmap vs Table guidance. */
+    toolbarViewsHelpAriaLabel: 'Help: how Board, Roadmap, and Table differ',
   },
   /** Breadcrumb above Plan chrome (Roadmap / Timeline pages). */
   planSurfaceBreadcrumb: {
@@ -189,6 +188,7 @@ export const STRATEGY_LAB_COPY = {
     buildPackBlockedAriaHint: 'Save the current manifest snapshot before building the pack.',
     /** Tooltip-like label clarifying primary CTA intent. */
     buildPackPrimaryAria: 'Build orchestration pack from the saved manifest snapshot',
+    compilePlanPrimaryAria: 'Compile plan — save manifest snapshot and build orchestration pack',
     saveSnapshotSecondaryAria: 'Save the current manifest as a new snapshot',
     domainBenchmarksTitle: 'Domain benchmarks',
     domainBenchmarksHint:
@@ -303,7 +303,7 @@ export const STRATEGY_LAB_COPY = {
  * Use for tooling, docs navigation, or future role-scoped loaders without breaking existing imports.
  */
 export const STRATEGY_LAB_COPY_CONTEXT = {
-  iaPhasesOnPage: STRATEGY_LAB_COPY.iaPhasesNav,
+  strategyLabSectionAnchors: STRATEGY_LAB_COPY.strategyLabSectionAnchors,
   consultantWorkbench: STRATEGY_LAB_COPY.workbenchSegment,
   journey: STRATEGY_LAB_COPY.journeyStrip,
   planSurfaces: {

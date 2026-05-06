@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { insertPipelineEventRow } from './pipeline/events/insert-pipeline-event.js';
 import type { QualityFlag, QualityGateReport } from '../types/audit.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
@@ -148,13 +149,13 @@ export class ConsistencyChecker {
       checked_at: new Date().toISOString(),
     };
 
-    // Persist to pipeline_events — frontend reads this for the ReviewPointModal
-    await supabase.from('pipeline_events').insert({
-      audit_id: auditId,
+    await insertPipelineEventRow({
+      auditId,
       phase: gatePhase,
-      event_type: PIPELINE_EVENT_TYPES.qualityGate,
+      eventType: PIPELINE_EVENT_TYPES.qualityGate,
       message: passed ? qualityGateEventMessagePassed() : qualityGateEventMessageWarnings(warningCount),
-      data: report,
+      data: report as unknown as Record<string, unknown>,
+      mergeObservabilityContext: false,
     });
 
     if (!passed) {

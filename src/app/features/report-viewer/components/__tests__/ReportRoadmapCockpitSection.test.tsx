@@ -3,10 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
 import { buildAppRoute } from '../../../../config/route-paths';
+import { REPORT_VIEWER_COPY } from '../../config/report-viewer.copy.en';
 import { ReportRoadmapCockpitSection } from '../ReportRoadmapCockpitSection';
 
 describe('ReportRoadmapCockpitSection', () => {
-  it('renders timeline and manifest CTA to provided targets', () => {
+  it('renders manifest CTA to provided target', () => {
     render(
       <MemoryRouter initialEntries={['/reports/audit-1']}>
         <ReportRoadmapCockpitSection
@@ -20,21 +21,16 @@ describe('ReportRoadmapCockpitSection', () => {
             criticalIssues: [{ title: 'Top issue' }],
             coverage: { coveredDomains: ['seo_digital'] },
           } as never}
-          timelineHref={buildAppRoute.plan('audit-1', 'timeline')}
-          manifestHref={`${buildAppRoute.plan('audit-1', 'timeline')}#manifest-setup`}
-          compareHref={`${buildAppRoute.plan('audit-1', 'timeline')}#orchestration-panel`}
+          manifestHref={`${buildAppRoute.plan('audit-1', 'board')}#manifest-setup`}
+          compareHref={`${buildAppRoute.plan('audit-1', 'board')}#orchestration-panel`}
           hasOrchestrationPack={false}
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /^Open timeline$/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: REPORT_VIEWER_COPY.roadmapCockpit.ctaManifest })).toHaveAttribute(
       'href',
-      buildAppRoute.plan('audit-1', 'timeline'),
-    );
-    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
-      'href',
-      `${buildAppRoute.plan('audit-1', 'timeline')}#manifest-setup`,
+      `${buildAppRoute.plan('audit-1', 'board')}#manifest-setup`,
     );
   });
 
@@ -52,17 +48,15 @@ describe('ReportRoadmapCockpitSection', () => {
             criticalIssues: [{ title: 'Top issue' }],
             coverage: { coveredDomains: ['seo_digital'] },
           } as never}
-          timelineHref={buildAppRoute.portalPlan('audit-1', 'timeline')}
-          manifestHref={`${buildAppRoute.portalPlan('audit-1', 'timeline')}#manifest-setup`}
-          compareHref={`${buildAppRoute.portalPlan('audit-1', 'timeline')}#orchestration-panel`}
+          manifestHref={`${buildAppRoute.portalPlan('audit-1', 'board')}#manifest-setup`}
+          compareHref={`${buildAppRoute.portalPlan('audit-1', 'board')}#orchestration-panel`}
           hasOrchestrationPack={true}
           audience="portal"
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /^Open timeline$/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: REPORT_VIEWER_COPY.roadmapCockpit.ctaManifest })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open roadmap comparison/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open domain scorecard/i })).not.toBeInTheDocument();
   });

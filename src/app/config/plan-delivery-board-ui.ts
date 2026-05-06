@@ -27,5 +27,5 @@ export function isPlanDeliveryBoardUiEnabled(): boolean {
  */
 export function planOrchestrationIncludeTimelineForUnifiedPlanView(activeView: PortalPlanViewParam): boolean {
   if (!APP_FEATURE_FLAGS.planBoardDeferTimelineFetchOnBoardTabEnabled) return true;
-  return activeView !== 'board';
+  return activeView !== 'board' && activeView !== 'table';
 }

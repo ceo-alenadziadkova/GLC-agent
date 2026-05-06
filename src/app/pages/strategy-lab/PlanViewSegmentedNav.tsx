@@ -8,7 +8,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
-import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../config/route-paths';
@@ -16,7 +15,7 @@ import { isPlanDeliveryBoardUiEnabled } from '../../config/plan-delivery-board-u
 import { cn } from '../../components/ui/utils';
 import { buildPlanUrlWithViewPreservingForeignParams } from '../../lib/plan-cross-nav';
 
-export type PlanViewSegmentActive = 'roadmap' | 'timeline' | 'board';
+export type PlanViewSegmentActive = 'roadmap' | 'board' | 'table';
 
 export interface PlanViewSegmentedNavProps {
   auditId: string;
@@ -36,7 +35,7 @@ function segmentLinkClass(active: boolean): string {
 }
 
 /**
- * Consultant/client Plan segmented nav: Delivery Board (rollout), Roadmap (Gantt), legacy Timeline.
+ * Consultant/client Plan segmented nav: Delivery Board (rollout), Roadmap (Gantt), Table (list projection).
  */
 export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'default' }: PlanViewSegmentedNavProps) {
   const descriptionId = useId();
@@ -55,10 +54,10 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
     currentSearch,
     nextView: 'roadmap',
   });
-  const timelineHref = buildPlanUrlWithViewPreservingForeignParams({
+  const tableHref = buildPlanUrlWithViewPreservingForeignParams({
     pathname: planPath,
     currentSearch,
-    nextView: 'timeline',
+    nextView: 'table',
   });
   const boardHref = buildPlanUrlWithViewPreservingForeignParams({
     pathname: planPath,
@@ -66,7 +65,6 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
     nextView: 'board',
   });
   const showBoard = isPlanDeliveryBoardUiEnabled();
-  const showTimeline = APP_FEATURE_FLAGS.planUnifiedLegacyTimelineTabEnabled;
 
   const segmentNav = (
     <div
@@ -92,17 +90,18 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
       >
         {copy.roadmapTabLabel}
       </Link>
-      {showTimeline ? (
-        <Link
-          to={timelineHref}
-          aria-current={active === 'timeline' ? 'page' : undefined}
-          className={segmentLinkClass(active === 'timeline')}
-        >
-          {copy.timelineTabLabel}
-        </Link>
-      ) : null}
+      <Link
+        to={tableHref}
+        aria-current={active === 'table' ? 'page' : undefined}
+        className={segmentLinkClass(active === 'table')}
+      >
+        {copy.tableTabLabel}
+      </Link>
     </div>
   );
+
+  const contextHint =
+    active === 'roadmap' ? copy.roadmapContextHint : active === 'board' ? copy.boardContextHint : copy.tableContextHint;
 
   if (toolbar) {
     return (
@@ -129,8 +128,8 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
               <p className="m-0">{copy.boardContextHint}</p>
               <p className="m-0 font-medium">{copy.roadmapTabLabel}</p>
               <p className="m-0">{copy.roadmapContextHint}</p>
-              <p className="m-0 font-medium">{copy.timelineTabLabel}</p>
-              <p className="m-0">{copy.timelineContextHint}</p>
+              <p className="m-0 font-medium">{copy.tableTabLabel}</p>
+              <p className="m-0">{copy.tableContextHint}</p>
               <p className="border-border text-muted-foreground m-0 border-t pt-2 text-[length:var(--text-2xs)] leading-snug">{copy.differentiationIntro}</p>
             </div>
           </DropdownMenuContent>
@@ -146,10 +145,8 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
       </p>
       {segmentNav}
       <div className="text-muted-foreground mb-2 max-w-prose space-y-1 text-xs leading-snug md:max-w-2xl">
-        <p className="m-0">
-          {active === 'roadmap' ? copy.roadmapContextHint : active === 'board' ? copy.boardContextHint : copy.timelineContextHint}
-        </p>
-        {active === 'timeline' ? (
+        <p className="m-0">{contextHint}</p>
+        {active === 'roadmap' ? (
           <p className="m-0 text-[length:var(--text-2xs)] opacity-90">{ORCHESTRATION_UI_COPY.timelineExecutionRealismNote}</p>
         ) : null}
       </div>

@@ -78,7 +78,7 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     startFreshBodyMiddle: 'new audit. Quick scan scores are not carried into the new run.',
   },
   links: {
-    viewTimeline: 'Open timeline',
+    viewTimeline: 'Open Plan',
     viewReport: 'View your report',
     reportFinished: 'Your audit run has finished',
     viewStrategyLab: 'Strategy details',
@@ -103,7 +103,7 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     stageLabel: 'Company stage',
     budgetLabel: 'Budget band',
     teamLabel: 'Team scale',
-    openTimeline: 'Open timeline',
+    openTimeline: 'Open Plan',
     openTimelineEmptyPackHint:
       'If the timeline is empty, your consultant may still be finalizing the plan. It updates when they publish the next version.',
     noPackCalloutTitle: 'Timeline updating',
@@ -148,7 +148,7 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     selectionRequiresManifestHint:
       'Save or refresh roadmap inputs first so your selection can be applied to the next version.',
     selectionAppliedSuccessPrefix: 'Selection applied.',
-    selectionAppliedSuccessSuffix: 'Open timeline to review the updated roadmap.',
+    selectionAppliedSuccessSuffix: 'Open Plan to review the updated roadmap.',
     selectionAppliedError: 'Could not apply selected actions. Please try again.',
     adjustScopeTitle: 'Change scope or refresh the plan',
     adjustScopeBody:

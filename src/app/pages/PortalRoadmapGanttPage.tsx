@@ -9,11 +9,11 @@ import { useProfile } from '../hooks/useProfile';
 import { usePlanBoardQuery } from '../data/api/plan-board-queries';
 import { buildRoadmapGanttProjection } from '../lib/roadmap-gantt-mapper';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
-import { isPlanDeliveryBoardUiEnabled } from '../config/plan-delivery-board-ui';
+import { isPlanDeliveryBoardUiEnabled, primaryPlanWorkbenchViewForStrategyLinks } from '../config/plan-delivery-board-ui';
 import { buildAppRoute } from '../config/route-paths';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { PLAN_WORKSPACE_UI_COPY } from '../config/plan-workspace-ui-copy.en';
-import { mergeFocusIntoPlanHref } from '../lib/plan-cross-nav';
+import { buildPlanWorkspaceHref, mergeFocusIntoPlanHref } from '../lib/plan-cross-nav';
 import { PortalPlanLayout } from './portal-plan/PortalPlanLayout';
 import {
   PortalPlanOrchestrationProvider,
@@ -34,7 +34,7 @@ export type PortalRoadmapGanttSurfaceProps = {
   unifiedShellTabActive?: boolean | undefined;
 };
 
-/** Roadmap/Gantt Plan body; expects `PortalPlanOrchestrationProvider` above (shared with Timeline on `/plan`). */
+/** Roadmap/Gantt Plan body; expects `PortalPlanOrchestrationProvider` above (shared with Board/Table on `/plan`). */
 export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps) {
   const { unifiedShellTabActive } = props ?? {};
   const { auditId, audit, auditLoading: loading, auditError: error, timelineQuery, packQuery } =
@@ -42,8 +42,10 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
   const id = auditId;
   const { isClient } = useProfile();
 
-  const strategyHref = isClient ? buildAppRoute.portalStrategy(id) : buildAppRoute.strategy(id);
-  const timelineHref = isClient ? buildAppRoute.portalPlan(id, 'timeline') : buildAppRoute.plan(id, 'timeline');
+  const strategyStudioHref = buildPlanWorkspaceHref({ auditId: id, isClient, mode: 'shape' });
+  const primaryPlanWorkbenchView = primaryPlanWorkbenchViewForStrategyLinks();
+  const primaryPlanHref =
+    isClient ? buildAppRoute.portalPlan(id, primaryPlanWorkbenchView) : buildAppRoute.plan(id, primaryPlanWorkbenchView);
 
   const getDeliveryBoardHrefForPackNode = useCallback(
     (nodeId: string) => {
@@ -134,7 +136,7 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
         <PortalPlanLayout auditId={id} isClient={isClient} audit={audit} activePlanView="roadmap">
           <PortalPlanErrorState message={message}>
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={strategyHref}>{ORCHESTRATION_UI_COPY.planRoadmapBackToStrategyCta}</Link>
+              <Link to={strategyStudioHref}>{ORCHESTRATION_UI_COPY.planRoadmapBackToStrategyCta}</Link>
             </Button>
           </PortalPlanErrorState>
         </PortalPlanLayout>
@@ -173,12 +175,12 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
             <PortalPlanEmptyCallout title={emptyTitle} body={emptyBody}>
               {!isClient ? (
                 <Button asChild variant="default" size="sm" className="no-underline">
-                  <Link to={strategyHref}>{ORCHESTRATION_UI_COPY.planRoadmapBackToStrategyCta}</Link>
+                  <Link to={strategyStudioHref}>{ORCHESTRATION_UI_COPY.planRoadmapBackToStrategyCta}</Link>
                 </Button>
               ) : null}
               {mapperDrift ? (
                 <Button asChild variant="outline" size="sm" className="no-underline">
-                  <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.planRoadmapOpenTimelineFromEmptyCta}</Link>
+                  <Link to={primaryPlanHref}>{ORCHESTRATION_UI_COPY.planRoadmapOpenPrimaryPlanCta}</Link>
                 </Button>
               ) : null}
             </PortalPlanEmptyCallout>
@@ -211,8 +213,9 @@ export function PortalRoadmapGanttSurface(props?: PortalRoadmapGanttSurfaceProps
             <RoadmapGanttView
               auditId={id}
               projection={projection}
-              strategyHref={strategyHref}
+              strategyHref={strategyStudioHref}
               getDeliveryBoardHrefForPackNode={getDeliveryBoardHrefForPackNode}
+              orchestrationPack={pack}
               planBoardHydration={planBoardHydration}
               toolbarLeadingSlot={!isClient ? <PlanConsultantManualCardDialog /> : null}
             />

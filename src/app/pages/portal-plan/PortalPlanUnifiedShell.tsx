@@ -15,8 +15,9 @@ import {
   ORCHESTRATION_UI_COPY,
 } from '../../config/orchestration-roadmap-ui-copy.en';
 import { PLAN_BOARD_COPY } from '../../config/plan-board-copy.en';
+import { PLAN_WORKSPACE_UI_COPY } from '../../config/plan-workspace-ui-copy.en';
 
-export type PlanSurfaceBranch = 'roadmap' | 'timeline' | 'board';
+export type PlanSurfaceBranch = 'roadmap' | 'board' | 'table';
 
 export type PlanShellPublication = {
   title: string;
@@ -28,18 +29,14 @@ const DEFAULT_ROADMAP_META: PlanShellPublication = {
   subtitle: ORCHESTRATION_UI_COPY.planRoadmapShellSubtitle,
 };
 
-const DEFAULT_TIMELINE_SUBTITLE = APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled
-  ? ORCHESTRATION_IA_COPY.timelinePageSubtitleWhenPrimary
-  : ORCHESTRATION_UI_COPY.timelineHint;
-
-const DEFAULT_TIMELINE_META: PlanShellPublication = {
-  title: ORCHESTRATION_UI_COPY.timelineTitle,
-  subtitle: DEFAULT_TIMELINE_SUBTITLE,
-};
-
 const DEFAULT_BOARD_META: PlanShellPublication = {
   title: PLAN_BOARD_COPY.shellTitle,
   subtitle: PLAN_BOARD_COPY.shellSubtitleReadOnly,
+};
+
+const DEFAULT_TABLE_META: PlanShellPublication = {
+  title: PLAN_WORKSPACE_UI_COPY.tableShellTitle,
+  subtitle: PLAN_WORKSPACE_UI_COPY.tableShellSubtitle,
 };
 
 type UnifiedRegistryApi = {
@@ -61,28 +58,28 @@ export function PortalPlanUnifiedShellCoordinator({
   children: ReactNode;
 }) {
   const [roadmapMeta, setRoadmapMeta] = useState<PlanShellPublication | null>(null);
-  const [timelineMeta, setTimelineMeta] = useState<PlanShellPublication | null>(null);
   const [boardMeta, setBoardMeta] = useState<PlanShellPublication | null>(null);
+  const [tableMeta, setTableMeta] = useState<PlanShellPublication | null>(null);
 
   const setPublication = useCallback((branch: PlanSurfaceBranch, value: PlanShellPublication | null) => {
     if (branch === 'roadmap') {
       setRoadmapMeta(value);
       return;
     }
-    if (branch === 'timeline') {
-      setTimelineMeta(value);
+    if (branch === 'board') {
+      setBoardMeta(value);
       return;
     }
-    setBoardMeta(value);
+    setTableMeta(value);
   }, []);
 
   const registry = useMemo((): UnifiedRegistryApi => ({ activeView, setPublication }), [activeView, setPublication]);
 
   const display =
-    activeView === 'timeline'
-      ? timelineMeta ?? DEFAULT_TIMELINE_META
-      : activeView === 'board'
-        ? boardMeta ?? DEFAULT_BOARD_META
+    activeView === 'board'
+      ? boardMeta ?? DEFAULT_BOARD_META
+      : activeView === 'table'
+        ? tableMeta ?? DEFAULT_TABLE_META
         : roadmapMeta ?? DEFAULT_ROADMAP_META;
 
   return (
@@ -106,7 +103,7 @@ export function PortalPlanSurfaceChrome({
   children,
 }: {
   branch: PlanSurfaceBranch;
-  /** Omit on standalone roadmap/timeline routes. Pass active tab flags from canonical Plan page only. */
+  /** Omit on standalone roadmap routes. Pass active tab flags from canonical Plan page only. */
   tabActive?: boolean;
   title: string;
   subtitle?: string | undefined;

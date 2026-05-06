@@ -7,6 +7,8 @@ export type PortalPlanChromeProps = {
   auditId: string;
   isClient: boolean;
   audit: AuditState | null;
+  /** When true, hide Board / Roadmap / Table tabs (Define / Shape studio modes). */
+  hideExecuteViewTabs?: boolean;
 } & (
   | {
       /** Roadmap/Timeline surfaces: show segmented nav. */
@@ -23,7 +25,7 @@ export type PortalPlanChromeProps = {
  * Consultant/client plan shell: delegates to {@link StrategyPlanningChrome} for consistent journey + workbench layout.
  */
 export function PortalPlanChrome(props: PortalPlanChromeProps) {
-  const { auditId, isClient, audit } = props;
+  const { auditId, isClient, audit, hideExecuteViewTabs = false } = props;
 
   const variant: StrategyPlanningChromeVariant =
     props.planChromeMode === 'manifest-wizard'
@@ -33,6 +35,13 @@ export function PortalPlanChrome(props: PortalPlanChromeProps) {
   const steps = useStrategyJourneyStepStatuses(audit);
 
   return (
-    <StrategyPlanningChrome auditId={auditId} isClient={isClient} audit={audit} variant={variant} steps={steps} />
+    <StrategyPlanningChrome
+      auditId={auditId}
+      isClient={isClient}
+      audit={audit}
+      variant={variant}
+      steps={steps}
+      hideExecuteViewTabs={hideExecuteViewTabs}
+    />
   );
 }

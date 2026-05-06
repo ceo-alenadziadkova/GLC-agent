@@ -93,6 +93,7 @@ import {
   roadmapGanttToolbarScrollDeltaPx,
 } from '../../lib/roadmap-gantt-scroll-math';
 import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type { RoadmapGanttDependency, RoadmapGanttProjection, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
 import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';
 import { RoadmapGanttDependencyGraphSvg } from './RoadmapGanttDependencyGraphSvg';
@@ -115,7 +116,11 @@ import {
 } from '../ui/context-menu';
 import { useProfile } from '../../hooks/useProfile';
 import { useRoadmapGanttFilteredTasks } from '../../hooks/useRoadmapGanttFilteredTasks';
-import { buildPlanUrlWithViewPreservingForeignParams } from '../../lib/plan-cross-nav';
+import {
+  buildPlanUrlWithViewPreservingForeignParams,
+  PORTAL_PLAN_FOCUS_QUERY_KEY,
+  resolvePlanFocusToPackGraphNodeId,
+} from '../../lib/plan-cross-nav';
 import { useRoadmapGanttDependencySvgPaths } from '../../hooks/useRoadmapGanttDependencySvgPaths';
 
 type GanttTaskItem = TimelineItemBase<number> & {
@@ -151,6 +156,8 @@ type RoadmapGanttViewProps = {
   strategyHref: string;
   /** When set, task drawer links to Delivery Board (`?focus=<pack node id>`). */
   getDeliveryBoardHrefForPackNode?: (packGraphNodeId: string) => string | null | undefined;
+  /** Optional pack read model — used to resolve `?focus=` (canonical key) to timeline task ids. */
+  orchestrationPack?: GlcOrchestrationPackView | null;
   planBoardHydration?: RoadmapGanttPlanBoardHydration;
   /** Consultant-only controls injected into Gantt toolbar (e.g. manual card dialog). */
   toolbarLeadingSlot?: ReactNode | undefined;
@@ -161,6 +168,7 @@ export function RoadmapGanttView({
   projection,
   strategyHref,
   getDeliveryBoardHrefForPackNode,
+  orchestrationPack,
   planBoardHydration,
   toolbarLeadingSlot,
 }: RoadmapGanttViewProps) {
@@ -402,6 +410,24 @@ export function RoadmapGanttView({
     () => new Map(projection.tasks.map((task) => [task.id, task] as const)),
     [projection.tasks],
   );
+
+  const taskIdListKey = useMemo(() => projection.tasks.map((t) => t.id).sort().join(','), [projection.tasks]);
+  const focusParam = searchParams.get(PORTAL_PLAN_FOCUS_QUERY_KEY) ?? '';
+  const taskParamFromUrl = searchParams.get(ROADMAP_SEARCH_PARAM_TASK) ?? '';
+
+  useEffect(() => {
+    if (taskParamFromUrl && projection.tasks.some((t) => t.id === taskParamFromUrl)) {
+      setSelectedTaskId(taskParamFromUrl);
+      setFocusedTaskId(taskParamFromUrl);
+      return;
+    }
+    const resolved = resolvePlanFocusToPackGraphNodeId(focusParam || null, orchestrationPack ?? null);
+    if (resolved && projection.tasks.some((t) => t.id === resolved)) {
+      setSelectedTaskId(resolved);
+      setFocusedTaskId(resolved);
+    }
+  }, [taskIdListKey, focusParam, taskParamFromUrl, orchestrationPack, projection.tasks]);
+
   const isHeavyTaskLoad = filteredTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
 
   const strokeForKind = (kind: string): string => {

@@ -16,6 +16,8 @@ export interface PipelineEvent {
   message: string | null;
   data: PipelineEventData;
   created_at: string;
+  /** Monotonic insert order from DB (`event_seq`); optional until API always selects it */
+  event_seq?: number;
 }
 
 export interface PipelineEventData extends Record<string, unknown> {

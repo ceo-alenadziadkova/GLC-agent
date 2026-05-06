@@ -19,8 +19,7 @@ const mocks = vi.hoisted(() => ({
   insertPipelineResumedFromCancelledEvent: vi.fn(),
   fetchConsultantOwnedAudit: vi.fn(),
   fetchLatestQualityGateEventReport: vi.fn(),
-  insertReviewApprovedEvent: vi.fn(),
-  approvePendingReview: vi.fn(),
+  approvePendingReviewEmitApprovedEventAtomic: vi.fn(),
   sendReviewApprovedNotification: vi.fn(),
   fetchAuditForStatus: vi.fn(),
   fetchPipelineEventsForAudit: vi.fn(),
@@ -53,7 +52,7 @@ vi.mock('../repository/pipeline-brief.repository.js', () => ({
 vi.mock('../repository/pipeline-review.repository.js', () => ({
   fetchPendingReviewAfterPhase: mocks.fetchPendingReviewAfterPhase,
   fetchAnyPendingReviewForAudit: mocks.fetchAnyPendingReviewForAudit,
-  approvePendingReview: mocks.approvePendingReview,
+  approvePendingReviewEmitApprovedEventAtomic: mocks.approvePendingReviewEmitApprovedEventAtomic,
   fetchReviewPointsForAudit: mocks.fetchReviewPointsForAudit,
 }));
 
@@ -61,7 +60,6 @@ vi.mock('../repository/pipeline-event.repository.js', () => ({
   insertPipelineCancelledEvent: mocks.insertPipelineCancelledEvent,
   insertPipelineResumedFromCancelledEvent: mocks.insertPipelineResumedFromCancelledEvent,
   fetchLatestQualityGateEventReport: mocks.fetchLatestQualityGateEventReport,
-  insertReviewApprovedEvent: mocks.insertReviewApprovedEvent,
   fetchPipelineEventsForAudit: mocks.fetchPipelineEventsForAudit,
   fetchLatestQualityGateEventData: mocks.fetchLatestQualityGateEventData,
 }));
@@ -193,8 +191,7 @@ describe('pipeline route use-cases with mocked repositories', () => {
     mocks.insertPipelineCancelledEvent.mockResolvedValue(undefined);
     mocks.fetchConsultantOwnedAudit.mockResolvedValue({ id: 'a1' });
     mocks.fetchLatestQualityGateEventReport.mockResolvedValue(null);
-    mocks.approvePendingReview.mockResolvedValue({ data: { status: 'approved' }, error: null });
-    mocks.insertReviewApprovedEvent.mockResolvedValue(undefined);
+    mocks.approvePendingReviewEmitApprovedEventAtomic.mockResolvedValue({ data: { status: 'approved' }, error: null });
     mocks.sendReviewApprovedNotification.mockResolvedValue(undefined);
     mocks.fetchAuditForStatus.mockResolvedValue({
       status: 'review',
@@ -1103,7 +1100,7 @@ describe('pipeline route use-cases with mocked repositories', () => {
   });
 
   it('runReviewApprove returns already_approved when no pending row updated', async () => {
-    mocks.approvePendingReview.mockResolvedValue({ data: null, error: null });
+    mocks.approvePendingReviewEmitApprovedEventAtomic.mockResolvedValue({ data: null, error: null });
     const result = await runReviewApprove({
       auditId: 'a1',
       userId: 'u1',
@@ -1126,7 +1123,7 @@ describe('pipeline route use-cases with mocked repositories', () => {
       interviewNotes: 'notes',
     });
     expect(result.ok).toBe(true);
-    expect(mocks.insertReviewApprovedEvent).toHaveBeenCalledOnce();
+    expect(mocks.approvePendingReviewEmitApprovedEventAtomic).toHaveBeenCalledOnce();
     expect(mocks.sendReviewApprovedNotification).toHaveBeenCalledOnce();
   });
 

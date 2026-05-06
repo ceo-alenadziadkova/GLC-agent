@@ -59,11 +59,6 @@ export const APP_FEATURE_FLAGS = {
   /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
   planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
   /**
-   * Unified `/plan` segmented nav: show legacy **Timeline** tab (pack graph narrative). SPA-only; default off (Delivery Board ADR).
-   * When off, `?view=timeline` still redirects to Board when Board rollout is on.
-   */
-  planUnifiedLegacyTimelineTabEnabled: false,
-  /**
    * When true, unified Plan (`PortalPlanPage`) skips `GET /timeline` while `view=board` if `timeline_parity`
    * on `GET …/plan/board` is sufficient (ADR Delivery Board follow-up). SPA-only; redeploy to change.
    */

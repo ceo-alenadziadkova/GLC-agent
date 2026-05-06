@@ -2,6 +2,7 @@ import {
   apiAuditsOrchestrationCommercialOffer,
   apiAuditsOrchestrationPackDiff,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationCompile,
   apiAuditsOrchestrationSprintExport,
   apiAuditsOrchestrationSelectedInitiative,
   apiAuditsOrchestrationPackRegenerate,
@@ -498,6 +499,24 @@ export const auditsOrchestrationApi = {
       last_revision_diff_summary?: string | null;
       plan_governance: OrchestrationPlanGovernanceDto;
     }>(apiAuditsOrchestratorRun(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  /** Snapshot current manifest + build/persist pack in one request (`POST /orchestration/compile`). */
+  async postOrchestrationCompile(auditId: string, body: RoadmapManifestRequestBody) {
+    return apiFetch<{
+      manifest_snapshot_id: string;
+      pack: GlcOrchestrationPackView;
+      orchestration_pack_version: number;
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      last_revision_diff_summary?: string | null;
+      plan_governance: OrchestrationPlanGovernanceDto;
+      rollout_transition: Record<string, unknown>;
+      persisted_pack: GlcOrchestrationPackView | null;
+    }>(apiAuditsOrchestrationCompile(auditId), {
       method: 'POST',
       body: JSON.stringify(body),
     });

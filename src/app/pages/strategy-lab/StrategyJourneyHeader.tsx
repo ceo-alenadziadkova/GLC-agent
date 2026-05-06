@@ -1,13 +1,14 @@
 import { useId } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { Check } from '@phosphor-icons/react';
 
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
-import { STRATEGY_LAB_PAGE_ANCHORS } from '../../config/strategy-lab';
 import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
-import { buildAppRoute } from '../../config/route-paths';
 import { cn } from '../../components/ui/utils';
+import { usePlanWorkspaceMode } from '../../hooks/usePlanWorkspaceMode';
+import { buildPlanWorkspaceHref, isCanonicalPlanWorkspacePathname } from '../../lib/plan-cross-nav';
 import type { StrategyJourneyStepComputed, StrategyJourneyStepId } from '../../lib/strategy-journey-status';
+import type { PlanWorkspaceMode } from '../../config/plan-workspace-mode';
 
 function stepCopy(id: StrategyJourneyStepId): { title: string; hint: string } {
   const j = STRATEGY_LAB_COPY.journeyStrip;
@@ -27,20 +28,16 @@ function stepCopy(id: StrategyJourneyStepId): { title: string; hint: string } {
   }
 }
 
-function strategyLabStepTo(
-  id: StrategyJourneyStepId,
-  auditId: string,
-  isClient: boolean,
-): { pathname: string; hash?: string } | null {
+function journeyStudioModeForStep(id: StrategyJourneyStepId): PlanWorkspaceMode | null {
   if (id === 'plan') return null;
-  const pathname = isClient ? buildAppRoute.portalStrategy(auditId) : buildAppRoute.strategy(auditId);
-  const hashKey =
-    id === 'context'
-      ? STRATEGY_LAB_PAGE_ANCHORS.definePhase
-      : id === 'manifest'
-        ? STRATEGY_LAB_PAGE_ANCHORS.planSetup
-        : STRATEGY_LAB_PAGE_ANCHORS.shapePack;
-  return { pathname, hash: `#${hashKey}` };
+  if (id === 'context') return 'define';
+  return 'shape';
+}
+
+function journeyStepHref(id: StrategyJourneyStepId, auditId: string, isClient: boolean): string | null {
+  const mode = journeyStudioModeForStep(id);
+  if (mode == null) return null;
+  return buildPlanWorkspaceHref({ auditId, isClient, mode });
 }
 
 export type StrategyJourneyHeaderProps = {
@@ -54,14 +51,23 @@ export type StrategyJourneyHeaderProps = {
 
 /**
  * Four-step planning journey (Context → Manifest → Pack → Plan): single IA header shared by Strategy Lab and Plan surfaces.
- * Plan step enters the roadmap schedule hub; Timeline vs roadmap lives under Plan segmented control.
+ *
+ * Step targets use canonical `/plan/:id?mode=define|shape` (ADR Plan Workspace Phase 2). The Plan step opens
+ * `?mode=execute` with the default workbench `view` (Board or Roadmap per rollout).
  */
 export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: StrategyJourneyHeaderProps) {
   const descriptionId = useId();
+  const { pathname } = useLocation();
+  const { mode: workspaceMode } = usePlanWorkspaceMode();
+  const isPlanPath = isCanonicalPlanWorkspacePathname(pathname);
+
   const planView = primaryPlanWorkbenchViewForStrategyLinks();
-  const planEntryHref = isClient
-    ? buildAppRoute.portalPlan(auditId, planView)
-    : buildAppRoute.plan(auditId, planView);
+  const planEntryHref = buildPlanWorkspaceHref({
+    auditId,
+    isClient,
+    mode: 'execute',
+    view: planView,
+  });
 
   if (!visible) return null;
 
@@ -77,9 +83,20 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
           const { title, hint } = stepCopy(step.id);
           const isDone = step.status === 'done';
           const isCurrent = step.status === 'current';
+          const studioMode = journeyStudioModeForStep(step.id);
+          const isModeActive =
+            isPlanPath &&
+            studioMode != null &&
+            (step.id === 'context'
+              ? workspaceMode === 'define'
+              : step.id === 'manifest' || step.id === 'pack'
+                ? workspaceMode === 'shape'
+                : false);
+          const isPlanExecuteActive = step.id === 'plan' && isPlanPath && workspaceMode === 'execute';
+          const isStepActive = isCurrent || isModeActive || isPlanExecuteActive;
           const statusLabel = isDone ? copy.statusDone : isCurrent ? copy.statusCurrent : copy.statusPending;
 
-          const strategyStepTo = strategyLabStepTo(step.id, auditId, isClient);
+          const stepHref = journeyStepHref(step.id, auditId, isClient);
           const content = (
             <>
               <span
@@ -88,7 +105,7 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
                   'mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
                   isDone
                     ? 'bg-success text-white'
-                    : isCurrent
+                    : isStepActive
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground',
                 )}
@@ -101,7 +118,7 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
                   <span
                     className={cn(
                       'text-[length:var(--text-2xs)] font-mono uppercase tracking-wide',
-                      isDone ? 'text-success' : isCurrent ? 'text-primary' : 'text-muted-foreground',
+                      isDone ? 'text-success' : isStepActive ? 'text-primary' : 'text-muted-foreground',
                     )}
                   >
                     {statusLabel}
@@ -120,10 +137,10 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
               >
                 <Link
                   to={planEntryHref}
-                  aria-current={isCurrent ? 'step' : undefined}
+                  aria-current={isStepActive ? 'step' : undefined}
                   className={cn(
                     'group flex h-full items-start gap-3 rounded-lg border px-3 py-2 transition-colors no-underline',
-                    isCurrent
+                    isStepActive
                       ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
                       : isDone
                         ? 'border-border bg-card'
@@ -139,11 +156,11 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
           return (
             <li key={step.id} className="min-w-[length:var(--strategy-lab-steps-strip-min-width,12rem)] flex-1">
               <Link
-                to={strategyStepTo!}
-                aria-current={isCurrent ? 'step' : undefined}
+                to={stepHref!}
+                aria-current={isStepActive ? 'step' : undefined}
                 className={cn(
                   'group flex h-full items-start gap-3 rounded-lg border px-3 py-2 transition-colors no-underline',
-                  isCurrent
+                  isStepActive
                     ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
                     : isDone
                       ? 'border-border bg-card'

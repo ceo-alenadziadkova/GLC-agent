@@ -108,7 +108,10 @@ Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROU
 /audit/:id/:domainId      AuditWorkspace        (protected consultant)
 /pipeline/:id             PipelineMonitor       (protected consultant) — Realtime
 /reports/:id              ReportViewer          (protected consultant)
-/strategy/:id             StrategyLab           (protected consultant)
+/plan/:id                 PortalPlanPage        (protected consultant) — `?mode=define|shape|execute`, execute `view=board|roadmap|table`
+/roadmap/:id             → /plan               (redirect; `LegacyPlanPathRedirect`)
+/timeline/:id             → /plan               (redirect; `LegacyPlanPathRedirect`)
+/strategy/:id             → /plan?mode=shape    (redirect; `LegacyStrategyPathRedirect` — Strategy Lab studio is embedded under `/plan`)
 /settings                 SettingsPage          (protected, non-guest)
 /admin/requests           AdminRequestQueue     (protected consultant)
 /admin/snapshots          AdminSnapshotQueue    (protected consultant)
@@ -121,6 +124,10 @@ Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROU
 /portal/audit/new         NewAudit (client_self_serve variant) (protected client)
 /portal/pipeline/:id      PipelineMonitor       (protected client) — Realtime
 /portal/reports/:id       ReportViewer          (protected client)
+/portal/plan/:id          PortalPlanPage        (protected client)
+/portal/roadmap/:id       → /portal/plan        (redirect)
+/portal/timeline/:id      → /portal/plan        (redirect)
+/portal/strategy/:id      → /portal/plan?mode=shape (redirect)
 /portal/audit/:id         ClientAuditView       (protected client)
 ```
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAudit } from '../../../hooks/useAudit';
 import { usePipeline } from '../../../hooks/usePipeline';
 import { useProfile } from '../../../hooks/useProfile';
@@ -59,6 +59,20 @@ export function usePipelineMonitorController(id: string | undefined) {
   /** Prevents Dialog `onOpenChange(false)` from duplicating `runNextPhase` after a successful retry-close. */
   const postReviewRerunSuppressDismissRef = useRef(false);
 
+  useEffect(() => {
+    setSelectedPhaseId(0);
+    setModalReview(null);
+    setPostReviewRerunPrompt(null);
+    setPostReviewRerunBusy(false);
+    setResumeCancelledError(null);
+    setResumeAutoNextBlockedNotice(null);
+    setResumeCancelledBusy(false);
+    setIsStopping(false);
+    setStopDialogOpen(false);
+    postReviewRerunDismissInFlight.current = false;
+    postReviewRerunSuppressDismissRef.current = false;
+  }, [id]);
+
   const clientPortalOk = useClientPortalPipelineGate({
     isClient,
     id,
@@ -101,6 +115,7 @@ export function usePipelineMonitorController(id: string | undefined) {
   );
 
   const handlePostReviewContinueWithoutRerun = useCallback(async () => {
+    if (runNextPhaseBusy) return;
     if (postReviewRerunSuppressDismissRef.current) return;
     if (postReviewRerunBusy || postReviewRerunDismissInFlight.current || postReviewRerunPrompt === null) return;
     postReviewRerunDismissInFlight.current = true;
@@ -112,10 +127,11 @@ export function usePipelineMonitorController(id: string | undefined) {
       setPostReviewRerunBusy(false);
       postReviewRerunDismissInFlight.current = false;
     }
-  }, [postReviewRerunBusy, postReviewRerunPrompt, runNextPhase]);
+  }, [postReviewRerunBusy, postReviewRerunPrompt, runNextPhase, runNextPhaseBusy]);
 
   const handlePostReviewRetrySelectedThenContinue = useCallback(
     async (phaseIds: number[]) => {
+      if (runNextPhaseBusy) return;
       if (postReviewRerunBusy || postReviewRerunPrompt === null || phaseIds.length === 0) return;
       postReviewRerunDismissInFlight.current = true;
       setPostReviewRerunBusy(true);
@@ -132,7 +148,7 @@ export function usePipelineMonitorController(id: string | undefined) {
         postReviewRerunDismissInFlight.current = false;
       }
     },
-    [postReviewRerunBusy, postReviewRerunPrompt, retryPhase, runNextPhase],
+    [postReviewRerunBusy, postReviewRerunPrompt, retryPhase, runNextPhase, runNextPhaseBusy],
   );
 
   async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {

@@ -6,12 +6,13 @@ import { invalidatePlanBoardQueriesAfterConflict } from '../plan-board-query-inv
 import { glcKeys } from '../glc-keys';
 
 describe('invalidatePlanBoardQueriesAfterConflict', () => {
-  it('invalidates plan-board and pack queries on 409 ApiError', async () => {
+  it('invalidates plan workspace queries on 409 ApiError', async () => {
     const invalidateQueries = vi.fn().mockResolvedValue(undefined);
     const qc = { invalidateQueries };
     await invalidatePlanBoardQueriesAfterConflict(qc, 'audit-a', new ApiError('Conflict', 409, 'X'));
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: planBoardQueryKeys.audit('audit-a') });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: glcKeys.audit.detail('audit-a') });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: glcKeys.orchestrationPack.detail('audit-a') });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: planBoardQueryKeys.audit('audit-a') });
   });
 
   it('no-ops for non-409 errors', async () => {

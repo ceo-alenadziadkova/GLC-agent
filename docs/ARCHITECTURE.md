@@ -70,6 +70,8 @@ Some operational endpoints are intentionally **non-JWT** and use alternative con
 
 **Horizontal scale:** public limiters use `**RedisStore`** when `**RATE_LIMIT_REDIS_URL**` is set. Snapshot quota (`GET /api/snapshot/quota` and `POST /api/snapshot`) shares the same distributed store when Redis is configured. If Redis is unset, fallback is process-local memory and counters do not aggregate across instances.
 
+**Multi-instance Express API:** additional app replicas behind a load balancer are consistent with current design — route handlers remain stateless aside from intentional in-memory caches in a few helpers. Pipeline **execution** does not rely on a single PID: durable state lives in Postgres (`job_runs`, `phase_runs`), and **lease-owner strings** come from **`server/src/lib/generate-lock-token.ts`** (`glc:<uuid>:<hostname>`), not `process.pid`, so coordinated workers/containers avoid owner collisions under horizontal scale. Operational clustering still requires **Redis** where documented (rate-limit store, optional alert/bandit worker locks), **applied migrations**, and Bull’s shared Redis connectivity.
+
 **Authenticated brief writes (`intake_versions`):** supported artifact tuples are validated on **PUT**; unsupported → **400**, mismatch with stored row → **409** (except allowed upgrades). The **server** persists answers and the effective tuple — clients cannot force an unsupported bundle or skip validation by tuple alone. See [API.md](./API.md).
 
 **SPA vs API releases:** the stored **version tuple** and PUT rules reduce “client rendered one bank snapshot, server validated another” drift; they do **not** remove every UX edge case if the SPA and API ship incompatible `@glc/intake-core` resolver changes out of sync. Prefer **aligned** frontend and backend releases when changing intake semantics.
@@ -80,6 +82,12 @@ Some operational endpoints are intentionally **non-JWT** and use alternative con
 - Auth issues JWTs for frontend users; backend verifies them
 - Realtime publishes row changes from `pipeline_events` and `audits` to subscribed frontend clients
 - RLS enforces data isolation; consultants and linked clients have distinct access patterns — policies evolve with migrations ([DATABASE.md](./DATABASE.md))
+
+**Pipeline Realtime contract (SPA):** table names, filters, and payload parsers live in `src/app/config/pipeline-realtime-schema.ts` (consumed by `usePipeline`). When changing `pipeline_events` / `audits` Realtime shape or required UI fields, update that module and extend `src/app/config/__tests__/pipeline-realtime-schema.test.ts`.
+
+**Distributed locks (Redis):** shared compare-and-delete token lock helpers are in `server/src/lib/redis-token-lock.ts`; lock owner strings use `server/src/lib/generate-lock-token.ts`. TTL sources: `SYSTEM_DEFAULTS.alerts` (alert worker tick), `SYSTEM_DEFAULTS.bandits` (bandit recompute). Postgres-native leases (`phase_runs`, snapshot `snapshot_fresh_lease`) are separate and stay documented under [DATABASE.md](./DATABASE.md).
+
+**When to use multi-statement RPC transactions:** Prefer a single Postgres RPC wrapping related writes when user-visible inconsistency would matter if statements run separately (pattern: migrations **080** / **082**). Acceptable exceptions include background recovery with structured logging/alerts when one half fails (inventory and criteria: [TECH_DEBT.md](./TECH_DEBT.md) — multi-row writes / RPC candidates).
 
 ### Anthropic Claude
 

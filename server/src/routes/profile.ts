@@ -42,7 +42,7 @@ const postLegalConsentsSchema = z.object({
 export const profileRouter = Router();
 
 profileRouter.get('/', requireAuth, attachProfile, async (req: AuthRequest, res) => {
-  updateContext({ userId: req.userId });
+  updateContext({ userId: req.userId ?? undefined });
 
   const { data: profile, error } = await supabase
     .from('profiles')
@@ -68,7 +68,7 @@ profileRouter.get('/', requireAuth, attachProfile, async (req: AuthRequest, res)
 });
 
 profileRouter.patch('/', requireAuth, attachProfile, async (req: AuthRequest, res) => {
-  updateContext({ userId: req.userId });
+  updateContext({ userId: req.userId ?? undefined });
 
   const parsed = patchProfileSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -107,7 +107,7 @@ profileRouter.patch('/', requireAuth, attachProfile, async (req: AuthRequest, re
 });
 
 profileRouter.get('/legal-consents', requireAuth, attachProfile, async (req: AuthRequest, res) => {
-  updateContext({ userId: req.userId });
+  updateContext({ userId: req.userId ?? undefined });
   try {
     const body = await getEffectiveLegalConsentsForUser(req.userId!);
     res.json(body);
@@ -119,7 +119,7 @@ profileRouter.get('/legal-consents', requireAuth, attachProfile, async (req: Aut
 });
 
 profileRouter.post('/legal-consents', requireAuth, attachProfile, async (req: AuthRequest, res) => {
-  updateContext({ userId: req.userId });
+  updateContext({ userId: req.userId ?? undefined });
 
   const parsed = postLegalConsentsSchema.safeParse(req.body ?? {});
   if (!parsed.success) {

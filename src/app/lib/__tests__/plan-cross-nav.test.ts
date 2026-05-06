@@ -5,7 +5,9 @@ import {
   buildPlanUrlWithViewPreservingForeignParams,
   mergeFocusIntoPlanHref,
   readPlanFocusCanonicalKey,
+  resolvePlanFocusToPackGraphNodeId,
 } from '../plan-cross-nav';
+import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 
 describe('plan-cross-nav', () => {
   it('reads focus canonical key', () => {
@@ -34,6 +36,25 @@ describe('plan-cross-nav', () => {
     expect(href).toContain('/plan/audit-z');
     expect(href).toContain('view=roadmap');
     expect(href).toContain('focus=cnk_v1_focus');
+  });
+
+  it('resolves board_identity_key focus to pack graph node id', () => {
+    const pack = {
+      graph: {
+        nodes: [
+          {
+            id: 'node-graph-1',
+            title: 'T',
+            domain: 'seo_digital',
+            lane: 'seo_digital',
+            board_identity_key: 'stable-key-1',
+          },
+        ],
+        edges: [],
+      },
+    } as unknown as GlcOrchestrationPackView;
+    expect(resolvePlanFocusToPackGraphNodeId('stable-key-1', pack)).toBe('node-graph-1');
+    expect(resolvePlanFocusToPackGraphNodeId('node-graph-1', pack)).toBe('node-graph-1');
   });
 
   it('preserves focus and arbitrary params when changing view', () => {

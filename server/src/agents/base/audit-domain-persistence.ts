@@ -4,6 +4,10 @@
 
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { followupQuestionsFromUnknowns } from '../../lib/post-audit-followups.js';
+import {
+  assertPhaseRunLeaseHeld,
+  getPhaseRunLeaseContext,
+} from '../../services/pipeline/phase-run-lease-context.js';
 import { logger } from '../../services/logger.js';
 import { supabase } from '../../services/supabase.js';
 import type { DomainKey, DomainResult } from '../../types/audit.js';
@@ -21,6 +25,16 @@ export async function saveCompletedDomainRow(params: {
 }): Promise<void> {
   const { auditId, domainKey, phaseNumber, result } = params;
 
+  const leaseCtx = getPhaseRunLeaseContext();
+  if (leaseCtx) {
+    await assertPhaseRunLeaseHeld({
+      auditId,
+      phase: phaseNumber,
+      attempt: leaseCtx.attempt,
+      expectedOwner: leaseCtx.leaseOwner,
+    });
+  }
+
   const payload = {
     status: 'completed' as const,
     score: result.score,
@@ -36,13 +50,24 @@ export async function saveCompletedDomainRow(params: {
     prompt_version: promptVersion(domainKey),
   };
 
-  const { data: updated } = await supabase
+  const { data: updated, error: pendingUpdateErr } = await supabase
     .from('audit_domains')
     .update(payload)
     .eq('audit_id', auditId)
     .eq('domain_key', domainKey)
     .eq('status', 'pending')
     .select('id');
+
+  if (pendingUpdateErr) {
+    logger.error('agent.audit_domains_pending_update_failed', {
+      component: 'agent',
+      audit_id: auditId,
+      domain_key: domainKey,
+      error: pendingUpdateErr.message,
+      code: pendingUpdateErr.code,
+    });
+    throw pendingUpdateErr;
+  }
 
   if (!(updated && updated.length > 0)) {
     for (let attempt = 1; attempt <= auditDomainsInsertMaxAttemptsOnConflict; attempt++) {
@@ -110,10 +135,34 @@ export async function mergePostAuditFollowups(params: {
   const merged = [...existing, ...toAdd];
 
   if (!row) {
-    await supabase
+    const { error: insErr } = await supabase
       .from('intake_brief')
       .insert({ audit_id: auditId, post_audit_questions: merged, responses: {} });
-  } else {
-    await supabase.from('intake_brief').update({ post_audit_questions: merged }).eq('audit_id', auditId);
+    if (insErr) {
+      logger.error('agent.merge_post_audit_followups_insert_failed', {
+        component: 'agent',
+        audit_id: auditId,
+        domain_key: domainKey,
+        error: insErr.message,
+        code: insErr.code,
+      });
+      throw insErr;
+    }
+    return;
+  }
+
+  const { error: mergeUpdErr } = await supabase
+    .from('intake_brief')
+    .update({ post_audit_questions: merged })
+    .eq('audit_id', auditId);
+  if (mergeUpdErr) {
+    logger.error('agent.merge_post_audit_followups_update_failed', {
+      component: 'agent',
+      audit_id: auditId,
+      domain_key: domainKey,
+      error: mergeUpdErr.message,
+      code: mergeUpdErr.code,
+    });
+    throw mergeUpdErr;
   }
 }

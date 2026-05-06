@@ -14,11 +14,20 @@ export type RunParallelBlockParams = {
   parallelFailureThreshold: number;
   emitEvent: EmitPipelineEventFn;
   updateAuditIfNotCancelled: (patch: Record<string, unknown>) => Promise<boolean>;
+  /** Fresh DB cancel check after parallel work; must run before orchestration persist / summary events. */
+  assertNotCancelled: () => Promise<void>;
   runIsolatedPhase: (phase: number) => Promise<void>;
 };
 
 export async function runParallelBlockForAudit(params: RunParallelBlockParams): Promise<string[]> {
-  const { phases, parallelFailureThreshold, emitEvent, updateAuditIfNotCancelled, runIsolatedPhase } = params;
+  const {
+    phases,
+    parallelFailureThreshold,
+    emitEvent,
+    updateAuditIfNotCancelled,
+    assertNotCancelled,
+    runIsolatedPhase,
+  } = params;
 
   const ocPar = pipelineOrchestratorCopy();
   await emitEvent(
@@ -28,6 +37,8 @@ export async function runParallelBlockForAudit(params: RunParallelBlockParams): 
   );
 
   const results = await Promise.allSettled(phases.map((p) => runIsolatedPhase(p)));
+
+  await assertNotCancelled();
 
   const failedDomains: string[] = [];
   const cancelledErrors: Error[] = [];

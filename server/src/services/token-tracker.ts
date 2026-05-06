@@ -4,8 +4,9 @@ import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 import { formatTokenUsagePipelineEventMessage } from '../config/token-usage-messages.en.js';
 import { logger } from './logger.js';
-import { getContext, updateContext } from './observability-context.js';
+import { updateContext } from './observability-context.js';
 import { ORCHESTRATION_TELEMETRY_METRICS } from '../config/orchestration-telemetry-policy.js';
+import { insertPipelineEventRow } from './pipeline/events/insert-pipeline-event.js';
 
 interface TokenUsage {
   input_tokens: number;
@@ -42,7 +43,6 @@ export class TokenTracker {
     const costUsd = (usage.input_tokens / 1_000_000) * pricing.input + (usage.output_tokens / 1_000_000) * pricing.output;
     const roundedCost = roundTokenCostUsd(costUsd);
     updateContext({ auditId });
-    const context = getContext();
 
     logger.info('llm_cost.per_call', {
       audit_id: auditId,
@@ -52,11 +52,10 @@ export class TokenTracker {
       [ORCHESTRATION_TELEMETRY_METRICS.llmCostPerAuditUsd]: roundedCost,
     });
 
-    // Log event
-    await supabase.from('pipeline_events').insert({
-      audit_id: auditId,
+    await insertPipelineEventRow({
+      auditId,
       phase,
-      event_type: PIPELINE_EVENT_TYPES.tokenUsage,
+      eventType: PIPELINE_EVENT_TYPES.tokenUsage,
       message: formatTokenUsagePipelineEventMessage({ phase, totalTokens, costUsd: roundedCost }),
       data: {
         input_tokens: usage.input_tokens,
@@ -71,8 +70,6 @@ export class TokenTracker {
         status: metadata.status ?? 'completed',
         call_type: metadata.call_type ?? 'domain_agent',
         detail_level: metadata.detail_level ?? 'default',
-        trace_id: context?.traceId,
-        operation_id: context?.operationId,
       },
     });
 

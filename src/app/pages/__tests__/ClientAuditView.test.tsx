@@ -316,9 +316,9 @@ describe('ClientAuditView', () => {
       expect(screen.getByText('What you have now')).toBeInTheDocument();
     });
 
-    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
+    const timelineLinks = screen.getAllByRole('link', { name: /Open Plan/i });
     expect(timelineLinks.length).toBeGreaterThan(0);
-    const expectedTimeline = buildAppRoute.portalPlan('audit-cockpit-1', 'timeline');
+    const expectedTimeline = buildAppRoute.portalPlan('audit-cockpit-1');
     for (const link of timelineLinks) {
       expect(link).toHaveAttribute('href', expectedTimeline);
     }

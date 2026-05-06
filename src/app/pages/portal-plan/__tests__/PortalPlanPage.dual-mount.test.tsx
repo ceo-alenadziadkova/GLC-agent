@@ -32,7 +32,11 @@ vi.mock('../../../hooks/useProfile', () => ({
 /** Mirror production: Board rollout on; defer timeline fetch on Board tab. */
 vi.mock('../../../config/plan-delivery-board-ui', () => ({
   isPlanDeliveryBoardUiEnabled: () => true,
-  planOrchestrationIncludeTimelineForUnifiedPlanView: (v: string) => v !== 'board',
+  planOrchestrationIncludeTimelineForUnifiedPlanView: (v: string) => v !== 'board' && v !== 'table',
+}));
+
+vi.mock('../surfaces/PlanTableSurface', () => ({
+  PlanTableSurface: () => <div data-testid="table-surface-stub">table stub</div>,
 }));
 
 describe('PortalPlanPage lazy dual-mount', () => {
@@ -85,12 +89,17 @@ describe('PortalPlanPage lazy dual-mount', () => {
     expect(roadmapPanel).not.toHaveAttribute('hidden');
   });
 
-  it('legacy view=timeline in URL redirects to board and drops timeline panel', async () => {
+  it('legacy view=timeline in URL normalizes to board (no narrative timeline panel)', async () => {
     const router = createMemoryRouter([{ path: '/plan/:id', element: <PortalPlanPage /> }], {
       initialEntries: ['/plan/test-audit?view=timeline'],
     });
     render(<RouterProvider router={router} />);
-    await waitFor(() => expect(router.state.location.search).toContain('view=board'));
+    await waitFor(() => expect(router.state.location.search).toMatch(/view=board/));
     expect(screen.queryByTestId('timeline-surface-stub')).toBeNull();
+  });
+
+  it('view=table mounts table surface stub', async () => {
+    renderPlan('/plan/test-audit?view=table');
+    await screen.findByTestId('table-surface-stub');
   });
 });

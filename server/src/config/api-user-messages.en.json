@@ -65,6 +65,7 @@
   "AUDITS_UPGRADE_NOT_COMPLETED": "Snapshot must be completed before upgrading",
   "AUDITS_UPGRADE_ACCESS_DENIED": "Access denied",
   "AUDITS_UPGRADE_RESET_DOMAINS_FAILED": "Failed to reset audit domains",
+  "AUDITS_UPGRADE_DELETE_REVIEW_POINTS_FAILED": "Failed to clear review points during upgrade",
   "AUDITS_UPGRADE_INIT_DOMAINS_FAILED": "Failed to initialize audit domains",
   "AUDITS_UPGRADE_INIT_REVIEWS_FAILED": "Failed to initialize review points",
   "AUDITS_UPGRADE_INIT_STRATEGY_FAILED": "Failed to initialize strategy placeholder",

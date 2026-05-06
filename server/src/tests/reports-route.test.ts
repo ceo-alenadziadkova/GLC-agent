@@ -98,7 +98,8 @@ const {
   const makeDomainsChain = () => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn(() => {
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn(() => {
       if (domainsShouldThrow) throw new Error('domains failed');
       if (domainsInvalidForPdf) {
         return Promise.resolve({

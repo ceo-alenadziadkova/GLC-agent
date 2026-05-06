@@ -15,10 +15,10 @@ describe('buildAppRoute plan aliases', () => {
       originalBoardMode;
   });
 
-  it('builds consultant /plan/:id defaulting to timeline when Board rollout is below GA', () => {
+  it('builds consultant /plan/:id defaulting to roadmap when Board rollout is below GA', () => {
     (APP_FEATURE_FLAGS as { planDeliveryBoardRolloutMode: FeatureRolloutMode }).planDeliveryBoardRolloutMode =
       'internal';
-    expect(buildAppRoute.plan(id)).toBe(`/${P.planById.replace(':id', id)}?view=timeline`);
+    expect(buildAppRoute.plan(id)).toBe(`/${P.planById.replace(':id', id)}?view=roadmap`);
   });
 
   it('builds consultant /plan/:id defaulting to board at GA rollout', () => {
@@ -30,10 +30,14 @@ describe('buildAppRoute plan aliases', () => {
     expect(buildAppRoute.plan(id, 'roadmap')).toBe(`/${P.planById.replace(':id', id)}?view=roadmap`);
   });
 
+  it('adds view=table for table branch', () => {
+    expect(buildAppRoute.plan(id, 'table')).toBe(`/${P.planById.replace(':id', id)}?view=table`);
+  });
+
   it('mirrors portal plan paths', () => {
     (APP_FEATURE_FLAGS as { planDeliveryBoardRolloutMode: FeatureRolloutMode }).planDeliveryBoardRolloutMode =
       'internal';
-    expect(buildAppRoute.portalPlan(id)).toBe(`/${P.portalPlanById.replace(':id', id)}?view=timeline`);
+    expect(buildAppRoute.portalPlan(id)).toBe(`/${P.portalPlanById.replace(':id', id)}?view=roadmap`);
     expect(buildAppRoute.portalPlan(id, 'roadmap')).toBe(`/${P.portalPlanById.replace(':id', id)}?view=roadmap`);
   });
 });

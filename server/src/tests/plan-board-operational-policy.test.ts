@@ -8,8 +8,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: false,
         source: 'manual',
-        currentColumnId: 'next_up',
-        requestedToColumn: 'in_progress',
+        currentSemantic: 'next_up',
+        requestedToSemantic: 'in_progress',
       }),
     ).toBe(false);
   });
@@ -19,8 +19,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: true,
         source: 'pack',
-        currentColumnId: 'next_up',
-        requestedToColumn: 'in_progress',
+        currentSemantic: 'next_up',
+        requestedToSemantic: 'in_progress',
       }),
     ).toBe(false);
   });
@@ -30,8 +30,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: true,
         source: 'manual',
-        currentColumnId: 'in_progress',
-        requestedToColumn: 'in_progress',
+        currentSemantic: 'in_progress',
+        requestedToSemantic: 'in_progress',
       }),
     ).toBe(false);
   });
@@ -41,8 +41,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: true,
         source: 'manual',
-        currentColumnId: 'next_up',
-        requestedToColumn: undefined,
+        currentSemantic: 'next_up',
+        requestedToSemantic: undefined,
       }),
     ).toBe(false);
   });
@@ -52,8 +52,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: true,
         source: 'manual',
-        currentColumnId: 'next_up',
-        requestedToColumn: 'in_progress',
+        currentSemantic: 'next_up',
+        requestedToSemantic: 'in_progress',
       }),
     ).toBe(true);
   });
@@ -63,8 +63,8 @@ describe('shouldBlockManualCardEnteringOperationalInProgress', () => {
       shouldBlockManualCardEnteringOperationalInProgress({
         strictEnabled: true,
         source: 'manual',
-        currentColumnId: 'in_progress',
-        requestedToColumn: 'review',
+        currentSemantic: 'in_progress',
+        requestedToSemantic: 'review',
       }),
     ).toBe(false);
   });

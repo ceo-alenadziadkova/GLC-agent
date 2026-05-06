@@ -62,17 +62,19 @@ export async function runPhaseDomainExecution(
   const { auditId, phase, domainKey, AgentClass, attachPriorControlObjects, publishControlObjectGovernance } = deps;
 
   if (domainKey !== 'recon' && domainKey !== 'strategy') {
-    const { data: latestRow } = await supabase
-      .from('audit_domains')
-      .select('id')
-      .eq('audit_id', auditId)
-      .eq('domain_key', domainKey)
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (latestRow?.id) {
-      await supabase.from('audit_domains').update({ status: 'collecting' }).eq('id', latestRow.id);
+    const { error: collectingRpcErr } = await supabase.rpc('mark_audit_domain_collecting', {
+      p_audit_id: auditId,
+      p_domain_key: domainKey,
+    });
+    if (collectingRpcErr) {
+      logger.error('phase_runner.mark_audit_domain_collecting_failed', {
+        component: 'pipeline',
+        audit_id: auditId,
+        domain_key: domainKey,
+        error: collectingRpcErr.message,
+        code: collectingRpcErr.code,
+      });
+      throw collectingRpcErr;
     }
   }
 

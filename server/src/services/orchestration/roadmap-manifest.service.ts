@@ -62,6 +62,26 @@ export async function insertRoadmapManifestSnapshot(args: {
   return { id: data.id };
 }
 
+/**
+ * Removes a manifest snapshot row (compensating rollback when a follow-up step fails in the same HTTP handler).
+ * Caller must enforce audit ownership / authorization before invoking.
+ */
+export async function deleteRoadmapManifestSnapshotById(args: {
+  auditId: string;
+  snapshotId: string;
+}): Promise<{ error: Error | null }> {
+  const { error } = await supabase
+    .from('audit_roadmap_manifest_snapshots')
+    .delete()
+    .eq('audit_id', args.auditId)
+    .eq('id', args.snapshotId);
+
+  if (error) {
+    return { error: new Error(error.message) };
+  }
+  return { error: null };
+}
+
 export async function fetchRoadmapManifestSnapshotForAudit(args: {
   auditId: string;
   snapshotId: string;

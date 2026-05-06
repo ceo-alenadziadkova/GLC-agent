@@ -1,10 +1,10 @@
-import { getContext, updateContext } from '../../observability-context.js';
+import { logger } from '../../logger.js';
+import { updateContext } from '../../observability-context.js';
 import { supabase } from '../../supabase.js';
+import { insertPipelineEventRow } from './insert-pipeline-event.js';
 import { PIPELINE_EVENT_TYPES, PIPELINE_LIFECYCLE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
-import {
-  MS_PER_MINUTE,
-  PIPELINE_PHASE_RUN_ATTEMPT_INITIAL,
-} from '../../../config/pipeline-orchestrator-constants.js';
+import { MS_PER_MINUTE } from '../../../config/pipeline-orchestrator-constants.js';
+import { resolvePhaseRunLeaseForWrite } from '../phase-run-lease-context.js';
 
 export type PipelineEventWriterPayload = {
   auditId: string;
@@ -29,37 +29,43 @@ export async function writePipelineEventAndPhaseRun(payload: PipelineEventWriter
   const { auditId, phase, eventType, message, data = {}, leaseTimeoutMinutes } = payload;
 
   updateContext({ auditId });
-  const ctx = getContext();
+  const lease = resolvePhaseRunLeaseForWrite(undefined);
 
-  await supabase.from('pipeline_events').insert({
-    audit_id: auditId,
+  await insertPipelineEventRow({
+    auditId,
     phase,
-    event_type: eventType,
+    eventType,
     message,
-    data: {
-      ...data,
-      trace_id: ctx?.traceId,
-      operation_id: ctx?.operationId,
-    },
+    data,
   });
 
   if (phase >= 0 && (PIPELINE_LIFECYCLE_EVENT_TYPES as readonly string[]).includes(eventType)) {
     const mappedStatus = mapEventTypeToPhaseRunStatus(eventType);
     const now = new Date();
 
-    await supabase.from('phase_runs').upsert(
+    const { error: upsertError } = await supabase.from('phase_runs').upsert(
       {
         audit_id: auditId,
         phase,
-        attempt: PIPELINE_PHASE_RUN_ATTEMPT_INITIAL,
+        attempt: lease.attempt,
         status: mappedStatus,
-        lease_owner: `pid:${process.pid}`,
+        lease_owner: lease.leaseOwner,
         lease_expires_at: new Date(now.getTime() + leaseTimeoutMinutes * MS_PER_MINUTE).toISOString(),
         heartbeat_at: now.toISOString(),
         ...(eventType === PIPELINE_EVENT_TYPES.error ? { error_message: message } : {}),
       },
       { onConflict: 'audit_id,phase,attempt' },
     );
+
+    if (upsertError) {
+      logger.error('pipeline.phase_runs_upsert_failed', {
+        component: 'pipeline',
+        audit_id: auditId,
+        phase,
+        event_type: eventType,
+        error: upsertError.message,
+      });
+      throw upsertError;
+    }
   }
 }
-

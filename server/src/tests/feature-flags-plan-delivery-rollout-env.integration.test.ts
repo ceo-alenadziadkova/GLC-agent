@@ -1,3 +1,9 @@
+/**
+ * Integration: env wiring for `getPlanDeliveryBoardRolloutMode` only.
+ * **This file is the dedicated place** to assert `process.env.FEATURE_*` / `PLAN_DELIVERY_BOARD` mapping into
+ * `feature-flags.ts` after `vi.resetModules()`. All other server tests should mock `../config/feature-flags.js`
+ * (`importOriginal` + overrides) or `vi.spyOn` exports — do not sprinkle FEATURE_* in unit tests.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
@@ -11,7 +17,7 @@ function restoreEnv(): void {
   }
 }
 
-describe('getPlanDeliveryBoardRolloutMode', () => {
+describe('getPlanDeliveryBoardRolloutMode (env integration)', () => {
   afterEach(() => {
     restoreEnv();
     vi.resetModules();

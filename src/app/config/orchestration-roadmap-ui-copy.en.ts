@@ -61,6 +61,12 @@ export const ORCHESTRATION_UI_COPY = {
   revisionConflictsResolvedCounts: 'Synthesis conflict count (before → after)',
   revisionDiffTruncated: 'Additional rows omitted for readability',
   confirmSaveManifest: 'Save manifest snapshot',
+  /** Primary Strategy Lab CTA — snapshot + pack in one server call. */
+  compilePlan: 'Compile plan',
+  compilePlanStatusCompiling: 'Compiling roadmap…',
+  compilePlanStatusDone: 'Last compiled: pack v{version}',
+  compilePlanStatusIdleHint: 'Compile saves a new manifest snapshot and rebuilds the orchestration pack.',
+  saveManifestSnapshotOnly: 'Save manifest snapshot only',
   buildPack: 'Build orchestration pack',
   buildPackNeedsManifestSync: 'Save manifest changes before rebuilding roadmap',
   manifestSaved: 'Manifest snapshot saved',
@@ -98,7 +104,7 @@ export const ORCHESTRATION_UI_COPY = {
     'Audit data could not be refreshed. You are seeing the last loaded information. Try again or reload the page.',
   /** Single-line “next” hint replacing numbered quick-start + flow mini tiles in Strategy Lab */
   strategyLabNextActionInline:
-    'Next: tune scenario and planning window, save a manifest snapshot, then build the pack. Open Plan for the Board, Gantt Roadmap, or legacy Timeline.',
+    'Next: tune scenario and planning window, save a manifest snapshot, then build the pack. Open Plan for the Board, Gantt Roadmap, or Table list.',
   /** Execution realism — plan sequencing vs people/calendar capacity. */
   timelineExecutionRealismNote:
     'This view sequences work by dependencies and lanes — it does not replace team capacity planning, FTE load, or your real sprint calendar.',
@@ -787,7 +793,8 @@ export const ORCHESTRATION_UI_COPY = {
     'The API returned lanes with work items but the Gantt mapped zero tasks—a version skew or malformed row. Compare the Timeline view and retry after refresh; if this persists, report it.',
   planRoadmapMapperEmptyTasksClientHint:
     'Work items appear on other plan views but the schedule view could not interpret them yet. Ask your consultant to refresh or regenerate the timeline.',
-  planRoadmapOpenTimelineFromEmptyCta: 'Open Timeline',
+  /** CTA when Roadmap has no tasks — links to default Plan workbench tab (Board when rollout is ga). */
+  planRoadmapOpenPrimaryPlanCta: 'Open Plan',
   planTimelineEmptyLaneItemsTitle: 'This timeline has no work items yet',
   planTimelineEmptyLaneItemsHint:
     'Add initiatives and build the execution pack in Strategy Lab — lanes and seasons populate after the pack is saved.',
@@ -860,7 +867,7 @@ export function formatTimelineCalendarPlanWindowLineClient(startIso: string, end
 export const ORCHESTRATION_IA_COPY = {
   /** One line under Strategy / Plan chrome — Strategy Lab defines contract; Plan runs delivery surfaces. */
   strategyVsPlanMicroHint:
-    'Strategy Lab defines context, manifest, and pack rebuilds. Plan runs delivery — Board, Roadmap schedule, or legacy Timeline.',
+    'Strategy Lab defines context, manifest, and pack rebuilds. Plan runs delivery — Board, Roadmap schedule, or Table.',
   /** Long-form IA note (portal timeline, cockpit); Strategy Lab avoids repeating this on-page. */
   timelineVsLabRole:
     'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',

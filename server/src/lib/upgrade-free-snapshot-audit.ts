@@ -36,8 +36,7 @@ import {
   type ApiErrorCode,
   AUDITS_NOT_FOUND_MESSAGE,
   AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE,
-  AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
-  AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
+  AUDITS_UPGRADE_FAILED_MESSAGE,
   AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE,
   AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE,
   AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
@@ -103,6 +102,7 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
+  // Service-role client bypasses Postgres RLS — enforce ownership here, not in the database policy layer.
   const clientId = audit.client_id as string | null;
   const ownerId = audit.user_id as string;
   const canAct = clientId === actorUserId || ownerId === actorUserId;
@@ -150,48 +150,28 @@ export async function upgradeFreeSnapshotAudit(params: {
   const techStack = (recon?.tech_stack as Record<string, string[]>) ?? {};
   const siteUrl = audit.company_url as string;
 
-  const { error: delDomains } = await supabase.from('audit_domains').delete().eq('audit_id', auditId);
-  if (delDomains) {
-    logger.error('upgrade_snapshot.delete_domains_failed', { audit_id: auditId, error: delDomains.message });
+  const domainsPayload = domainKeys.map((key) => ({
+    domain_key: key,
+    phase_number: DOMAIN_PHASES[key],
+  }));
+
+  const { error: resetRpcErr } = await supabase.rpc('upgrade_snapshot_reset_audit_domains_and_reviews', {
+    p_audit_id: auditId,
+    p_domains: domainsPayload,
+    p_review_after_phases: reviewPhases,
+  });
+  if (resetRpcErr) {
+    logger.error('upgrade_snapshot.reset_domains_and_reviews_rpc_failed', {
+      audit_id: auditId,
+      error: resetRpcErr.message,
+      code: resetRpcErr.code,
+      details: resetRpcErr.details,
+    });
     return {
       ok: false,
       status: 500,
       code: API_ERROR_CODES.AUDITS_UPGRADE_RESET_DOMAINS_FAILED,
       error: AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
-    };
-  }
-
-  await supabase.from('review_points').delete().eq('audit_id', auditId);
-
-  const domainInserts = domainKeys.map((key) => ({
-    audit_id: auditId,
-    domain_key: key,
-    phase_number: DOMAIN_PHASES[key],
-  }));
-
-  const { error: insDom } = await supabase.from('audit_domains').insert(domainInserts);
-  if (insDom) {
-    logger.error('upgrade_snapshot.insert_domains_failed', { audit_id: auditId, error: insDom.message });
-    return {
-      ok: false,
-      status: 500,
-      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_DOMAINS_FAILED,
-      error: AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
-    };
-  }
-
-  const reviewInserts = reviewPhases.map(phase => ({
-    audit_id: auditId,
-    after_phase: phase,
-  }));
-  const { error: insRev } = await supabase.from('review_points').insert(reviewInserts);
-  if (insRev) {
-    logger.error('upgrade_snapshot.insert_reviews_failed', { audit_id: auditId, error: insRev.message });
-    return {
-      ok: false,
-      status: 500,
-      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_REVIEWS_FAILED,
-      error: AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
     };
   }
 
@@ -213,7 +193,7 @@ export async function upgradeFreeSnapshotAudit(params: {
 
   if (!useScrapedContext) {
     const host = hostFromUrl(siteUrl);
-    await supabase
+    const { error: reconResetErr } = await supabase
       .from('audit_recon')
       .update({
         status: 'pending',
@@ -227,8 +207,21 @@ export async function upgradeFreeSnapshotAudit(params: {
         pages_crawled: [],
       })
       .eq('audit_id', auditId);
+    if (reconResetErr) {
+      logger.error('upgrade_snapshot.audit_recon_reset_failed', {
+        audit_id: auditId,
+        error: reconResetErr.message,
+        code: reconResetErr.code,
+      });
+      return {
+        ok: false,
+        status: 500,
+        code: API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
+        error: AUDITS_UPGRADE_FAILED_MESSAGE,
+      };
+    }
 
-    await supabase
+    const { error: auditResetErr } = await supabase
       .from('audits')
       .update({
         product_mode: nextMode,
@@ -242,6 +235,19 @@ export async function upgradeFreeSnapshotAudit(params: {
         updated_at: new Date().toISOString(),
       })
       .eq('id', auditId);
+    if (auditResetErr) {
+      logger.error('upgrade_snapshot.audit_row_reset_failed', {
+        audit_id: auditId,
+        error: auditResetErr.message,
+        code: auditResetErr.code,
+      });
+      return {
+        ok: false,
+        status: 500,
+        code: API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
+        error: AUDITS_UPGRADE_FAILED_MESSAGE,
+      };
+    }
 
     await saveBriefResponses(
       auditId,
@@ -302,7 +308,7 @@ export async function upgradeFreeSnapshotAudit(params: {
         : {}),
     };
 
-    await supabase
+    const { error: auditCtxErr } = await supabase
       .from('audits')
       .update({
         product_mode: nextMode,
@@ -316,6 +322,19 @@ export async function upgradeFreeSnapshotAudit(params: {
         updated_at: new Date().toISOString(),
       })
       .eq('id', auditId);
+    if (auditCtxErr) {
+      logger.error('upgrade_snapshot.audit_row_scraped_context_failed', {
+        audit_id: auditId,
+        error: auditCtxErr.message,
+        code: auditCtxErr.code,
+      });
+      return {
+        ok: false,
+        status: 500,
+        code: API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
+        error: AUDITS_UPGRADE_FAILED_MESSAGE,
+      };
+    }
 
     const responses: Record<string, unknown> = {
       a11: { value: siteUrl, source: 'recon_confirmed' },
@@ -355,12 +374,25 @@ export async function upgradeFreeSnapshotAudit(params: {
       briefAfter?.recon_prefills && typeof briefAfter.recon_prefills === 'object' && !Array.isArray(briefAfter.recon_prefills)
         ? (briefAfter.recon_prefills as Record<string, unknown>)
         : {};
-    await supabase
+    const { error: briefPrefillErr } = await supabase
       .from('intake_brief')
       .update({
         recon_prefills: { ...priorPrefills, ...reconPrefills },
       })
       .eq('audit_id', auditId);
+    if (briefPrefillErr) {
+      logger.error('upgrade_snapshot.intake_brief_prefill_failed', {
+        audit_id: auditId,
+        error: briefPrefillErr.message,
+        code: briefPrefillErr.code,
+      });
+      return {
+        ok: false,
+        status: 500,
+        code: API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
+        error: AUDITS_UPGRADE_FAILED_MESSAGE,
+      };
+    }
   }
 
   const responseScrapeLimited =

@@ -7,6 +7,7 @@ import { PLAN_BOARD_COLUMN_DEFAULT_IDS } from '../../config/plan-board-columns.j
 import { fetchRoadmapManifestSnapshotForAudit } from '../orchestration/roadmap-manifest.service.js';
 import { logger } from '../logger.js';
 import { supabase } from '../supabase.js';
+import { insertPipelineEventRow } from '../pipeline/events/insert-pipeline-event.js';
 
 import type { GlcOrchestrationPack } from '../../schemas/glc-orchestration-pack.js';
 
@@ -107,10 +108,10 @@ async function persistPlanBoardReconcileLegacy(args: {
     }
   }
 
-  await supabase.from('pipeline_events').insert({
-    audit_id: args.auditId,
+  await insertPipelineEventRow({
+    auditId: args.auditId,
     phase: 0,
-    event_type: PIPELINE_EVENT_TYPES.planBoardReconciled,
+    eventType: PIPELINE_EVENT_TYPES.planBoardReconciled,
     message: 'plan_board_reconciled',
     data: {
       matched: result.matched,
@@ -118,6 +119,7 @@ async function persistPlanBoardReconcileLegacy(args: {
       orphaned_lane_changed: result.orphaned_lane_changed,
       auto_created: result.auto_created,
     },
+    mergeObservabilityContext: false,
   });
 
   logger.info('plan_board.reconciled', {

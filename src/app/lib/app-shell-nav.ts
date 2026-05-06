@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
+import { parsePortalPlanViewParam } from '../config/portal-plan';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
 
 type NavTimelinePrimaryOpts = {
@@ -55,7 +56,7 @@ export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePri
   const timelineFirst = resolveTimelinePrimaryUx(opts);
   const consultantTimelineEnabled = resolveConsultantTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId && consultantTimelineEnabled ? buildAppRoute.plan(auditId, 'timeline') : null,
+    to: auditId && consultantTimelineEnabled ? buildAppRoute.plan(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -85,7 +86,7 @@ export function buildClientNav(
   const timelineFirst = resolveTimelinePrimaryUx(opts);
   const clientTimelineEnabled = resolveClientTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId && clientTimelineEnabled ? buildAppRoute.portalPlan(auditId, 'timeline') : null,
+    to: auditId && clientTimelineEnabled ? buildAppRoute.portalPlan(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -119,9 +120,9 @@ function splitHrefPathQuery(href: string): { path: string; query: string } {
   return { path: href.slice(0, idx), query: href.slice(idx + 1) };
 }
 
-function navLocationPlanView(search: string): 'roadmap' | 'timeline' {
+function navLocationPlanView(search: string): ReturnType<typeof parsePortalPlanViewParam> {
   const qs = search.startsWith('?') ? search.slice(1) : search;
-  return new URLSearchParams(qs).get('view') === 'timeline' ? 'timeline' : 'roadmap';
+  return parsePortalPlanViewParam(new URLSearchParams(qs).get('view'));
 }
 
 function auditIdFromCanonicalPlanPath(path: string): string | null {
@@ -144,13 +145,16 @@ function legacyPlanSurface(
   return null;
 }
 
+function planViewFromHrefQuery(toQueryRaw: string): ReturnType<typeof parsePortalPlanViewParam> {
+  return parsePortalPlanViewParam(new URLSearchParams(toQueryRaw).get('view'));
+}
+
 /**
- * Sidebar / bottom-nav active styling. Pass `location.search` so `/plan/:id?view=timeline` differs from roadmap default.
+ * Sidebar / bottom-nav active styling. Pass `location.search` so `/plan/:id?view=roadmap` differs from board default.
  */
 export function isNavItemActive(pathname: string, to: string, search = ''): boolean {
   const { path: toPath, query: toQueryRaw } = splitHrefPathQuery(to);
-  const toPlanView =
-    new URLSearchParams(toQueryRaw).get('view') === 'timeline' ? 'timeline' : 'roadmap';
+  const toPlanView = planViewFromHrefQuery(toQueryRaw);
 
   const planAuditId = auditIdFromCanonicalPlanPath(toPath);
   if (planAuditId) {
@@ -160,10 +164,15 @@ export function isNavItemActive(pathname: string, to: string, search = ''): bool
     if (pathname === toPath) {
       return locPlanView === toPlanView;
     }
-    if (toPlanView === 'timeline') {
-      return legacy === 'timeline';
+    /** Legacy `/timeline/:id` redirects to canonical plan; highlight when destination view matches current location. */
+    if (legacy === 'timeline') {
+      return toPlanView === locPlanView;
     }
-    return legacy === 'roadmap';
+    /** Legacy `/roadmap/:id` — highlight roadmap tab targets without requiring query parity on the old path. */
+    if (legacy === 'roadmap') {
+      return toPlanView === 'roadmap';
+    }
+    return false;
   }
 
   return (

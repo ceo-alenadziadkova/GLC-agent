@@ -25,7 +25,20 @@ export const glcKeys = {
   orchestrationPack: {
     detail: (id: string) => ['glc', 'orchestration-pack', 'detail', id] as const,
   },
+  /**
+   * Plan workspace invalidation root (audit + pack + plan-board).
+   * Use {@link invalidatePlanWorkspaceQueries} from `plan-workspace-queries.ts` — no query is registered under this key alone.
+   */
+  planWorkspace: {
+    /** Alias for `detail` — stable aggregation key for selectors / docs. */
+    detail: (id: string) => ['glc', 'plan-workspace', 'detail', id] as const,
+  },
   strategyExecutionPacks: {
     list: (auditId: string) => ['glc', 'strategy-execution-packs', 'list', auditId] as const,
+  },
+  /** Latest benchmark snapshot per domain (Strategy Lab reference panel). */
+  domainBenchmarks: {
+    domain: (domainKey: string, industryKey: string, period: string) =>
+      ['glc', 'domain-benchmark', domainKey, industryKey, period] as const,
   },
 };

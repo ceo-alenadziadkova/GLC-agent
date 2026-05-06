@@ -8,6 +8,8 @@ import type { ReactNode } from 'react';
 import { PortalRoadmapGanttPage } from '../PortalRoadmapGanttPage';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../config/route-paths';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
+import { buildPlanWorkspaceHref } from '../../lib/plan-cross-nav';
 import {
   ORCHESTRATION_LANE_LABELS,
   ORCHESTRATION_UI_COPY,
@@ -142,15 +144,26 @@ describe('PortalRoadmapGanttPage', () => {
     const orchestration = within(wb).getByRole('link', {
       name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
     });
-    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-1'));
-    expect(orchestration).toHaveAttribute('href', buildAppRoute.strategy('audit-1'));
+    expect(roadmap).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({
+        auditId: 'audit-1',
+        isClient: false,
+        mode: 'execute',
+        view: primaryPlanWorkbenchViewForStrategyLinks(),
+      }),
+    );
+    expect(orchestration).toHaveAttribute(
+      'href',
+      buildPlanWorkspaceHref({ auditId: 'audit-1', isClient: false, mode: 'shape' }),
+    );
     expect(roadmap).toHaveAttribute('aria-current', 'page');
     expect(orchestration).not.toHaveAttribute('aria-current');
 
     const planBc = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.navAriaLabel });
     expect(
       within(planBc).getByRole('link', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.strategyLabCrumb }),
-    ).toHaveAttribute('href', buildAppRoute.strategy('audit-1'));
+    ).toHaveAttribute('href', buildPlanWorkspaceHref({ auditId: 'audit-1', isClient: false, mode: 'shape' }));
   });
 
   it('shows mapper-empty guidance when lanes have rows but projection is empty', async () => {
@@ -176,8 +189,8 @@ describe('PortalRoadmapGanttPage', () => {
       );
       expect(await screen.findByText(ORCHESTRATION_UI_COPY.planRoadmapMapperEmptyTasksTitle)).toBeInTheDocument();
       expect(
-        screen.getByRole('link', { name: ORCHESTRATION_UI_COPY.planRoadmapOpenTimelineFromEmptyCta }),
-      ).toHaveAttribute('href', buildAppRoute.plan('audit-1', 'timeline'));
+        screen.getByRole('link', { name: ORCHESTRATION_UI_COPY.planRoadmapOpenPrimaryPlanCta }),
+      ).toHaveAttribute('href', buildAppRoute.plan('audit-1', 'board'));
     } finally {
       spy.mockRestore();
     }

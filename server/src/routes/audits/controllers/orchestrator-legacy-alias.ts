@@ -11,3 +11,10 @@ export function markOrchestratorAliasDeprecated(res: Response): void {
   res.setHeader('Link', `<${docsPath}>; rel="deprecation"; type="text/markdown"`);
 }
 
+/**
+ * `POST /roadmap/manifest-snapshots` remains supported; prefer `POST /orchestration/compile` for snapshot + pack.
+ */
+export function markRoadmapManifestSnapshotPostDeprecated(res: Response): void {
+  markOrchestratorAliasDeprecated(res);
+}
+

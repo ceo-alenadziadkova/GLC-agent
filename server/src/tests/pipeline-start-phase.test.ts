@@ -28,6 +28,8 @@
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 
+import * as featureFlags from '../config/feature-flags.js';
+
 const AUDIT_ID = 'audit-test-001';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
@@ -38,12 +40,14 @@ const {
   mockAgentSaveDomainResult,
   getUpdateCalls,
   getInsertCalls,
+  getMarkCollectingRpcCalls,
   setProductMode,
   clearCalls,
   setAuditDomainMaybeSingleData,
 } = vi.hoisted(() => {
   const updateCalls: Array<{ table: string; payload: Record<string, unknown>; filters: Record<string, string> }> = [];
   const insertCalls: Array<{ table: string; payload: Record<string, unknown> }> = [];
+  const markCollectingRpcCalls: Array<{ args: Record<string, unknown> }> = [];
 
   let productMode = 'full';
   const setProductMode = (m: string) => { productMode = m; };
@@ -58,9 +62,19 @@ const {
   const setAuditDomainMaybeSingleData = (data: Record<string, unknown> | null) => {
     auditDomainMaybeSingleData = data === null ? null : { ...data };
   };
+  const mockRpc = vi.fn((fnName: string, args?: Record<string, unknown>) => {
+    if (fnName === 'mark_audit_domain_collecting') {
+      markCollectingRpcCalls.push({ args: args ?? {} });
+      return Promise.resolve({ data: null, error: null });
+    }
+    return Promise.resolve({ data: null, error: { message: `unmocked rpc: ${fnName}`, code: 'TEST_RPC' } });
+  });
+
   const clearCalls = () => {
     updateCalls.length = 0;
     insertCalls.length = 0;
+    markCollectingRpcCalls.length = 0;
+    mockRpc.mockClear();
     resetAuditDomainMaybeSingleData();
   };
 
@@ -149,8 +163,11 @@ const {
 
   const mockFrom = vi.fn((table: string) => makeChain(table));
 
+  const getMarkCollectingRpcCalls = () => [...markCollectingRpcCalls];
+
   // Store for module mocks to close over
   (globalThis as Record<string, unknown>).__pipelineMockFrom           = mockFrom;
+  (globalThis as Record<string, unknown>).__pipelineMockRpc            = mockRpc;
   (globalThis as Record<string, unknown>).__mockAssertBriefReady       = mockAssertBriefReady;
   (globalThis as Record<string, unknown>).__mockAgentRun               = mockAgentRun;
   (globalThis as Record<string, unknown>).__mockAgentSaveDomainResult  = mockAgentSaveDomainResult;
@@ -161,6 +178,7 @@ const {
     mockAgentSaveDomainResult,
     getUpdateCalls,
     getInsertCalls,
+    getMarkCollectingRpcCalls,
     setProductMode,
     clearCalls,
     setAuditDomainMaybeSingleData,
@@ -170,7 +188,13 @@ const {
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
 vi.mock('../services/supabase.js', () => ({
-  supabase: { from: (globalThis as Record<string, unknown>).__pipelineMockFrom },
+  supabase: {
+    from: (globalThis as Record<string, unknown>).__pipelineMockFrom as (t: string) => unknown,
+    rpc: ((globalThis as Record<string, unknown>).__pipelineMockRpc ?? vi.fn()) as (
+      fn: string,
+      args?: Record<string, unknown>,
+    ) => Promise<unknown>,
+  },
 }));
 
 vi.mock('../services/brief-validator.js', () => ({
@@ -268,7 +292,7 @@ function getPipelineInserts() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT = 'true';
+  vi.spyOn(featureFlags, 'isDirectorOrchestrationAgentOutputEnabled').mockReturnValue(true);
   clearCalls();
   setProductMode('full');
   (mockAssertBriefReady as Mock).mockReset().mockResolvedValue(undefined);
@@ -299,8 +323,10 @@ describe('PipelineOrchestrator.retryDomainPhase()', () => {
     const orch = new PipelineOrchestrator(AUDIT_ID);
     await orch.retryDomainPhase(1);
     expect(mockAgentRun).toHaveBeenCalledOnce();
-    const collectingUpdate = getDomainUpdates().find(u => u.payload.status === 'collecting');
-    expect(collectingUpdate?.filters.id).toBe('audit-domain-v1');
+    const collectingRpc = getMarkCollectingRpcCalls();
+    expect(collectingRpc).toHaveLength(1);
+    expect(collectingRpc[0]?.args.p_audit_id).toBe(AUDIT_ID);
+    expect(collectingRpc[0]?.args.p_domain_key).toBe('tech_infrastructure');
   });
 });
 
@@ -405,11 +431,13 @@ describe('PipelineOrchestrator.startPhase(0) — brief gate failure', () => {
 });
 
 describe('PipelineOrchestrator.startPhase(1) — domain phase happy path', () => {
-  it('sets domain status to "collecting" before agent runs', async () => {
+  it('marks domain collecting via mark_audit_domain_collecting RPC before agent runs', async () => {
     const orch = new PipelineOrchestrator(AUDIT_ID);
     await orch.startPhase(1);
-    const collectingUpdate = getDomainUpdates().find(u => u.payload.status === 'collecting');
-    expect(collectingUpdate).toBeDefined();
+    const collectingRpc = getMarkCollectingRpcCalls();
+    expect(collectingRpc).toHaveLength(1);
+    expect(collectingRpc[0]?.args.p_audit_id).toBe(AUDIT_ID);
+    expect(collectingRpc[0]?.args.p_domain_key).toBe('tech_infrastructure');
   });
 
   it('calls agent.run()', async () => {
@@ -481,6 +509,7 @@ describe('PipelineOrchestrator.startPhase(7) — Strategy phase', () => {
     const orch = new PipelineOrchestrator(AUDIT_ID);
     await orch.startPhase(7);
     expect(getDomainUpdates()).toHaveLength(0);
+    expect(getMarkCollectingRpcCalls()).toHaveLength(0);
   });
 
   it('does NOT call saveDomainResult', async () => {

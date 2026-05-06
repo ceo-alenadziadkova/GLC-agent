@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { FeatureRolloutMode } from '../app-feature-flags';
 import { APP_FEATURE_FLAGS } from '../app-feature-flags';
@@ -15,12 +15,12 @@ describe('parsePortalPlanViewParam', () => {
       originalBoardMode;
   });
 
-  it('defaults to timeline while Delivery Board rollout is below GA', () => {
+  it('defaults to roadmap while Delivery Board rollout is below GA', () => {
     (APP_FEATURE_FLAGS as { planDeliveryBoardRolloutMode: FeatureRolloutMode }).planDeliveryBoardRolloutMode =
       'internal';
-    expect(parsePortalPlanViewParam(null)).toBe('timeline');
-    expect(parsePortalPlanViewParam('')).toBe('timeline');
-    expect(parsePortalPlanViewParam('   ')).toBe('timeline');
+    expect(parsePortalPlanViewParam(null)).toBe('roadmap');
+    expect(parsePortalPlanViewParam('')).toBe('roadmap');
+    expect(parsePortalPlanViewParam('   ')).toBe('roadmap');
   });
 
   it('defaults to board when rollout mode is GA', () => {
@@ -29,26 +29,35 @@ describe('parsePortalPlanViewParam', () => {
     expect(parsePortalPlanViewParam('')).toBe('board');
   });
 
-  it('parses roadmap and board literals case-insensitively', () => {
+  it('parses roadmap, board, and table literals case-insensitively', () => {
     expect(parsePortalPlanViewParam('roadmap')).toBe('roadmap');
     expect(parsePortalPlanViewParam('Roadmap')).toBe('roadmap');
     expect(parsePortalPlanViewParam('board')).toBe('board');
     expect(parsePortalPlanViewParam('Board')).toBe('board');
+    expect(parsePortalPlanViewParam('table')).toBe('table');
+    expect(parsePortalPlanViewParam('Table')).toBe('table');
   });
 
-  it('accepts timeline spellings used in older redirects', () => {
-    expect(parsePortalPlanViewParam('timeline')).toBe('timeline');
-    expect(parsePortalPlanViewParam('Timeline')).toBe('timeline');
+  it('maps legacy timeline spellings to board at GA rollout', () => {
+    (APP_FEATURE_FLAGS as { planDeliveryBoardRolloutMode: FeatureRolloutMode }).planDeliveryBoardRolloutMode = 'ga';
+    expect(parsePortalPlanViewParam('timeline')).toBe('board');
+    expect(parsePortalPlanViewParam('Timeline')).toBe('board');
   });
 
-  it('falls back to timeline on unknown literal view values', () => {
-    expect(parsePortalPlanViewParam('anything_else')).toBe('timeline');
+  it('maps legacy timeline spellings to roadmap when board rollout is below GA', () => {
+    (APP_FEATURE_FLAGS as { planDeliveryBoardRolloutMode: FeatureRolloutMode }).planDeliveryBoardRolloutMode =
+      'internal';
+    expect(parsePortalPlanViewParam('timeline')).toBe('roadmap');
+  });
+
+  it('falls back to board on unknown literal view values', () => {
+    expect(parsePortalPlanViewParam('anything_else')).toBe('board');
   });
 });
 
 describe('defaultPortalPlanSurfaceFromRollout', () => {
   it('matches GA semantics', () => {
     expect(defaultPortalPlanSurfaceFromRollout('ga')).toBe('board');
-    expect(defaultPortalPlanSurfaceFromRollout('pilot')).toBe('timeline');
+    expect(defaultPortalPlanSurfaceFromRollout('pilot')).toBe('roadmap');
   });
 });

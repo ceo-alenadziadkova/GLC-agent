@@ -30,6 +30,7 @@ export {
   apiAuditsRoadmapManifestDraftRevisions,
   idempotencyPostAuditsRoadmapManifestDraftRevisionsKey,
   apiAuditsOrchestrationPack,
+  apiAuditsOrchestrationCompile,
   apiAuditsPlanBoard,
   apiAuditsPlanBoardColumnPolicy,
   apiAuditsPlanBoardCard,

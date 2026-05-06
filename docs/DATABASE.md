@@ -77,6 +77,11 @@ Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist b
 69. `068_legal_consent_source_audit_create.sql` — expands **`legal_consent_events.source`** enum (e.g. **`audit_create`**)
 70. `069_glc_orchestration_pack.sql` — **`audit_strategy.glc_orchestration_pack`**, **`orchestration_pack_version`**; **`audit_roadmap_manifest_snapshots`** (roadmap manifest + GLC orchestration pack persistence)
 71. `070_glc_orchestration_last_revision_diff.sql` — **`audit_strategy.glc_orchestration_last_revision_diff`** (JSON diff from previous pack to current when version ≥ 2)
+72. `080_upgrade_snapshot_reset_domains_and_reviews_rpc.sql` — RPC **`upgrade_snapshot_reset_audit_domains_and_reviews`** (transactional **`DELETE` + `INSERT`** for **`audit_domains`** and **`review_points`** on free snapshot package upgrade; **`GRANT EXECUTE`** to **`service_role`** only)
+73. `081_pipeline_events_audit_created_at_id_order.sql` — index **`idx_pipeline_events_audit_created_at_id_desc`** on **`pipeline_events(audit_id, created_at DESC, id DESC)`** (stable ordering when **`created_at`** ties)
+74. `082_pipeline_approve_review_emit_event_atomic_rpc.sql` — RPC **`pipeline_approve_review_emit_approved_event_atomic`** (transactional **`UPDATE review_points`** pending→approved **+** **`INSERT pipeline_events`** `review_approved` for the gate; **`GRANT EXECUTE`** to **`service_role`** only)
+75. `083_mark_audit_domain_collecting_rpc.sql` — RPC **`mark_audit_domain_collecting`** ( **`UPDATE audit_domains`** to **`collecting`** for the latest **`version`** row per **`audit_id` + `domain_key`**; **`GRANT EXECUTE`** to **`service_role`** only). **Runtime:** the API invokes this RPC from pipeline **`phaseRunner`** at the start of each domain phase; if the function is missing (migration not applied), logs show **`phase_runner.mark_audit_domain_collecting_failed`**. Contract smoke: **`pnpm -C server vitest run src/tests/pipeline-start-phase.test.ts -t mark_audit_domain_collecting`**.
+76. `084_pipeline_events_event_seq.sql` — column **`event_seq bigint NOT NULL`** (backfilled in historical **`created_at,id`** order), sequence default for new inserts, index **`idx_pipeline_events_audit_event_seq_desc`**. API listing uses **`event_seq DESC`** first (then **`created_at`**, **`id`**). **Deploy:** apply before or together with API builds that query **`event_seq`**.
 
 **Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, **`public_brief_sessions`**, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 
@@ -223,7 +228,10 @@ event_type text NOT NULL
 message text
 data jsonb DEFAULT '{}'
 created_at timestamptz DEFAULT now()
+event_seq bigint NOT NULL  -- migration 084; monotonic per insert
 ```
+
+**Ordering:** Newest-first reads use **`event_seq DESC`** (migration **`084`**) as the primary timeline ordering key, then **`created_at DESC`** and **`id DESC`** (migration **`081`**) for backward compatibility and same-`event_seq` edge cases. The **`id`** bigserial remains a stable tie-breaker.
 
 **`event_type` values:**
 

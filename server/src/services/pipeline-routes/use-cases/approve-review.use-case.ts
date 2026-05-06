@@ -4,11 +4,8 @@ import { pipelineRouteErr } from '../domain/pipeline-route.errors.js';
 import type { PipelineReviewApproveResult } from '../domain/pipeline-route.types.js';
 import { sendReviewApprovedNotification } from '../notifications/pipeline-route.notification.service.js';
 import { fetchConsultantOwnedAudit } from '../repository/pipeline-audit.repository.js';
-import {
-  fetchLatestQualityGateEventReport,
-  insertReviewApprovedEvent,
-} from '../repository/pipeline-event.repository.js';
-import { approvePendingReview } from '../repository/pipeline-review.repository.js';
+import { fetchLatestQualityGateEventReport } from '../repository/pipeline-event.repository.js';
+import { approvePendingReviewEmitApprovedEventAtomic } from '../repository/pipeline-review.repository.js';
 
 export async function runReviewApprove(params: {
   auditId: string;
@@ -29,21 +26,17 @@ export async function runReviewApprove(params: {
     }
   }
 
-  const approved = await approvePendingReview({
+  const message = pipelineReviewApprovedMessage(afterPhase);
+  const approved = await approvePendingReviewEmitApprovedEventAtomic({
     auditId,
     afterPhase,
     consultantNotes,
     interviewNotes,
+    message,
   });
   if (approved.error) throw approved.error;
   if (!approved.data) return { ok: true, response: { status: 'already_approved' } };
 
-  const message = pipelineReviewApprovedMessage(afterPhase);
-  await insertReviewApprovedEvent({
-    auditId,
-    phase: afterPhase,
-    message,
-  });
   await sendReviewApprovedNotification({ auditId, phase: afterPhase, message });
 
   return { ok: true, response: approved.data as Record<string, unknown> };

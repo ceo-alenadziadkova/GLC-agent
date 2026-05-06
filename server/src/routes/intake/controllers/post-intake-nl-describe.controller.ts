@@ -37,11 +37,12 @@ import {
   fetchIntakeTokenRowForRespond,
   updateIntakeTokenResponsesDraft,
 } from '../../../services/intake/intake-token.service.js';
+import {
+  INTAKE_NL_DESCRIBE_IN_MEMORY_IDEMPOTENCY_TTL_MS,
+  INTAKE_NL_DESCRIBE_MAX_TEXT_LEN,
+} from '../../../config/intake-nl-describe-policy.js';
 import { DEFAULT_AUDIT_PRODUCT_MODE, type IntakeBriefCollectionMode, type ProductMode } from '../../../types/audit.js';
 import type { IntakeSurface } from '@glc/intake-core';
-
-const MAX_TEXT_LEN = 8000;
-const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000;
 const nlDescribeIdempotencyCache = new Map<string, { at: number; response: unknown }>();
 
 function readHeader(req: Request, headerName: string): string | undefined {
@@ -67,7 +68,7 @@ function scrubNlTextPii(text: string): { scrubbed: string; emailCount: number; p
 
 function cleanupIdempotencyCache(now = Date.now()): void {
   for (const [key, value] of nlDescribeIdempotencyCache.entries()) {
-    if (now - value.at > IDEMPOTENCY_TTL_MS) {
+    if (now - value.at > INTAKE_NL_DESCRIBE_IN_MEMORY_IDEMPOTENCY_TTL_MS) {
       nlDescribeIdempotencyCache.delete(key);
     }
   }
@@ -138,13 +139,13 @@ export async function postIntakeNlDescribeController(req: Request, res: Response
         .json(apiErrorJson(API_ERROR_CODES.INTAKE_RESPONSES_REQUIRED, INTAKE_RESPONSES_REQUIRED_MESSAGE));
       return;
     }
-    if (raw.length > MAX_TEXT_LEN) {
+    if (raw.length > INTAKE_NL_DESCRIBE_MAX_TEXT_LEN) {
       res
         .status(400)
         .json(
           apiErrorJson(
             API_ERROR_CODES.INTAKE_RESPONSES_SCHEMA_INVALID,
-            intakeResponsesSchemaInvalidMessage(`text exceeds ${MAX_TEXT_LEN} characters`),
+            intakeResponsesSchemaInvalidMessage(`text exceeds ${INTAKE_NL_DESCRIBE_MAX_TEXT_LEN} characters`),
           ),
         );
       return;

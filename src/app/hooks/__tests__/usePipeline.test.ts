@@ -78,4 +78,79 @@ describe('usePipeline', () => {
     expect(invalidateAuditRelatedQueriesMock).toHaveBeenCalledWith(expect.any(Object), 'audit-1');
     expect(invalidateAuditsListsAndDashboardMock).toHaveBeenCalledWith(expect.any(Object));
   });
+
+  it('does not apply error or loading teardown from superseded loads after auditId changes', async () => {
+    const settles: Array<{
+      resolve: (v: typeof PIPELINE_STATUS_FIXTURE) => void;
+      reject: (e: unknown) => void;
+    }> = [];
+
+    mockGetPipelineStatus.mockImplementation(
+      async () =>
+        new Promise((resolve, reject) => {
+          settles.push({
+            resolve: resolve as (v: typeof PIPELINE_STATUS_FIXTURE) => void,
+            reject,
+          });
+        }),
+    );
+
+    const { result, rerender } = renderHook(({ aid }: { aid: string }) => usePipeline(aid), {
+      initialProps: { aid: 'audit-1' },
+    });
+
+    await waitFor(() => expect(settles.length).toBe(1));
+
+    rerender({ aid: 'audit-2' });
+
+    await waitFor(() => expect(settles.length).toBe(2));
+
+    await act(async () => {
+      settles[0].reject(new Error('stale_audit_1_failure'));
+    });
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      settles[1].resolve(PIPELINE_STATUS_FIXTURE);
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBeNull();
+    expect(result.current.state).not.toBeNull();
+  });
+
+  it('clears snapshot errors and resets next-phase busy when switching auditId before loads settle', async () => {
+    const settles: Array<{ resolve: (v: typeof PIPELINE_STATUS_FIXTURE) => void }> = [];
+
+    mockGetPipelineStatus.mockImplementation(
+      async () =>
+        new Promise(resolve => {
+          settles.push({
+            resolve: resolve as (v: typeof PIPELINE_STATUS_FIXTURE) => void,
+          });
+        }),
+    );
+
+    const { result, rerender } = renderHook(({ aid }: { aid: string }) => usePipeline(aid), {
+      initialProps: { aid: 'audit-1' },
+    });
+
+    await waitFor(() => expect(settles.length).toBe(1));
+
+    rerender({ aid: 'audit-2' });
+
+    await waitFor(() => expect(settles.length).toBe(2));
+
+    expect(result.current.state).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.runNextPhaseBusy).toBe(false);
+
+    await act(async () => {
+      settles[1].resolve({ ...PIPELINE_STATUS_FIXTURE, current_phase: 7 });
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.state?.current_phase).toBe(7);
+  });
 });

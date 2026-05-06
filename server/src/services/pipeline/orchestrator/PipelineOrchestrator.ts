@@ -262,6 +262,7 @@ export class PipelineOrchestrator {
       parallelFailureThreshold: PARALLEL_FAILURE_THRESHOLD,
       emitEvent: this.emitEvent.bind(this),
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
+      assertNotCancelled: () => this.assertNotCancelled(),
       runIsolatedPhase: (p) => this.startPhaseIsolated(p),
     });
   }

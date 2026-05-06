@@ -31,6 +31,7 @@ import {
 } from '../../../services/orchestration/roadmap-manifest.service.js';
 import { loadAuditExecutionPlanRow } from '../../../services/orchestration/orchestration-read.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
+import { markRoadmapManifestSnapshotPostDeprecated } from './orchestrator-legacy-alias.js';
 
 export async function postRoadmapManifestSnapshotController(req: AuthRequest, res: Response) {
   try {
@@ -38,6 +39,7 @@ export async function postRoadmapManifestSnapshotController(req: AuthRequest, re
       sendApiError(res, 403, API_ERROR_CODES.ORCHESTRATION_PACK_API_DISABLED, ORCHESTRATION_PACK_API_DISABLED_MESSAGE);
       return;
     }
+    markRoadmapManifestSnapshotPostDeprecated(res);
 
     const auditId = req.params.id as string;
     const parsedBody = RoadmapManifestPayloadSchema.safeParse(req.body);

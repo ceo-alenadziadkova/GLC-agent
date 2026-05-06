@@ -17,6 +17,11 @@ import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
 import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
 import { buildStrategyNarrowControlObject } from '../services/governance/narrow/build-strategy-narrow-control-object.js';
+import { logger } from '../services/logger.js';
+import {
+  assertPhaseRunLeaseHeld,
+  getPhaseRunLeaseContext,
+} from '../services/pipeline/phase-run-lease-context.js';
 
 type StrategyPersistPayload = {
   strategyResult: StrategyOutput;
@@ -51,7 +56,17 @@ export class StrategyAgent extends BaseAgent {
     }
     this.pendingPersistence = null;
 
-    await supabase.from('audit_strategy').update({
+    const leaseCtx = getPhaseRunLeaseContext();
+    if (leaseCtx) {
+      await assertPhaseRunLeaseHeld({
+        auditId: this.auditId,
+        phase: this.phaseNumber,
+        attempt: leaseCtx.attempt,
+        expectedOwner: leaseCtx.leaseOwner,
+      });
+    }
+
+    const { error: strategyErr } = await supabase.from('audit_strategy').update({
       status: 'completed',
       executive_summary: payload.strategyResult.executive_summary,
       overall_score: payload.weightedScore,
@@ -62,11 +77,29 @@ export class StrategyAgent extends BaseAgent {
       schema_version: STRATEGY_INITIATIVE_SCHEMA_VERSION.v2,
     }).eq('audit_id', this.auditId);
 
-    await supabase.from('audits').update({
+    if (strategyErr) {
+      logger.error('strategy.finalize_audit_strategy_update_failed', {
+        component: 'strategy',
+        audit_id: this.auditId,
+        error: strategyErr.message,
+      });
+      throw strategyErr;
+    }
+
+    const { error: auditErr } = await supabase.from('audits').update({
       status: 'completed',
       overall_score: payload.weightedScore,
       current_phase: 7,
     }).eq('id', this.auditId);
+
+    if (auditErr) {
+      logger.error('strategy.finalize_audits_update_failed', {
+        component: 'strategy',
+        audit_id: this.auditId,
+        error: auditErr.message,
+      });
+      throw auditErr;
+    }
   }
 
   /**

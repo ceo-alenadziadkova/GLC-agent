@@ -33,6 +33,10 @@ vi.mock('../services/token-tracker.js', () => ({
   },
 }));
 
+vi.mock('../services/pipeline/events/insert-pipeline-event.js', () => ({
+  insertPipelineEventRow: vi.fn(async () => {}),
+}));
+
 import { GLC_ORCHESTRATION_PACK_SCHEMA_VERSION } from '../config/orchestration-graph-policy.js';
 import { ORCHESTRATION_LANE_IDS } from '../config/orchestration-lanes.js';
 import { ORCHESTRATION_SYNTHESIS_CONFLICT_ID_PREFIX } from '../config/orchestration-synthesis-policy.js';

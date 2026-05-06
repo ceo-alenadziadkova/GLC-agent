@@ -25,7 +25,7 @@ export async function persistSnapshotCacheResult(
     mapQuickWinsForDomain(p),
   );
 
-  await supabase
+  const { error: reconUpdErr } = await supabase
     .from('audit_recon')
     .update({
       status: 'completed',
@@ -39,6 +39,15 @@ export async function persistSnapshotCacheResult(
       pages_crawled: p.pages_crawled,
     })
     .eq('audit_id', auditId);
+
+  if (reconUpdErr) {
+    logger.error('snapshot.persist_recon_update_failed', {
+      component: 'snapshot',
+      audit_id: auditId,
+      error: reconUpdErr.message,
+    });
+    throw new Error(reconUpdErr.message);
+  }
 
   const payloadRow = {
     status: 'completed' as const,

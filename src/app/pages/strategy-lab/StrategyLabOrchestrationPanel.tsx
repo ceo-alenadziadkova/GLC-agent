@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Path } from '@phosphor-icons/react';
 
 import type { DomainKey } from '@glc/intake-core';
@@ -27,8 +27,10 @@ import {
 } from '../../components/ui/accordion';
 import { toast } from 'sonner';
 import { useManifestSavedSignatureBaseline } from '../../hooks/useManifestSavedSignatureBaseline';
-import { planBoardQueryKeys, usePlanBoardQuery } from '../../data/api/plan-board-queries';
+import { useCompilePlanMutation } from '../../hooks/useCompilePlanMutation';
+import { usePlanBoardQuery } from '../../data/api/plan-board-queries';
 import { useQueryClient } from '../../lib/tanstack-react-query';
+import { invalidatePlanWorkspaceQueries } from '../../lib/plan-workspace-queries';
 import { useDebouncedOrchestratorManifestPreview } from '../../hooks/useDebouncedOrchestratorManifestPreview';
 import {
   ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
@@ -37,14 +39,10 @@ import {
   type OrchestrationSeasonPreset,
 } from '../../config/orchestration-roadmap-manifest';
 import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
-import {
-  ORCHESTRATION_LANE_LABELS,
-  ORCHESTRATION_SCENARIO_LABELS,
-  ORCHESTRATION_SEASON_LABELS,
-  ORCHESTRATION_UI_COPY,
-  type OrchestrationLaneId,
-} from '../../config/orchestration-roadmap-ui-copy.en';
+import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS } from '../../config/orchestration-plan-governance';
+import { PLAN_WORKSPACE_COMPILE_REQUEST_EVENT } from '../../config/plan-workspace-mode';
+import { PLAN_WORKSPACE_UI_COPY } from '../../config/plan-workspace-ui-copy.en';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
@@ -53,11 +51,10 @@ import {
   formatOrchestrationPackRunErrorMessage,
 } from '../../lib/orchestration-pack-api-error';
 import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-projection';
-import { formatAppMediumDateTime } from '../../lib/date-format';
+import { useOptionalPlanAdvancedDrawer } from '../../context/PlanAdvancedDrawerContext';
 import { OrchestrationManifestCoreFields } from './orchestration-panel/OrchestrationManifestCoreFields';
-import { OrchestrationPanelDiagnosticsSection } from './orchestration-panel/OrchestrationPanelDiagnosticsSection';
+import { OrchestrationAdvancedSections } from './orchestration-advanced-sections';
 import { StrategyLabOrchestrationManifestPreview } from './StrategyLabOrchestrationManifestPreview';
-import { TimelineLinkButton } from './TimelineLinkButton';
 
 type ExecutionPlan = NonNullable<AuditMeta['execution_plan']>;
 
@@ -86,7 +83,7 @@ export function StrategyLabOrchestrationPanel({
   });
   const manifestDraftRevisionDigest = boardHintsQuery.data?.manifest_draft_revision_digest ?? '';
 
-  const buildPackHintId = useId();
+  const compileStatusRegionId = useId();
   const orchestrationWorkflowStatusHeadingId = useId();
   const advancedStage2HeadingId = useId();
   const advancedSnapshotHeadingId = useId();
@@ -121,6 +118,14 @@ export function StrategyLabOrchestrationPanel({
     () => strategy.strategy_lab_context?.preserve_board_identity_on_rename === true,
   );
   const [boardIdentityWorking, setBoardIdentityWorking] = useState(false);
+  const [compileStatusLine, setCompileStatusLine] = useState<string | null>(null);
+
+  const compileMutation = useCompilePlanMutation({
+    auditId,
+    onSettled: () => {
+      onReload();
+    },
+  });
 
   const { hasUnsavedManifestChanges, applySignatureFromManifestPayload, markDraftAsSavedBaseline } =
     useManifestSavedSignatureBaseline({
@@ -132,12 +137,6 @@ export function StrategyLabOrchestrationPanel({
         ? manifestDraftRevisionDigest
         : undefined,
     });
-
-  /** Newest-first list from API; server only accepts this id for POST orchestrator run. */
-  const latestManifestSnapshotId = useMemo(
-    () => (manifestSnapshots.length > 0 ? manifestSnapshots[0]!.id : null),
-    [manifestSnapshots],
-  );
 
   useEffect(() => {
     setStage2Selection(strategy.strategy_lab_context?.director_stage2_domains ?? []);
@@ -335,7 +334,7 @@ export function StrategyLabOrchestrationPanel({
         ...prev,
       ].slice(0, ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems));
       if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard) {
-        await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+        await invalidatePlanWorkspaceQueries(qc, auditId);
       }
       toast.success(ORCHESTRATION_UI_COPY.manifestSaved);
     } catch (e) {
@@ -358,40 +357,66 @@ export function StrategyLabOrchestrationPanel({
     qc,
   ]);
 
-  const handleBuildPack = useCallback(async () => {
-    if (!manifestSnapshotId) return;
-    let idToRun = latestManifestSnapshotId ?? manifestSnapshotId;
-    if (!latestManifestSnapshotId) {
-      try {
-        const { snapshot } = await api.getRoadmapManifestSnapshotLatest(auditId);
-        if (snapshot?.id) idToRun = snapshot.id;
-      } catch {
-        // keep idToRun; server will reject if stale
-      }
-    }
-    if (latestManifestSnapshotId && latestManifestSnapshotId !== manifestSnapshotId) {
-      toast.info(ORCHESTRATION_UI_COPY.buildUsesLatestSnapshot);
-    }
-    setWorking(true);
+  const handleCompilePlan = useCallback(async () => {
+    const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
+    const body: RoadmapManifestRequestBody = {
+      schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
+      selected_domains: executionPlan.selected_domains,
+      change_scenario: scenario,
+      season_preset: season,
+      ...(planHorizon ? { plan_horizon: planHorizon } : {}),
+    };
     try {
-      const res = await api.postOrchestratorRun(auditId, { manifest_snapshot_id: idToRun });
-      if (idToRun !== manifestSnapshotId) {
-        setManifestSnapshotId(idToRun);
-        hydratedManifestSnapshotId.current = null;
-      }
+      const res = await compileMutation.mutateAsync(body);
+      setManifestSnapshotId(res.manifest_snapshot_id);
+      hydratedManifestSnapshotId.current = res.manifest_snapshot_id;
+      markDraftAsSavedBaseline();
+      setManifestSnapshots(prev => [
+        {
+          id: res.manifest_snapshot_id,
+          created_at: new Date().toISOString(),
+          payload: {
+            schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
+            selected_domains: executionPlan.selected_domains,
+            change_scenario: scenario,
+            season_preset: season,
+            ...(planHorizon ? { plan_horizon: planHorizon } : {}),
+          },
+        },
+        ...prev.filter(row => row.id !== res.manifest_snapshot_id),
+      ].slice(0, ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems));
       setLastPostRevision({ roadmap_version: res.roadmap_version, diff: res.last_revision_diff });
       setPlanGovernance(res.plan_governance);
+      setCompileStatusLine(
+        ORCHESTRATION_UI_COPY.compilePlanStatusDone.replace(
+          '{version}',
+          String(res.orchestration_pack_version),
+        ),
+      );
       toast.success(ORCHESTRATION_UI_COPY.packBuilt);
-      onReload();
     } catch (e) {
       const pg = extractPlanGovernanceFromPackApiError(e);
       if (pg) setPlanGovernance(pg);
       const { message, description } = formatOrchestrationPackRunErrorMessage(e, ORCHESTRATION_UI_COPY.packBuildFailed);
       toast.error(message, description ? { description, duration: 14_000 } : { duration: 6_000 });
-    } finally {
-      setWorking(false);
     }
-  }, [auditId, latestManifestSnapshotId, manifestSnapshotId, onReload]);
+  }, [
+    compileMutation,
+    executionPlan.selected_domains,
+    markDraftAsSavedBaseline,
+    planHorizonEnd,
+    planHorizonStart,
+    scenario,
+    season,
+  ]);
+
+  useEffect(() => {
+    const onCompileRequest = () => {
+      void handleCompilePlan();
+    };
+    window.addEventListener(PLAN_WORKSPACE_COMPILE_REQUEST_EVENT, onCompileRequest);
+    return () => window.removeEventListener(PLAN_WORKSPACE_COMPILE_REQUEST_EVENT, onCompileRequest);
+  }, [handleCompilePlan]);
 
   const performCommercialOfferFetch = useCallback(
     async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
@@ -560,6 +585,129 @@ export function StrategyLabOrchestrationPanel({
   ].filter((token): token is string => token !== null);
   const advancedPreviewLine = advancedPreviewTokens.join(' · ');
 
+  const planAdvancedDrawer = useOptionalPlanAdvancedDrawer();
+
+  const orchestrationAdvancedBody = useMemo(
+    () => (
+      <OrchestrationAdvancedSections
+        auditId={auditId}
+        executionPlan={executionPlan}
+        strategy={strategy}
+        pack={pack}
+        planGovernance={planGovernance}
+        governanceHints={governanceHints}
+        revisionHistory={revisionHistory}
+        roadmapVersionToShow={roadmapVersionToShow}
+        revisionDiffCandidates={revisionDiffCandidates}
+        selectedRevisionDiff={selectedRevisionDiff}
+        selectedRevisionDiffKey={selectedRevisionDiffKey}
+        setSelectedRevisionDiffKey={setSelectedRevisionDiffKey}
+        titleById={titleById}
+        analysisDepthFilter={analysisDepthFilter}
+        setAnalysisDepthFilter={setAnalysisDepthFilter}
+        depthFilteredNodes={depthFilteredNodes}
+        synthesisConflicts={synthesisConflicts}
+        hasPlanDiagnostics={hasPlanDiagnostics}
+        showRevisionHistorySubsection={showRevisionHistorySubsection}
+        advancedStage2HeadingId={advancedStage2HeadingId}
+        advancedSnapshotHeadingId={advancedSnapshotHeadingId}
+        advancedCommercialHeadingId={advancedCommercialHeadingId}
+        inlineConfirmId={inlineConfirmId}
+        stage2Selection={stage2Selection}
+        toggleStage2Domain={toggleStage2Domain}
+        stage2Working={stage2Working}
+        handleSaveStage2Intent={handleSaveStage2Intent}
+        handleClearSavedStage2Intent={handleClearSavedStage2Intent}
+        preserveBoardIdentityOnRename={preserveBoardIdentityOnRename}
+        setPreserveBoardIdentityOnRename={setPreserveBoardIdentityOnRename}
+        boardIdentityWorking={boardIdentityWorking}
+        handleSaveBoardIdentityPreference={handleSaveBoardIdentityPreference}
+        manifestSnapshots={manifestSnapshots}
+        manifestSnapshotId={manifestSnapshotId}
+        setManifestSnapshotId={setManifestSnapshotId}
+        setScenario={setScenario}
+        setSeason={setSeason}
+        setPlanHorizonStart={setPlanHorizonStart}
+        setPlanHorizonEnd={setPlanHorizonEnd}
+        applySignatureFromManifestPayload={applySignatureFromManifestPayload}
+        hydratedManifestSnapshotId={hydratedManifestSnapshotId}
+        handleSaveManifest={handleSaveManifest}
+        working={working}
+        compileMutationPending={compileMutation.isPending}
+        commercialOffer={commercialOffer}
+        commercialWorking={commercialWorking}
+        handleProbeCommercialOffer={handleProbeCommercialOffer}
+        pendingAcceptDomain={pendingAcceptDomain}
+        handleCancelInlineAccept={handleCancelInlineAccept}
+        handleConfirmInlineAccept={handleConfirmInlineAccept}
+        handleRequestAcceptDomain={handleRequestAcceptDomain}
+      />
+    ),
+    [
+      auditId,
+      executionPlan,
+      strategy,
+      pack,
+      planGovernance,
+      governanceHints,
+      revisionHistory,
+      roadmapVersionToShow,
+      revisionDiffCandidates,
+      selectedRevisionDiff,
+      selectedRevisionDiffKey,
+      titleById,
+      analysisDepthFilter,
+      depthFilteredNodes,
+      synthesisConflicts,
+      hasPlanDiagnostics,
+      showRevisionHistorySubsection,
+      advancedStage2HeadingId,
+      advancedSnapshotHeadingId,
+      advancedCommercialHeadingId,
+      inlineConfirmId,
+      stage2Selection,
+      stage2Working,
+      preserveBoardIdentityOnRename,
+      boardIdentityWorking,
+      manifestSnapshots,
+      manifestSnapshotId,
+      working,
+      compileMutation.isPending,
+      commercialOffer,
+      commercialWorking,
+      pendingAcceptDomain,
+      setSelectedRevisionDiffKey,
+      setAnalysisDepthFilter,
+      toggleStage2Domain,
+      handleSaveStage2Intent,
+      handleClearSavedStage2Intent,
+      setPreserveBoardIdentityOnRename,
+      handleSaveBoardIdentityPreference,
+      setManifestSnapshotId,
+      setScenario,
+      setSeason,
+      setPlanHorizonStart,
+      setPlanHorizonEnd,
+      applySignatureFromManifestPayload,
+      hydratedManifestSnapshotId,
+      handleSaveManifest,
+      handleProbeCommercialOffer,
+      handleCancelInlineAccept,
+      handleConfirmInlineAccept,
+      handleRequestAcceptDomain,
+    ],
+  );
+
+  useLayoutEffect(() => {
+    if (!planAdvancedDrawer) return;
+    planAdvancedDrawer.setContent(orchestrationAdvancedBody);
+    planAdvancedDrawer.setPreviewLine(advancedPreviewLine);
+    return () => {
+      planAdvancedDrawer.setContent(null);
+      planAdvancedDrawer.setPreviewLine(null);
+    };
+  }, [planAdvancedDrawer, orchestrationAdvancedBody, advancedPreviewLine]);
+
   return (
     <div id={ORCHESTRATION_PANEL_DOM_ID} className="bg-card space-y-5 border-b p-4">
       {/* Section header */}
@@ -626,37 +774,30 @@ export function StrategyLabOrchestrationPanel({
         previewPlanHorizon={previewPlanHorizon}
       />
 
-      {/* CTA hierarchy: Build pack (primary, lg, with icon) + Save snapshot (outline, secondary). */}
+      {/* Primary CTA: compile (snapshot + pack). Save-snapshot-only lives under Advanced. */}
       <div className="space-y-2">
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={working}
-            onClick={() => void handleSaveManifest()}
-            aria-label={STRATEGY_LAB_COPY.panel.saveSnapshotSecondaryAria}
-          >
-            {ORCHESTRATION_UI_COPY.confirmSaveManifest}
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            size="lg"
-            disabled={working || !manifestSnapshotId || hasUnsavedManifestChanges}
-            onClick={() => void handleBuildPack()}
-            aria-label={STRATEGY_LAB_COPY.panel.buildPackPrimaryAria}
-            aria-describedby={hasUnsavedManifestChanges ? buildPackHintId : undefined}
-            className="w-full sm:w-auto"
-          >
-            <Path className="h-4 w-4" aria-hidden />
-            {ORCHESTRATION_UI_COPY.buildPack}
-          </Button>
-        </div>
-        {hasUnsavedManifestChanges && (
-          <p id={buildPackHintId} className="text-muted-foreground text-xs max-w-prose">
-            {ORCHESTRATION_UI_COPY.buildPackNeedsManifestSync}
-          </p>
-        )}
+        <Button
+          type="button"
+          variant="default"
+          size="lg"
+          disabled={working || compileMutation.isPending}
+          onClick={() => void handleCompilePlan()}
+          aria-label={STRATEGY_LAB_COPY.panel.compilePlanPrimaryAria}
+          className="w-full sm:w-auto"
+        >
+          <Path className="h-4 w-4" aria-hidden />
+          {compileMutation.isPending ? ORCHESTRATION_UI_COPY.compilePlanStatusCompiling : ORCHESTRATION_UI_COPY.compilePlan}
+        </Button>
+        <p
+          id={compileStatusRegionId}
+          className="text-muted-foreground text-xs max-w-prose"
+          role="status"
+          aria-live="polite"
+        >
+          {compileMutation.isPending
+            ? ORCHESTRATION_UI_COPY.compilePlanStatusCompiling
+            : compileStatusLine ?? ORCHESTRATION_UI_COPY.compilePlanStatusIdleHint}
+        </p>
       </div>
 
       {roadmapVersionToShow > 0 && (
@@ -665,323 +806,41 @@ export function StrategyLabOrchestrationPanel({
         </p>
       )}
 
-      {/* Advanced: diagnostics + tuning (progressive disclosure). */}
-      {/* Advanced settings: single accordion grouping diagnostics, Stage-2 intent + snapshot history + commercial offers.
-       * Trigger keeps an always-visible preview line so capabilities stay discoverable without expanding. */}
-      <Accordion
-        type="single"
-        collapsible
-        className="bg-background rounded-lg border [&_[data-slot=accordion-item]]:border-b-0"
-      >
-        <AccordionItem value="advanced">
-          <AccordionTrigger className="px-3 py-3 hover:no-underline">
-            <span className="flex flex-1 flex-col items-start gap-1 text-left">
-              <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary}
+      {planAdvancedDrawer ? (
+        <div className="bg-background rounded-lg border px-3 py-3">
+          <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">{PLAN_WORKSPACE_UI_COPY.advancedMovedToPlanMenuHint}</p>
+          <p className="text-muted-foreground mt-2 text-[length:var(--text-2xs)] leading-snug">{advancedPreviewLine}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => planAdvancedDrawer.setOpen(true)}
+          >
+            {PLAN_WORKSPACE_UI_COPY.advancedDrawerOpenCta}
+          </Button>
+        </div>
+      ) : (
+        <Accordion
+          type="single"
+          collapsible
+          className="bg-background rounded-lg border [&_[data-slot=accordion-item]]:border-b-0"
+        >
+          <AccordionItem value="advanced">
+            <AccordionTrigger className="px-3 py-3 hover:no-underline">
+              <span className="flex flex-1 flex-col items-start gap-1 text-left">
+                <span className="text-foreground text-sm font-semibold">
+                  {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary}
+                </span>
+                <span className="text-muted-foreground text-[length:var(--text-2xs)] font-normal leading-snug">
+                  {advancedPreviewLine}
+                </span>
               </span>
-              <span className="text-muted-foreground text-[length:var(--text-2xs)] font-normal leading-snug">
-                {advancedPreviewLine}
-              </span>
-            </span>
-          </AccordionTrigger>
-          <AccordionContent className="border-border space-y-5 border-t p-3 pt-4">
-            {hasPlanDiagnostics ? (
-              <OrchestrationPanelDiagnosticsSection
-                embeddedInAdvanced
-                planGovernance={planGovernance}
-                governanceHints={governanceHints}
-                pack={pack}
-                showRevisionHistorySubsection={showRevisionHistorySubsection}
-                revisionHistory={revisionHistory}
-                selectedRevisionDiff={selectedRevisionDiff}
-                roadmapVersionToShow={roadmapVersionToShow}
-                revisionDiffCandidates={revisionDiffCandidates}
-                selectedRevisionDiffKey={selectedRevisionDiffKey}
-                setSelectedRevisionDiffKey={setSelectedRevisionDiffKey}
-                titleById={titleById}
-                analysisDepthFilter={analysisDepthFilter}
-                setAnalysisDepthFilter={setAnalysisDepthFilter}
-                depthFilteredNodes={depthFilteredNodes}
-                synthesisConflicts={synthesisConflicts}
-              />
-            ) : null}
-            {hasPlanDiagnostics ? <hr className="border-border" /> : null}
-            <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
-              {STRATEGY_LAB_COPY.orchestrationDisclosure.advancedHint}
-            </p>
-
-          {APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? (
-            <section aria-labelledby={advancedStage2HeadingId} className="space-y-2">
-              <h4 id={advancedStage2HeadingId} className="text-foreground text-xs font-semibold">
-                {STRATEGY_LAB_COPY.orchestrationDisclosure.directorStage2Summary}
-              </h4>
-              <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
-              <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
-              <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
-              <ul className="flex flex-col gap-1">
-                {executionPlan.selected_domains.map(d => (
-                  <li key={d}>
-                    <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={stage2Selection.includes(d)}
-                        onChange={() => toggleStage2Domain(d)}
-                        className="border-border rounded border"
-                      />
-                      <span>{DOMAIN_LABELS[d] ?? d}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={stage2Working}
-                  onClick={() => void handleSaveStage2Intent()}
-                >
-                  {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={stage2Working}
-                  onClick={() => void handleClearSavedStage2Intent()}
-                >
-                  {STRATEGY_LAB_COPY.directorStage2Intent.clear}
-                </Button>
-              </div>
-              {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
-                <p className="text-muted-foreground text-xs max-w-prose">
-                  {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
-                  {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
-                    .map(d => DOMAIN_LABELS[d] ?? d)
-                    .join(', ')}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-
-          <hr className="border-border" />
-
-          <section className="space-y-2">
-            <h4 className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.boardIdentity.sectionTitle}</h4>
-            <p className="text-muted-foreground text-xs leading-relaxed max-w-prose">
-              {STRATEGY_LAB_COPY.boardIdentity.sectionHint}
-            </p>
-            <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed max-w-prose">
-              {STRATEGY_LAB_COPY.boardIdentity.deprecatedAuditWideHint}
-            </p>
-            <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={preserveBoardIdentityOnRename}
-                onChange={event => setPreserveBoardIdentityOnRename(event.target.checked)}
-                className="border-border rounded border"
-              />
-              <span>{STRATEGY_LAB_COPY.boardIdentity.checkboxLabel}</span>
-            </label>
-            {!preserveBoardIdentityOnRename ? (
-              <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">
-                {STRATEGY_LAB_COPY.boardIdentity.warningWhenOff}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={boardIdentityWorking}
-                onClick={() => void handleSaveBoardIdentityPreference()}
-              >
-                {STRATEGY_LAB_COPY.boardIdentity.save}
-              </Button>
-            </div>
-          </section>
-
-          <hr className="border-border" />
-
-          <section aria-labelledby={advancedSnapshotHeadingId} className="space-y-2">
-            <h4 id={advancedSnapshotHeadingId} className="text-foreground text-xs font-semibold">
-              {ORCHESTRATION_UI_COPY.snapshotHistoryTitle}
-            </h4>
-            {manifestSnapshots.length > 0 ? (
-              <label className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.snapshotHistoryLabel}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={manifestSnapshotId ?? ''}
-                  onChange={e => {
-                    const nextId = e.target.value;
-                    const next = manifestSnapshots.find(row => row.id === nextId);
-                    setManifestSnapshotId(nextId);
-                    hydratedManifestSnapshotId.current = null;
-                    if (next) {
-                      setScenario(next.payload.change_scenario);
-                      setSeason(next.payload.season_preset);
-                      setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
-                      setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
-                      applySignatureFromManifestPayload(next.payload);
-                      hydratedManifestSnapshotId.current = nextId;
-                    }
-                  }}
-                >
-                  {manifestSnapshots.map(row => (
-                    <option key={row.id} value={row.id}>
-                      {formatAppMediumDateTime(row.created_at)} · {ORCHESTRATION_SCENARIO_LABELS[row.payload.change_scenario]} ·{' '}
-                      {ORCHESTRATION_SEASON_LABELS[row.payload.season_preset]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.snapshotHistoryEmpty}</p>
-            )}
-            <p className="text-muted-foreground text-xs max-w-prose">{ORCHESTRATION_UI_COPY.snapshotVersionHint}</p>
-          </section>
-
-          <hr className="border-border" />
-
-          <section aria-labelledby={advancedCommercialHeadingId} className="space-y-2">
-            <h4 id={advancedCommercialHeadingId} className="text-foreground text-xs font-semibold">
-              {ORCHESTRATION_UI_COPY.commercialOfferTitle}
-            </h4>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={commercialWorking}
-              onClick={() => void handleProbeCommercialOffer()}
-            >
-              {commercialWorking ? ORCHESTRATION_UI_COPY.commercialChecking : ORCHESTRATION_UI_COPY.commercialCheckCta}
-            </Button>
-            {commercialOffer?.offers.length ? (
-              <ul className="text-foreground space-y-3 text-xs">
-                {commercialOffer.offers.map(row => {
-                  const isPending = pendingAcceptDomain === row.domain;
-                  const inlineId = isPending ? `${inlineConfirmId}-${row.domain}` : undefined;
-                  return (
-                    <li key={row.domain} className="list-none rounded-md border border-border px-3 py-2 max-w-prose">
-                      <div className="font-medium">
-                        {row.value_message} ({row.estimated_incremental_effort_weeks}w)
-                      </div>
-                      <div className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] font-semibold">
-                        {ORCHESTRATION_UI_COPY.commercialWhyNowTitle}
-                      </div>
-                      <ul className="mt-1 list-inside list-disc text-[length:var(--text-2xs)]">
-                        {row.why_now_bullets.map((line, i) => (
-                          <li key={`${row.domain}-why-${i}`}>{line}</li>
-                        ))}
-                      </ul>
-                      {isPending ? (
-                        <div
-                          id={inlineId}
-                          role="group"
-                          aria-labelledby={`${inlineId}-title`}
-                          aria-describedby={`${inlineId}-desc`}
-                          className="bg-card border-border mt-2 space-y-2 rounded-md border px-3 py-2"
-                          onKeyDown={e => {
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              handleCancelInlineAccept();
-                            }
-                          }}
-                        >
-                          <h5
-                            id={`${inlineId}-title`}
-                            className="text-foreground text-xs font-semibold"
-                          >
-                            {ORCHESTRATION_UI_COPY.commercialConfirmAcceptTitle}
-                          </h5>
-                          <p
-                            id={`${inlineId}-desc`}
-                            className="text-muted-foreground text-xs leading-relaxed max-w-prose"
-                          >
-                            {ORCHESTRATION_UI_COPY.commercialConfirmAcceptDescription}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="default"
-                              size="sm"
-                              autoFocus
-                              onClick={() => handleConfirmInlineAccept(row.domain)}
-                            >
-                              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptConfirm}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleCancelInlineAccept}
-                            >
-                              {ORCHESTRATION_UI_COPY.commercialConfirmAcceptCancel}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2"
-                          aria-haspopup="dialog"
-                          onClick={() => handleRequestAcceptDomain(row.domain)}
-                        >
-                          {ORCHESTRATION_UI_COPY.commercialAcceptCta}
-                        </Button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            {commercialOffer?.base_preview ? (
-              <div className="text-muted-foreground space-y-2 text-xs">
-                <div className="font-semibold text-foreground">{ORCHESTRATION_UI_COPY.commercialBeforeAfterTitle}</div>
-                <div className="max-w-prose">
-                  <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialBeforeLabel}: </span>
-                  {commercialOffer.base_preview.lanes_included
-                    .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-                    .join(', ')}
-                </div>
-                {commercialOffer.recalculated_preview ? (
-                  <div className="max-w-prose">
-                    <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialAfterLabel}: </span>
-                    {commercialOffer.recalculated_preview.lanes_included
-                      .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-                      .join(', ')}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {commercialOffer?.accepted_domain && commercialOffer.recalculated_preview?.lanes_included ? (
-              <p className="text-muted-foreground text-xs max-w-prose">
-                {ORCHESTRATION_UI_COPY.commercialRecalculatedPrefix}{' '}
-                {DOMAIN_LABELS[commercialOffer.accepted_domain] ?? commercialOffer.accepted_domain}:{' '}
-                {commercialOffer.recalculated_preview.lanes_included
-                  .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
-                  .join(', ')}
-                {commercialOffer.accepted_pack_result?.roadmap_version
-                  ? ` · v${commercialOffer.accepted_pack_result.roadmap_version}`
-                  : ''}
-              </p>
-            ) : null}
-            {commercialOffer?.accepted_pack_result ? (
-              <div className="border-border space-y-2 rounded-md border px-3 py-2">
-                <p className="text-muted-foreground m-0 text-xs max-w-prose">{ORCHESTRATION_UI_COPY.commercialAcceptedReviewTimeline}</p>
-                <p className="text-muted-foreground m-0 text-[length:var(--text-2xs)] max-w-prose">
-                  {ORCHESTRATION_UI_COPY.commercialAcceptedCompareHint}
-                </p>
-                <TimelineLinkButton auditId={auditId} />
-              </div>
-            ) : null}
-          </section>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+            </AccordionTrigger>
+            <AccordionContent className="border-border border-t p-3 pt-4">{orchestrationAdvancedBody}</AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 }

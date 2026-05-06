@@ -16,6 +16,7 @@ import {
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import { logger } from '../logger.js';
 import { supabase } from '../supabase.js';
+import { insertPipelineEventRow } from '../pipeline/events/insert-pipeline-event.js';
 
 export type AuditTokenBudgetTopupInputError =
   | 'audit_id_invalid'
@@ -108,10 +109,10 @@ export async function applyAuditTokenBudgetTopup(
   const previousBudget = Number(row.previous_budget);
   const tokensUsed = Number(row.tokens_used);
 
-  await supabase.from('pipeline_events').insert({
-    audit_id: input.auditId,
+  await insertPipelineEventRow({
+    auditId: input.auditId,
     phase: -1,
-    event_type: PIPELINE_EVENT_TYPES.tokenBudgetTopup,
+    eventType: PIPELINE_EVENT_TYPES.tokenBudgetTopup,
     message: `Platform admin increased token budget by ${input.deltaTokens.toLocaleString('en-US')} tokens (${previousBudget.toLocaleString('en-US')} → ${newBudget.toLocaleString('en-US')}).`,
     data: {
       actor_user_id: input.grantedByUserId,
@@ -122,6 +123,7 @@ export async function applyAuditTokenBudgetTopup(
       reason: rpcReason,
       grant_id: row.grant_id,
     },
+    mergeObservabilityContext: false,
   });
 
   return {
