@@ -58,8 +58,6 @@ export const APP_FEATURE_FLAGS = {
   orchestrationTimelinePrimaryUxEnabled: true,
   /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
   planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
-  /** Narrative Timeline tab until Board parity + sunset. Mirrors server `planNarrativeTimelineEnabled`. */
-  planNarrativeTimelineEnabled: false,
   /**
    * When true, unified Plan (`PortalPlanPage`) skips `GET /timeline` while `view=board` if `timeline_parity`
    * on `GET …/plan/board` is sufficient (ADR Delivery Board follow-up). SPA-only; redeploy to change.

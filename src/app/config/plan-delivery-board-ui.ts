@@ -12,11 +12,6 @@ export function isPlanDeliveryBoardUiEnabled(): boolean {
   return rolloutIndex(APP_FEATURE_FLAGS.planDeliveryBoardRolloutMode) >= rolloutIndex('internal');
 }
 
-/** Narrative Timeline tab remains available until parity + explicit sunset (P3). */
-export function isPlanNarrativeTimelineUiEnabled(): boolean {
-  return APP_FEATURE_FLAGS.planNarrativeTimelineEnabled;
-}
-
 /**
  * Whether `useOrchestrationReadModel` should issue `GET /api/audits/:id/timeline` for the unified Plan shell.
  * When deferred on the Board tab, Board uses `timeline_parity` from `GET …/plan/board` only.

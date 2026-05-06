@@ -88,12 +88,9 @@ describe('orchestration contract parity', () => {
     );
   });
 
-  it('keeps plan delivery board + narrative timeline flags aligned', () => {
+  it('keeps plan delivery board rollout default aligned', () => {
     expect(APP_FEATURE_FLAGS.planDeliveryBoardRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode,
-    );
-    expect(APP_FEATURE_FLAGS.planNarrativeTimelineEnabled).toBe(
-      SYSTEM_DEFAULTS_FEATURE_FLAGS.planNarrativeTimelineEnabled,
     );
   });
 

@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../config/route-paths';
-import { isPlanDeliveryBoardUiEnabled, isPlanNarrativeTimelineUiEnabled } from '../../config/plan-delivery-board-ui';
+import { isPlanDeliveryBoardUiEnabled } from '../../config/plan-delivery-board-ui';
 import { cn } from '../../components/ui/utils';
 import { buildPlanUrlWithViewPreservingForeignParams } from '../../lib/plan-cross-nav';
 
@@ -53,7 +53,7 @@ export function PlanViewSegmentedNav({ auditId, isClient, active }: PlanViewSegm
     currentSearch,
   });
   const showBoard = isPlanDeliveryBoardUiEnabled();
-  const showTimeline = isPlanNarrativeTimelineUiEnabled();
+  const showTimeline = false;
 
   return (
     <nav aria-label={copy.ariaLabel} className="w-full">
