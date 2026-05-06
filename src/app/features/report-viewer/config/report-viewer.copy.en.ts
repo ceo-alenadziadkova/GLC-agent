@@ -1,4 +1,4 @@
-import workspacePackaging from '../../../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../../../locales/en/marketing-workspace-packaging.en.json';
 import { REPORT_VIEWER_CONSTANTS } from './report-viewer.constants';
 
 const reportCopy = workspacePackaging.report;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import marketingHomeCopy from '../../../data/marketing-home-copy.en.json';
-import workspacePackaging from '../../../data/marketing-workspace-packaging.en.json';
+import marketingHomeCopy from '../../../locales/en/marketing-home-copy.en.json';
+import workspacePackaging from '../../../locales/en/marketing-workspace-packaging.en.json';
 import { buildMarketingHomeViewModel } from './home-copy.mapper';
 
 describe('home-copy.mapper', () => {

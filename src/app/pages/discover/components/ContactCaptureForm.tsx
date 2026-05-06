@@ -1,5 +1,5 @@
 import { CheckCircle, PaperPlaneRight, Spinner } from '@phosphor-icons/react';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 import { hasAnyContactValue } from '../services';
 import { cn } from '../../../components/ui/utils';
 import { Input } from '../../../../design-system/ui';

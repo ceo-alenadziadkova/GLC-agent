@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, Buildings, ChartBar, CheckCircle, Users } from '@phosphor-icons/react';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../../../config/route-paths';
 import type { DiscoveryFinding } from '../../../lib/discovery-flow';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 import { AuditTeaser } from './AuditTeaser';
 import { ContactCaptureForm } from './ContactCaptureForm';
 import { FindingCard } from './FindingCard';

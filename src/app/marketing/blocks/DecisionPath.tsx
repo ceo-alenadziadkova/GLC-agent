@@ -2,8 +2,8 @@ import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, MapTrifold, Question, Stack } from '@phosphor-icons/react';
 import { cn } from '../../components/ui/utils';
-import marketingHomeCopy from '../../data/marketing-home-copy.en.json';
-import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
+import marketingHomeCopy from '../../locales/en/marketing-home-copy.en.json';
+import workspacePackaging from '../../locales/en/marketing-workspace-packaging.en.json';
 
 const PATH_ICONS = [Question, Stack, MapTrifold] as const;
 const PATH_ICON_ACCENTS = [

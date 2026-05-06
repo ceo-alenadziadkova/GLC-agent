@@ -4,7 +4,7 @@ import {
   MARKETING_IN_VIEW_MARGIN,
   MARKETING_MOTION_EASE_PREMIUM,
 } from '../../config/marketing-motion';
-import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../../locales/en/marketing-workspace-packaging.en.json';
 /**
  * Static skeleton-style tiles shown before a scan completes — product narrative, not live data.
  */

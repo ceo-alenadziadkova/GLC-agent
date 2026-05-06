@@ -1,8 +1,8 @@
 import { Check } from '@phosphor-icons/react';
 import { choiceValueNeedsSpecify, INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL } from '@glc/intake-core';
 import { getQuestion, type DiscoveryAnswers } from '../../../lib/discovery-flow';
-import discoveryUiCopy from '../../../data/discovery-ui-copy.en.json';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoveryUiCopy from '../../../locales/en/discovery-ui-copy.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 import { Input, Textarea } from '../../../../design-system/ui';
 
 const DEFER_CHIP = INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL;

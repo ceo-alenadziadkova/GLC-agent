@@ -8,7 +8,7 @@ import {
   MARKETING_COVERAGE_GRID_CELL,
   MARKETING_COVERAGE_GRID_LABEL,
 } from '../../config/marketing-surface-tokens';
-import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../../locales/en/marketing-workspace-packaging.en.json';
 
 const TIER_ACTIVE_CELLS: Record<'focus' | 'context' | 'strategy', number> = {
   focus: 1,

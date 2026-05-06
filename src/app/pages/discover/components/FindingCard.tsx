@@ -9,7 +9,7 @@ import {
 } from '@phosphor-icons/react';
 import { DISCOVER_HOOK_ACCENT_TOKEN } from '../../../config/discover-hook-accent-tokens';
 import type { DiscoveryFinding } from '../../../lib/discovery-flow';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 import { splitFindingDetail } from '../services';
 
 const HOOK_ICONS: Record<DiscoveryFinding['hook'], Icon> = {

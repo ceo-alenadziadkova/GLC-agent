@@ -3,7 +3,7 @@
  * Import from components; do not hardcode these strings in TSX.
  */
 
-import copy from '../data/workspace-page-copy.en.json';
+import copy from '../locales/en/workspace-page-copy.en.json';
 
 export const WORKSPACE_PAGE_COPY = copy;
 
