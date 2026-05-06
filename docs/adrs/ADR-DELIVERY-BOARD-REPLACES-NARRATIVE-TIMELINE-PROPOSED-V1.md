@@ -1,8 +1,8 @@
-# ADR: Delivery Board replaces narrative Timeline (product + ticket artefact — Proposed v1)
+# ADR: Delivery Board replaces narrative Timeline (product + ticket artefact — Accepted v1)
 
 | Field | Value |
 | --- | --- |
-| **Status** | **Proposed** |
+| **Status** | **Accepted** |
 | **Date** | 2026-05-03 |
 | **Scope** | One execution contour: Pack (structural truth) + `plan_task_delivery` (soft state) + three Plan views (**Board**, **Roadmap Gantt**, **Strategy Lab**). Narrative `?view=timeline` sunsets after parity ([`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) Appendix F/G). |
 | **Supersedes** | — (does **not** replace engineering SSOT yet) |
@@ -81,7 +81,7 @@ These six decisions unblock Phase work; engineering mapping remains in **`ADR-DE
 
 ## 5. UX contract clause (Orchestrator)
 
-The clause in **[`ORCHESTRATOR-INSTRUCTIONS.md`](../instructions/ORCHESTRATOR-INSTRUCTIONS.md)** § **UX contract** must stay technically accurate (exact env keys, rollout facade). Narrative Timeline and Delivery Board are **equally valid client-facing Plan artifacts** wherever **`planNarrativeTimelineEnabled`** (and matching server flag) exposes the Timeline segment; Delivery Board remains **primary for execution** once rollout is **`ga`** and Timeline is phased out—see Operational ADR § Decision + Appendix F.
+The clause in **[`ORCHESTRATOR-INSTRUCTIONS.md`](../instructions/ORCHESTRATOR-INSTRUCTIONS.md)** § **UX contract** must stay technically accurate (exact env keys, rollout facade). Delivery Board is the primary execution surface; legacy `?view=timeline` links are retired via canonical redirect to `?view=board`.
 
 ---
 
@@ -117,7 +117,7 @@ The clause in **[`ORCHESTRATOR-INSTRUCTIONS.md`](../instructions/ORCHESTRATOR-IN
 | **GLC-PB-013** | P2 | Reconciliation panel UX | **Done (lean)** — consultant orphan banner + `POST …/reconcile` in [`BoardView.tsx`](../../src/app/pages/portal-plan/board/BoardView.tsx) (full “diff preview panel” deferred if product wants richer UI). |
 | **GLC-PB-014** | P2 | Orphan badges | **Done** — Board card chrome. |
 | **GLC-PB-015** | P3 | `top_7d`/`top_30d` parity on cards | **Done** via **`timeline_parity`** + Board consumption (+ optional `GET /timeline` defer toggle). |
-| **GLC-PB-016** | P3 | Sunset `view=timeline` under flag | **Mostly done** — defaults + redirects per Operational ADR **Appendix F**; emergency revert **`FEATURE_PLAN_NARRATIVE_TIMELINE`**. |
+| **GLC-PB-016** | P3 | Sunset `view=timeline` | **Done** — defaults + redirects per Operational ADR **Appendix F**; legacy timeline remains redirect-only. |
 
 ---
 
@@ -131,7 +131,7 @@ Canonical engineering truth: **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER` Appendix D
 | `canonical_node_key nullability` | NOT NULL everywhere | **`NULL`** for **`source='manual'`** enforced by migration CHECK ([`074`](../../server/migrations/074_plan_task_delivery.sql)) |
 | Extra columns | Not in draft `§3` | **`pack_lane_snapshot`**, **`manual_title`** (**`075`**), orphan reasons enumerated in schema |
 | Board enable flag | **`PLAN_DELIVERY_BOARD`** boolean default false | **Rollout facade** **`planDeliveryBoardRolloutMode`** / **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`** (**`shadow`…`ga`**) per [`feature-flags.ts`](../../server/src/config/feature-flags.ts) |
-| Narrative Timeline | Single boolean | **`FEATURE_PLAN_NARRATIVE_TIMELINE`** + SPA mirror **`planNarrativeTimelineEnabled`** |
+| Narrative Timeline | Flagged fallback | Retired: canonical route keeps permanent redirect `?view=timeline` → `?view=board` |
 | Reconcile module path | `services/plan-board-reconcile.ts` | **`services/plan-board/reconcile.ts`** + persistence adapter |
 | §**2.3** strict enforce | Ban manual **`in_progress`** without pack promote | **Current policy allows** flagged transition with UI warning—tightening = product change + server transition matrix update |
 
@@ -139,5 +139,5 @@ Canonical engineering truth: **`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER` Appendix D
 
 ## 9. ADR lifecycle
 
-- Stay **Proposed** until Product signs the §3 table plus explicit handling of **Appendix Z** items they want changed in code (**new ADR Accepted** superseding Operational-layer rows if schema/flags tighten).
-- When promoting: update [`docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`](../instructions/ORCHESTRATOR-INSTRUCTIONS.md) in the **same PR** if UX contract wording changes materially (per project convention).
+- This ADR is **Accepted** as the product-facing decision matrix and execution backlog frame; engineering implementation SSOT remains [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
+- If schema/flag behavior must tighten beyond Appendix Z, publish a new ADR (do not rewrite accepted decision sections in place).

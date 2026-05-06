@@ -221,7 +221,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `strategy-lab/StrategyLabPage.tsx` | Strategic roadmap |
-| `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id?view=board`** (query merged); narrative page removed — revert via git + `planNarrativeTimelineEnabled` if ever needed |
+| `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id?view=board`** (query merged); narrative page removed and timeline route stays permanently legacy-only |
 | `/portal/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Same for **`/portal/plan/:id?view=board`**; timeline **read model** remains on **`GET /api/audits/:id/timeline`** for Roadmap/Board parity consumers |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |

@@ -35,7 +35,7 @@ Any **long-form draft** ADR pasted in chats or wiki must **defer here** plus [`O
 3. **Stable identity** `canonical_node_key` — deterministic (`@glc/intake-core` [`canonical-node-key.ts`](../../packages/intake-core/src/canonical-node-key.ts)); `pack_graph_node_id` advisory. Manual cards (`source='manual'`) keep `canonical_node_key` **NULL** (CHECK enforced in migration).
 4. **Row scope:** `created_by_user_id`; access via audit ownership / `client_id` in route handlers (`resolveAuditPlanBoardAccess`) plus RLS on `plan_task_delivery` (consultant-owner CRUD paths). No duplicate `user_id` column on the operational row.
 5. **Cross-view:** `?focus=` ([`plan-cross-nav.ts`](../../src/app/lib/plan-cross-nav.ts)); one **`PATCH`** contract ([`PATCH …/plan/board/cards/:cardId`](../../server/src/routes/audits/index.ts)); React Query namespace **`['plan-board', auditId]`** ([`plan-board-queries.ts`](../../src/app/data/api/plan-board-queries.ts)).
-6. **Feature flags:** server [`getPlanDeliveryBoardRolloutMode`](../../server/src/config/feature-flags.ts) / **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`** (`shadow | internal | pilot | ga`; defaults via `SYSTEM_DEFAULTS`); **`isPlanNarrativeTimelineEnabled`** / **`FEATURE_PLAN_NARRATIVE_TIMELINE`**. Static client mirrors [`plan-delivery-board-ui.ts`](../../src/app/config/plan-delivery-board-ui.ts).
+6. **Feature flags:** server [`getPlanDeliveryBoardRolloutMode`](../../server/src/config/feature-flags.ts) / **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`** (`shadow | internal | pilot | ga`; defaults via `SYSTEM_DEFAULTS`). Static client mirrors [`plan-delivery-board-ui.ts`](../../src/app/config/plan-delivery-board-ui.ts).
 
 ---
 
@@ -75,7 +75,7 @@ Any **long-form draft** ADR pasted in chats or wiki must **defer here** plus [`O
 | **P0** | `view=board` parses; segmented control gated by rollout mode; Board renders behind flag; Lighthouse/a11y bar on Board; Legacy plan redirect tests green |
 | **P1** | Migration applied; `@glc/intake-core` canonical key tests + reconcile tests; **`GET/PATCH`** live; **`@dnd-kit`** drag + keyboard **Move to column** (+ RTL regression); rollout **defaults**: repo `SYSTEM_DEFAULTS` / static SPA flags (currently **`ga`** for Board tab — override with **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE=shadow`** for conservative staging — see **[DEPLOYMENT.md](../DEPLOYMENT.md)**) |
 | **P2** | Consultant manual `POST /cards`; orphan UI affordances + optional **`POST /reconcile`** UX |
-| **P3** | Board parity cues vs narrative Timeline satisfied; **`planNarrativeTimelineEnabled`** defaults off; **`?view=timeline` → board** redirect; Timeline component removal deferred one release |
+| **P3** | Board parity cues vs narrative Timeline satisfied; permanent **`?view=timeline` → board** redirect; Timeline component removal deferred one release |
 
 ---
 
@@ -117,7 +117,7 @@ Long-form drafts sometimes describe a simpler flag and schema than shipped code.
 
 ## Appendix F — P3 narrative Timeline removed (SPA)
 
-- The former **`PortalTimelinePage.tsx`** narrative surface **no longer ships**. Emergency revert = restore the deleted module from git history and re-enable **`planNarrativeTimelineEnabled`** plus segmented-nav Timeline tab (**[`PlanViewSegmentedNav.tsx`](../../src/app/pages/strategy-lab/PlanViewSegmentedNav.tsx)**).
+- The former **`PortalTimelinePage.tsx`** narrative surface **no longer ships**. Legacy timeline URLs remain redirect-only (`?view=timeline` to `?view=board`).
 - **`?view=timeline`** on canonical Plan URLs **`replace`**s to **`?view=board`** when Board rollout is on, else **`roadmap`** ([**`PortalPlanPage.tsx`](../../src/app/pages/portal-plan/PortalPlanPage.tsx)**).
 - Legacy **`/timeline/:id`** and **`/portal/timeline/:id`** resolve through [**`LegacyPlanPathRedirect.tsx`**](../../src/app/pages/portal-plan/LegacyPlanPathRedirect.tsx) to **`/plan…?view=board`** (foreign query pairs preserved).
 
