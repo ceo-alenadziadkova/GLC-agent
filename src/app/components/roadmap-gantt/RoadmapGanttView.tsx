@@ -116,10 +116,9 @@ import {
 } from '../ui/context-menu';
 import { useProfile } from '../../hooks/useProfile';
 import { useRoadmapGanttFilteredTasks } from '../../hooks/useRoadmapGanttFilteredTasks';
+import { usePlanFocusPackNodeId } from '../../hooks/usePlanFocusKey';
 import {
   buildPlanUrlWithViewPreservingForeignParams,
-  PORTAL_PLAN_FOCUS_QUERY_KEY,
-  resolvePlanFocusToPackGraphNodeId,
 } from '../../lib/plan-cross-nav';
 import { useRoadmapGanttDependencySvgPaths } from '../../hooks/useRoadmapGanttDependencySvgPaths';
 
@@ -412,7 +411,7 @@ export function RoadmapGanttView({
   );
 
   const taskIdListKey = useMemo(() => projection.tasks.map((t) => t.id).sort().join(','), [projection.tasks]);
-  const focusParam = searchParams.get(PORTAL_PLAN_FOCUS_QUERY_KEY) ?? '';
+  const resolvedFocusTaskId = usePlanFocusPackNodeId(orchestrationPack ?? null);
   const taskParamFromUrl = searchParams.get(ROADMAP_SEARCH_PARAM_TASK) ?? '';
 
   useEffect(() => {
@@ -421,12 +420,11 @@ export function RoadmapGanttView({
       setFocusedTaskId(taskParamFromUrl);
       return;
     }
-    const resolved = resolvePlanFocusToPackGraphNodeId(focusParam || null, orchestrationPack ?? null);
-    if (resolved && projection.tasks.some((t) => t.id === resolved)) {
-      setSelectedTaskId(resolved);
-      setFocusedTaskId(resolved);
+    if (resolvedFocusTaskId && projection.tasks.some((t) => t.id === resolvedFocusTaskId)) {
+      setSelectedTaskId(resolvedFocusTaskId);
+      setFocusedTaskId(resolvedFocusTaskId);
     }
-  }, [taskIdListKey, focusParam, taskParamFromUrl, orchestrationPack, projection.tasks]);
+  }, [taskIdListKey, resolvedFocusTaskId, taskParamFromUrl, projection.tasks]);
 
   const isHeavyTaskLoad = filteredTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
 

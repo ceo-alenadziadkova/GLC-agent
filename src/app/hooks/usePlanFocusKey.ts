@@ -1,13 +1,21 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 
 import { PORTAL_PLAN_FOCUS_QUERY_KEY } from '../lib/plan-cross-nav';
+import { resolvePlanFocusToPackGraphNodeId } from '../lib/plan-cross-nav';
+import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 
 /** Normalized `?focus=` token for Plan surfaces (Board / Roadmap / future Table). */
 export function usePlanFocusCanonicalToken(): string | null {
   const [searchParams] = useSearchParams();
   const raw = searchParams.get(PORTAL_PLAN_FOCUS_QUERY_KEY);
   return raw != null && raw.trim() !== '' ? raw.trim() : null;
+}
+
+/** Shared resolver for Roadmap focus selection (`canonical_node_key` -> `pack_graph_node.id`). */
+export function usePlanFocusPackNodeId(pack: GlcOrchestrationPackView | null | undefined): string | null {
+  const focusToken = usePlanFocusCanonicalToken();
+  return useMemo(() => resolvePlanFocusToPackGraphNodeId(focusToken, pack), [focusToken, pack]);
 }
 
 export type UsePlanFocusKeyResult = {

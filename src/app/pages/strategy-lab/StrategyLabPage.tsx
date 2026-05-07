@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useId, useState } from 'react';
+import { useMemo, useEffect, useCallback, useId } from 'react';
 import { useQueryClient } from '../../lib/tanstack-react-query';
 import { useParams, useSearchParams } from 'react-router';
 import { AppShell } from '../../components/AppShell';
@@ -11,23 +11,15 @@ import {
 } from '../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
-import { buildAppRoute } from '../../config/route-paths';
-import { buildPlanWorkspaceHref } from '../../lib/plan-cross-nav';
-import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import { StrategyPlanningChrome } from './StrategyPlanningChrome';
-import { api } from '../../data/apiService';
-import { toast } from 'sonner';
 import { StrategyLabInspectPackScrollBody } from './strategy-lab-inspect-pack-scroll-body';
 import { useStrategyJourneyStepStatuses } from '../../hooks/useStrategyJourneyStepStatuses';
-import type { StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
-import { StrategyLabInitiativeEditDrawer } from './StrategyLabInitiativeEditDrawer';
-import { Button } from '../../components/ui/button';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { UI_BREAKPOINTS } from '../../config/ui-breakpoints';
-import { PlanSummaryRail, type PlanSummaryRailPresentation } from './PlanSummaryRail';
+import { PlanSummaryRail } from './PlanSummaryRail';
 import {
   StrategyLabErrorShell,
   StrategyLabLoadingShell,
@@ -42,12 +34,12 @@ import {
 import { useStrategyConstraints } from '../../hooks/useStrategyConstraints';
 import { useDomainBenchmarks } from '../../hooks/useDomainBenchmarks';
 import { useOrchestrationFocusScroll } from '../../hooks/useOrchestrationFocusScroll';
-import { useStrategyInitiativeEditDrawer } from '../../hooks/useStrategyInitiativeEditDrawer';
 import { useStrategyLabReferencePreviews } from '../../hooks/useStrategyLabReferencePreviews';
-import { useTablistKeyboardNavigation } from '../../hooks/useTablistKeyboardNavigation';
+import { useStrategyLabSummaryRailState } from '../../hooks/useStrategyLabSummaryRailState';
 import type { StrategyLabContextView } from '../../data/audit/contracts/report/report-domain.types';
-
-const ORCHESTRATOR_TAB_ORDER: readonly StrategyLabOrchestratorTabId[] = ['now', 'next', 'dependencies', 'risks'];
+import { useStrategyOrchestratorTabs } from '../../hooks/useStrategyOrchestratorTabs';
+import { useStrategyBoardIdentityPreference } from '../../hooks/useStrategyBoardIdentityPreference';
+import { useStrategyLabWorkspaceLinks } from '../../hooks/useStrategyLabWorkspaceLinks';
 
 export type StrategyLabPlanStudioScrollTarget = 'define' | 'shape-pack' | 'plan-setup';
 
@@ -75,24 +67,15 @@ export function StrategyLab(props: StrategyLabProps = {}) {
   const loadOfflineHintId = useId();
   const constraintOverridesErrorRegionId = useId();
   const { isClient } = useProfile();
-  const [orchestratorTab, setOrchestratorTab] = useState<StrategyLabOrchestratorTabId>('now');
   const orchestratorTablistOverviewId = useId();
   const definePhaseHeadingId = useId();
-  const [isSummarySheetOpen, setIsSummarySheetOpen] = useState(false);
-  const { setTabRef: setOrchestratorTabButtonRef, handleTablistKeyDown: onOrchestratorTablistKeyDown } =
-    useTablistKeyboardNavigation<StrategyLabOrchestratorTabId>({
-      order: ORCHESTRATOR_TAB_ORDER,
-      activeKey: orchestratorTab,
-      onChange: setOrchestratorTab,
-    });
-
   const {
-    initiativeEditOpen,
-    initiativeEditBucket,
-    initiativeEditTarget,
-    setInitiativeEditOpen,
-    openInitiativeEditor,
-  } = useStrategyInitiativeEditDrawer();
+    orchestratorTab,
+    setOrchestratorTab,
+    orchestratorPanelAnnouncement,
+    setOrchestratorTabButtonRef,
+    onOrchestratorTablistKeyDown,
+  } = useStrategyOrchestratorTabs();
 
   const glcPackView = useMemo(() => {
     const raw = audit?.strategy?.glc_orchestration_pack;
@@ -100,20 +83,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
   }, [audit?.strategy?.glc_orchestration_pack]);
 
   const journeySteps = useStrategyJourneyStepStatuses(audit);
-
-  const orchestratorPanelAnnouncement = useMemo(() => {
-    const meta: Record<StrategyLabOrchestratorTabId, readonly [string, string]> = {
-      now: [STRATEGY_LAB_COPY.orchestratorTabs.now, STRATEGY_LAB_COPY.orchestratorTabs.nowDesc],
-      next: [STRATEGY_LAB_COPY.orchestratorTabs.next, STRATEGY_LAB_COPY.orchestratorTabs.nextDesc],
-      dependencies: [
-        STRATEGY_LAB_COPY.orchestratorTabs.dependencies,
-        STRATEGY_LAB_COPY.orchestratorTabs.dependenciesDesc,
-      ],
-      risks: [STRATEGY_LAB_COPY.orchestratorTabs.risks, STRATEGY_LAB_COPY.orchestratorTabs.risksDesc],
-    };
-    const [title, desc] = meta[orchestratorTab];
-    return STRATEGY_LAB_COPY.orchestratorTabs.tabPanelStatusTemplate.replace('{title}', title).replace('{desc}', desc);
-  }, [orchestratorTab]);
 
   const mergeStrategyLabContextInAuditCache = useCallback(
     (strategy_lab_context: StrategyLabContextView) => {
@@ -123,22 +92,27 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     [id, queryClient],
   );
 
-  const handleTogglePreserveBoardIdentity = useCallback(async () => {
-    if (!id || !audit?.strategy) return;
-    const next = !(audit.strategy.strategy_lab_context?.preserve_board_identity_on_rename === true);
-    try {
-      const res = await api.patchStrategyLabContext(id, {
-        preserve_board_identity_on_rename: next ? true : null,
-      });
-      mergeStrategyLabContextInAuditCache(res.strategy_lab_context);
-      toast.success(STRATEGY_LAB_COPY.boardIdentity.saveOk);
-      void reload();
-    } catch {
-      toast.error(STRATEGY_LAB_COPY.boardIdentity.saveFailed);
-    }
-  }, [audit?.strategy, id, mergeStrategyLabContextInAuditCache, reload]);
+  const handleTogglePreserveBoardIdentity = useStrategyBoardIdentityPreference({
+    auditId: id,
+    strategy: audit?.strategy,
+    reload,
+    mergeStrategyLabContextInAuditCache,
+  });
 
-  const selectedPackNodeId = searchParams.get('node');
+  const {
+    selectedPackNodeId,
+    setSelectedPackNodeId,
+    isSummarySheetOpen,
+    setIsSummarySheetOpen,
+    planSummaryPresentation,
+  } = useStrategyLabSummaryRailState({
+    searchParams,
+    setSearchParams,
+    isClient,
+    packSummaryStackedLayout,
+    isNarrowMobileLayout,
+    rawPack: audit?.strategy?.glc_orchestration_pack,
+  });
 
   const {
     constraintStageDraft,
@@ -172,14 +146,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
 
   useOrchestrationFocusScroll({ searchParams, setSearchParams, isClient });
 
-  useEffect(() => {
-    if (!packSummaryStackedLayout || isClient) return;
-    const rawPack = audit?.strategy?.glc_orchestration_pack;
-    if (!isGlcOrchestrationPackView(rawPack)) return;
-    if (!selectedPackNodeId) return;
-    setIsSummarySheetOpen(true);
-  }, [audit?.strategy?.glc_orchestration_pack, isClient, packSummaryStackedLayout, selectedPackNodeId]);
-
   // Anchor scroll runs only when audit is loaded with a strategy; declared before any early
   // return so React Hook order stays stable across render branches.
   useEffect(() => {
@@ -197,24 +163,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [embedded, planStudioScrollTarget, audit?.strategy]);
-
-  const setSelectedPackNodeId = useCallback(
-    (nextId: string | null) => {
-      setSearchParams(
-        prev => {
-          const n = new URLSearchParams(prev);
-          if (nextId) {
-            n.set('node', nextId);
-          } else {
-            n.delete('node');
-          }
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
 
   if (loading && !audit) {
     return (
@@ -242,25 +190,13 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     );
   }
 
-  const orchestrationUiEnabled = APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
-  const clientOrchestrationLabReadOnlyEnabled = APP_FEATURE_FLAGS.clientOrchestrationLabReadOnlyEnabled;
+  const {
+    orchestrationUiEnabled,
+    clientOrchestrationLabReadOnlyEnabled,
+    reportHref,
+    planExecutionHref,
+  } = useStrategyLabWorkspaceLinks({ auditId: id, isClient });
   const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
-  const reportHref = id
-    ? isClient
-      ? buildAppRoute.portalReports(id)
-      : buildAppRoute.reports(id)
-    : isClient
-      ? '/portal/reports'
-      : '/reports';
-  const primaryPlanSurface = primaryPlanWorkbenchViewForStrategyLinks();
-  const planExecutionHref = id
-    ? buildPlanWorkspaceHref({
-        auditId: id,
-        isClient,
-        mode: 'execute',
-        view: primaryPlanSurface,
-      })
-    : reportHref;
 
   if (!audit.strategy) {
     return (
@@ -304,7 +240,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
       onOrchestratorTablistKeyDown={onOrchestratorTablistKeyDown}
       setOrchestratorTabButtonRef={setOrchestratorTabButtonRef}
       onSelectPackNodeId={setSelectedPackNodeId}
-      openInitiativeEditor={openInitiativeEditor}
       planExecutionHref={planExecutionHref}
       reportHref={reportHref}
       auditId={id}
@@ -326,15 +261,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
   const planSummaryDesktopChrome = (
     <StrategyLabPlanSummaryDesktopChrome detail={planSummaryDetailBlock} footer={planSummaryFooter} />
   );
-
-  const consultantMobilePackSummarySheet =
-    packSummaryStackedLayout && !isClient && Boolean(audit?.strategy);
-
-  const planSummaryPresentation: PlanSummaryRailPresentation = consultantMobilePackSummarySheet
-    ? 'consultant-sheet'
-    : isNarrowMobileLayout
-      ? 'main-only'
-      : 'split';
 
   const workspace = (
     <>
@@ -382,19 +308,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
         onSummarySheetOpenChange={setIsSummarySheetOpen}
         selectedPackNodeId={selectedPackNodeId}
       />
-
-      {id && !isClient ? (
-        <StrategyLabInitiativeEditDrawer
-          open={initiativeEditOpen}
-          onOpenChange={setInitiativeEditOpen}
-          auditId={id}
-          bucket={initiativeEditBucket}
-          initiative={initiativeEditTarget}
-          onSaved={() => {
-            void reload();
-          }}
-        />
-      ) : null}
     </>
   );
 

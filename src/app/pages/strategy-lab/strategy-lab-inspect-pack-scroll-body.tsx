@@ -4,7 +4,6 @@ import { Path, SlidersHorizontal, DotsThreeOutlineVerticalIcon } from '@phosphor
 
 import type { KeyboardEvent, RefCallback } from 'react';
 
-import type { StrategyInitiativeBucket } from '../../config/strategy-lab';
 import { StrategyLabOrchestratorListBody, type StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
 import { Button } from '../../components/ui/button';
 import {
@@ -14,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import { InlineEditableText } from '../../components/glc/InlineEditableText';
-import { useInitiativeTitleMutation } from '../../hooks/useInitiativeTitleMutation';
+import { useStrategyInitiativeInlineEdits } from '../../hooks/useStrategyInitiativeInlineEdits';
 import {
   Accordion,
   AccordionContent,
@@ -32,7 +31,7 @@ import { usePlanCommandRegistration } from '../../context/PlanCommandRegistryCon
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../../data/api/benchmarks';
-import type { StrategyInitiative, StrategyRoadmap } from '../../data/audit/contracts/report/report-domain.types';
+import type { StrategyRoadmap } from '../../data/audit/contracts/report/report-domain.types';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { cn } from '../../components/ui/utils';
 import type { PlanWorkspacePaletteCommand } from '../../lib/plan-command-registry';
@@ -65,7 +64,6 @@ export type StrategyLabInspectPackScrollBodyProps = {
   onOrchestratorTablistKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   setOrchestratorTabButtonRef: (key: StrategyLabOrchestratorTabId) => RefCallback<HTMLButtonElement>;
   onSelectPackNodeId: (id: string | null) => void;
-  openInitiativeEditor: (bucket: StrategyInitiativeBucket, initiative: StrategyInitiative) => void;
   planExecutionHref: string;
   reportHref: string;
   /** Required for consultant inline initiative title edits (Shape surface). */
@@ -104,7 +102,6 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
     onOrchestratorTablistKeyDown,
     setOrchestratorTabButtonRef,
     onSelectPackNodeId,
-    openInitiativeEditor,
     planExecutionHref,
     reportHref,
     auditId,
@@ -112,27 +109,14 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
     onTogglePreserveBoardIdentity,
   } = props;
 
-  const initiativeTitleMutation = useInitiativeTitleMutation({ auditId });
+  const {
+    isMutatingInitiative,
+    commitInitiativeTitle,
+    commitInitiativeDescription,
+    commitInitiativeBoardIdentityPreference,
+  } = useStrategyInitiativeInlineEdits({ auditId });
 
-  const shapePaletteCommands = useMemo((): PlanWorkspacePaletteCommand[] => {
-    if (!auditId || isClient || !glcPackView) return [];
-    const buckets = ['quick_wins', 'medium_term', 'strategic'] as const;
-    const out: PlanWorkspacePaletteCommand[] = [];
-    for (const bucket of buckets) {
-      for (const init of strategy[bucket] ?? []) {
-        const safeTitle = (init.title ?? init.id).replace(/"/g, "'");
-        out.push({
-          id: `shape-edit-initiative-${bucket}-${init.id}`,
-          label: `Edit "${safeTitle}"`,
-          keywords: `initiative edit shape ${bucket}`,
-          run: () => {
-            openInitiativeEditor(bucket, init);
-          },
-        });
-      }
-    }
-    return out;
-  }, [auditId, glcPackView, isClient, openInitiativeEditor, strategy]);
+  const shapePaletteCommands = useMemo((): PlanWorkspacePaletteCommand[] => [], []);
 
   usePlanCommandRegistration('plan-shape-initiatives', shapePaletteCommands);
 
@@ -377,23 +361,59 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
                       >
                         <div className="flex min-w-0 flex-1 items-start gap-2">
                           {auditId && !isClient ? (
-                            <InlineEditableText
-                              value={init.title}
-                              ariaLabel={STRATEGY_LAB_COPY.boardIdentity.initiativeRowInlineTitleAria}
-                              onCommit={async next => {
-                                await initiativeTitleMutation.mutateAsync({
-                                  bucket,
-                                  initiative: init,
-                                  title: next,
-                                });
-                              }}
-                              disabled={initiativeTitleMutation.isPending}
-                              minLength={2}
-                              maxLength={200}
-                              className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug"
-                            />
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <InlineEditableText
+                                value={init.title}
+                                ariaLabel={STRATEGY_LAB_COPY.boardIdentity.initiativeRowInlineTitleAria}
+                                onCommit={next =>
+                                  commitInitiativeTitle({
+                                    bucket,
+                                    initiative: init,
+                                    title: next,
+                                  })
+                                }
+                                disabled={isMutatingInitiative}
+                                minLength={2}
+                                maxLength={200}
+                                className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug"
+                              />
+                              <InlineEditableText
+                                value={init.description}
+                                ariaLabel={STRATEGY_LAB_COPY.boardIdentity.initiativeRowInlineDescriptionAria}
+                                onCommit={next =>
+                                  commitInitiativeDescription({
+                                    bucket,
+                                    initiative: init,
+                                    description: next,
+                                  })
+                                }
+                                disabled={isMutatingInitiative}
+                                minLength={2}
+                                maxLength={400}
+                                className="text-muted-foreground min-w-0 flex-1 text-xs leading-snug"
+                              />
+                              <label className="text-foreground flex cursor-pointer items-center gap-2 text-[length:var(--text-2xs)]">
+                                <input
+                                  type="checkbox"
+                                  checked={typeof init.board_identity_key === 'string' && init.board_identity_key.length > 0}
+                                  disabled={isMutatingInitiative}
+                                  onChange={e => {
+                                    void commitInitiativeBoardIdentityPreference({
+                                      bucket,
+                                      initiative: init,
+                                      preserveBoardIdentity: e.target.checked,
+                                    });
+                                  }}
+                                  className="border-border rounded border"
+                                />
+                                <span>{STRATEGY_LAB_COPY.boardIdentity.checkboxLabel}</span>
+                              </label>
+                            </div>
                           ) : (
-                            <span className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug">{init.title}</span>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <span className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug">{init.title}</span>
+                              <p className="text-muted-foreground text-xs leading-snug">{init.description}</p>
+                            </div>
                           )}
                           {!isClient ? (
                             <DropdownMenu>
@@ -409,14 +429,6 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" collisionPadding={8}>
-                                <DropdownMenuItem
-                                  className="cursor-pointer"
-                                  onSelect={() => {
-                                    openInitiativeEditor(bucket, init);
-                                  }}
-                                >
-                                  {STRATEGY_LAB_COPY.boardIdentity.initiativeRowMenuEditDetails}
-                                </DropdownMenuItem>
                                 {onTogglePreserveBoardIdentity ? (
                                   <DropdownMenuItem
                                     className="cursor-pointer"
@@ -442,8 +454,10 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
           </div>
         ) : (
           <div className="bg-background rounded-xl border p-4">
-            <p className="text-foreground text-sm font-semibold">{ORCHESTRATION_UI_COPY.timelineTitle}</p>
-            <p className="text-muted-foreground mt-1 max-w-prose text-xs leading-relaxed">{ORCHESTRATION_UI_COPY.timelineHint}</p>
+            <p className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.workbenchSegment.planLabel}</p>
+            <p className="text-muted-foreground mt-1 max-w-prose text-xs leading-relaxed">
+              {STRATEGY_LAB_COPY.workbenchSegment.surfaceHint}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm" className="no-underline">
                 <Link to={planExecutionHref}>

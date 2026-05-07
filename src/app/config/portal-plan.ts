@@ -1,7 +1,7 @@
 /**
- * Unified Plan surface (roadmap Gantt vs delivery board; optional table in ADR Phase 3) under `/plan/:id` and `/portal/plan/:id`.
+ * Unified Plan workspace (roadmap Gantt vs delivery board vs table) under `/plan/:id` and `/portal/plan/:id`.
  * Legacy `/roadmap/:id` and `/timeline/:id` paths redirect to canonical plan URLs (`LegacyPlanPathRedirect`).
- * Legacy `?view=timeline` is normalized to Board when the delivery board rollout is on.
+ * Legacy `?view=timeline` is treated as redirect-only input and normalized to canonical execute views.
  */
 import { APP_FEATURE_FLAGS, type FeatureRolloutMode } from './app-feature-flags';
 

@@ -26,6 +26,12 @@ describe('canonicalPlanHrefWithLegacySearch', () => {
     expect(parseQueryPairs(merged)).toEqual({ view: 'board', range: '60' });
   });
 
+  it('keeps focus and mode query params when canonicalizing legacy timeline route', () => {
+    const base = buildAppRoute.portalPlan(id, 'board');
+    const merged = canonicalPlanHrefWithLegacySearch(base, '?focus=node-1&mode=shape', 'timeline');
+    expect(parseQueryPairs(merged)).toEqual({ view: 'board', focus: 'node-1', mode: 'shape' });
+  });
+
   it('forces view=roadmap for roadmap surface and forwards other params', () => {
     const base = buildAppRoute.plan(id, 'roadmap');
     expect(parseQueryPairs(canonicalPlanHrefWithLegacySearch(base, '?view=timeline&more=1', 'roadmap'))).toEqual({

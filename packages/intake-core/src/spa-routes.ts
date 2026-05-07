@@ -36,11 +36,11 @@ export const APP_ROUTE_SEGMENTS = {
   /** Consultant-only: internal design system index (not linked for clients). */
   adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
-  /** Legacy; router redirects to `plan/:id?view=timeline`. */
+  /** Legacy alias; router canonicalizes to `plan/:id?view=board` (or rollout fallback). */
   timelineById: 'timeline/:id',
   /** Legacy; router redirects to `plan/:id`. */
   roadmapById: 'roadmap/:id',
-  /** Unified plan shell (Roadmap default; `?view=timeline` for Timeline). */
+  /** Unified plan shell (execute/roadmap/table via `?view=`). */
   planById: 'plan/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
@@ -50,7 +50,7 @@ export const APP_ROUTE_SEGMENTS = {
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
-  /** Legacy; redirects to `portal/plan/:id?view=timeline`. */
+  /** Legacy alias; router canonicalizes to `portal/plan/:id?view=board` (or rollout fallback). */
   portalTimelineById: 'portal/timeline/:id',
   /** Legacy; redirects to `portal/plan/:id`. */
   portalRoadmapById: 'portal/roadmap/:id',
