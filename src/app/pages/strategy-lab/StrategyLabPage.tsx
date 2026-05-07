@@ -163,6 +163,24 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     setIsSummarySheetOpen(true);
   }, [audit?.strategy?.glc_orchestration_pack, isClient, packSummaryStackedLayout, selectedPackNodeId]);
 
+  // Anchor scroll runs only when audit is loaded with a strategy; declared before any early
+  // return so React Hook order stays stable across render branches.
+  useEffect(() => {
+    if (!embedded || !planStudioScrollTarget || !audit?.strategy) return;
+    const anchorId =
+      planStudioScrollTarget === 'define'
+        ? STRATEGY_LAB_PAGE_ANCHORS.definePhase
+        : planStudioScrollTarget === 'shape-pack'
+          ? STRATEGY_LAB_PAGE_ANCHORS.shapePack
+          : STRATEGY_LAB_PAGE_ANCHORS.planSetup;
+    const el = typeof document !== 'undefined' ? document.getElementById(anchorId) : null;
+    if (!el) return;
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [embedded, planStudioScrollTarget, audit?.strategy]);
+
   const setSelectedPackNodeId = useCallback(
     (nextId: string | null) => {
       setSearchParams(
@@ -239,22 +257,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
 
   const journeyStripVisible =
     orchestrationUiEnabled && (!isClient || clientOrchestrationLabReadOnlyEnabled);
-
-  useEffect(() => {
-    if (!embedded || !planStudioScrollTarget || !audit.strategy) return;
-    const anchorId =
-      planStudioScrollTarget === 'define'
-        ? STRATEGY_LAB_PAGE_ANCHORS.definePhase
-        : planStudioScrollTarget === 'shape-pack'
-          ? STRATEGY_LAB_PAGE_ANCHORS.shapePack
-          : STRATEGY_LAB_PAGE_ANCHORS.planSetup;
-    const el = typeof document !== 'undefined' ? document.getElementById(anchorId) : null;
-    if (!el) return;
-    const frame = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [embedded, planStudioScrollTarget, audit.strategy]);
 
   const inspectPackScrollInner = (
     <StrategyLabInspectPackScrollBody

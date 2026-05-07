@@ -1,4 +1,6 @@
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
+import { POSTGREST_NO_ROWS_CODE } from '../../../config/postgrest-codes.js';
+import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
 
 export type PendingReviewRow = {
@@ -9,31 +11,68 @@ export type PendingReviewRow = {
 
 export type ApprovedReviewRow = Record<string, unknown>;
 
+/**
+ * Returns the pending review row for `(audit_id, after_phase)` or `null` when no such row exists.
+ * Throws on any non-empty PostgREST error so the orchestrator never advances past a review gate
+ * because of a transient read failure.
+ */
 export async function fetchPendingReviewAfterPhase(auditId: string, afterPhase: number): Promise<PendingReviewRow | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('review_points')
     .select('*')
     .eq('audit_id', auditId)
     .eq('after_phase', afterPhase)
     .eq('status', 'pending')
     .single();
+  if (error) {
+    if (error.code === POSTGREST_NO_ROWS_CODE) return null;
+    logger.error('pipeline.fetch_pending_review_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+      error: error.message,
+      code: error.code,
+    });
+    throw error;
+  }
   return data ? (data as PendingReviewRow) : null;
 }
 
-/** Any open human gate blocks advancing or finalizing the pipeline. */
+/**
+ * Any open human gate blocks advancing or finalizing the pipeline.
+ * Throws on transient errors so finalize never silently skips an open gate.
+ */
 export async function fetchAnyPendingReviewForAudit(auditId: string): Promise<PendingReviewRow | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('review_points')
     .select('audit_id, after_phase, status')
     .eq('audit_id', auditId)
     .eq('status', 'pending')
     .limit(1)
     .maybeSingle();
+  if (error) {
+    logger.error('pipeline.fetch_any_pending_review_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      error: error.message,
+      code: error.code,
+    });
+    throw error;
+  }
   return data ? (data as PendingReviewRow) : null;
 }
 
 export async function fetchReviewPointsForAudit(auditId: string): Promise<unknown[]> {
-  const { data } = await supabase.from('review_points').select('*').eq('audit_id', auditId).order('after_phase');
+  const { data, error } = await supabase.from('review_points').select('*').eq('audit_id', auditId).order('after_phase');
+  if (error) {
+    logger.error('pipeline.fetch_review_points_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      error: error.message,
+      code: error.code,
+    });
+    throw error;
+  }
   return data ?? [];
 }
 

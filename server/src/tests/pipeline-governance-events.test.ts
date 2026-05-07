@@ -108,11 +108,17 @@ const {
       const capturedFilters = { ...filters };
       updateCalls.push({ table, payload, filters: capturedFilters });
       const afterUpdate: Record<string, unknown> = {};
+      const updateResult = { data: [{}], error: null };
       afterUpdate.eq = vi.fn((col: string, val: string) => {
         capturedFilters[col] = val;
         updateCalls[updateCalls.length - 1].filters = { ...capturedFilters };
         return afterUpdate;
       });
+      afterUpdate.neq = vi.fn(() => afterUpdate);
+      afterUpdate.in = vi.fn(() => afterUpdate);
+      afterUpdate.select = vi.fn(() => Promise.resolve(updateResult));
+      (afterUpdate as { then?: unknown }).then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+        Promise.resolve(updateResult).then(resolve, reject);
       return afterUpdate;
     });
     chain.insert = vi.fn((payload: Record<string, unknown>) => {

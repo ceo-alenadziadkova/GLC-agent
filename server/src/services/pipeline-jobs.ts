@@ -179,81 +179,78 @@ export function startPipelineWorker(): void {
       const leaseCtx = { leaseOwner, attempt };
       registerPipelineJobLease(queueJobId, leaseCtx);
 
-      try {
-        await runWithPhaseRunLease(leaseCtx, async () => {
-          const orchestrator = new PipelineOrchestrator(auditId, {
-            disableAutoRemediate: disableAutoRemediateRaw === true,
-          });
-          await touchLease(queueJobId, job.data, attempt, 'running');
-          const heartbeatTimer = setInterval(() => {
-            void touchLease(queueJobId, job.data, attempt, 'running', 'log');
-          }, PIPELINE_HEARTBEAT_MS);
-          try {
-            if (action === 'start') {
-              await orchestrator.startPhase(phase ?? 0);
-              clearInterval(heartbeatTimer);
-              await touchLease(queueJobId, job.data, attempt, 'completed');
-              return;
-            }
-            if (action === 'retry') {
-              const p = phase ?? 0;
-              if (Number.isInteger(p) && p >= 1 && p <= 6) {
-                await orchestrator.retryDomainPhase(p);
-              } else {
-                await orchestrator.startPhase(p);
-              }
-              clearInterval(heartbeatTimer);
-              await touchLease(queueJobId, job.data, attempt, 'completed');
-              return;
-            }
-            await orchestrator.runBlock();
+      // Map entry stays registered until `worker.on('failed')` writes dead_letter; Bull retries
+      // overwrite the entry on the next attempt, so we let exceptions propagate untouched here.
+      await runWithPhaseRunLease(leaseCtx, async () => {
+        const orchestrator = new PipelineOrchestrator(auditId, {
+          disableAutoRemediate: disableAutoRemediateRaw === true,
+        });
+        await touchLease(queueJobId, job.data, attempt, 'running');
+        const heartbeatTimer = setInterval(() => {
+          void touchLease(queueJobId, job.data, attempt, 'running', 'log');
+        }, PIPELINE_HEARTBEAT_MS);
+        try {
+          if (action === 'start') {
+            await orchestrator.startPhase(phase ?? 0);
             clearInterval(heartbeatTimer);
             await touchLease(queueJobId, job.data, attempt, 'completed');
-          } catch (err) {
+            return;
+          }
+          if (action === 'retry') {
+            const p = phase ?? 0;
+            if (Number.isInteger(p) && p >= 1 && p <= 6) {
+              await orchestrator.retryDomainPhase(p);
+            } else {
+              await orchestrator.startPhase(p);
+            }
             clearInterval(heartbeatTimer);
-            const e = err as Error;
-            await touchLease(queueJobId, job.data, attempt, 'failed');
-            const { error: jobFailErr } = await supabase
-              .from('job_runs')
+            await touchLease(queueJobId, job.data, attempt, 'completed');
+            return;
+          }
+          await orchestrator.runBlock();
+          clearInterval(heartbeatTimer);
+          await touchLease(queueJobId, job.data, attempt, 'completed');
+        } catch (err) {
+          clearInterval(heartbeatTimer);
+          const e = err as Error;
+          await touchLease(queueJobId, job.data, attempt, 'failed');
+          const { error: jobFailErr } = await supabase
+            .from('job_runs')
+            .update({ error_message: e.message })
+            .eq('queue_job_id', queueJobId);
+          if (jobFailErr) {
+            logger.error('pipeline.job_runs_phase_error_update_failed', {
+              component: 'pipeline',
+              audit_id: auditId,
+              queue_job_id: queueJobId,
+              phase,
+              attempt,
+              error: jobFailErr.message,
+            });
+          }
+          if (typeof phase === 'number') {
+            const { error: phaseFailErr } = await supabase
+              .from('phase_runs')
               .update({ error_message: e.message })
-              .eq('queue_job_id', queueJobId);
-            if (jobFailErr) {
-              logger.error('pipeline.job_runs_phase_error_update_failed', {
+              .eq('audit_id', auditId)
+              .eq('phase', phase)
+              .eq('attempt', attempt);
+            if (phaseFailErr) {
+              logger.error('pipeline.phase_runs_phase_error_update_failed', {
                 component: 'pipeline',
                 audit_id: auditId,
                 queue_job_id: queueJobId,
                 phase,
                 attempt,
-                error: jobFailErr.message,
+                error: phaseFailErr.message,
               });
             }
-            if (typeof phase === 'number') {
-              const { error: phaseFailErr } = await supabase
-                .from('phase_runs')
-                .update({ error_message: e.message })
-                .eq('audit_id', auditId)
-                .eq('phase', phase)
-                .eq('attempt', attempt);
-              if (phaseFailErr) {
-                logger.error('pipeline.phase_runs_phase_error_update_failed', {
-                  component: 'pipeline',
-                  audit_id: auditId,
-                  queue_job_id: queueJobId,
-                  phase,
-                  attempt,
-                  error: phaseFailErr.message,
-                });
-              }
-            }
-            await emitPhaseErrorDurable(auditId, typeof phase === 'number' ? phase : -1, e);
-            throw err;
           }
-        });
-        unregisterPipelineJobLease(queueJobId);
-      } catch (err) {
-        // Keep Map entry until `worker.on('failed')` writes dead_letter; Bull retries overwrite on next attempt.
-        throw err;
-      }
+          await emitPhaseErrorDurable(auditId, typeof phase === 'number' ? phase : -1, e);
+          throw err;
+        }
+      });
+      unregisterPipelineJobLease(queueJobId);
     },
     {
       connection: { url },
