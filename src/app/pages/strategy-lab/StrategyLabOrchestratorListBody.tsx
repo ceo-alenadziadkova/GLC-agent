@@ -6,7 +6,7 @@ import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { Button } from '../../components/ui/button';
-import { PackGraphConsultantCanvas } from '../../features/strategy-lab/PackGraphConsultantCanvas';
+import { PackGraphConsultantCanvas } from './PackGraphConsultantCanvas';
 import { PortalTimelinePackGraphPanel } from '../../components/glc/PortalTimelinePackGraphPanel';
 import { cn } from '../../components/ui/utils';
 import {

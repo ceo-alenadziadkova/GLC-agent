@@ -15,7 +15,7 @@ import {
 import { ORCHESTRATION_UI_LIMITS } from '../../../config/orchestration-ui-limits';
 import { Button } from '../../../components/ui/button';
 import { OrchestrationPlanGovernanceCard } from './OrchestrationPlanGovernanceCard';
-import { RevisionHistoryPanel } from '../../../features/strategy-lab/RevisionHistoryPanel';
+import { RevisionHistoryPanel } from '../RevisionHistoryPanel';
 
 export type OrchestrationPanelDiagnosticsSectionProps = {
   /** When nested under Advanced, drop the top border spacing. */

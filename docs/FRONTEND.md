@@ -10,6 +10,14 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables from `tokens.css` (loaded via `theme.css`) (`--background`, `--primary`, …).
 
+### Source layout: `pages` vs `features`
+
+- **`src/app/pages/<route>/`** — primary slice for a route or page family (local `sections/`, `hooks/`, components).
+- **`src/app/features/<name>/`** — only for modules imported from **two or more** distinct page areas (shared UI/domain). Example: `features/report-viewer/` (consultant report + client cockpit).
+- **`src/app/components/`** — global shell and reusable widgets without a single page owner.
+
+**Decision record:** [ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md](./adrs/ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md).
+
 ### Build-time configuration (Vite env)
 
 | Variable | Role |

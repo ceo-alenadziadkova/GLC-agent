@@ -60,6 +60,7 @@ Selected ADR quick links:
 | Free snapshot scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Intake wording lifecycle + trace IA | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Frontend i18n | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
+| Frontend source layout (`pages` vs `features` vs `components`) | [ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md](adrs/ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md) |
 | Director layer (two-stage deep audit pattern) | [ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md](adrs/ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md) |
 | Marketing Director (two-stage) | [ADR-MARKETING-DIRECTOR-TWO-STAGE.md](adrs/ADR-MARKETING-DIRECTOR-TWO-STAGE.md) |
 | Tech Director (two-stage) | [ADR-TECH-DIRECTOR-TWO-STAGE.md](adrs/ADR-TECH-DIRECTOR-TWO-STAGE.md) |
