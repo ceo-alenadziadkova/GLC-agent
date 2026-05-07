@@ -60,12 +60,17 @@ vi.mock('../services/supabase.js', () => {
       const obj: Record<string, unknown> = {
         then: undefined as unknown,
       };
-      // Make it thenable so `await` resolves immediately
-      obj.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: null });
+      // Match PostgREST shape used by `updateAuditIfNotCancelled`: data must be a non-empty array
+      // when the audit is not cancelled so the orchestrator advances.
+      const updateResult = { data: [{}], error: null };
+      obj.then = (resolve: (v: unknown) => void) => resolve(updateResult);
       obj.eq = vi.fn((col: string, val: unknown) => {
         callRecord.filters[col] = val;
-        return obj; // return same thenable so chained .eq() also captures filters
+        return obj;
       });
+      obj.neq = vi.fn(() => obj);
+      obj.in = vi.fn(() => obj);
+      obj.select = vi.fn(() => Promise.resolve(updateResult));
       return obj;
     };
 
