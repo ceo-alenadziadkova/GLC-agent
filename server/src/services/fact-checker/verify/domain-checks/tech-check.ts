@@ -12,6 +12,7 @@ export function checkTech(
 ): void {
   const perfData = collected['performance'];
   if (!perfData) return;
+  const noCrawlData = perfData.no_crawl_data === true;
 
   const headers = perfData.headers as {
     compression: { enabled: boolean };
@@ -57,7 +58,7 @@ export function checkTech(
     }
   }
 
-  if (pageWeights) {
+  if (pageWeights && !noCrawlData) {
     if (pageWeights.avg_load_time_ms > T.tech.maxAvgLoadTimeMs && result.score >= T.tech.flagMinScore) {
       corrections.push({
         field: 'score',

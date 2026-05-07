@@ -56,37 +56,64 @@ export const EvidenceRefSchema = z.object({
 });
 
 // ─── Issue Schema ──────────────────────────────────────────
-export const IssueSchema = z.object({
-  id: z.string(),
-  severity: z.enum(['critical', 'high', 'medium', 'low']),
-  title: z.string(),
-  description: z.string(),
-  impact: z.string(),
+export const IssueSchema = z
+  .object({
+    id: z.string(),
+    severity: z.enum(['critical', 'high', 'medium', 'low']),
+    title: z.string(),
+    description: z.string(),
+    impact: z.string(),
   /**
    * How confident the agent is in this finding.
    * high   — directly observable from collected data
    * medium — inferred from partial signals
    * low    — assumed / no direct data available
    */
-  confidence: z.enum(['high', 'medium', 'low']),
-  /** Raw data points that back this finding. At least one required. */
-  evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
-  /** Where the finding data came from. */
-  data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
+    confidence: z.enum(['high', 'medium', 'low']),
+    /** Raw data points that back this finding. At least one required. */
+    evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
+    /** Where the finding data came from. */
+    data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
+    /** Reliability state for downstream quality gates and rendering. */
+    status: z.enum(['confirmed', 'unverified', 'not_assessed']).optional(),
+    /** How this claim was verified before report publication. */
+    verification_method: z
+      .enum(['single_source', 'multi_source', 'heuristic', 'manual_review', 'not_assessed'])
+      .optional(),
   /**
    * Optional cross-phase premise links for causal DAG (Phase 8).
    * phase_id: recon | tech_infrastructure | … | strategy; claim_id: 1-based issue index in that phase's CO.
    */
-  premise_refs: z
-    .array(
-      z.object({
-        phase_id: z.string(),
-        claim_id: z.number().int().positive(),
-      }),
-    )
-    .max(20)
-    .optional(),
-});
+    premise_refs: z
+      .array(
+        z.object({
+          phase_id: z.string(),
+          claim_id: z.number().int().positive(),
+        }),
+      )
+      .max(20)
+      .optional(),
+  })
+  .superRefine((issue, ctx) => {
+    if (
+      issue.status &&
+      issue.status !== 'confirmed' &&
+      (issue.severity === 'critical' || issue.severity === 'high')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Non-confirmed findings must not use critical/high severity.',
+        path: ['severity'],
+      });
+    }
+    if (issue.status === 'not_assessed' && issue.verification_method && issue.verification_method !== 'not_assessed') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'not_assessed findings must use verification_method=not_assessed.',
+        path: ['verification_method'],
+      });
+    }
+  });
 
 // ─── Quick Win Schema ──────────────────────────────────────
 export const QuickWinSchema = z.object({
@@ -98,15 +125,55 @@ export const QuickWinSchema = z.object({
 });
 
 // ─── Recommendation Schema ─────────────────────────────────
-export const RecommendationSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  description: z.string(),
-  priority: z.enum(['high', 'medium', 'low']),
-  estimated_cost: z.string(),
-  estimated_time: z.string(),
-  impact: z.string(),
-});
+export const RecommendationSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    priority: z.enum(['high', 'medium', 'low']),
+    estimated_cost: z.string(),
+    estimated_time: z.string(),
+    impact: z.string(),
+    evidence_refs: z.array(EvidenceRefSchema).min(1).max(5).optional(),
+    data_source: z.enum(['auto_detected', 'from_brief', 'inferred']).optional(),
+    status: z.enum(['confirmed', 'unverified', 'not_assessed']).optional(),
+    verification_method: z
+      .enum(['single_source', 'multi_source', 'heuristic', 'manual_review', 'not_assessed'])
+      .optional(),
+  })
+  .superRefine((recommendation, ctx) => {
+    const hasPercent = /\b\d{1,3}\s*-\s*\d{1,3}%|\b\d{1,3}%/.test(recommendation.impact);
+    const hasSourceCue = /\b(source|benchmark|industry|study)\b/i.test(recommendation.impact);
+    if (hasPercent && !hasSourceCue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Numeric impact claims require benchmark/source annotation.',
+        path: ['impact'],
+      });
+    }
+    if (
+      recommendation.status &&
+      recommendation.status !== 'confirmed' &&
+      (recommendation.evidence_refs?.length ?? 0) === 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Non-confirmed recommendations should include rationale evidence_refs or remain omitted.',
+        path: ['evidence_refs'],
+      });
+    }
+    if (
+      recommendation.status === 'not_assessed' &&
+      recommendation.verification_method &&
+      recommendation.verification_method !== 'not_assessed'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'not_assessed recommendations must use verification_method=not_assessed.',
+        path: ['verification_method'],
+      });
+    }
+  });
 
 // ─── Domain Analysis Output ────────────────────────────────
 export const DomainOutputSchema = z.object({

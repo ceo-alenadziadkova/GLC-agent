@@ -53,10 +53,14 @@ export class CrawlerCollector extends BaseCollector {
       return {
         pages_crawled: [],
         tech_stack: techStackResult,
+        tech_stack_category_assessment: Object.fromEntries(
+          Object.keys(TECH_PATTERNS).map((category) => [category, 'not_assessed']),
+        ),
         social_profiles: {},
         contact_info: { emails: [], phones: [], addresses: [] },
         languages_detected: [],
         total_pages: 0,
+        crawl_assessment_status: 'not_assessed',
         crawl_timestamp: new Date().toISOString(),
         no_public_website: true,
       };
@@ -76,6 +80,7 @@ export class CrawlerCollector extends BaseCollector {
     const toVisit = [baseHref];
     const pages: CrawledPage[] = [];
     const techStack: Record<string, Set<string>> = {};
+    const techSignals: Record<string, number> = {};
     const socialProfiles: Record<string, string> = {};
     const emails = new Set<string>();
     const phones = new Set<string>();
@@ -108,6 +113,10 @@ export class CrawlerCollector extends BaseCollector {
         // Detect tech stack from HTML
         const fullHtml = page.html ?? '';
         this.detectTechStack(fullHtml, techStack, url);
+        const perPageTech = this.detectTechStackForSinglePage(fullHtml, url);
+        for (const [key, count] of Object.entries(perPageTech)) {
+          techSignals[key] = (techSignals[key] ?? 0) + count;
+        }
 
         // Detect social profiles
         this.detectSocials(fullHtml, socialProfiles);
@@ -139,13 +148,35 @@ export class CrawlerCollector extends BaseCollector {
 
     // Convert sets to arrays
     const techStackResult: Record<string, string[]> = {};
+    const techStackVerification: Record<string, { pages_with_signal: number; status: 'confirmed' | 'unverified' }> =
+      {};
+    const techStackCategoryAssessment: Record<string, 'confirmed' | 'unverified' | 'not_assessed'> = {};
     for (const [cat, techs] of Object.entries(techStack)) {
       techStackResult[cat] = Array.from(techs);
+      if (techStackResult[cat].length === 0) {
+        techStackCategoryAssessment[cat] = 'not_assessed';
+      } else {
+        const hasConfirmed = techStackResult[cat].some((tech) => {
+          const k = `${cat}:${tech}`;
+          return (techSignals[k] ?? 0) >= 2;
+        });
+        techStackCategoryAssessment[cat] = hasConfirmed ? 'confirmed' : 'unverified';
+      }
+      for (const tech of techStackResult[cat]) {
+        const k = `${cat}:${tech}`;
+        const pagesWithSignal = techSignals[k] ?? 0;
+        techStackVerification[k] = {
+          pages_with_signal: pagesWithSignal,
+          status: pagesWithSignal >= 2 ? 'confirmed' : 'unverified',
+        };
+      }
     }
 
     return {
       pages_crawled: cleanPages,
       tech_stack: techStackResult,
+      tech_stack_verification: techStackVerification,
+      tech_stack_category_assessment: techStackCategoryAssessment,
       social_profiles: socialProfiles,
       contact_info: {
         emails: Array.from(emails).slice(0, COLLECTOR_CRAWLER_CONTACT_FIELD_MAX),
@@ -154,6 +185,7 @@ export class CrawlerCollector extends BaseCollector {
       },
       languages_detected: languages,
       total_pages: pages.length,
+      crawl_assessment_status: pages.length > 0 ? 'confirmed' : 'not_assessed',
       crawl_timestamp: new Date().toISOString(),
     };
   }
@@ -245,6 +277,21 @@ export class CrawlerCollector extends BaseCollector {
 
   private detectTechStack(html: string, techStack: Record<string, Set<string>>, pageUrl?: string) {
     addTechStackFromHtml(html, techStack, pageUrl ? { pageUrls: [pageUrl] } : undefined);
+  }
+
+  private detectTechStackForSinglePage(html: string, pageUrl?: string): Record<string, number> {
+    const perPage: Record<string, Set<string>> = {};
+    for (const cat of Object.keys(TECH_PATTERNS)) {
+      perPage[cat] = new Set();
+    }
+    addTechStackFromHtml(html, perPage, pageUrl ? { pageUrls: [pageUrl] } : undefined);
+    const signalCounts: Record<string, number> = {};
+    for (const [cat, names] of Object.entries(perPage)) {
+      for (const name of names) {
+        signalCounts[`${cat}:${name}`] = 1;
+      }
+    }
+    return signalCounts;
   }
 
   private detectSocials(html: string, profiles: Record<string, string>) {

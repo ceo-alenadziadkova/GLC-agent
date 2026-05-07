@@ -21,6 +21,7 @@ export class SeoCollector extends BaseCollector {
       return {
         no_crawl_data: true,
         warning: 'No public website — SEO checks skipped',
+        page_analysis_status: 'not_assessed',
         robots_txt: { exists: false, content: null, issues: ['No public website URL on file'] },
         sitemap: {
           exists: false,
@@ -47,6 +48,7 @@ export class SeoCollector extends BaseCollector {
         return {
           no_crawl_data: true,
           warning: 'Target URL is not allowed for outbound requests',
+          page_analysis_status: 'not_assessed',
           robots_txt: { exists: false, content: null, issues: [] },
           sitemap: {
             exists: false,
@@ -78,9 +80,11 @@ export class SeoCollector extends BaseCollector {
       return {
         no_crawl_data: true,
         warning: 'No crawled pages available — SEO page analysis skipped',
+        page_analysis_status: 'not_assessed',
         ...(await this.fetchRobotsAndSitemap(companyUrl)),
         open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
-        page_analysis: { issues: ['No pages were crawled — cannot assess on-page SEO'], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
+        page_analysis: { issues: [], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
+        data_gaps: ['No pages were crawled — on-page SEO signals are not assessed'],
         total_pages: 0,
       };
     }
@@ -95,6 +99,7 @@ export class SeoCollector extends BaseCollector {
       sitemap,
       open_graph: openGraph,
       page_analysis: pageAnalysis,
+      page_analysis_status: 'confirmed',
       total_pages: pages.length,
     };
   }

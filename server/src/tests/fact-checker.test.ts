@@ -56,7 +56,7 @@ describe('FactChecker — score flags reduce score', () => {
     const result = makeDomainResult({ score: 4 });
     const collected = {
       security_headers: {
-        ssl: { valid: false },
+        ssl: { valid: false, verification_status: 'confirmed' },
         headers: [],
       },
     };
@@ -112,7 +112,7 @@ describe('FactChecker — label updates after correction', () => {
   it('score 4 → 3 produces label "Moderate"', () => {
     const result = makeDomainResult({ score: 4 });
     const collected = {
-      security_headers: { ssl: { valid: false }, headers: [] },
+      security_headers: { ssl: { valid: false, verification_status: 'confirmed' }, headers: [] },
     };
     const { result: corrected } = checker.verify(result, 'security_compliance', collected);
     if (corrected.score !== result.score) {
@@ -168,7 +168,7 @@ describe('FactChecker — domain-specific checks: security', () => {
   it('invalid SSL + score >= 4 triggers a flag', () => {
     const result = makeDomainResult({ score: 4 });
     const collected = {
-      security_headers: { ssl: { valid: false }, headers: [] },
+      security_headers: { ssl: { valid: false, verification_status: 'confirmed' }, headers: [] },
     };
     const { corrections } = checker.verify(result, 'security_compliance', collected);
     const sslFlag = corrections.some(c => c.issue.includes('SSL'));
@@ -591,6 +591,109 @@ describe('FactChecker — security control object error typing', () => {
       'security_header_hygiene_gap',
       'security_baseline_header_gap',
     ]));
+  });
+});
+
+describe('FactChecker — anti-hallucination guardrails', () => {
+  it('does not apply invalid SSL override when SSL verification is unverified', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: false, verification_status: 'unverified' },
+        headers: [],
+      },
+    };
+    const { corrections } = checker.verify(result, 'security_compliance', collected);
+    const sslOverride = corrections.find(
+      c => c.issue.toLowerCase().includes('ssl') && c.action === 'override',
+    );
+    expect(sslOverride).toBeUndefined();
+  });
+
+  it('downgrades unverified high-severity issues to medium and sets status', () => {
+    const result = makeDomainResult({
+      issues: [
+        {
+          id: 'i-unverified-1',
+          severity: 'high',
+          title: 'Stack mismatch',
+          description: 'Potential framework mismatch',
+          impact: 'High risk',
+          confidence: 'low',
+          evidence_refs: [{ type: 'stack_scan', finding: 'single weak signal' }],
+          data_source: 'inferred',
+        },
+      ],
+    });
+    const { result: corrected } = checker.verify(result, 'tech_infrastructure', {});
+    expect(corrected.issues[0]?.status).toBe('unverified');
+    expect(corrected.issues[0]?.severity).toBe('medium');
+  });
+
+  it('sanitizes unsourced numeric recommendation impact claims', () => {
+    const result = makeDomainResult({
+      recommendations: [
+        {
+          id: 'rec-impact-1',
+          title: 'Improve conversion flow',
+          description: 'Prioritize CTA hierarchy',
+          priority: 'high',
+          estimated_cost: '€1,000',
+          estimated_time: '2 weeks',
+          impact: 'Could increase conversion by 200-400% quickly',
+        },
+      ],
+    });
+    const { result: corrected } = checker.verify(result, 'ux_conversion', {});
+    expect(corrected.recommendations[0]?.impact).not.toContain('%');
+    expect(corrected.recommendations[0]?.impact.toLowerCase()).toContain('benchmark');
+  });
+
+  it('downgrades invalid SSL issue when collector confirms SSL is valid', () => {
+    const result = makeDomainResult({
+      issues: [
+        {
+          id: 'i-ssl-conflict',
+          severity: 'high',
+          title: 'Invalid SSL certificate',
+          description: 'Visitors receive SSL certificate warning',
+          impact: 'Trust and conversion damage',
+          confidence: 'high',
+          evidence_refs: [{ type: 'ssl_check', finding: 'legacy scanner reported invalid' }],
+          data_source: 'auto_detected',
+        },
+      ],
+    });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true, verification_status: 'confirmed' },
+      },
+    };
+    const { result: corrected } = checker.verify(result, 'security_compliance', collected);
+    expect(corrected.issues[0]?.status).toBe('unverified');
+    expect(corrected.issues[0]?.severity).toBe('medium');
+    expect(corrected.issues[0]?.verification_method).toBe('manual_review');
+  });
+
+  it('normalizes recommendation reliability metadata when absent', () => {
+    const result = makeDomainResult({
+      recommendations: [
+        {
+          id: 'rec-reliability-1',
+          title: 'Improve caching strategy',
+          description: 'Enable cache headers for static assets.',
+          priority: 'high',
+          estimated_cost: '€500',
+          estimated_time: '1 week',
+          impact: 'Expected measurable improvement',
+          evidence_refs: [{ type: 'performance_headers', finding: 'cache-control: no-store' }],
+          data_source: 'auto_detected',
+        },
+      ],
+    });
+    const { result: corrected } = checker.verify(result, 'tech_infrastructure', {});
+    expect(corrected.recommendations[0]?.status).toBe('confirmed');
+    expect(corrected.recommendations[0]?.verification_method).toBe('single_source');
   });
 });
 
