@@ -11,6 +11,7 @@ import {
   Eye,
   Tray,
   PlusCircle,
+  Flask,
 } from '@phosphor-icons/react';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
@@ -54,6 +55,12 @@ export type AppShellNavItem = {
 export function buildConsultantNav(auditId: string | null, opts?: NavPlanPrimaryOpts): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.consultant;
   const consultantPlanWorkspaceEnabled = resolveConsultantPlanWorkspaceEnabled(opts);
+  const strategyLabItem: AppShellNavItem = {
+    to: auditId && consultantPlanWorkspaceEnabled ? buildAppRoute.planStudio(auditId) : null,
+    icon: Flask,
+    label: n.strategyLab,
+    badge: null,
+  };
   const planItem: AppShellNavItem = {
     to: auditId && consultantPlanWorkspaceEnabled ? buildAppRoute.plan(auditId) : null,
     icon: Path,
@@ -71,6 +78,7 @@ export function buildConsultantNav(auditId: string | null, opts?: NavPlanPrimary
     // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
     { to: auditId ? buildAppRoute.audit(auditId) : null,    icon: Briefcase,      label: n.auditWorkspace, badge: null },
+    strategyLabItem,
     ...sequencingPair,
     { to: auditId ? buildAppRoute.reports(auditId) : null, icon: FileText,       label: n.reports,         badge: null },
   ];
@@ -90,6 +98,12 @@ export function buildClientNav(
     label: n.timeline,
     badge: null,
   };
+  const strategyLabItem: AppShellNavItem = {
+    to: auditId && clientPlanWorkspaceEnabled ? buildAppRoute.portalPlanStudio(auditId) : null,
+    icon: Flask,
+    label: n.strategyLab,
+    badge: null,
+  };
   const pipelineItem: AppShellNavItem = {
     to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,
     icon: Pulse,
@@ -104,6 +118,7 @@ export function buildClientNav(
   return [
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
+    strategyLabItem,
     ...sequencingPair,
     { to: auditId ? buildAppRoute.portalReports(auditId) : null, icon: FileText, label: n.reports, badge: null },
   ];
@@ -119,14 +134,32 @@ function splitHrefPathQuery(href: string): { path: string; query: string } {
   return { path: href.slice(0, idx), query: href.slice(idx + 1) };
 }
 
-function navLocationPlanView(search: string): ReturnType<typeof parsePortalPlanViewParam> {
+function planViewFromPlanNavTarget(toPath: string, toQueryRaw: string): ReturnType<typeof parsePortalPlanViewParam> {
+  if (toQueryRaw) {
+    const v = new URLSearchParams(toQueryRaw).get('view');
+    if (v != null && String(v).trim() !== '') return parsePortalPlanViewParam(v);
+  }
+  const m = toPath.match(/^\/(?:portal\/)?plan\/[^/]+\/(board|roadmap|table)$/);
+  if (m?.[1]) return parsePortalPlanViewParam(m[1]);
+  return parsePortalPlanViewParam(null);
+}
+
+function navLocationPlanSurface(pathname: string, search: string): ReturnType<typeof parsePortalPlanViewParam> {
   const qs = search.startsWith('?') ? search.slice(1) : search;
-  return parsePortalPlanViewParam(new URLSearchParams(qs).get('view'));
+  const fromQuery = new URLSearchParams(qs).get('view');
+  if (fromQuery != null && String(fromQuery).trim() !== '') {
+    return parsePortalPlanViewParam(fromQuery);
+  }
+  const m = pathname.match(/^\/(?:portal\/)?plan\/[^/]+\/(board|roadmap|table)$/);
+  if (m?.[1]) return parsePortalPlanViewParam(m[1]);
+  return parsePortalPlanViewParam(null);
 }
 
 function auditIdFromCanonicalPlanPath(path: string): string | null {
-  const main = path.match(/^\/plan\/([^/]+)$/);
-  const portal = path.match(/^\/portal\/plan\/([^/]+)$/);
+  const lab = path.match(/^\/(?:portal\/)?lab\/([^/]+)\/?$/);
+  if (lab?.[1]) return lab[1];
+  const main = path.match(/^\/plan\/([^/]+)(?:\/(?:board|roadmap|table|studio))?$/);
+  const portal = path.match(/^\/portal\/plan\/([^/]+)(?:\/(?:board|roadmap|table|studio))?$/);
   return main?.[1] ?? portal?.[1] ?? null;
 }
 
@@ -151,20 +184,13 @@ function legacyPlanSurface(
   return null;
 }
 
-function planViewFromHrefQuery(toQueryRaw: string): ReturnType<typeof parsePortalPlanViewParam> {
-  return parsePortalPlanViewParam(new URLSearchParams(toQueryRaw).get('view'));
-}
-
-/**
- * Sidebar / bottom-nav active styling. Pass `location.search` so `/plan/:id?view=roadmap` differs from board default.
- */
 export function isNavItemActive(pathname: string, to: string, search = ''): boolean {
   const { path: toPath, query: toQueryRaw } = splitHrefPathQuery(to);
-  const toPlanView = planViewFromHrefQuery(toQueryRaw);
+  const toPlanView = planViewFromPlanNavTarget(toPath, toQueryRaw);
 
   const planAuditId = auditIdFromCanonicalPlanPath(toPath);
   if (planAuditId) {
-    const locPlanView = navLocationPlanView(search);
+    const locPlanView = navLocationPlanSurface(pathname, search);
     const portal = toPath.startsWith('/portal/');
     const legacy = legacyPlanSurface(pathname, planAuditId, portal);
     if (pathname === toPath) {
@@ -177,6 +203,11 @@ export function isNavItemActive(pathname: string, to: string, search = ''): bool
     /** Legacy `/roadmap/:id` — highlight roadmap tab targets without requiring query parity on the old path. */
     if (legacy === 'roadmap') {
       return toPlanView === 'roadmap';
+    }
+    /** On Strategy Lab (`/lab`), do not highlight the Plan delivery nav item. */
+    const labAuditId = pathname.match(/^\/(?:portal\/)?lab\/([^/]+)\/?$/)?.[1];
+    if (labAuditId && labAuditId === planAuditId) {
+      return false;
     }
     return false;
   }

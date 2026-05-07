@@ -33,11 +33,15 @@ import { getAuditTimelineController } from './controllers/get-audit-timeline.con
 import { getPlanBoardController } from './controllers/get-plan-board.controller.js';
 import { patchPlanBoardColumnPolicyController } from './controllers/patch-plan-board-column-policy.controller.js';
 import { patchPlanBoardCardController } from './controllers/patch-plan-board-card.controller.js';
+import { patchPlanBoardCardsBatchController } from './controllers/patch-plan-board-cards-batch.controller.js';
 import { deletePlanBoardCardController } from './controllers/delete-plan-board-card.controller.js';
 import { postPlanBoardManualCardController } from './controllers/post-plan-board-manual-card.controller.js';
 import { postPlanBoardReconcileController } from './controllers/post-plan-board-reconcile.controller.js';
 import { postPlanBoardReconcilePreviewController } from './controllers/post-plan-board-reconcile-preview.controller.js';
 import { postPlanBoardViewOpenedController } from './controllers/post-plan-board-view-opened.controller.js';
+import { getPlanTicketEventsController } from './controllers/get-plan-ticket-events.controller.js';
+import { getPlanTicketCommentsController } from './controllers/get-plan-ticket-comments.controller.js';
+import { postPlanTicketCommentController } from './controllers/post-plan-ticket-comment.controller.js';
 import { patchPipelinePhaseResultController } from './controllers/patch-pipeline-phase-result.controller.js';
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
 import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
@@ -210,6 +214,12 @@ auditsRouter.patch(
   rejectGuestFromPortal,
   patchPlanBoardCardController,
 );
+auditsRouter.patch(
+  '/:id/plan/board/cards:batch',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardCardsBatchController,
+);
 auditsRouter.delete(
   '/:id/plan/board/cards/:cardId',
   attachProfile,
@@ -227,6 +237,24 @@ auditsRouter.post(
   attachProfile,
   rejectGuestFromPortal,
   postPlanBoardManualCardController,
+);
+auditsRouter.get(
+  '/:id/plan/board/cards/:cardId/events',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanTicketEventsController,
+);
+auditsRouter.get(
+  '/:id/plan/board/cards/:cardId/comments',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanTicketCommentsController,
+);
+auditsRouter.post(
+  '/:id/plan/board/cards/:cardId/comments',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanTicketCommentController,
 );
 auditsRouter.post(
   '/:id/plan/board/reconcile/preview',

@@ -9,6 +9,16 @@ export type PlanTaskDeliveryCardSnapshot = {
   pack_graph_node_id: string | null;
   pack_lane_snapshot: string | null;
   manual_title: string | null;
+  ticket_description: string | null;
+  assignee: string | null;
+  assignee_user_id: string | null;
+  labels: string[];
+  story_points: number | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+  start_date: string | null;
+  due_date: string | null;
+  end_date: string | null;
+  updated_by_user_id: string | null;
   delivery_area: string;
   column_id: string;
   position: number;

@@ -27,6 +27,7 @@ import type { AuditTimelineDto, PlanBoardGetBody } from '../../../data/api/audit
 import { auditsOrchestrationApi } from '../../../data/api/audits-orchestration';
 import {
   bucketPlanBoardCardsByColumn,
+  usePatchPlanBoardCardsBatchMutation,
   useDeletePlanBoardCardMutation,
   usePatchPlanBoardCardMutation,
   usePlanBoardQuery,
@@ -35,6 +36,7 @@ import {
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../config/plan-board-ui-columns';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
+import { resolvePlanBoardWipLimit } from '../../../config/plan-board-workflow-policy';
 import { PLAN_WORKSPACE_UI_COPY } from '../../../config/plan-workspace-ui-copy.en';
 import { buildAppRoute } from '../../../config/route-paths';
 import { ORCHESTRATION_SEASON_PRESETS } from '../../../config/orchestration-roadmap-manifest';
@@ -52,11 +54,14 @@ import { useQueryClient } from '../../../lib/tanstack-react-query';
 import {
   buildPlanSurfaceHrefWithFocus,
   buildPlanWorkspaceHref,
+  mergePlanCardMetricFiltersIntoLocationSearch,
   mergeClearLaneFilterIntoLocationSearch,
   mergeLaneFilterToggleIntoLocationSearch,
+  readPlanCardMetricFilters,
   readPlanLaneFilterKeys,
 } from '../../../lib/plan-cross-nav';
 import type { PlanWorkspacePaletteCommand } from '../../../lib/plan-command-registry';
+import { canEditPlanBoardCardFields } from '../../../lib/plan-board-policy';
 import { invalidatePlanBoardQueriesAfterConflict } from '../../../lib/plan-board-query-invalidation';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
 import {
@@ -74,7 +79,13 @@ import { PlanBoardColumnPolicySheet } from './plan-board-column-policy-sheet';
 import { PlanBoardOperationalCard } from './PlanBoardOperationalCard';
 import { BoardShell } from './plan-board-board-shell';
 import { PlanBoardBacklogPanel } from './plan-board-backlog-panel';
-import { formatLaneDensityLine, isBacklogOperationalColumn } from './plan-board-card-helpers';
+import { PlanTicketDetailsPanel, type PlanTicketDetailsDraft } from '../PlanTicketDetailsPanel';
+import {
+  buildPlanBoardCardMetrics,
+  formatLaneDensityLine,
+  isBacklogOperationalColumn,
+  matchesPlanCardMetricFilters,
+} from './plan-board-card-helpers';
 import { BoardColumnShell } from './plan-board-column-shell';
 import {
   applyBucketDrag,
@@ -126,6 +137,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const navigate = useNavigate();
   const location = useLocation();
   const laneFilterKeys = useMemo(() => readPlanLaneFilterKeys(location.search), [location.search]);
+  const metricFilters = useMemo(() => readPlanCardMetricFilters(location.search), [location.search]);
 
   const qc = useQueryClient();
   const showConsultantPlanTools = !isClient;
@@ -160,6 +172,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const operationalColumnIdsKey = operationalColumnIds.join('|');
 
   const patchMutation = usePatchPlanBoardCardMutation({ auditId });
+  const batchPatchMutation = usePatchPlanBoardCardsBatchMutation({ auditId });
   const deleteMutation = useDeletePlanBoardCardMutation({ auditId });
   const manifestDraftMutation = usePostManifestDraftRevisionMutation(
     APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools ? auditId : undefined,
@@ -184,6 +197,15 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   }, [hydrateSignature, operationalColumnIdsKey, boardQuery.data?.cards, operationalColumnIds]);
 
   const cardsById = useMemo(() => new Map(boardQuery.data?.cards.map((c) => [c.id, c]) ?? []), [boardQuery.data?.cards]);
+  const focusCardForCommands = useMemo(() => {
+    if (!focusToken) return null;
+    for (const card of boardQuery.data?.cards ?? []) {
+      if (card.id === focusToken || card.canonical_node_key === focusToken || card.pack_graph_node_id === focusToken) {
+        return card;
+      }
+    }
+    return null;
+  }, [boardQuery.data?.cards, focusToken]);
 
   const pendingManifestDraftKey = [...(boardQuery.data?.manifest_draft_revision_pending_canonical_keys ?? [])]
     .slice()
@@ -195,6 +217,10 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   );
 
   const governanceReadOnly = Boolean(boardQuery.data?.issues?.some((i) => i.code === 'governance_blocked'));
+  const canEditCardFields = canEditPlanBoardCardFields({
+    role: isClient ? 'client' : 'consultant',
+    governanceReadOnly,
+  });
 
   const laneSelectOptions = useMemo(
     () => ORCHESTRATION_LANE_IDS_ORDERED.map(laneId => ({ value: laneId, label: ORCHESTRATION_LANE_LABELS[laneId] })),
@@ -247,6 +273,36 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     [auditId, cardsById, manifestDraftMutation, orchestrationPackVersion, patchMutation, qc, showConsultantPlanTools],
   );
 
+  const commitCardPriorityInline = useCallback(
+    async (cardId: string, priority: 'low' | 'medium' | 'high' | 'urgent') => {
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body: { expected_pack_version: orchestrationPackVersion, priority },
+        });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        throw err;
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc],
+  );
+
+  const commitCardDueDateInline = useCallback(
+    async (cardId: string, dueDateIso: string) => {
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body: { expected_pack_version: orchestrationPackVersion, due_date: dueDateIso || undefined },
+        });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        throw err;
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc],
+  );
+
   const dragLocked =
     orchestrationPackVersion <= 0 ||
     patchMutation.isPending ||
@@ -260,6 +316,11 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  const [bulkPriority, setBulkPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [bulkAssignee, setBulkAssignee] = useState('');
+  const [bulkDueDate, setBulkDueDate] = useState('');
+  const [ticketDetailsCardId, setTicketDetailsCardId] = useState<string | null>(null);
 
   const planBoardViewTelemetrySentRef = useRef(false);
   useEffect(() => {
@@ -290,7 +351,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
         to_column?: string;
         position?: number;
       } = {
-        expected_pack_version: orchestrationPackVersion,
+        expected_pack_version: boardQuery.data?.pack_version_used ?? orchestrationPackVersion,
         position: (after[nextColumn] ?? []).indexOf(cardId),
       };
       if (prevColumn !== nextColumn) body.to_column = nextColumn;
@@ -304,7 +365,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
         await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
       }
     },
-    [auditId, orchestrationPackVersion, patchMutation, qc],
+    [auditId, boardQuery.data?.pack_version_used, orchestrationPackVersion, patchMutation, qc],
   );
 
   const moveCardViaMenu = useCallback(
@@ -354,6 +415,36 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
         });
       }
     }
+    if (focusCardForCommands) {
+      const safeTitle = (focusCardForCommands.title ?? focusCardForCommands.canonical_node_key ?? focusCardForCommands.id).replace(/"/g, "'");
+      out.push({
+        id: 'focus-priority-high',
+        label: `Set "${safeTitle}" priority to high`,
+        keywords: `priority high focused ${safeTitle}`,
+        run: () => {
+          void commitCardPriorityInline(focusCardForCommands.id, 'high');
+        },
+      });
+      out.push({
+        id: 'focus-priority-urgent',
+        label: `Set "${safeTitle}" priority to urgent`,
+        keywords: `priority urgent focused ${safeTitle}`,
+        run: () => {
+          void commitCardPriorityInline(focusCardForCommands.id, 'urgent');
+        },
+      });
+      out.push({
+        id: 'focus-due-in-7d',
+        label: `Set "${safeTitle}" due in 7 days`,
+        keywords: `due date focused ${safeTitle}`,
+        run: () => {
+          const next = new Date();
+          next.setDate(next.getDate() + 7);
+          const iso = next.toISOString().slice(0, 10);
+          void commitCardDueDateInline(focusCardForCommands.id, iso);
+        },
+      });
+    }
     out.push({
       id: 'add-manual-card',
       label: PLAN_WORKSPACE_UI_COPY.commandPaletteAddManualCard,
@@ -394,6 +485,9 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     isClient,
     location.pathname,
     location.search,
+    commitCardDueDateInline,
+    commitCardPriorityInline,
+    focusCardForCommands,
     moveCardViaMenu,
     navigate,
     operationalColumnDescriptors,
@@ -435,7 +529,124 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     await persistCardPlacement(prev, next, String(active.id));
   }
 
+  async function bulkMoveSelected(targetCol: string): Promise<void> {
+    if (selectedCardIds.size === 0) return;
+    for (const cardId of selectedCardIds) {
+      // eslint-disable-next-line no-await-in-loop
+      await moveCardViaMenu(targetCol, cardId);
+    }
+    setSelectedCardIds(new Set());
+  }
+
+  async function bulkPatchSelected(patch: { assignee?: string; priority?: 'low' | 'medium' | 'high' | 'urgent'; due_date?: string }) {
+    if (selectedCardIds.size === 0) return;
+    try {
+      await batchPatchMutation.mutateAsync({
+        expected_pack_version: orchestrationPackVersion,
+        patches: [...selectedCardIds].map((card_id) => ({
+          card_id,
+          ...patch,
+        })),
+      });
+      setSelectedCardIds(new Set());
+    } catch (err) {
+      await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+    }
+  }
+
   const subtitle = showConsultantPlanTools ? PLAN_BOARD_COPY.shellSubtitleConsultant : PLAN_BOARD_COPY.shellSubtitleReadOnlyClient;
+  const selectedTicketCard = ticketDetailsCardId != null ? cardsById.get(ticketDetailsCardId) ?? null : null;
+
+  const saveTicketDetails = useCallback(
+    async (cardId: string, draft: PlanTicketDetailsDraft) => {
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body: {
+            expected_pack_version: orchestrationPackVersion,
+            title: draft.title.trim(),
+            ticket_description: draft.ticket_description.trim(),
+            assignee: draft.assignee.trim(),
+            assignee_user_id: draft.assignee_user_id.trim() !== '' ? draft.assignee_user_id.trim() : null,
+            labels: draft.labels
+              .split(',')
+              .map((x) => x.trim())
+              .filter(Boolean),
+            story_points: draft.story_points.trim() !== '' ? Number(draft.story_points) : null,
+            priority: draft.priority,
+            lane: draft.lane.trim() !== '' ? draft.lane.trim() : undefined,
+            delivery_area: draft.delivery_area.trim(),
+            start_date: draft.start_date || undefined,
+            due_date: draft.due_date || undefined,
+            end_date: draft.end_date || undefined,
+            ...(selectedTicketCard?.column_id !== draft.to_column ? { to_column: draft.to_column } : {}),
+          },
+        });
+        toast.success('Ticket updated');
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        toast.error('Could not update ticket');
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc, selectedTicketCard?.column_id],
+  );
+
+  const boardPackReady = !loadPending && !loadError && isGlcOrchestrationPackView(pack);
+  const glcPack = boardPackReady ? pack : null;
+
+  const timelineParity = boardQuery.data?.timeline_parity;
+  const timelineDto = timelineQuery.data?.timeline;
+  const seasonPreset = resolveBoardSeasonPreset({
+    parity: timelineParity,
+    timeline: timelineDto ?? null,
+  });
+  const projections = glcPack ? projectRoadmapNodesFromCriticalPath({ pack: glcPack, seasonPreset }) : [];
+  const titles = glcPack ? orchestrationNodeTitleMap(glcPack) : new Map();
+  const nodeById = glcPack ? new Map(glcPack.graph.nodes.map((n) => [n.id, n])) : new Map();
+
+  const top7List =
+    timelineParity?.top_7d ?? (timelineDto?.status === 'ready' ? timelineDto.top_7d : []) ?? [];
+  const top30List =
+    timelineParity?.top_30d ?? (timelineDto?.status === 'ready' ? timelineDto.top_30d : []) ?? [];
+  const prioritySets = { top7: new Set(top7List), top30: new Set(top30List) };
+
+  const reasonRows =
+    timelineParity?.top_priorities ?? (timelineDto?.status === 'ready' ? timelineDto.top_priorities : undefined) ?? [];
+  const reasonByPackNodeId = new Map(reasonRows.map((p) => [p.action_id, p.reason_code] as const));
+  const priorityReasonLabelByPackNodeId = new Map(
+    reasonRows.map((p) => [p.action_id, ORCHESTRATION_PRIORITY_REASON_CODES[p.reason_code] ?? p.reason_code] as const),
+  );
+
+  const cardMetricsById = useMemo(() => {
+    const out = new Map<string, ReturnType<typeof buildPlanBoardCardMetrics>>();
+    for (const card of boardQuery.data?.cards ?? []) {
+      const packNodeId = card.pack_graph_node_id;
+      const priorityWindow =
+        packNodeId && prioritySets.top7.has(packNodeId) ? ('7d' as const)
+        : packNodeId && prioritySets.top30.has(packNodeId) ? ('30d' as const)
+        : null;
+      const priorityReasonLabel = packNodeId ? priorityReasonLabelByPackNodeId.get(packNodeId) : null;
+      out.set(card.id, buildPlanBoardCardMetrics({ card, priorityWindow, priorityReasonLabel }));
+    }
+    return out;
+  }, [boardQuery.data?.cards, priorityReasonLabelByPackNodeId, prioritySets.top30, prioritySets.top7]);
+
+  const availableDomainFilters = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const card of boardQuery.data?.cards ?? []) {
+      const key = cardMetricsById.get(card.id)?.domainKey ?? 'other';
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }));
+  }, [boardQuery.data?.cards, cardMetricsById]);
+  const availableAssignees = useMemo(() => {
+    const set = new Set<string>();
+    for (const card of boardQuery.data?.cards ?? []) {
+      const assignee = card.assignee?.trim();
+      if (assignee) set.add(assignee);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [boardQuery.data?.cards]);
 
   if (loadPending) {
     return (
@@ -471,26 +682,6 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
       </PortalPlanSurfaceChrome>
     );
   }
-
-  const timelineParity = boardQuery.data?.timeline_parity;
-  const timelineDto = timelineQuery.data?.timeline;
-  const seasonPreset = resolveBoardSeasonPreset({
-    parity: timelineParity,
-    timeline: timelineDto ?? null,
-  });
-  const projections = projectRoadmapNodesFromCriticalPath({ pack, seasonPreset });
-  const titles = orchestrationNodeTitleMap(pack);
-  const nodeById = new Map(pack.graph.nodes.map((n) => [n.id, n]));
-
-  const top7List =
-    timelineParity?.top_7d ?? (timelineDto?.status === 'ready' ? timelineDto.top_7d : []) ?? [];
-  const top30List =
-    timelineParity?.top_30d ?? (timelineDto?.status === 'ready' ? timelineDto.top_30d : []) ?? [];
-  const prioritySets = { top7: new Set(top7List), top30: new Set(top30List) };
-
-  const reasonRows =
-    timelineParity?.top_priorities ?? (timelineDto?.status === 'ready' ? timelineDto.top_priorities : undefined) ?? [];
-  const reasonByPackNodeId = new Map(reasonRows.map((p) => [p.action_id, p.reason_code] as const));
 
   const byBucket: Record<OrchestrationTimelineTimeBucket, typeof projections> = {
     now: [],
@@ -556,6 +747,205 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                 </Button>
               </div>
             ) : null}
+            {boardOperationalVisible && showConsultantPlanTools ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Filter cards by domain"
+                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
+                  value={metricFilters.domain}
+                  onChange={(e) =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { domain: e.target.value || 'all' },
+                      }),
+                    )
+                  }
+                >
+                  <option value="all">All domains</option>
+                  {availableDomainFilters.map(([key, count]) => (
+                    <option key={key} value={key}>
+                      {`${key.replaceAll('_', ' ')} (${count})`}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filter cards by assignee"
+                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
+                  value={metricFilters.assignee}
+                  onChange={(e) =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { assignee: e.target.value || 'all' },
+                      }),
+                    )
+                  }
+                >
+                  <option value="all">All assignees</option>
+                  {availableAssignees.map((assignee) => (
+                    <option key={assignee} value={assignee}>
+                      {assignee}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant={metricFilters.criticalOnly ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { criticalOnly: !metricFilters.criticalOnly },
+                      }),
+                    )
+                  }
+                >
+                  Critical only
+                </Button>
+                <Button
+                  type="button"
+                  variant={metricFilters.quickOnly ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { quickOnly: !metricFilters.quickOnly },
+                      }),
+                    )
+                  }
+                >
+                  Quick wins
+                </Button>
+                <select
+                  aria-label="Filter cards by priority window"
+                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
+                  value={metricFilters.priority}
+                  onChange={(e) =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { priority: e.target.value as 'all' | '7d' | '30d' },
+                      }),
+                    )
+                  }
+                >
+                  <option value="all">All priorities</option>
+                  <option value="7d">Top 7d</option>
+                  <option value="30d">Top 30d</option>
+                </select>
+                <select
+                  aria-label="Filter cards by due state"
+                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
+                  value={metricFilters.dueState}
+                  onChange={(e) =>
+                    navigate(
+                      mergePlanCardMetricFiltersIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                        patch: { dueState: e.target.value as 'all' | 'overdue' | 'due_soon' | 'no_due' },
+                      }),
+                    )
+                  }
+                >
+                  <option value="all">All due states</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="due_soon">Due soon (7d)</option>
+                  <option value="no_due">No due date</option>
+                </select>
+              </div>
+            ) : null}
+            {boardOperationalVisible && showConsultantPlanTools && selectedCardIds.size > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-2">
+                <span className="text-xs text-muted-foreground">{`${selectedCardIds.size} selected`}</span>
+                {operationalColumnDescriptors.map((col) => (
+                  <Button
+                    key={col.id}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void bulkMoveSelected(col.id)}
+                    disabled={dragLocked || batchPatchMutation.isPending}
+                  >
+                    {`Move to ${col.title}`}
+                  </Button>
+                ))}
+                <select
+                  aria-label="Bulk set priority"
+                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
+                  value={bulkPriority}
+                  onChange={(e) => setBulkPriority(e.target.value as 'low' | 'medium' | 'high' | 'urgent')}
+                >
+                  <option value="low">Priority low</option>
+                  <option value="medium">Priority medium</option>
+                  <option value="high">Priority high</option>
+                  <option value="urgent">Priority urgent</option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void bulkPatchSelected({ priority: bulkPriority })}
+                  disabled={batchPatchMutation.isPending}
+                >
+                  Apply priority
+                </Button>
+                <input
+                  aria-label="Bulk assignee"
+                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
+                  value={bulkAssignee}
+                  onChange={(e) => setBulkAssignee(e.target.value)}
+                  placeholder="Assignee"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void bulkPatchSelected({ assignee: bulkAssignee.trim() })}
+                  disabled={batchPatchMutation.isPending || bulkAssignee.trim() === ''}
+                >
+                  Apply assignee
+                </Button>
+                <input
+                  aria-label="Bulk due date"
+                  type="date"
+                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
+                  value={bulkDueDate}
+                  onChange={(e) => setBulkDueDate(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void bulkPatchSelected({ due_date: bulkDueDate })}
+                  disabled={batchPatchMutation.isPending || bulkDueDate === ''}
+                >
+                  Apply due
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setSelectedCardIds(new Set())}
+                >
+                  Clear
+                </Button>
+              </div>
+            ) : null}
 
             {boardOperationalVisible ?
               <PlanBoardUnifiedPlanStatusBanner
@@ -604,20 +994,34 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                       const colId = col.id;
                       const heading = col.title;
                       const idsRaw = columnBuckets[colId] ?? [];
-                      const ids =
-                        laneFilterKeys.length === 0 ?
-                          idsRaw
-                        : idsRaw.filter((cid) => {
-                            const dto = cardsById.get(cid);
-                            if (!dto) return false;
-                            const lk = dto.lane?.trim() ?? '';
-                            return laneFilterKeys.includes(lk);
-                          });
+                      const ids = idsRaw.filter((cid) => {
+                        const dto = cardsById.get(cid);
+                        if (!dto) return false;
+                        if (laneFilterKeys.length > 0) {
+                          const lk = dto.lane?.trim() ?? '';
+                          if (!laneFilterKeys.includes(lk)) return false;
+                        }
+                        const metrics = cardMetricsById.get(cid);
+                        if (!metrics) return true;
+                        return matchesPlanCardMetricFilters(metrics, metricFilters);
+                      });
                       const laneMixCaption = formatLaneDensityLine(ids, cardsById);
                       const backlog = isBacklogOperationalColumn(boardQuery.data?.columns, colId);
 
                       const columnInner = (
-                        <BoardColumnShell columnId={colId} heading={heading} laneMixCaption={laneMixCaption}>
+                        <BoardColumnShell
+                          columnId={colId}
+                          heading={heading}
+                          laneMixCaption={laneMixCaption}
+                          workflowHint={
+                            (() => {
+                              const limit = resolvePlanBoardWipLimit(colId);
+                              if (limit == null) return null;
+                              if (ids.length <= limit) return `WIP limit ${limit}`;
+                              return `WIP ${ids.length}/${limit} (over limit)`;
+                            })()
+                          }
+                        >
                           {backlog && showConsultantPlanTools ?
                             <li className="border-border list-none rounded-md border border-dashed px-3 py-2">
                               <PlanManualCardCreateForm
@@ -655,6 +1059,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                                 priorityReasonCode != null ?
                                   ORCHESTRATION_PRIORITY_REASON_CODES[priorityReasonCode] ?? priorityReasonCode
                                 : null;
+                              const metrics = cardMetricsById.get(dto.id);
                               const focusForRoadmap = dto.canonical_node_key ?? dto.pack_graph_node_id ?? null;
                               const openOnRoadmapHref =
                                 focusForRoadmap != null ?
@@ -680,7 +1085,23 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                                   priorityWindow={priorityWindow}
                                   priorityReasonLabel={priorityReasonLabel}
                                   analysisDepth={analysisDepth}
-                                  canMutateCard={showConsultantPlanTools && !governanceReadOnly}
+                                  domainLabel={dto.delivery_area ? dto.delivery_area.replaceAll('_', ' ') : null}
+                                  quickWin={metrics?.quickWin ?? false}
+                                  critical={metrics?.critical ?? false}
+                                  assignee={metrics?.assignee ?? null}
+                                  dueDate={metrics?.dueDate ?? null}
+                                  dueState={metrics?.dueState ?? 'no_due'}
+                                  priorityLevel={metrics?.priorityLevel ?? null}
+                                  selected={selectedCardIds.has(dto.id)}
+                                  onToggleSelect={() =>
+                                    setSelectedCardIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(dto.id)) next.delete(dto.id);
+                                      else next.add(dto.id);
+                                      return next;
+                                    })
+                                  }
+                                  canMutateCard={canEditCardFields}
                                   onCommitTitleInline={t => commitCardTitleInline(dto.id, t)}
                                   onCommitLaneInline={
                                     showConsultantPlanTools && !governanceReadOnly
@@ -690,6 +1111,10 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                                   laneSelectOptions={laneSelectOptions}
                                   manifestDraftLaneHintsEnabled={manifestDraftLaneHintsEnabled}
                                   onDeleteCard={() => setDeleteCardId(dto.id)}
+                                  onOpenTicketDetails={() => setTicketDetailsCardId(dto.id)}
+                                  onCommitPriorityInline={(priority) => commitCardPriorityInline(dto.id, priority)}
+                                  onCommitDueDateInline={(dueDateIso) => commitCardDueDateInline(dto.id, dueDateIso)}
+                                  onQuickPromoteToNextUp={() => moveCardViaMenu('next_up', dto.id)}
                                   isFocusTarget={
                                     focusToken != null &&
                                     (dto.canonical_node_key === focusToken ||
@@ -756,6 +1181,18 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
           open={boardSettingsOpen}
           onOpenChange={setBoardSettingsOpen}
           columns={boardQuery.data?.columns}
+        />
+        <PlanTicketDetailsPanel
+          auditId={auditId}
+          open={ticketDetailsCardId != null}
+          onOpenChange={(open) => {
+            if (!open) setTicketDetailsCardId(null);
+          }}
+          card={selectedTicketCard}
+          canMutateCard={canEditCardFields}
+          columnOptions={operationalColumnDescriptors}
+          busy={patchMutation.isPending}
+          onSave={saveTicketDetails}
         />
       </BoardShell>
     </PortalPlanSurfaceChrome>

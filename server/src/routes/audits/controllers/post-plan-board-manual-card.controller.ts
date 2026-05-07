@@ -25,6 +25,7 @@ import {
   semanticForColumnId,
 } from '../../../services/plan-board/plan-board-column-policy.service.js';
 import { emitPlanBoardManualInProgressBlocked } from '../../../services/plan-board/plan-board-pipeline-events.js';
+import { appendPlanTicketEvent } from '../../../services/plan-board/plan-ticket-activity.service.js';
 import { logger } from '../../../services/logger.js';
 import { supabase } from '../../../services/supabase.js';
 import { PlanBoardManualCardPostSchema } from '../../../schemas/plan-board.js';
@@ -110,12 +111,22 @@ export async function postPlanBoardManualCardController(req: AuthRequest, res: R
         pack_graph_node_id: null,
         pack_lane_snapshot: parsed.data.lane,
         manual_title: parsed.data.title,
+        ticket_description: parsed.data.ticket_description ?? null,
+        assignee: parsed.data.assignee ?? null,
+        assignee_user_id: parsed.data.assignee_user_id ?? null,
+        labels: parsed.data.labels ?? [],
+        story_points: parsed.data.story_points ?? null,
+        priority: parsed.data.priority ?? null,
+        start_date: parsed.data.start_date ?? null,
+        due_date: parsed.data.due_date ?? null,
+        end_date: parsed.data.end_date ?? null,
         source: 'manual',
         delivery_area: resolved.defaultDeliveryAreaForColumnId(column),
         column_id: column,
         position: positionBase,
         pinned: false,
         created_by_user_id: req.userId!,
+        updated_by_user_id: req.userId!,
       })
       .select('id')
       .single();
@@ -125,6 +136,14 @@ export async function postPlanBoardManualCardController(req: AuthRequest, res: R
       sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
       return;
     }
+
+    await appendPlanTicketEvent({
+      auditId,
+      cardId: inserted.id,
+      actorUserId: req.userId ?? null,
+      action: 'create',
+      sourceSurface: 'board',
+    });
 
     res.status(201).json({
       card_id: inserted.id,

@@ -28,7 +28,7 @@ vi.mock('../../../../features/report-viewer/domain/selectors', () => ({
 
 vi.mock('../../../../config/app-feature-flags', () => ({
   APP_FEATURE_FLAGS: {
-    clientTimelineEnabled: true,
+    clientPlanWorkspaceEnabled: true,
     orchestrationRoadmapUiEnabled: true,
     clientRoadmapManifestWizardEnabled: true,
   },

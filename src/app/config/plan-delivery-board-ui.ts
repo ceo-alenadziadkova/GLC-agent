@@ -1,8 +1,8 @@
-import { APP_FEATURE_FLAGS } from './app-feature-flags';
 import type { PortalPlanViewParam } from './portal-plan';
+import { APP_FEATURE_FLAGS } from './app-feature-flags';
 
 /**
- * Canonical `view=` for Strategy Lab → Plan CTAs (explicit links).
+ * Canonical delivery segment (`board` \| `roadmap`) for Strategy Lab → Plan CTAs when building path-first URLs.
  * Prefer Delivery Board when the surface is rolled out; otherwise the Gantt Roadmap schedule.
  */
 export function primaryPlanWorkbenchViewForStrategyLinks(): PortalPlanViewParam {
@@ -23,9 +23,8 @@ export function isPlanDeliveryBoardUiEnabled(): boolean {
 
 /**
  * Whether `useOrchestrationReadModel` should issue `GET /api/audits/:id/timeline` for the unified Plan shell.
- * When deferred on the Board tab, Board uses `timeline_parity` from `GET …/plan/board` only.
+ * Timeline remains execute-roadmap only; board/table rely on plan-board parity payloads.
  */
 export function planOrchestrationIncludeTimelineForUnifiedPlanView(activeView: PortalPlanViewParam): boolean {
-  if (!APP_FEATURE_FLAGS.planBoardDeferTimelineFetchOnBoardTabEnabled) return true;
-  return activeView !== 'board' && activeView !== 'table';
+  return activeView === 'roadmap';
 }

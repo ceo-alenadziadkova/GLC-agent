@@ -175,7 +175,7 @@ describe('StrategyLab steps strip', () => {
     expect(screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.journeyStrip.ariaLabel })).toBeInTheDocument();
   });
 
-  it('renders consultant workbench segmented navigation with orchestration selected', () => {
+  it('does not render a duplicate workbench segmented navigation in consultant strategy lab', () => {
     useAuditMock.mockReturnValue({
       audit: buildAuditBase(),
       loading: false,
@@ -186,21 +186,9 @@ describe('StrategyLab steps strip', () => {
 
     renderLab();
 
-    const wb = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel });
-    const wbLinks = within(wb).getAllByRole('link');
-    expect(wbLinks).toHaveLength(2);
-
-    const orchestration = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
-    });
-    const roadmap = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.planLabel,
-    });
-    expect(orchestration).toHaveAttribute(
-      'href',
-      buildPlanWorkspaceHref({ auditId: 'audit-steps-strip', isClient: false, mode: 'shape' }),
-    );
-    expect(roadmap).toHaveAttribute(
+    expect(screen.queryByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel })).toBeNull();
+    const planEntry = screen.getByRole('link', { name: 'Open Plan' });
+    expect(planEntry).toHaveAttribute(
       'href',
       buildPlanWorkspaceHref({
         auditId: 'audit-steps-strip',
@@ -209,8 +197,6 @@ describe('StrategyLab steps strip', () => {
         view: primaryPlanWorkbenchViewForStrategyLinks(),
       }),
     );
-    expect(orchestration).toHaveAttribute('aria-current', 'page');
-    expect(roadmap).not.toHaveAttribute('aria-current');
   });
 
   it('renders four journey step links and marks step 1 as current when no progress yet', () => {

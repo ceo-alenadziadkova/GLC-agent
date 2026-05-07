@@ -28,11 +28,11 @@ test.describe('plan delivery board (consultant UI)', () => {
     assertSafeAuditId();
   });
 
-  test('opens /plan/:id?view=board and shows Delivery Board shell', async ({ page }) => {
+  test('opens /plan/:id/board and shows Delivery Board shell', async ({ page }) => {
     await loginConsultantBrowser(page);
-    await page.goto(`/plan/${auditId}?view=board`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/plan/${auditId}/board`, { waitUntil: 'domcontentloaded' });
 
-    await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('board');
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(/\/plan\/[^/]+\/board$/);
 
     const boardNav = page.getByRole('navigation', { name: 'Plan presentation' });
     await expect(boardNav.getByRole('link', { name: 'Board', exact: true })).toBeVisible({
@@ -47,21 +47,19 @@ test.describe('plan delivery board (consultant UI)', () => {
 
   test('segmented nav switches Board to Roadmap and back', async ({ page }) => {
     await loginConsultantBrowser(page);
-    await page.goto(`/plan/${auditId}?view=board`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/plan/${auditId}/board`, { waitUntil: 'domcontentloaded' });
 
     const boardLink = page.getByRole('link', { name: 'Board', exact: true });
     await expect(boardLink).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('link', { name: 'Roadmap', exact: true }).click();
 
-    await expect
-      .poll(() => page.url())
-      .toMatch(/[?&]view=roadmap(?:&|$)/);
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(/\/plan\/[^/]+\/roadmap$/);
 
     await expect(page.getByTestId('portal-plan-roadmap-panel')).toBeVisible({ timeout: 60_000 });
 
     await boardLink.click();
-    await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('board');
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(/\/plan\/[^/]+\/board$/);
   });
 
   test('per-card Move menu opens when operational cards render', async ({ page }) => {
@@ -72,7 +70,7 @@ test.describe('plan delivery board (consultant UI)', () => {
     });
 
     await loginConsultantBrowser(page);
-    await page.goto(`/plan/${auditId}?view=board`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/plan/${auditId}/board`, { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('link', { name: 'Board', exact: true })).toBeVisible({
       timeout: 30_000,

@@ -1,4 +1,3 @@
-import { planBoardQueryKeys } from '../data/api/plan-board-queries';
 import type { QueryClient } from './tanstack-react-query';
 import { glcKeys } from './glc-keys';
 
@@ -11,8 +10,9 @@ export function invalidatePlanWorkspaceQueries(
   auditId: string,
 ): Promise<unknown[]> {
   return Promise.all([
+    qc.invalidateQueries({ queryKey: glcKeys.planWorkspace.detail(auditId) }),
     qc.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) }),
     qc.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) }),
-    qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) }),
+    qc.invalidateQueries({ queryKey: glcKeys.planWorkspace.board(auditId) }),
   ]);
 }

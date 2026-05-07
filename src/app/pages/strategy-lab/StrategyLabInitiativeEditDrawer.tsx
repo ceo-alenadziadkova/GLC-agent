@@ -50,9 +50,7 @@ export function StrategyLabInitiativeEditDrawer({
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [preserveBoardIdentity, setPreserveBoardIdentity] = useState(false);
-  const [initialTitle, setInitialTitle] = useState('');
   const [saving, setSaving] = useState(false);
-  const titleFieldId = useId();
   const descriptionFieldId = useId();
 
   useEffect(() => {
@@ -61,10 +59,7 @@ export function StrategyLabInitiativeEditDrawer({
     setDescriptionDraft(initiative.description);
     const hasKey = typeof initiative.board_identity_key === 'string' && initiative.board_identity_key.length > 0;
     setPreserveBoardIdentity(hasKey);
-    setInitialTitle(initiative.title);
   }, [initiative, open]);
-
-  const showRenameWarning = !preserveBoardIdentity && titleDraft.trim() !== initialTitle.trim();
 
   const handleSave = useCallback(async () => {
     if (!initiative) return;
@@ -126,17 +121,10 @@ export function StrategyLabInitiativeEditDrawer({
           <SheetDescription className="sr-only">{STRATEGY_LAB_COPY.boardIdentity.initiativeSectionHint}</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-1 py-2">
-          <label className="flex flex-col gap-1" htmlFor={titleFieldId}>
-            <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.boardIdentity.titleLabel}</span>
-            <input
-              id={titleFieldId}
-              type="text"
-              value={titleDraft}
-              onChange={e => setTitleDraft(e.target.value)}
-              className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-sm"
-              autoComplete="off"
-            />
-          </label>
+          <div className="bg-muted/50 border-border rounded-md border px-3 py-2">
+            <p className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.boardIdentity.titleLabel}</p>
+            <p className="text-foreground mt-1 text-sm">{initiative.title}</p>
+          </div>
           <label className="flex flex-col gap-1" htmlFor={descriptionFieldId}>
             <span className="text-muted-foreground text-xs font-medium">
               {STRATEGY_LAB_COPY.boardIdentity.descriptionLabel}
@@ -158,11 +146,9 @@ export function StrategyLabInitiativeEditDrawer({
             />
             <span>{STRATEGY_LAB_COPY.boardIdentity.checkboxLabel}</span>
           </label>
-          {showRenameWarning ? (
-            <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">
-              {STRATEGY_LAB_COPY.boardIdentity.warningWhenOff}
-            </p>
-          ) : null}
+          <p className="text-muted-foreground text-[length:var(--text-2xs)] max-w-prose">
+            {STRATEGY_LAB_COPY.boardIdentity.warningWhenOff}
+          </p>
         </div>
         <SheetFooter className="mt-auto flex-row flex-wrap gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>

@@ -871,7 +871,7 @@ export const ORCHESTRATION_IA_COPY = {
   /** Long-form IA note (portal timeline, cockpit); Strategy Lab avoids repeating this on-page. */
   timelineVsLabRole:
     'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
-  /** AppShell subtitle on portal timeline when `orchestrationTimelinePrimaryUxEnabled` is on. */
+  /** AppShell subtitle on portal timeline when plan-workspace-primary UX is enabled. */
   timelinePageSubtitleWhenPrimary:
     'Sequencing and seasonal buckets live here. Strategy Lab in the toolbar covers manifest snapshots, new pack versions, and node detail.',
   /** Footnote under primary CTAs on client cockpit. */

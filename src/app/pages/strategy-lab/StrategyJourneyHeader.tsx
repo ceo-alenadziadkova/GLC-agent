@@ -52,8 +52,8 @@ export type StrategyJourneyHeaderProps = {
 /**
  * Four-step planning journey (Context → Manifest → Pack → Plan): single IA header shared by Strategy Lab and Plan surfaces.
  *
- * Step targets use canonical `/plan/:id?mode=define|shape` (ADR Plan Workspace Phase 2). The Plan step opens
- * `?mode=execute` with the default workbench `view` (Board or Roadmap per rollout).
+ * Step targets use canonical `/lab/:id?mode=define|shape`. The Plan step opens
+ * the default delivery path (`/plan/:id/board` or `/plan/:id/roadmap` per rollout).
  */
 export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: StrategyJourneyHeaderProps) {
   const descriptionId = useId();

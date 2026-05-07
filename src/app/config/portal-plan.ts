@@ -1,7 +1,8 @@
 /**
- * Unified Plan workspace (roadmap Gantt vs delivery board vs table) under `/plan/:id` and `/portal/plan/:id`.
+ * Unified Plan workspace (roadmap Gantt vs delivery board vs table) under `/plan/:id/{board|roadmap|table}` and
+ * `/portal/plan/:id/...`. Strategy Lab studio lives at `/lab/:id?mode=define|shape` (portal: `/portal/lab/:id`).
  * Legacy `/roadmap/:id` and `/timeline/:id` paths redirect to canonical plan URLs (`LegacyPlanPathRedirect`).
- * Legacy `?view=timeline` is treated as redirect-only input and normalized to canonical execute views.
+ * Legacy `?view=timeline` on the plan index is treated as redirect-only input and normalized to canonical delivery paths.
  */
 import { APP_FEATURE_FLAGS, type FeatureRolloutMode } from './app-feature-flags';
 

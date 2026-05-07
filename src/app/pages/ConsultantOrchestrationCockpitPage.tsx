@@ -16,6 +16,7 @@ import { api } from '../data/apiService';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { useAudit } from '../hooks/useAudit';
 import { useStrategyJourneyStepStatuses } from '../hooks/useStrategyJourneyStepStatuses';
+import { useCompilePlanMutation } from '../hooks/useCompilePlanMutation';
 import { glcKeys } from '../lib/glc-keys';
 import { invalidatePlanWorkspaceQueries } from '../lib/plan-workspace-queries';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
@@ -34,7 +35,7 @@ export function ConsultantOrchestrationCockpitPage() {
   const [stalePack, setStalePack] = useState(false);
 
   const latestManifestQuery = useQuery({
-    queryKey: ['glc', 'roadmap-manifest-snapshot', 'latest', auditId ?? ''] as const,
+    queryKey: glcKeys.orchestrationManifestSnapshot.latest(auditId ?? ''),
     queryFn: () => api.getRoadmapManifestSnapshotLatest(auditId as string),
     enabled: Boolean(auditId) && APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled,
   });
@@ -51,18 +52,19 @@ export function ConsultantOrchestrationCockpitPage() {
   const governance = packQuery.data?.plan_governance;
   const view = isGlcOrchestrationPackView(pack) ? pack : null;
   const titles = view ? orchestrationNodeTitleMap(view) : new Map<string, string>();
-  const manifestSnapshotId = latestManifestQuery.data?.snapshot?.id ?? null;
+  const latestManifestPayload = latestManifestQuery.data?.snapshot?.payload ?? null;
   const decisionHint = governance?.decision_hint;
+  const compileMutation = useCompilePlanMutation({ auditId: auditId ?? '' });
 
   const onRebuild = async () => {
-    if (!manifestSnapshotId) {
+    if (!latestManifestPayload) {
       toast.error(ORCHESTRATION_UI_COPY.consultantCockpitNoManifest);
       return;
     }
     setRebuildPending(true);
     setStalePack(false);
     try {
-      await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
+      await compileMutation.mutateAsync(latestManifestPayload);
       await invalidatePlanWorkspaceQueries(queryClient, auditId);
       await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(auditId) });
       toast.success(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackSuccess);
@@ -110,7 +112,6 @@ export function ConsultantOrchestrationCockpitPage() {
           audit={audit}
           variant={{ kind: 'strategy-lab' }}
           steps={journeySteps}
-          workbenchOrchestrationHref={buildAppRoute.auditOrchestration(auditId)}
         />
       ) : null}
       {isLoading ? (
@@ -156,10 +157,10 @@ export function ConsultantOrchestrationCockpitPage() {
               type="button"
               size="sm"
               variant="secondary"
-              disabled={rebuildPending || latestManifestQuery.isLoading || !manifestSnapshotId}
+              disabled={rebuildPending || compileMutation.isPending || latestManifestQuery.isLoading || !latestManifestPayload}
               onClick={() => void onRebuild()}
             >
-              {rebuildPending
+              {rebuildPending || compileMutation.isPending
                 ? ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackBusy
                 : ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackCta}
             </Button>

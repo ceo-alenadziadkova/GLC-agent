@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { Link } from 'react-router';
 import { CaretDownIcon } from '@phosphor-icons/react';
@@ -14,7 +15,6 @@ import {
   type PlanBoardUiColumnId,
 } from '../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../config/plan-board-copy.en';
-import { isPlanBoardDrawerMoveAllowed } from '../../config/plan-board-transitions';
 import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
 import { usePatchPlanBoardCardMutation } from '../../data/api/plan-board-queries';
 import type { RoadmapGanttDependency, RoadmapGanttLaneId, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
@@ -22,6 +22,9 @@ import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper'
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../ui/drawer';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { canEditPlanBoardCardFields, canMovePlanBoardCardColumn } from '../../lib/plan-board-policy';
 
 /** Delivery Board move affordance from Roadmap drawer (ADR cross-view mutation surface §5). */
 export type TaskDetailsPlanBoardMove =
@@ -64,6 +67,15 @@ export function TaskDetailsDrawer({
 }: TaskDetailsDrawerProps) {
   const pb = planBoardMove ?? { status: 'off' as const };
   const patchMutation = usePatchPlanBoardCardMutation({ auditId: auditId ?? undefined });
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAssignee, setEditAssignee] = useState('');
+  const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [editLane, setEditLane] = useState('');
+  const [editDeliveryArea, setEditDeliveryArea] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
 
   const incomingDependencies = task ? dependencies.filter((dep) => dep.to === task.id) : [];
   const isBlocked = incomingDependencies.some((dep) => dep.blocking);
@@ -73,15 +85,63 @@ export function TaskDetailsDrawer({
     const cid = pb.row.column_id;
     currentDeliveryColumnLabel = isPlanBoardUiColumnId(cid) ? cid : null;
   }
+  const canEditFields =
+    pb.status === 'ready' && canEditPlanBoardCardFields({ role: pb.role, governanceReadOnly: false });
+
+  useEffect(() => {
+    if (pb.status !== 'ready') return;
+    setEditTitle(pb.row.title ?? task?.title ?? '');
+    setEditDescription(pb.row.ticket_description ?? task?.description ?? '');
+    setEditAssignee(pb.row.assignee ?? task?.owner ?? '');
+    setEditPriority(pb.row.priority ?? 'medium');
+    setEditLane(pb.row.lane ?? '');
+    setEditDeliveryArea(pb.row.delivery_area ?? '');
+    setEditStartDate(pb.row.start_date ?? '');
+    setEditDueDate(pb.row.due_date ?? '');
+    setEditEndDate(pb.row.end_date ?? '');
+  }, [pb, task?.title]);
 
   async function submitMove(colId: PlanBoardUiColumnId) {
     if (pb.status !== 'ready' || !auditId || currentDeliveryColumnLabel == null) return;
-    if (!isPlanBoardDrawerMoveAllowed(pb.role, currentDeliveryColumnLabel, colId)) return;
+    if (
+      !canMovePlanBoardCardColumn({
+        role: pb.role,
+        governanceReadOnly: false,
+        from: currentDeliveryColumnLabel,
+        to: colId,
+      })
+    )
+      return;
 
     try {
       await patchMutation.mutateAsync({
         cardId: pb.row.id,
         body: { to_column: colId, expected_pack_version: pb.packVersion },
+      });
+      toast.success(PLAN_BOARD_COPY.roadmapDrawerMoveSuccessToast);
+    } catch {
+      toast.error(PLAN_BOARD_COPY.roadmapDrawerMoveErrorToast);
+    }
+  }
+
+  async function saveTicketEdits(): Promise<void> {
+    if (pb.status !== 'ready') return;
+    if (!canEditPlanBoardCardFields({ role: pb.role, governanceReadOnly: false })) return;
+    try {
+      await patchMutation.mutateAsync({
+        cardId: pb.row.id,
+        body: {
+          expected_pack_version: pb.packVersion,
+          title: editTitle.trim(),
+          ticket_description: editDescription.trim(),
+          assignee: editAssignee.trim(),
+          priority: editPriority,
+          lane: editLane.trim() !== '' ? editLane.trim() : undefined,
+          delivery_area: editDeliveryArea.trim(),
+          start_date: editStartDate || undefined,
+          due_date: editDueDate || undefined,
+          end_date: editEndDate || undefined,
+        },
       });
       toast.success(PLAN_BOARD_COPY.roadmapDrawerMoveSuccessToast);
     } catch {
@@ -213,7 +273,12 @@ export function TaskDetailsDrawer({
                       disabled={
                         patchMutation.isPending ||
                         colId === currentDeliveryColumnLabel ||
-                        !isPlanBoardDrawerMoveAllowed(pb.role, currentDeliveryColumnLabel, colId)
+                        !canMovePlanBoardCardColumn({
+                          role: pb.role,
+                          governanceReadOnly: false,
+                          from: currentDeliveryColumnLabel,
+                          to: colId,
+                        })
                       }
                       onSelect={(e) => {
                         e.preventDefault();
@@ -225,6 +290,170 @@ export function TaskDetailsDrawer({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : null}
+            {task.kind === 'task' && pb.status === 'ready' ? (
+              <div className="rounded-md border border-[var(--border-default)] p-3 space-y-3">
+                <div className="font-medium text-[var(--text-primary)]">Edit ticket</div>
+                <div className="space-y-1">
+                  <Label htmlFor="roadmap-task-edit-title" className="text-xs text-[var(--text-tertiary)]">
+                    Title
+                  </Label>
+                  <Input
+                    id="roadmap-task-edit-title"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    disabled={!canEditFields}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="roadmap-task-edit-description" className="text-xs text-[var(--text-tertiary)]">
+                    Description
+                  </Label>
+                  <Input
+                    id="roadmap-task-edit-description"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    disabled={!canEditFields}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-lane" className="text-xs text-[var(--text-tertiary)]">
+                      Lane
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-lane"
+                      value={editLane}
+                      onChange={(e) => setEditLane(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-area" className="text-xs text-[var(--text-tertiary)]">
+                      Domain
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-area"
+                      value={editDeliveryArea}
+                      onChange={(e) => setEditDeliveryArea(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-assignee" className="text-xs text-[var(--text-tertiary)]">
+                      Assignee
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-assignee"
+                      value={editAssignee}
+                      onChange={(e) => setEditAssignee(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-priority" className="text-xs text-[var(--text-tertiary)]">
+                      Priority
+                    </Label>
+                    <select
+                      id="roadmap-task-edit-priority"
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value as 'low' | 'medium' | 'high' | 'urgent')}
+                      disabled={!canEditFields}
+                      className="h-8 w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2 text-xs"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-start-date" className="text-xs text-[var(--text-tertiary)]">
+                      Start date
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-start-date"
+                      type="date"
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-due-date" className="text-xs text-[var(--text-tertiary)]">
+                      Due date
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-due-date"
+                      type="date"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="roadmap-task-edit-end-date" className="text-xs text-[var(--text-tertiary)]">
+                      End date
+                    </Label>
+                    <Input
+                      id="roadmap-task-edit-end-date"
+                      type="date"
+                      value={editEndDate}
+                      onChange={(e) => setEditEndDate(e.target.value)}
+                      disabled={!canEditFields}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void saveTicketEdits()}
+                    disabled={patchMutation.isPending || !canEditFields}
+                  >
+                    Save ticket changes
+                  </Button>
+                  {task.kind === 'task' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={patchMutation.isPending || currentDeliveryColumnLabel === 'backlog'}
+                      onClick={() => void submitMove('backlog')}
+                    >
+                      Send to backlog
+                    </Button>
+                  ) : null}
+                  {task.kind === 'task' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={patchMutation.isPending || currentDeliveryColumnLabel === 'next_up'}
+                      onClick={() => void submitMove('next_up')}
+                    >
+                      Pull to next up
+                    </Button>
+                  ) : null}
+                </div>
+                {!canEditFields ? (
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    Detailed field editing is consultant-only in this workspace.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             {task.kind === 'task' && consultantBoardPlanHref ?
               <p className="text-muted-foreground text-xs leading-relaxed">

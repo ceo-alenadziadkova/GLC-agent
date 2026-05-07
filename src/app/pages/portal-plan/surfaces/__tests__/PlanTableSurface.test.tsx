@@ -33,6 +33,11 @@ vi.mock('../../../../hooks/useProfile', () => ({
 vi.mock('../../../../data/api/plan-board-queries', () => ({
   usePlanBoardQuery: () => ({ data: undefined, isPending: true }),
   usePatchPlanBoardCardMutation: () => ({ mutateAsync: vi.fn() }),
+  usePatchPlanBoardCardsBatchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePostManifestDraftRevisionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePlanBoardCardEventsQuery: () => ({ data: [], isPending: false }),
+  usePlanBoardCardCommentsQuery: () => ({ data: [], isPending: false }),
+  usePostPlanBoardCardCommentMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 describe('PlanTableSurface', () => {
@@ -40,9 +45,9 @@ describe('PlanTableSurface', () => {
     const qc = new QueryClient();
     render(
       <QueryClientProvider client={qc}>
-        <MemoryRouter initialEntries={['/plan/audit-table?view=table']}>
+        <MemoryRouter initialEntries={['/plan/audit-table/table']}>
           <Routes>
-            <Route path="/plan/:id" element={<PlanTableSurface />} />
+            <Route path="/plan/:id/table" element={<PlanTableSurface />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,

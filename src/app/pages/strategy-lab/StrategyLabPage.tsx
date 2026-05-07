@@ -11,6 +11,8 @@ import {
 } from '../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
+import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
+import { DOMAIN_KEYS } from '../../data/auditTypes';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
@@ -164,6 +166,44 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     return () => window.cancelAnimationFrame(frame);
   }, [embedded, planStudioScrollTarget, audit?.strategy]);
 
+  const {
+    orchestrationUiEnabled,
+    clientOrchestrationLabReadOnlyEnabled,
+    reportHref,
+    planExecutionHref,
+  } = useStrategyLabWorkspaceLinks({ auditId: id, isClient });
+
+  type ExecutionPlanForLab = NonNullable<AuditMeta['execution_plan']>;
+
+  /**
+   * `GET /audits/:id` sometimes omits `meta.execution_plan` even when a GLC pack exists (Plan studio embed).
+   * Infer `selected_domains` from pack graph so {@link StrategyLabOrchestrationPanel} mounts and can register
+   * the Plan Advanced drawer body; otherwise the sheet shows only chrome copy.
+   */
+  const executionPlanForRoadmap = useMemo((): ExecutionPlanForLab | null => {
+    if (!audit?.strategy) return null;
+    const fromMeta = audit.meta.execution_plan ?? null;
+    if (fromMeta) return fromMeta;
+
+    const rawPack = audit.strategy.glc_orchestration_pack;
+    if (!isGlcOrchestrationPackView(rawPack)) return null;
+
+    const domainSet = new Set<(typeof DOMAIN_KEYS)[number]>();
+    for (const node of rawPack.graph?.nodes ?? []) {
+      const d = node.domain;
+      if (d && (DOMAIN_KEYS as readonly string[]).includes(d)) {
+        domainSet.add(d as (typeof DOMAIN_KEYS)[number]);
+      }
+    }
+    const selected_domains = domainSet.size > 0 ? [...domainSet] : [...DOMAIN_KEYS];
+
+    return {
+      selected_domains,
+      depth: 'standard',
+      source: 'system_default',
+    };
+  }, [audit?.meta.execution_plan, audit?.strategy]);
+
   if (loading && !audit) {
     return (
       <StrategyLabLoadingShell
@@ -189,14 +229,6 @@ export function StrategyLab(props: StrategyLabProps = {}) {
       />
     );
   }
-
-  const {
-    orchestrationUiEnabled,
-    clientOrchestrationLabReadOnlyEnabled,
-    reportHref,
-    planExecutionHref,
-  } = useStrategyLabWorkspaceLinks({ auditId: id, isClient });
-  const executionPlanForRoadmap = audit.meta.execution_plan ?? null;
 
   if (!audit.strategy) {
     return (

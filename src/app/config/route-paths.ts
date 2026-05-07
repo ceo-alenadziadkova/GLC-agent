@@ -1,5 +1,9 @@
 import { LEGAL_DOCUMENT_SPA_ROUTES } from '@glc/api-paths';
-import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
+import {
+  APP_ROUTE_SEGMENTS as P,
+  PLAN_WORKSPACE_SURFACE_SEGMENTS as PLAN_WS,
+  SPA_ROUTE_SEGMENTS as R,
+} from '@glc/intake-core';
 
 import { defaultPortalPlanViewWhenQueryMissing, type PortalPlanViewParam } from './portal-plan';
 
@@ -48,25 +52,28 @@ export const buildAppRoute = {
   portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
   portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
   /**
-   * Canonical plan URL (`/plan/:id`). Legacy `/roadmap/:id` and `/timeline/:id` redirect here (query merged).
-   * Without explicit `view`, defaults follow {@link defaultPortalPlanViewWhenQueryMissing} (board once Delivery Board rollout is `ga`).
+   * Canonical delivery plan path (`/plan/:id/board` …). Legacy `/roadmap/:id` and `/timeline/:id` redirect here.
+   * Default surface follows {@link defaultPortalPlanViewWhenQueryMissing}.
    */
   plan: (auditId: string, view?: PortalPlanViewParam): string => {
-    const path = `/${P.planById.replace(':id', auditId)}`;
+    const root = `/${P.planById.replace(':id', auditId)}`;
     const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
-    if (resolved === 'roadmap') return `${path}?view=roadmap`;
-    if (resolved === 'board') return `${path}?view=board`;
-    if (resolved === 'table') return `${path}?view=table`;
-    return `${path}?view=board`;
+    if (resolved === 'roadmap') return `${root}/${PLAN_WS.roadmap}`;
+    if (resolved === 'board') return `${root}/${PLAN_WS.board}`;
+    if (resolved === 'table') return `${root}/${PLAN_WS.table}`;
+    return `${root}/${PLAN_WS.board}`;
   },
   portalPlan: (auditId: string, view?: PortalPlanViewParam): string => {
-    const path = `/${P.portalPlanById.replace(':id', auditId)}`;
+    const root = `/${P.portalPlanById.replace(':id', auditId)}`;
     const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
-    if (resolved === 'roadmap') return `${path}?view=roadmap`;
-    if (resolved === 'board') return `${path}?view=board`;
-    if (resolved === 'table') return `${path}?view=table`;
-    return `${path}?view=board`;
+    if (resolved === 'roadmap') return `${root}/${PLAN_WS.roadmap}`;
+    if (resolved === 'board') return `${root}/${PLAN_WS.board}`;
+    if (resolved === 'table') return `${root}/${PLAN_WS.table}`;
+    return `${root}/${PLAN_WS.board}`;
   },
+  /** Strategy Lab studio (`/lab/:id`, `?mode=define|shape`). Legacy `/plan/:id/studio` redirects here. */
+  planStudio: (auditId: string): string => `/${P.labById.replace(':id', auditId)}`,
+  portalPlanStudio: (auditId: string): string => `/${P.portalLabById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>
     `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
@@ -83,14 +90,14 @@ export const buildAppRoute = {
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'plan', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'plan', 'strategy'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'plan', 'lab', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'plan', 'lab', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
-  /** Includes optional `/roadmap-manifest` after portal audit scope (client wizard). */
+  /** Includes optional child segment (`plan` delivery surfaces or `/roadmap-manifest` on audit). */
   portalAuditScope: new RegExp(
-    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/roadmap-manifest)?/?$`,
+    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/(?:board|roadmap|table|studio|roadmap-manifest))?/?$`,
     'i',
   ),
   auditById: /^\/audit\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}/i,

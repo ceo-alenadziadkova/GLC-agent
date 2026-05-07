@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy } from 'react';
 import { Link } from 'react-router';
 import { CaretRight, DotsThreeVertical } from '@phosphor-icons/react';
 
@@ -12,7 +12,6 @@ import { usePlanWorkspaceMode } from '../../hooks/usePlanWorkspaceMode';
 import { buildPlanWorkspaceHref } from '../../lib/plan-cross-nav';
 import type { StrategyJourneyStepComputed } from '../../lib/strategy-journey-status';
 import { Button } from '../../components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,9 +21,7 @@ import {
 import { cn } from '../../components/ui/utils';
 import { useOptionalPlanAdvancedDrawer } from '../../context/PlanAdvancedDrawerContext';
 import type { PlanViewSegmentActive } from './PlanViewSegmentedNav';
-import { PlanModeBar } from './PlanModeBar';
 import { StrategyJourneyHeader } from './StrategyJourneyHeader';
-import { StrategyLabWorkbenchSegmentedNav } from './StrategyLabWorkbenchSegmentedNav';
 
 /** Lazy so Strategy Lab (/strategy) does not preload Plan tab primitives (collapsible segment nav). */
 const PlanViewSegmentedNavLazy = lazy(async () => {
@@ -43,8 +40,6 @@ export type StrategyPlanningChromeProps = {
   audit: AuditState | null;
   variant: StrategyPlanningChromeVariant;
   steps: ReadonlyArray<StrategyJourneyStepComputed>;
-  /** Override first workbench tab target (default: `/plan/:id?mode=shape` — set to orchestration cockpit when rendered there). */
-  workbenchOrchestrationHref?: string;
   /** When true on `variant.kind === 'plan'`, hide Board / Roadmap / Table tabs (Define / Shape studio). */
   hideExecuteViewTabs?: boolean;
 };
@@ -59,10 +54,8 @@ export function StrategyPlanningChrome({
   audit,
   variant,
   steps,
-  workbenchOrchestrationHref,
   hideExecuteViewTabs = false,
 }: StrategyPlanningChromeProps) {
-  const [planJourneyExpanded, setPlanJourneyExpanded] = useState(false);
   const { mode: planWorkspaceMode } = usePlanWorkspaceMode();
   const planAdvancedDrawer = useOptionalPlanAdvancedDrawer();
   const showPlanStudioAdvancedOverflow =
@@ -80,21 +73,8 @@ export function StrategyPlanningChrome({
   });
   const bc = STRATEGY_LAB_COPY.planSurfaceBreadcrumb;
 
-  const showWorkbench = !isClient && orchestrationUiEnabled;
-  const workbenchActive =
-    variant.kind === 'strategy-lab' ? 'orchestration' : variant.kind === 'plan' ? 'plan' : 'plan';
-
   return (
     <div className="bg-card border-border divide-border sticky top-0 z-[15] divide-y border-b">
-      {showWorkbench ? (
-        <div className="px-4 py-3">
-          <StrategyLabWorkbenchSegmentedNav
-            auditId={auditId}
-            active={workbenchActive}
-            orchestrationHref={workbenchOrchestrationHref}
-          />
-        </div>
-      ) : null}
       {variant.kind === 'strategy-lab' && orchestrationUiEnabled ? (
         <div className="px-4 py-2">
           <p className="text-muted-foreground max-w-prose text-xs leading-relaxed md:max-w-3xl">
@@ -129,25 +109,9 @@ export function StrategyPlanningChrome({
         </>
       ) : variant.kind === 'plan' ?
         <>
-          <PlanModeBar />
           <div className="px-4 py-2 pb-3">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-4">
               <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-                <nav aria-label={bc.navAriaLabel} className="flex shrink-0 flex-wrap items-center gap-1 text-xs">
-                  <Link
-                    to={planShapeHref}
-                    className={cn(
-                      'text-muted-foreground hover:text-foreground focus-visible:ring-ring font-medium no-underline outline-none transition-colors',
-                      'rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2',
-                    )}
-                  >
-                    {bc.strategyLabCrumb}
-                  </Link>
-                  <CaretRight className="text-muted-foreground h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="text-foreground font-medium" aria-current="page">
-                    {bc.planCrumb}
-                  </span>
-                </nav>
                 {!hideExecuteViewTabs && planWorkspaceMode === 'execute' ? (
                   <div className="min-w-0 flex-1">
                     <Suspense fallback={null}>
@@ -215,22 +179,7 @@ export function StrategyPlanningChrome({
           </div>
         </>
       : null}
-      {stripVisible && variant.kind === 'plan' ?
-        <Collapsible open={planJourneyExpanded} onOpenChange={setPlanJourneyExpanded} className="border-border border-t">
-          <div className="flex justify-end px-4 pt-2">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="text-muted-foreground h-auto px-2 py-1 text-xs font-semibold">
-                {planJourneyExpanded ?
-                  STRATEGY_LAB_COPY.journeyStrip.planSurfaceJourneyCollapseHide
-                : STRATEGY_LAB_COPY.journeyStrip.planSurfaceJourneyCollapseShow}
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-          <CollapsibleContent>
-            <StrategyJourneyHeader auditId={auditId} isClient={isClient} steps={steps} visible />
-          </CollapsibleContent>
-        </Collapsible>
-      : <StrategyJourneyHeader auditId={auditId} isClient={isClient} steps={steps} visible={stripVisible} />}
+      <StrategyJourneyHeader auditId={auditId} isClient={isClient} steps={steps} visible={stripVisible} />
     </div>
   );
 }

@@ -25,6 +25,9 @@ export const glcKeys = {
   orchestrationPack: {
     detail: (id: string) => ['glc', 'orchestration-pack', 'detail', id] as const,
   },
+  orchestrationManifestSnapshot: {
+    latest: (auditId: string) => ['glc', 'roadmap-manifest-snapshot', 'latest', auditId] as const,
+  },
   /**
    * Plan workspace invalidation root (audit + pack + plan-board).
    * Use {@link invalidatePlanWorkspaceQueries} from `plan-workspace-queries.ts` — no query is registered under this key alone.
@@ -32,13 +35,22 @@ export const glcKeys = {
   planWorkspace: {
     /** Alias for `detail` — stable aggregation key for selectors / docs. */
     detail: (id: string) => ['glc', 'plan-workspace', 'detail', id] as const,
+    /** `GET /api/audits/:id/plan/board` */
+    board: (id: string) => ['glc', 'plan-workspace', 'board', id] as const,
   },
   strategyExecutionPacks: {
     list: (auditId: string) => ['glc', 'strategy-execution-packs', 'list', auditId] as const,
+  },
+  directorDeepDive: {
+    brief: (auditId: string) => ['glc', 'director-deep-dive', 'brief', auditId] as const,
+    quota: (auditId: string, domainKey: string) => ['glc', 'director-deep-dive', 'quota', auditId, domainKey] as const,
   },
   /** Latest benchmark snapshot per domain (Strategy Lab reference panel). */
   domainBenchmarks: {
     domain: (domainKey: string, industryKey: string, period: string) =>
       ['glc', 'domain-benchmark', domainKey, industryKey, period] as const,
+    /** Single TanStack query for all domains (Strategy Lab reference panel). */
+    bundle: (industryKey: string, period: string) =>
+      ['glc', 'domain-benchmark-bundle', industryKey, period] as const,
   },
 };

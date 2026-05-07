@@ -1,7 +1,6 @@
 import { Navigate, useLocation, useParams } from 'react-router';
 
 import { STRATEGY_LAB_PAGE_ANCHORS } from '../../config/strategy-lab';
-import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import type { PlanWorkspaceMode } from '../../config/plan-workspace-mode';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../../config/route-paths';
 import { mergePlanWorkspaceQueryIntoHref } from '../../lib/plan-cross-nav';
@@ -41,7 +40,7 @@ export type LegacyStrategyPathRedirectProps = {
 };
 
 /**
- * Redirects `/strategy/:id` (and portal equivalent) to `/plan/:id` with `?mode=` derived from the legacy hash.
+ * Redirects `/strategy/:id` (and portal equivalent) to `/lab/:id` with `?mode=` derived from the legacy hash.
  */
 export function LegacyStrategyPathRedirect({ variant }: LegacyStrategyPathRedirectProps) {
   const { id } = useParams<{ id: string }>();
@@ -51,9 +50,7 @@ export function LegacyStrategyPathRedirect({ variant }: LegacyStrategyPathRedire
     return <Navigate to={variant === 'portal' ? APP_ROUTE_PATHS.portal : APP_ROUTE_PATHS.dashboard} replace />;
   }
 
-  const primary = primaryPlanWorkbenchViewForStrategyLinks();
-  const canonicalBase =
-    variant === 'portal' ? buildAppRoute.portalPlan(id, primary) : buildAppRoute.plan(id, primary);
+  const canonicalBase = variant === 'portal' ? buildAppRoute.portalPlanStudio(id) : buildAppRoute.planStudio(id);
   const mode = hashToPlanWorkspaceMode(location.hash ?? '');
   const to = canonicalPlanHrefFromStrategyLegacy(canonicalBase, location.search ?? '', mode);
   return <Navigate to={to} replace />;

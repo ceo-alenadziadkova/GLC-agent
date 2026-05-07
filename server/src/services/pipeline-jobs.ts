@@ -92,6 +92,10 @@ export async function enqueuePipelineJob(payload: PipelineJobPayload): Promise<b
 
 type TouchLeaseOnDbError = 'throw' | 'log';
 
+type LeaseHeartbeat = {
+  stop: () => Promise<void>;
+};
+
 async function touchLease(
   queueJobId: string,
   payload: PipelineJobPayload,
@@ -161,6 +165,48 @@ async function touchLease(
   }
 }
 
+function startLeaseHeartbeat(queueJobId: string, payload: PipelineJobPayload, attempt: number): LeaseHeartbeat {
+  let alive = true;
+  let wakeStop: (() => void) | null = null;
+
+  const waitForNextTick = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, PIPELINE_HEARTBEAT_MS);
+      wakeStop = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+    wakeStop = null;
+  };
+
+  const done = (async () => {
+    while (alive) {
+      await waitForNextTick();
+      if (!alive) return;
+      await touchLease(queueJobId, payload, attempt, 'running', 'log');
+    }
+  })().catch((err) => {
+    const error = err as Error;
+    logger.error('pipeline.heartbeat_loop_failed', {
+      component: 'pipeline',
+      audit_id: payload.auditId,
+      queue_job_id: queueJobId,
+      phase: payload.phase ?? null,
+      attempt,
+      error: error.message,
+    });
+  });
+
+  return {
+    stop: async () => {
+      alive = false;
+      wakeStop?.();
+      await done;
+    },
+  };
+}
+
 export function startPipelineWorker(): void {
   const url = getRedisUrl();
   if (!url) {
@@ -186,13 +232,11 @@ export function startPipelineWorker(): void {
           disableAutoRemediate: disableAutoRemediateRaw === true,
         });
         await touchLease(queueJobId, job.data, attempt, 'running');
-        const heartbeatTimer = setInterval(() => {
-          void touchLease(queueJobId, job.data, attempt, 'running', 'log');
-        }, PIPELINE_HEARTBEAT_MS);
+        const heartbeat = startLeaseHeartbeat(queueJobId, job.data, attempt);
         try {
           if (action === 'start') {
             await orchestrator.startPhase(phase ?? 0);
-            clearInterval(heartbeatTimer);
+            await heartbeat.stop();
             await touchLease(queueJobId, job.data, attempt, 'completed');
             return;
           }
@@ -203,15 +247,15 @@ export function startPipelineWorker(): void {
             } else {
               await orchestrator.startPhase(p);
             }
-            clearInterval(heartbeatTimer);
+            await heartbeat.stop();
             await touchLease(queueJobId, job.data, attempt, 'completed');
             return;
           }
           await orchestrator.runBlock();
-          clearInterval(heartbeatTimer);
+          await heartbeat.stop();
           await touchLease(queueJobId, job.data, attempt, 'completed');
         } catch (err) {
-          clearInterval(heartbeatTimer);
+          await heartbeat.stop();
           const e = err as Error;
           await touchLease(queueJobId, job.data, attempt, 'failed');
           const { error: jobFailErr } = await supabase

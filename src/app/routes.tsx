@@ -20,7 +20,11 @@ import { ClientAuditView }  from './pages/ClientAuditView';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
 import { LegacyPlanPathRedirect } from './pages/portal-plan/LegacyPlanPathRedirect';
 import { LegacyStrategyPathRedirect } from './pages/portal-plan/LegacyStrategyPathRedirect';
-import { PortalPlanPage } from './pages/portal-plan/PortalPlanPage';
+import { PlanWorkspaceLayout } from './pages/portal-plan/PlanWorkspaceLayout';
+import {
+  LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+  PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+} from './pages/portal-plan/plan-workspace-nested-routes';
 import { ConsultantOrchestrationCockpitPage } from './pages/ConsultantOrchestrationCockpitPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
@@ -146,7 +150,24 @@ export const router = createBrowserRouter([
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
       { path: P.timelineById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="timeline" /></Consultant> },
       { path: P.roadmapById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="roadmap" /></Consultant> },
-      { path: P.planById, element: <Consultant><PortalPlanPage /></Consultant> },
+      {
+        path: P.planById,
+        element: (
+          <Consultant>
+            <PlanWorkspaceLayout />
+          </Consultant>
+        ),
+        children: PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
+      {
+        path: P.labById,
+        element: (
+          <Consultant>
+            <PlanWorkspaceLayout />
+          </Consultant>
+        ),
+        children: LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><LegacyStrategyPathRedirect variant="consultant" /></Consultant> },
       { path: P.auditOrchestrationById, element: <Consultant><ConsultantOrchestrationCockpitPage /></Consultant> },
@@ -158,7 +179,24 @@ export const router = createBrowserRouter([
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
       { path: P.portalTimelineById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="timeline" /></ClientPortalShell> },
       { path: P.portalRoadmapById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="roadmap" /></ClientPortalShell> },
-      { path: P.portalPlanById, element: <ClientPortalShell><PortalPlanPage /></ClientPortalShell> },
+      {
+        path: P.portalPlanById,
+        element: (
+          <ClientPortalShell>
+            <PlanWorkspaceLayout />
+          </ClientPortalShell>
+        ),
+        children: PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
+      {
+        path: P.portalLabById,
+        element: (
+          <ClientPortalShell>
+            <PlanWorkspaceLayout />
+          </ClientPortalShell>
+        ),
+        children: LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
       { path: P.portalStrategyById, element: <ClientPortalShell><LegacyStrategyPathRedirect variant="portal" /></ClientPortalShell> },
       { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },

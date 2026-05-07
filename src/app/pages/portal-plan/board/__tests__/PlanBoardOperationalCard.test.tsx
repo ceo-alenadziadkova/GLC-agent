@@ -104,4 +104,26 @@ describe('PlanBoardOperationalCard', () => {
 
     expect(screen.getByText(PLAN_BOARD_COPY.manualBeyondNextUpBanner)).toBeInTheDocument();
   });
+
+  it('shows required primary markers on card', () => {
+    renderWithDnd(
+      <PlanBoardOperationalCard
+        card={BASE_CARD}
+        columnId="next_up"
+        dragLocked={false}
+        expectedPackVersion={3}
+        moveMenuColumns={DEFAULT_MOVE_MENU}
+        onMoveViaMenu={async () => {}}
+        domainLabel="Marketing"
+        priorityLevel="high"
+        quickWin
+        critical={false}
+      />,
+    );
+
+    expect(screen.getByText('Scope: Marketing')).toBeInTheDocument();
+    expect(screen.getByText('Priority: high')).toBeInTheDocument();
+    expect(screen.getByText('Quick win')).toBeInTheDocument();
+    expect(screen.getByText('Not critical')).toBeInTheDocument();
+  });
 });

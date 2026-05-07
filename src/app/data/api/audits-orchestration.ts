@@ -8,8 +8,11 @@ import {
   apiAuditsOrchestrationPackRegenerate,
   apiAuditsOrchestrationPackDiffHistory,
   apiAuditsPlanBoard,
+  apiAuditsPlanBoardCardsBatch,
   apiAuditsPlanBoardColumnPolicy,
   apiAuditsPlanBoardCard,
+  apiAuditsPlanBoardCardEvents,
+  apiAuditsPlanBoardCardComments,
   apiAuditsPlanBoardReconcilePreview,
   apiAuditsPlanBoardTelemetryViewOpened,
   apiAuditsPipelinePhaseResult,
@@ -245,6 +248,34 @@ export type PlanBoardCardDto = {
   orphaned_reason: 'node_removed' | 'lane_changed' | null;
   title: string | null;
   lane: string | null;
+  ticket_description: string | null;
+  assignee: string | null;
+  assignee_user_id: string | null;
+  labels: string[];
+  story_points: number | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+  start_date: string | null;
+  due_date: string | null;
+  end_date: string | null;
+  updated_by_user_id: string | null;
+};
+
+export type PlanTicketEventDto = {
+  id: string;
+  actor_user_id: string | null;
+  source_surface: string;
+  action: string;
+  field_changes: Record<string, unknown>;
+  created_at: string;
+};
+
+export type PlanTicketCommentDto = {
+  id: string;
+  author_user_id: string | null;
+  body: string;
+  mentions: string[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type PlanBoardIssueCode = 'no_pack' | 'governance_blocked';
@@ -309,7 +340,21 @@ export type PlanBoardCardPatchBody = {
   delivery_area?: string;
   title?: string;
   lane?: string;
+  ticket_description?: string;
+  assignee?: string;
+  assignee_user_id?: string | null;
+  labels?: string[];
+  story_points?: number | null;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  start_date?: string;
+  due_date?: string;
+  end_date?: string;
   expected_pack_version: number;
+};
+
+export type PlanBoardCardBatchPatchBody = {
+  expected_pack_version: number;
+  patches: Array<Omit<PlanBoardCardPatchBody, 'expected_pack_version'> & { card_id: string }>;
 };
 
 export type PlanBoardCardDeleteBody = {
@@ -563,6 +608,19 @@ export const auditsOrchestrationApi = {
     });
   },
 
+  async patchPlanBoardCardsBatch(
+    auditId: string,
+    body: PlanBoardCardBatchPatchBody,
+  ) {
+    return apiFetch<{ ok: boolean; updated_count: number; pack_version_used: number; pack_version_actual: number }>(
+      apiAuditsPlanBoardCardsBatch(auditId),
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
   async postPlanBoardManualCard(
     auditId: string,
     body: { title: string; lane: string; column_id?: string },
@@ -588,6 +646,29 @@ export const auditsOrchestrationApi = {
   async deletePlanBoardCard(auditId: string, cardId: string, body: PlanBoardCardDeleteBody) {
     return apiFetch<{ pack_version_used: number; ok: boolean }>(apiAuditsPlanBoardCard(auditId, cardId), {
       method: 'DELETE',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async getPlanBoardCardEvents(auditId: string, cardId: string, query?: { limit?: number }) {
+    return apiFetch<{ events: PlanTicketEventDto[] }>(apiAuditsPlanBoardCardEvents(auditId, cardId, query), {
+      method: 'GET',
+    });
+  },
+
+  async getPlanBoardCardComments(auditId: string, cardId: string, query?: { limit?: number }) {
+    return apiFetch<{ comments: PlanTicketCommentDto[] }>(apiAuditsPlanBoardCardComments(auditId, cardId, query), {
+      method: 'GET',
+    });
+  },
+
+  async postPlanBoardCardComment(
+    auditId: string,
+    cardId: string,
+    body: { body: string; mentions?: string[]; source_surface?: 'board' | 'table' | 'roadmap' | 'shape' | 'api' },
+  ) {
+    return apiFetch<{ ok: boolean; comment_id: string }>(apiAuditsPlanBoardCardComments(auditId, cardId), {
+      method: 'POST',
       body: JSON.stringify(body),
     });
   },

@@ -15,12 +15,16 @@ import {
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import type { EmitPipelineEventFn, SequentialPhaseOutcome } from './run-single-phase.js';
 
+type StartPhaseSequentialOptions = {
+  beforeReviewGate?: (phase: number) => Promise<void>;
+};
+
 export type RunPipelineOrchestratorBlockParams = {
   auditId: string;
   loadExecutionPlan: () => Promise<AuditExecutionPlan>;
   updateAuditIfNotCancelled: (patch: Record<string, unknown>) => Promise<boolean>;
   runParallelBlock: (phases: readonly number[]) => Promise<string[]>;
-  startPhaseSequential: (phase: number) => Promise<SequentialPhaseOutcome>;
+  startPhaseSequential: (phase: number, options?: StartPhaseSequentialOptions) => Promise<SequentialPhaseOutcome>;
   emitEvent: EmitPipelineEventFn;
   cancelledErrorFactory: () => PipelineCancelledError;
 };
@@ -104,17 +108,19 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
       if (!advancedAnalytic) throw cancelledErrorFactory();
 
       if (allExecutablePhases.includes(7)) {
-        const strategyOutcome = await startPhaseSequential(7);
+        const allDomainPhases = [...wingPhases, 7];
+        const strategyOutcome = await startPhaseSequential(7, {
+          beforeReviewGate: async () => {
+            await runStrategyQualityGate({
+              auditId,
+              afterPhase: 7,
+              phasesToCheck: allDomainPhases,
+            });
+          },
+        });
         if (strategyOutcome !== 'completed') {
           return;
         }
-
-        const allDomainPhases = [...wingPhases, 7];
-        await runStrategyQualityGate({
-          auditId,
-          afterPhase: 7,
-          phasesToCheck: allDomainPhases,
-        });
       } else {
         /** No strategy phase: leave analytic so `pipeline/next` can finalize to completed. */
         const setReview = await updateAuditIfNotCancelled({
@@ -126,7 +132,16 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
     }
 
     if (nextPhase === 7) {
-      await startPhaseSequential(7);
+      const phasesToCheck = executablePhases.filter((p) => p > 0 && p <= 7);
+      await startPhaseSequential(7, {
+        beforeReviewGate: async () => {
+          await runStrategyQualityGate({
+            auditId,
+            afterPhase: 7,
+            phasesToCheck,
+          });
+        },
+      });
     }
   } catch (err) {
     if (err instanceof PipelineCancelledError) {

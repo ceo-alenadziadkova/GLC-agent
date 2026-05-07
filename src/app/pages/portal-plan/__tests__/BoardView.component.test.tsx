@@ -28,6 +28,16 @@ const BASE_CARD: PlanBoardCardDto = {
   orphaned_reason: null,
   title: 'Board surface card',
   lane: 'marketing_narrative',
+  ticket_description: null,
+  assignee: null,
+  assignee_user_id: null,
+  labels: [],
+  story_points: null,
+  priority: null,
+  start_date: null,
+  due_date: null,
+  end_date: null,
+  updated_by_user_id: null,
 };
 
 describe('Delivery Board extracted shell (RTL)', () => {
@@ -60,7 +70,7 @@ describe('Delivery Board extracted shell (RTL)', () => {
             dragLocked={false}
             expectedPackVersion={2}
             moveMenuColumns={DEFAULT_MOVE_MENU}
-            openOnRoadmapHref="/plan/audit-x?view=roadmap&focus=cnk"
+            openOnRoadmapHref="/plan/audit-x/roadmap?focus=cnk"
             onMoveViaMenu={async () => {}}
           />
         </DndContext>

@@ -110,16 +110,17 @@ export function PortalPlanSurfaceChrome({
   children: ReactNode;
 }) {
   const unified = useContext(PortalUnifiedShellRegistryContext);
+  const setPublication = unified?.setPublication;
 
   useLayoutEffect(() => {
-    if (!unified) return undefined;
+    if (!setPublication) return undefined;
     if (!tabActive) {
-      unified.setPublication(branch, null);
-      return () => unified.setPublication(branch, null);
+      setPublication(branch, null);
+      return () => setPublication(branch, null);
     }
-    unified.setPublication(branch, { title, subtitle });
-    return () => unified.setPublication(branch, null);
-  }, [unified, branch, tabActive, title, subtitle]);
+    setPublication(branch, { title, subtitle });
+    return () => setPublication(branch, null);
+  }, [setPublication, branch, tabActive, title, subtitle]);
 
   if (!unified) {
     return (

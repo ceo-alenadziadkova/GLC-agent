@@ -1,5 +1,15 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
+/**
+ * Plan advanced drawer API.
+ *
+ * **Effect dependencies:** the context `value` object is recreated whenever `open`,
+ * `content`, or `previewLine` changes. Do not list the whole value in `useEffect` /
+ * `useLayoutEffect` deps if the effect calls `setContent` / `setPreviewLine` — that
+ * causes cleanup → `setContent(null)` → new value → effect re-run → infinite updates.
+ * Depend on `setContent`, `setPreviewLine`, and `setOpen` only (stable `useState` setters)
+ * plus any `ReactNode` / string you register.
+ */
 export type PlanAdvancedDrawerContextValue = {
   open: boolean;
   setOpen: (v: boolean) => void;
@@ -34,7 +44,7 @@ export function PlanAdvancedDrawerProvider({ children }: { children: ReactNode }
       setPreviewLine,
       hasAdvancedContent,
     }),
-    [open, content, previewLine, hasAdvancedContent],
+    [open, setOpen, content, setContent, previewLine, setPreviewLine, hasAdvancedContent],
   );
 
   return <PlanAdvancedDrawerContext.Provider value={value}>{children}</PlanAdvancedDrawerContext.Provider>;

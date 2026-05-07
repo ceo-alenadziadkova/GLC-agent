@@ -28,6 +28,19 @@ function mergeChunks(map: ReadonlyMap<string, readonly PlanWorkspacePaletteComma
   return out;
 }
 
+function planCommandsShallowEqual(
+  a: readonly PlanWorkspacePaletteCommand[],
+  b: readonly PlanWorkspacePaletteCommand[],
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.label !== y.label || x.keywords !== y.keywords) return false;
+  }
+  return true;
+}
+
 /**
  * Lets Plan workspace surfaces (Board, Table, Shape) register Cmd/Ctrl+K commands merged into {@link usePlanWorkspacePaletteCommands}.
  */
@@ -36,7 +49,10 @@ export function PlanCommandRegistryProvider({ children }: { children: ReactNode 
   const [surfaceCommands, setSurfaceCommands] = useState<readonly PlanWorkspacePaletteCommand[]>([]);
 
   const recompute = useCallback(() => {
-    setSurfaceCommands(mergeChunks(chunkMapRef.current));
+    setSurfaceCommands((prev) => {
+      const next = mergeChunks(chunkMapRef.current);
+      return planCommandsShallowEqual(prev, next) ? prev : next;
+    });
   }, []);
 
   const registerCommands = useCallback(
@@ -73,11 +89,21 @@ export function usePlanCommandSurfaceCommands(): readonly PlanWorkspacePaletteCo
  */
 export function usePlanCommandRegistration(chunkId: string, commands: readonly PlanWorkspacePaletteCommand[]) {
   const ctx = useContext(PlanCommandRegistryContext);
+  const registerCommands = ctx?.registerCommands;
+  const unregisterCommands = ctx?.unregisterCommands;
+
+  // Keep registry entry fresh when command payload changes.
   useEffect(() => {
-    if (!ctx) return;
-    ctx.registerCommands(chunkId, commands);
+    if (!registerCommands || !unregisterCommands) return;
+    registerCommands(chunkId, commands);
+  }, [chunkId, commands, registerCommands, unregisterCommands]);
+
+  // Remove chunk only when component unmounts (or chunk id handler changes),
+  // not on every commands dependency update.
+  useEffect(() => {
+    if (!unregisterCommands) return;
     return () => {
-      ctx.unregisterCommands(chunkId);
+      unregisterCommands(chunkId);
     };
-  }, [chunkId, commands, ctx]);
+  }, [chunkId, unregisterCommands]);
 }

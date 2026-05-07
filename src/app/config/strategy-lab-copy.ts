@@ -303,6 +303,7 @@ export const STRATEGY_LAB_COPY = {
     initiativeRowMenuPreserveIdentityEnable: 'Enable keep Board identity on rename (audit-wide)',
     initiativeRowMenuPreserveIdentityDisable: 'Disable keep Board identity on rename (audit-wide)',
     initiativeRowInlineTitleAria: 'Initiative title',
+    initiativeRowInlineDescriptionAria: 'Initiative description',
     initiativeRowMenuAria: 'Initiative actions',
   },
 } as const;

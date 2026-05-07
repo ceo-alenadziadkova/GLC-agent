@@ -7,8 +7,8 @@ import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-deli
 import { useProfile } from '../../hooks/useProfile';
 
 /**
- * After commercial accept / pack rebuild — opens canonical Plan with `view=board` when Delivery Board
- * is rolled out, otherwise `view=roadmap` (Gantt schedule).
+ * After commercial accept / pack rebuild — opens canonical Plan delivery path (`/plan/:id/board` when Delivery Board
+ * is rolled out, otherwise `/plan/:id/roadmap` for the Gantt schedule).
  */
 export function TimelineLinkButton({ auditId }: { auditId: string }) {
   const { isClient } = useProfile();

@@ -22,6 +22,7 @@ import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audit
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
 import { InlineEditableText } from '../../../components/glc/InlineEditableText';
 import { laneDisplayLabel, manualCardNeedsPackAlignmentBanner } from './plan-board-card-helpers';
+import { buildPlanBoardPrimaryMarkers } from './plan-board-card-helpers';
 
 export function PlanBoardOperationalCard(props: {
   card: PlanBoardCardDto;
@@ -37,9 +38,18 @@ export function PlanBoardOperationalCard(props: {
   /** Human label from orchestration parity reason registry (timeline_parity GET). */
   priorityReasonLabel?: string | null;
   analysisDepth?: 'baseline' | 'deep' | null;
+  domainLabel?: string | null;
+  quickWin?: boolean;
+  critical?: boolean;
+  assignee?: string | null;
+  dueDate?: string | null;
+  dueState?: 'overdue' | 'due_soon' | 'due_later' | 'no_due';
+  selected?: boolean;
+  onToggleSelect?: () => void;
   canMutateCard?: boolean;
   onDeleteCard?: () => Promise<void>;
   manifestDraftRevisionPending?: boolean;
+  priorityLevel?: 'low' | 'medium' | 'high' | 'urgent' | null;
   /** When set with `canMutateCard`, title uses inline commit. */
   onCommitTitleInline?: (title: string) => Promise<void>;
   /**
@@ -49,6 +59,10 @@ export function PlanBoardOperationalCard(props: {
   laneSelectOptions?: readonly InlineLaneOption[];
   /** When true, show menu + inline field to edit optional owner hint for manifest lane revisions. */
   manifestDraftLaneHintsEnabled?: boolean;
+  onOpenTicketDetails?: () => void;
+  onCommitPriorityInline?: (priority: 'low' | 'medium' | 'high' | 'urgent') => Promise<void>;
+  onCommitDueDateInline?: (dueDateIso: string) => Promise<void>;
+  onQuickPromoteToNextUp?: () => Promise<void>;
 }) {
   const focusLiRef = useRef<HTMLLIElement | null>(null);
   const [ownerHintExpanded, setOwnerHintExpanded] = useState(false);
@@ -93,16 +107,54 @@ export function PlanBoardOperationalCard(props: {
 
   const showLaneInline =
     Boolean(props.canMutateCard && props.onCommitLaneInline && props.laneSelectOptions?.length && props.card.lane);
+  const showQuickPriority = Boolean(props.canMutateCard && props.onCommitPriorityInline);
+  const showQuickDueDate = Boolean(props.canMutateCard && props.onCommitDueDateInline);
+  const showQuickPromote = props.columnId === 'backlog' && Boolean(props.canMutateCard && props.onQuickPromoteToNextUp);
+  const primaryMarkers = buildPlanBoardPrimaryMarkers({
+    metrics: {
+      domainKey: 'other',
+      priorityLevel: props.priorityLevel ?? null,
+      priorityBucket: props.priorityWindow ?? null,
+      priorityReasonLabel: props.priorityReasonLabel ?? null,
+      quickWin: Boolean(props.quickWin),
+      critical: Boolean(props.critical),
+      assignee: props.assignee ?? null,
+      dueState: props.dueState ?? 'no_due',
+      dueDate: props.dueDate ?? null,
+    },
+    laneLabel: laneDisplayLabel(props.card.lane) ?? null,
+    domainLabel: props.domainLabel ?? null,
+  });
 
   return (
     <li
       ref={mergedRef}
       style={style}
       data-plan-board-card-id={props.card.id}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          props.onOpenTicketDetails?.();
+        }
+      }}
       className={`bg-muted/40 border-border flex flex-col gap-2 rounded-md border px-2 py-2 ${
         props.isFocusTarget ? 'ring-muted ring-2 ring-offset-2 ring-offset-background' : ''
-      }`}
+      } ${props.selected ? 'border-primary/60' : ''}`}
     >
+      {props.onToggleSelect ? (
+        <div className="flex justify-end">
+          <label className="text-muted-foreground inline-flex items-center gap-1 text-[length:var(--text-2xs)]">
+            <input
+              type="checkbox"
+              checked={Boolean(props.selected)}
+              onChange={() => props.onToggleSelect?.()}
+              aria-label={`Select card ${title}`}
+            />
+            Select
+          </label>
+        </div>
+      ) : null}
       <div className="flex items-start gap-2">
         <button
           type="button"
@@ -179,8 +231,33 @@ export function PlanBoardOperationalCard(props: {
             </div>
           ) : null}
 
-          {props.priorityWindow != null || props.priorityReasonLabel != null || props.analysisDepth != null ? (
+          {primaryMarkers.length > 0 ||
+          props.priorityWindow != null ||
+          props.priorityReasonLabel != null ||
+          props.analysisDepth != null ||
+          props.assignee != null ||
+          props.dueDate != null ? (
             <div className="flex flex-wrap gap-1">
+              {primaryMarkers.map((marker) => (
+                <span
+                  key={marker.key}
+                  className={`border-border rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)] ${
+                    marker.active === false ? 'text-muted-foreground/70' : 'text-muted-foreground'
+                  }`}
+                >
+                  {marker.label}
+                </span>
+              ))}
+              {props.assignee ? (
+                <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
+                  {`@${props.assignee}`}
+                </span>
+              ) : null}
+              {props.dueDate ? (
+                <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
+                  {props.dueState === 'overdue' ? `Overdue ${props.dueDate}` : `Due ${props.dueDate}`}
+                </span>
+              ) : null}
               {props.priorityWindow === '7d' ? (
                 <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
                   {PLAN_BOARD_COPY.priorityWindow7dBadge}
@@ -205,6 +282,42 @@ export function PlanBoardOperationalCard(props: {
                 <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
                   {PLAN_BOARD_COPY.analysisDepthDeepBadge}
                 </span>
+              ) : null}
+            </div>
+          ) : null}
+          {showQuickPriority || showQuickDueDate ? (
+            <div className="flex flex-wrap items-end gap-2">
+              {showQuickPriority ? (
+                <label className="text-muted-foreground flex items-center gap-1 text-[length:var(--text-2xs)]">
+                  <span>Priority</span>
+                  <select
+                    value={props.priorityLevel ?? 'medium'}
+                    className="h-7 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-1 text-[length:var(--text-2xs)]"
+                    onChange={(e) =>
+                      void props.onCommitPriorityInline?.(
+                        e.target.value as 'low' | 'medium' | 'high' | 'urgent',
+                      )
+                    }
+                    disabled={props.dragLocked}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </label>
+              ) : null}
+              {showQuickDueDate ? (
+                <label className="text-muted-foreground flex items-center gap-1 text-[length:var(--text-2xs)]">
+                  <span>Due</span>
+                  <Input
+                    type="date"
+                    className="h-7 w-[9rem] text-[length:var(--text-2xs)]"
+                    value={props.dueDate ?? ''}
+                    onChange={(e) => void props.onCommitDueDateInline?.(e.target.value)}
+                    disabled={props.dragLocked}
+                  />
+                </label>
               ) : null}
             </div>
           ) : null}
@@ -264,6 +377,26 @@ export function PlanBoardOperationalCard(props: {
               {roadmapLink ? (
                 <DropdownMenuItem asChild>
                   <Link to={roadmapLink}>{PLAN_BOARD_COPY.openOnRoadmapMenuLabel}</Link>
+                </DropdownMenuItem>
+              ) : null}
+              {props.onOpenTicketDetails ? (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    props.onOpenTicketDetails?.();
+                  }}
+                >
+                  Edit ticket
+                </DropdownMenuItem>
+              ) : null}
+              {showQuickPromote ? (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    void props.onQuickPromoteToNextUp?.();
+                  }}
+                >
+                  Pull to next up
                 </DropdownMenuItem>
               ) : null}
               {props.manifestDraftLaneHintsEnabled && props.canMutateCard ? (

@@ -9,6 +9,7 @@ import { SYSTEM_DEFAULTS } from '../../../config/system-defaults.js';
 import { supabase } from '../../supabase.js';
 import { logger } from '../../logger.js';
 import { emitStructuredNotification } from '../../notifications.js';
+import { insertPipelineEventRow } from '../events/insert-pipeline-event.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 
@@ -32,10 +33,10 @@ export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIM
   let persistenceFailureRows = 0;
 
   for (const audit of stuck) {
-    const { error: eventErr } = await supabase.from('pipeline_events').insert({
-      audit_id: audit.id,
+    await insertPipelineEventRow({
+      auditId: audit.id,
       phase: Number(audit.current_phase ?? -1),
-      event_type: PIPELINE_EVENT_TYPES.phaseStalled,
+      eventType: PIPELINE_EVENT_TYPES.phaseStalled,
       message: interpolateOrchestratorMessage(ocStall.recoverStalled.messageTemplate, {
         timeout_minutes: timeoutMinutes,
       }),
@@ -43,15 +44,8 @@ export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIM
         timeout_minutes: timeoutMinutes,
         previous_status: audit.status,
       },
+      rethrowOnError: false,
     });
-    if (eventErr) {
-      logger.error('pipeline.recover_stalled_insert_event_failed', {
-        audit_id: audit.id,
-        error: eventErr.message,
-        code: eventErr.code,
-      });
-      persistenceFailureRows += 1;
-    }
     const { error: auditErr } = await supabase.from('audits').update({ status: 'failed' }).eq('id', audit.id);
     if (auditErr) {
       logger.error('pipeline.recover_stalled_audit_failed', {

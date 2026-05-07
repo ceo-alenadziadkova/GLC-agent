@@ -108,10 +108,11 @@ Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROU
 /audit/:id/:domainId      AuditWorkspace        (protected consultant)
 /pipeline/:id             PipelineMonitor       (protected consultant) — Realtime
 /reports/:id              ReportViewer          (protected consultant)
-/plan/:id                 PortalPlanPage        (protected consultant) — `?mode=define|shape|execute`, execute `view=board|roadmap|table`
+/plan/:id                 → `/plan/:id/{board|roadmap|table}` (index redirect; `PlanWorkspaceLayout` + nested routes, protected consultant) — delivery at path segments; legacy `/plan/:id/studio` redirects to `/lab/:id`
+/lab/:id                  Strategy Lab studio (`PlanWorkspaceLayout` + `PlanStudioWorkspacePage`, protected consultant) — `?mode=define|shape`
 /roadmap/:id             → /plan               (redirect; `LegacyPlanPathRedirect`)
 /timeline/:id             → /plan               (redirect; `LegacyPlanPathRedirect`)
-/strategy/:id             → /plan?mode=shape    (redirect; `LegacyStrategyPathRedirect` — Strategy Lab studio is embedded under `/plan`)
+/strategy/:id             → /lab/:id            (redirect; `LegacyStrategyPathRedirect` — hash maps to `?mode=`)
 /settings                 SettingsPage          (protected, non-guest)
 /admin/requests           AdminRequestQueue     (protected consultant)
 /admin/snapshots          AdminSnapshotQueue    (protected consultant)
@@ -124,10 +125,11 @@ Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROU
 /portal/audit/new         NewAudit (client_self_serve variant) (protected client)
 /portal/pipeline/:id      PipelineMonitor       (protected client) — Realtime
 /portal/reports/:id       ReportViewer          (protected client)
-/portal/plan/:id          PortalPlanPage        (protected client)
+/portal/plan/:id          → nested delivery only (same as consultant; `PlanWorkspaceLayout`, protected client); legacy `/portal/plan/:id/studio` redirects to `/portal/lab/:id`
+/portal/lab/:id           Strategy Lab studio (client portal; `?mode=define|shape`)
 /portal/roadmap/:id       → /portal/plan        (redirect)
 /portal/timeline/:id      → /portal/plan        (redirect)
-/portal/strategy/:id      → /portal/plan?mode=shape (redirect)
+/portal/strategy/:id      → /portal/lab/:id     (redirect)
 /portal/audit/:id         ClientAuditView       (protected client)
 ```
 

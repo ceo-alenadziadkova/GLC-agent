@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import { DOMAIN_KEYS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
@@ -12,26 +12,28 @@ function normalizeAuditIndustryKey(raw: string | null | undefined): string | nul
   return t.length > 0 ? t : null;
 }
 
+type DomainKey = (typeof DOMAIN_KEYS)[number];
+
 /**
- * Loads latest domain benchmark snapshots for Strategy Lab (parallel, cached via TanStack Query).
+ * Loads latest domain benchmark snapshots for Strategy Lab (one TanStack Query; sequential fetches per domain).
  */
 export function useDomainBenchmarks(args: {
   /** When false, no network (portal clients). */
   enabled: boolean;
   industry: string | null | undefined;
-}): Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>> {
+}): Partial<Record<DomainKey, DomainBenchmarkSnapshot | null>> {
   const { enabled, industry } = args;
   const ind = normalizeAuditIndustryKey(industry ?? null);
   const period = STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD;
 
-  const queries = useQueries({
-    queries: DOMAIN_KEYS.map((dk) => ({
-      queryKey: glcKeys.domainBenchmarks.domain(dk, ind ?? 'none', period),
-      enabled,
-      queryFn: async (): Promise<DomainBenchmarkSnapshot | null> => {
-        let snap = ind
-          ? await api.getLatestSnapshot({ phase_id: dk, industry: ind, period })
-          : null;
+  const query = useQuery({
+    queryKey: glcKeys.domainBenchmarks.bundle(ind ?? 'none', period),
+    enabled,
+    staleTime: 60_000,
+    queryFn: async (): Promise<Partial<Record<DomainKey, DomainBenchmarkSnapshot | null>>> => {
+      const out: Partial<Record<DomainKey, DomainBenchmarkSnapshot | null>> = {};
+      for (const dk of DOMAIN_KEYS) {
+        let snap = ind ? await api.getLatestSnapshot({ phase_id: dk, industry: ind, period }) : null;
         if (!snap) {
           snap = await api.getLatestSnapshot({
             phase_id: dk,
@@ -39,15 +41,11 @@ export function useDomainBenchmarks(args: {
             period,
           });
         }
-        return snap;
-      },
-      staleTime: 60_000,
-    })),
+        out[dk] = snap;
+      }
+      return out;
+    },
   });
 
-  const out: Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>> = {};
-  DOMAIN_KEYS.forEach((dk, i) => {
-    out[dk] = queries[i]?.data ?? null;
-  });
-  return out;
+  return query.data ?? {};
 }

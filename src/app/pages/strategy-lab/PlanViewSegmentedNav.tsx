@@ -3,11 +3,6 @@ import { Link, useLocation } from 'react-router';
 
 import { Button } from '../../components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../config/route-paths';
@@ -110,20 +105,21 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
           {copy.description}
         </p>
         <div className="min-w-0 flex-1">{segmentNav}</div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Collapsible open={learnMoreOpen} onOpenChange={setLearnMoreOpen} className="shrink-0">
+          <CollapsibleTrigger asChild>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               aria-label={copy.toolbarViewsHelpAriaLabel}
+              aria-expanded={learnMoreOpen}
               className="text-muted-foreground h-8 shrink-0 px-2 text-xs font-medium"
             >
-              {copy.learnMoreTrigger}
+              {learnMoreOpen ? copy.learnMoreHide : copy.learnMoreTrigger}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-w-[min(22rem,calc(100vw-2rem))]">
-            <div className="text-muted-foreground space-y-2 p-3 text-xs leading-relaxed">
+          </CollapsibleTrigger>
+          <CollapsibleContent className="bg-card border-border mt-2 max-w-[min(22rem,calc(100vw-2rem))] rounded-md border p-3">
+            <div className="text-muted-foreground space-y-2 text-xs leading-relaxed">
               <p className="m-0 font-medium">{copy.boardTabLabel}</p>
               <p className="m-0">{copy.boardContextHint}</p>
               <p className="m-0 font-medium">{copy.roadmapTabLabel}</p>
@@ -132,8 +128,8 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
               <p className="m-0">{copy.tableContextHint}</p>
               <p className="border-border text-muted-foreground m-0 border-t pt-2 text-[length:var(--text-2xs)] leading-snug">{copy.differentiationIntro}</p>
             </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </CollapsibleContent>
+        </Collapsible>
       </nav>
     );
   }

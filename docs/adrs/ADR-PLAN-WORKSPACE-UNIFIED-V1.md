@@ -21,7 +21,7 @@ Related ADRs:
 
 ## Decision (target architecture)
 
-1. **Single “Plan Workspace” IA** — canonical URL `/plan/:id` with modes `?mode=define|shape|execute` (and execute sub-views `view=board|roadmap|table`). Strategy Lab studio content is embedded under `?mode=define|shape`; `/strategy/:id` redirects to `/plan/:id?mode=shape` with hash → mode mapping.
+1. **Single “Plan Workspace” IA** — canonical delivery URL `/plan/:id/{board|roadmap|table}`; Strategy Lab studio at `/lab/:id?mode=define|shape` (portal mirror `/portal/lab/:id`); legacy `/strategy/:id` redirects to `/lab/:id?mode=shape` with hash → mode mapping. See `docs/FRONTEND.md` for the live route table.
 2. **Single linear progress** — journey strip links use `?mode=` on plan routes; Plan step opens `?mode=execute` with default workbench `view`.
 3. **Single compile action (product)** — primary “Compile plan” backed by `POST /api/audits/:id/orchestration/compile`; snapshot-only under Advanced (in-panel accordion on standalone `/strategy`, or `PlanAdvancedDrawer` + Plan chrome overflow on `/plan?mode=define|shape`). Cmd/Ctrl+K can dispatch a compile request event when Shape surface is mounted.
 4. **Symmetric deep linking** — `?focus=<canonical_node_key>` honored on Board, Roadmap, and Table.

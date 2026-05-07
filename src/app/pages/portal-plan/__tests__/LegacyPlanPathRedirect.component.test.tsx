@@ -18,7 +18,7 @@ function LocationSentinel() {
 const auditId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
 describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
-  it('portal roadmap merges search onto /portal/plan/:id without view', async () => {
+  it('portal roadmap merges search onto /portal/plan/:id/roadmap without view query', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -26,7 +26,7 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
           element: <LegacyPlanPathRedirect variant="portal" surface="roadmap" />,
         },
         {
-          path: '/portal/plan/:id',
+          path: '/portal/plan/:id/roadmap',
           element: (
             <>
               landing
@@ -38,12 +38,12 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
       { initialEntries: [`/portal/roadmap/${auditId}?from=legacy`] },
     );
     render(<RouterProvider router={router} />);
-    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/portal/plan/${auditId}`));
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/portal/plan/${auditId}/roadmap`));
     await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain('from=legacy'));
-    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toMatch(/view=roadmap/));
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').not.toMatch(/view=/));
   });
 
-  it('consultant legacy /timeline/:id sets view=board on /plan/:id', async () => {
+  it('consultant legacy /timeline/:id lands on /plan/:id/board path', async () => {
     const router = createMemoryRouter(
       [
         {
@@ -51,7 +51,7 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
           element: <LegacyPlanPathRedirect variant="consultant" surface="timeline" />,
         },
         {
-          path: '/plan/:id',
+          path: '/plan/:id/board',
           element: (
             <>
               landing
@@ -63,8 +63,8 @@ describe('LegacyPlanPathRedirect (<Navigate /> integration)', () => {
       { initialEntries: [`/timeline/${auditId}`] },
     );
     render(<RouterProvider router={router} />);
-    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/plan/${auditId}`));
-    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toMatch(/view=board/));
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').toContain(`/plan/${auditId}/board`));
+    await waitFor(() => expect(screen.getByTestId('sentinel').textContent ?? '').not.toMatch(/view=/));
   });
 
   it('consultant roadmap entry without id navigates to dashboard', async () => {

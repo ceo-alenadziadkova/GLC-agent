@@ -22,9 +22,9 @@ vi.mock('../../lib/plan-command-registry', () => ({
 describe('PlanCommandPalette', () => {
   it('opens on meta+k when commands are available', async () => {
     render(
-      <MemoryRouter initialEntries={['/plan/audit-palette']}>
+      <MemoryRouter initialEntries={['/plan/audit-palette/board']}>
         <Routes>
-          <Route path="/plan/:id" element={<PlanCommandPalette />} />
+          <Route path="/plan/:id/board" element={<PlanCommandPalette />} />
         </Routes>
       </MemoryRouter>,
     );

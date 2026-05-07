@@ -5,6 +5,7 @@ import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/or
 import { ROADMAP_GANTT_DAY_MS } from '../config/roadmap-gantt-view-preferences';
 import { ORCHESTRATION_LANE_LABELS, type OrchestrationLaneId } from '../config/orchestration-roadmap-ui-copy.en';
 import { estimatedTimelineItemWindowWithinThirds, timelineHorizonThirdBoundaries } from './time-bucket-normalization';
+import { devWarn } from './dev-only-console';
 
 export const ROADMAP_GANTT_MILESTONE_LANE_ID = '__roadmap_milestones__' as const;
 
@@ -177,6 +178,13 @@ function buildCriticalPathEdgeKeys(criticalPath: string[]): Set<string> {
 }
 
 const CPM_FLOAT_WARN_EPS_MS = 60_000;
+const cpmFloatWarnedKeys = new Set<string>();
+const cpmMissingCriticalEdgeWarnedKeys = new Set<string>();
+
+function isRoadmapGanttCpmWarningEnabled(): boolean {
+  const raw = String(import.meta.env.VITE_ROADMAP_GANTT_DEBUG_CPM_WARN ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
 
 export type RoadmapGanttCpmEdge = { from: string; to: string; kind: DependencyKind };
 
@@ -383,12 +391,36 @@ function logCpmVersusPackCriticalPath(
     string,
     { totalFloatMs: number }
   > | null,
+  dependencyEdgeKeys: ReadonlySet<string>,
 ): void {
   if (!cpm || !pack?.critical_path?.length) return;
   if (!import.meta.env.DEV) return;
-  for (const id of pack.critical_path) {
+  if (!isRoadmapGanttCpmWarningEnabled()) return;
+  for (let idx = 0; idx < pack.critical_path.length; idx++) {
+    const id = pack.critical_path[idx]!;
+    const prev = idx > 0 ? pack.critical_path[idx - 1] : null;
+    const next = idx < pack.critical_path.length - 1 ? pack.critical_path[idx + 1] : null;
+    const hasAdjacentPathEdge =
+      (prev != null && dependencyEdgeKeys.has(`${prev}->${id}`)) ||
+      (next != null && dependencyEdgeKeys.has(`${id}->${next}`));
+    if (!hasAdjacentPathEdge) {
+      const missingEdgeKey = `${prev ?? 'START'}->${id}->${next ?? 'END'}`;
+      if (!cpmMissingCriticalEdgeWarnedKeys.has(missingEdgeKey)) {
+        cpmMissingCriticalEdgeWarnedKeys.add(missingEdgeKey);
+        devWarn(`[roadmap-gantt][critical-path-edge-missing-in-timeline]`, {
+          nodeId: id,
+          prevCriticalNodeId: prev,
+          nextCriticalNodeId: next,
+        });
+      }
+      continue;
+    }
+
     const row = cpm.get(id);
     if (row != null && row.totalFloatMs > CPM_FLOAT_WARN_EPS_MS) {
+      const warnKey = `${id}:${row.totalFloatMs}`;
+      if (cpmFloatWarnedKeys.has(warnKey)) continue;
+      cpmFloatWarnedKeys.add(warnKey);
       // eslint-disable-next-line no-console -- intentional diagnostics
       console.warn(`[roadmap-gantt] CPM total float exceeds epsilon for server critical_path node`, {
         nodeId: id,
@@ -465,7 +497,8 @@ export function buildRoadmapGanttProjection(
       kind: dependencyKindFromRelation(d.relation),
     }));
   const cpmMap = computeCpmSchedule(coreTasksWithoutCpm, cpmEdges);
-  logCpmVersusPackCriticalPath(pack, cpmMap);
+  const dependencyEdgeKeys = new Set(cpmEdges.map((edge) => `${edge.from}->${edge.to}`));
+  logCpmVersusPackCriticalPath(pack, cpmMap, dependencyEdgeKeys);
 
   const nullCpm = {
     earlyStartMs: null,

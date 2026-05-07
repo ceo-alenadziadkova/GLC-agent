@@ -7,11 +7,14 @@ export type LegacyPlanPathRedirectProps = {
   surface: 'roadmap' | 'timeline';
 };
 
-/** Merges deep-link params (e.g. Gantt toolbar) onto the canonical plan URL. Legacy **`/timeline`** maps to **`view=board`** (narrative tab retired — ADR Delivery Board P3). */
+/**
+ * Merges deep-link params (e.g. Gantt toolbar) onto the canonical path-first plan URL.
+ * Legacy `/timeline` maps to the **board** delivery path (narrative tab retired — ADR Delivery Board P3).
+ */
 export function canonicalPlanHrefWithLegacySearch(
   canonicalBase: string,
   legacySearch: string,
-  surface: 'roadmap' | 'timeline',
+  _surface: 'roadmap' | 'timeline',
 ): string {
   const qsIdx = canonicalBase.indexOf('?');
   const pathOnly = qsIdx === -1 ? canonicalBase : canonicalBase.slice(0, qsIdx);
@@ -19,20 +22,15 @@ export function canonicalPlanHrefWithLegacySearch(
   const out = new URLSearchParams(canonQs);
   const leg = new URLSearchParams(legacySearch.startsWith('?') ? legacySearch.slice(1) : legacySearch);
   leg.forEach((value, key) => {
-    if (key === 'view') return;
+    if (key === 'view' || key === 'mode') return;
     out.set(key, value);
   });
-  if (surface === 'timeline') {
-    out.set('view', 'board');
-  } else {
-    out.set('view', 'roadmap');
-  }
   const serialized = out.toString();
   return serialized ? `${pathOnly}?${serialized}` : pathOnly;
 }
 
 /**
- * Redirects `/roadmap/:id` and `/timeline/:id` (and portal equivalents) to `/plan/:id` with the right `view`.
+ * Redirects `/roadmap/:id` and `/timeline/:id` (and portal equivalents) to nested `/plan/:id/roadmap` or `/plan/:id/board`.
  */
 export function LegacyPlanPathRedirect({ variant, surface }: LegacyPlanPathRedirectProps) {
   const { id } = useParams<{ id: string }>();

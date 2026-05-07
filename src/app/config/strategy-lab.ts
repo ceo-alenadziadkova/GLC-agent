@@ -2,6 +2,9 @@ import { DOMAIN_KEYS } from '../data/auditTypes';
 
 export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
+/** Session TTL for negative cache of `GET /api/benchmarks` 404 (no snapshot) — avoids repeat network noise. */
+export const STRATEGY_LAB_BENCHMARK_NULL_RESULT_CACHE_MS = 60_000 as const;
+
 /** Initiative list buckets on Strategy Lab (aligned with `audit_strategy` shape). */
 export type StrategyInitiativeBucket = 'quick_wins' | 'medium_term' | 'strategic';
 

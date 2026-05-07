@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
 import { Path } from '@phosphor-icons/react';
 
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
@@ -6,6 +6,7 @@ import type {
   StrategyLabContextView,
   StrategyRoadmap,
 } from '../../data/audit/contracts/report/report-domain.types';
+import type { GlcOrchestrationPackRevisionDiffView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type {
   OrchestrationPlanGovernanceDto,
 } from '../../data/api/audits-orchestration';
@@ -170,6 +171,21 @@ export function StrategyLabOrchestrationPanel({
     onReload,
   });
 
+  const onCommercialAcceptedPackResult = useCallback(
+    (accepted: {
+      roadmap_version: number;
+      last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+      plan_governance: OrchestrationPlanGovernanceDto;
+    }) => {
+      setLastPostRevision({
+        roadmap_version: accepted.roadmap_version,
+        diff: accepted.last_revision_diff,
+      });
+      setPlanGovernance(accepted.plan_governance);
+    },
+    [setLastPostRevision, setPlanGovernance],
+  );
+
   const {
     commercialOffer,
     commercialWorking,
@@ -186,13 +202,7 @@ export function StrategyLabOrchestrationPanel({
     planHorizonStart,
     planHorizonEnd,
     onReload,
-    onAcceptedPackResult: accepted => {
-      setLastPostRevision({
-        roadmap_version: accepted.roadmap_version,
-        diff: accepted.last_revision_diff,
-      });
-      setPlanGovernance(accepted.plan_governance);
-    },
+    onAcceptedPackResult: onCommercialAcceptedPackResult,
     onGovernanceFromError: setPlanGovernance,
   });
 
@@ -243,15 +253,19 @@ export function StrategyLabOrchestrationPanel({
     strategy,
   });
 
+  const onWorkspaceCompileRequest = useCallback(() => {
+    void handleCompilePlan();
+  }, [handleCompilePlan]);
+
   usePlanWorkspaceCompileRequest({
-    onCompileRequest: () => {
-      void handleCompilePlan();
-    },
+    onCompileRequest: onWorkspaceCompileRequest,
   });
 
   const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
 
   const planAdvancedDrawer = useOptionalPlanAdvancedDrawer();
+  const setAdvancedDrawerContent = planAdvancedDrawer?.setContent;
+  const setAdvancedDrawerPreviewLine = planAdvancedDrawer?.setPreviewLine;
 
   const orchestrationAdvancedBody = useMemo(
     () => (
@@ -365,14 +379,16 @@ export function StrategyLabOrchestrationPanel({
   );
 
   useLayoutEffect(() => {
-    if (!planAdvancedDrawer) return;
-    planAdvancedDrawer.setContent(orchestrationAdvancedBody);
-    planAdvancedDrawer.setPreviewLine(advancedPreviewLine);
+    if (!setAdvancedDrawerContent || !setAdvancedDrawerPreviewLine) return;
+    setAdvancedDrawerContent(orchestrationAdvancedBody);
+    setAdvancedDrawerPreviewLine(advancedPreviewLine);
     return () => {
-      planAdvancedDrawer.setContent(null);
-      planAdvancedDrawer.setPreviewLine(null);
+      queueMicrotask(() => {
+        setAdvancedDrawerContent(null);
+        setAdvancedDrawerPreviewLine(null);
+      });
     };
-  }, [planAdvancedDrawer, orchestrationAdvancedBody, advancedPreviewLine]);
+  }, [setAdvancedDrawerContent, setAdvancedDrawerPreviewLine, orchestrationAdvancedBody, advancedPreviewLine]);
 
   return (
     <div id={ORCHESTRATION_PANEL_DOM_ID} className="bg-card space-y-5 border-b p-4">

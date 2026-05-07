@@ -13,13 +13,17 @@ export function checkSecurity(
   const secData = collected['security_headers'];
   if (!secData) return;
 
-  const ssl = secData.ssl as { valid: boolean; redirects_to_https?: boolean } | undefined;
+  const ssl = secData.ssl as {
+    valid: boolean;
+    redirects_to_https?: boolean;
+    verification_status?: 'confirmed' | 'unverified' | 'not_assessed';
+  } | undefined;
   const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
   const cookies = secData.cookies as { issues?: string[] } | undefined;
 
   const secCopy = factCheckerCopy().security;
 
-  if (ssl && !ssl.valid) {
+  if (ssl && ssl.verification_status === 'confirmed' && !ssl.valid) {
     corrections.push({
       field: 'score',
       issue: secCopy.invalidSslIssue,

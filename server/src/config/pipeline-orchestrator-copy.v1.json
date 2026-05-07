@@ -2,6 +2,9 @@
   "version": "1.0.0",
   "freeSnapshot": {
     "started": "Free Snapshot: deterministic scan started",
+    "scanRunning": "Free Snapshot: deterministic scan is running",
+    "previewStarted": "Free Snapshot: preview assembly started",
+    "reconCompleted": "Free Snapshot: reconnaissance completed",
     "completed": "Free Snapshot: deterministic scan completed",
     "errorCapacity": "Our free scan queue is full. Please try again in a minute.",
     "errorGeneric": "Free snapshot scan failed. Please try again later."

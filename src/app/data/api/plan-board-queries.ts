@@ -2,18 +2,23 @@ import { useMutation, useQuery, useQueryClient } from '../../lib/tanstack-react-
 
 import { api } from '../apiService';
 import { PLAN_BOARD_UI_COLUMNS } from '../../config/plan-board-ui-columns';
+import { glcKeys } from '../../lib/glc-keys';
+import { invalidatePlanWorkspaceQueries } from '../../lib/plan-workspace-queries';
 
 import type {
   ManifestDraftRevisionPostBody,
+  PlanBoardCardBatchPatchBody,
   PlanBoardCardDeleteBody,
   PlanBoardCardPatchBody,
   PlanBoardCardDto,
   PlanBoardColumnPolicyPatchBody,
+  PlanTicketCommentDto,
+  PlanTicketEventDto,
   PlanBoardReconcilePreviewDto,
 } from './audits-orchestration';
 
 export const planBoardQueryKeys = {
-  audit: (auditId: string) => ['plan-board', auditId] as const,
+  audit: (auditId: string) => glcKeys.planWorkspace.board(auditId),
 };
 
 export function usePlanBoardQuery(args: {
@@ -35,7 +40,18 @@ export function usePatchPlanBoardCardMutation(args: { auditId: string | undefine
       api.patchPlanBoardCard(args.auditId!, vars.cardId, vars.body),
     onSettled: async () => {
       if (!args.auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(args.auditId) });
+      await invalidatePlanWorkspaceQueries(qc, args.auditId);
+    },
+  });
+}
+
+export function usePatchPlanBoardCardsBatchMutation(args: { auditId: string | undefined }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PlanBoardCardBatchPatchBody) => api.patchPlanBoardCardsBatch(args.auditId!, body),
+    onSettled: async () => {
+      if (!args.auditId) return;
+      await invalidatePlanWorkspaceQueries(qc, args.auditId);
     },
   });
 }
@@ -47,7 +63,7 @@ export function usePostPlanBoardReconcileMutation(auditId: string | undefined) {
     mutationFn: () => api.postPlanBoardReconcile(auditId!),
     onSettled: async () => {
       if (!auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+      await invalidatePlanWorkspaceQueries(qc, auditId);
     },
   });
 }
@@ -66,7 +82,7 @@ export function usePostPlanBoardManualCardMutation(auditId: string | undefined) 
       api.postPlanBoardManualCard(auditId!, vars),
     onSettled: async () => {
       if (!auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+      await invalidatePlanWorkspaceQueries(qc, auditId);
     },
   });
 }
@@ -78,7 +94,7 @@ export function usePostManifestDraftRevisionMutation(auditId: string | undefined
     mutationFn: (body: ManifestDraftRevisionPostBody) => api.postRoadmapManifestDraftRevision(auditId!, body),
     onSettled: async () => {
       if (!auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(auditId) });
+      await invalidatePlanWorkspaceQueries(qc, auditId);
     },
   });
 }
@@ -92,7 +108,7 @@ export function usePatchPlanBoardColumnPolicyMutation(args: {
     mutationFn: (body: PlanBoardColumnPolicyPatchBody) => api.patchPlanBoardColumnPolicy(args.auditId!, body),
     onSettled: async () => {
       if (!args.auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(args.auditId) });
+      await invalidatePlanWorkspaceQueries(qc, args.auditId);
     },
   });
 }
@@ -105,7 +121,63 @@ export function useDeletePlanBoardCardMutation(args: { auditId: string | undefin
       api.deletePlanBoardCard(args.auditId!, vars.cardId, vars.body),
     onSettled: async () => {
       if (!args.auditId) return;
-      await qc.invalidateQueries({ queryKey: planBoardQueryKeys.audit(args.auditId) });
+      await invalidatePlanWorkspaceQueries(qc, args.auditId);
+    },
+  });
+}
+
+export function usePlanBoardCardEventsQuery(args: {
+  auditId: string | undefined;
+  cardId: string | undefined;
+  limit?: number;
+  enabled: boolean;
+}) {
+  return useQuery({
+    queryKey: [...planBoardQueryKeys.audit(args.auditId ?? ''), 'ticket-events', args.cardId ?? '', args.limit ?? 100],
+    queryFn: async (): Promise<PlanTicketEventDto[]> => {
+      const data = await api.getPlanBoardCardEvents(args.auditId!, args.cardId!, { limit: args.limit });
+      return data.events;
+    },
+    enabled: Boolean(args.auditId) && Boolean(args.cardId) && args.enabled,
+  });
+}
+
+export function usePlanBoardCardCommentsQuery(args: {
+  auditId: string | undefined;
+  cardId: string | undefined;
+  limit?: number;
+  enabled: boolean;
+}) {
+  return useQuery({
+    queryKey: [...planBoardQueryKeys.audit(args.auditId ?? ''), 'ticket-comments', args.cardId ?? '', args.limit ?? 100],
+    queryFn: async (): Promise<PlanTicketCommentDto[]> => {
+      const data = await api.getPlanBoardCardComments(args.auditId!, args.cardId!, { limit: args.limit });
+      return data.comments;
+    },
+    enabled: Boolean(args.auditId) && Boolean(args.cardId) && args.enabled,
+  });
+}
+
+export function usePostPlanBoardCardCommentMutation(args: { auditId: string | undefined }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      cardId: string;
+      body: string;
+      mentions?: string[];
+      source_surface?: 'board' | 'table' | 'roadmap' | 'shape' | 'api';
+    }) =>
+      api.postPlanBoardCardComment(args.auditId!, vars.cardId, {
+        body: vars.body,
+        mentions: vars.mentions,
+        source_surface: vars.source_surface,
+      }),
+    onSuccess: async (_result, vars) => {
+      if (!args.auditId) return;
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: [...planBoardQueryKeys.audit(args.auditId), 'ticket-comments', vars.cardId] }),
+        qc.invalidateQueries({ queryKey: [...planBoardQueryKeys.audit(args.auditId), 'ticket-events', vars.cardId] }),
+      ]);
     },
   });
 }

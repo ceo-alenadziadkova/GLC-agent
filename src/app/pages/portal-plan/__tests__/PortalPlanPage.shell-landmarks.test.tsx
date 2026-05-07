@@ -3,7 +3,12 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 import type { ReactNode } from 'react';
 
-import { PortalPlanPage } from '../PortalPlanPage';
+import { PlanWorkspaceLayout } from '../PlanWorkspaceLayout';
+import { PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS } from '../plan-workspace-nested-routes';
+
+vi.mock('../../../components/PlanCommandPalette', () => ({
+  PlanCommandPalette: () => null,
+}));
 
 vi.mock('../PortalPlanOrchestrationProvider', () => ({
   PortalPlanOrchestrationProvider: ({ children }: { children: React.ReactNode }) => (
@@ -51,19 +56,21 @@ vi.mock('../../../components/AppShell', () => ({
   AppShell: ({ children }: { children: ReactNode }) => <main data-testid="workspace-main">{children}</main>,
 }));
 
-describe('PortalPlanPage unified shell landmarks', () => {
+const portalPlanWorkspaceRoute = {
+  path: '/portal/plan/:id',
+  element: <PlanWorkspaceLayout />,
+  children: PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+};
+
+describe('Plan workspace unified shell landmarks', () => {
   it('keeps exactly one document main landmark when switching from defaulted board shell to roadmap', async () => {
-    const router = createMemoryRouter(
-      [{ path: '/portal/plan/:id', element: <PortalPlanPage /> }],
-      { initialEntries: ['/portal/plan/e2e-audit'] },
-    );
-
+    const router = createMemoryRouter([portalPlanWorkspaceRoute], { initialEntries: ['/portal/plan/e2e-audit'] });
     render(<RouterProvider router={router} />);
-
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/\/portal\/plan\/e2e-audit\/board$/));
     expect(await screen.findByTestId('board-surface-stub')).toBeInTheDocument();
 
     await act(async () => {
-      await router.navigate('/portal/plan/e2e-audit?view=roadmap');
+      await router.navigate('/portal/plan/e2e-audit/roadmap');
     });
     await waitFor(() => expect(screen.getByTestId('roadmap-surface-stub')).toBeInTheDocument());
 

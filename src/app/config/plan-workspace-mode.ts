@@ -1,5 +1,6 @@
 /**
- * Unified Plan workspace mode (`/plan/:id?mode=`) — Define / Shape / Execute (ADR Plan Workspace).
+ * Unified Plan workspace mode — Define / Shape on `/lab/:id?mode=` (or legacy `/plan/:id/studio?mode=`), Execute on delivery path segments
+ * `/plan/:id/board|roadmap|table` (ADR Plan Workspace).
  */
 export const PLAN_WORKSPACE_MODE_QUERY_KEY = 'mode' as const;
 

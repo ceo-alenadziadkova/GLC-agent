@@ -76,7 +76,7 @@ export async function runStrategyQualityGate(deps: RunStrategyQualityGateDeps): 
  * Prior-round notes are cleared here; they were already incorporated into the saved phase output.
  */
 export async function reopenHumanReviewPointForPhase(auditId: string, afterPhase: number): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('review_points')
     .update({
       status: 'pending',
@@ -86,7 +86,25 @@ export async function reopenHumanReviewPointForPhase(auditId: string, afterPhase
       quality_gate_passed: null,
     })
     .eq('audit_id', auditId)
-    .eq('after_phase', afterPhase);
-  if (error) throw new Error(`[review_gate] reopen review point failed: ${error.message}`);
+    .eq('after_phase', afterPhase)
+    .select('id');
+  if (error) {
+    logger.error('pipeline.review_reopen_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+      error: error.message,
+      code: error.code,
+    });
+    throw new Error(`[review_gate] reopen review point failed: ${error.message}`);
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    logger.error('pipeline.review_reopen_missing_row', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+    });
+    throw new Error(`[review_gate] review point missing for audit ${auditId} after phase ${afterPhase}`);
+  }
 }
 

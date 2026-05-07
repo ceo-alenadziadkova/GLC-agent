@@ -124,6 +124,16 @@ export async function getPlanBoardController(req: AuthRequest, res: Response) {
         orphaned_reason: r.orphaned_reason,
         title: r.manual_title ?? meta?.title ?? null,
         lane: r.pack_lane_snapshot ?? meta?.lane ?? null,
+        ticket_description: r.ticket_description,
+        assignee: r.assignee,
+        assignee_user_id: r.assignee_user_id,
+        labels: r.labels ?? [],
+        story_points: r.story_points,
+        priority: r.priority,
+        start_date: r.start_date,
+        due_date: r.due_date,
+        end_date: r.end_date,
+        updated_by_user_id: r.updated_by_user_id,
       };
     });
 

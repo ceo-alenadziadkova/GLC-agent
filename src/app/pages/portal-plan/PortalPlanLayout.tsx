@@ -8,7 +8,7 @@ export type PortalPlanLayoutProps = PortalPlanChromeProps & {
 
 /**
  * Shared Plan surface shell: sticky workbench + Board|Roadmap|Table + journey strip, then page body.
- * Used from `PortalPlanPage` (canonical `/plan` / `/portal/plan`); legacy `/roadmap` / `/timeline` redirect there.
+ * Used from nested plan workspace routes (`/plan/:id/...`, `/portal/plan/:id/...`); legacy `/roadmap` / `/timeline` redirect there.
  */
 export function PortalPlanLayout({ children, ...chrome }: PortalPlanLayoutProps) {
   return (

@@ -20,6 +20,7 @@ const CONSULTANT_AND_ADMIN_PATHS = [
   `/audit/${PLACEHOLDER_AUDIT_ID}`,
   `/audit/${PLACEHOLDER_AUDIT_ID}/tech_infrastructure`,
   `/plan/${PLACEHOLDER_AUDIT_ID}`,
+  `/lab/${PLACEHOLDER_AUDIT_ID}`,
   `/roadmap/${PLACEHOLDER_AUDIT_ID}`,
   `/timeline/${PLACEHOLDER_AUDIT_ID}`,
 ] as const;
@@ -30,6 +31,7 @@ const CLIENT_PORTAL_PATHS = [
   `/portal/reports/${PLACEHOLDER_AUDIT_ID}`,
   `/portal/audit/${PLACEHOLDER_AUDIT_ID}`,
   `/portal/plan/${PLACEHOLDER_AUDIT_ID}`,
+  `/portal/lab/${PLACEHOLDER_AUDIT_ID}`,
   `/portal/roadmap/${PLACEHOLDER_AUDIT_ID}`,
   `/portal/timeline/${PLACEHOLDER_AUDIT_ID}`,
 ] as const;

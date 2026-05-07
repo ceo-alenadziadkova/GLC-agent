@@ -117,8 +117,12 @@ import {
 import { useProfile } from '../../hooks/useProfile';
 import { useRoadmapGanttFilteredTasks } from '../../hooks/useRoadmapGanttFilteredTasks';
 import { usePlanFocusPackNodeId } from '../../hooks/usePlanFocusKey';
+import { usePatchPlanBoardCardMutation } from '../../data/api/plan-board-queries';
+import { useQueryClient } from '../../lib/tanstack-react-query';
+import { invalidatePlanWorkspaceQueries } from '../../lib/plan-workspace-queries';
 import {
   buildPlanUrlWithViewPreservingForeignParams,
+  readPlanLaneFilterKeys,
 } from '../../lib/plan-cross-nav';
 import { useRoadmapGanttDependencySvgPaths } from '../../hooks/useRoadmapGanttDependencySvgPaths';
 
@@ -174,6 +178,11 @@ export function RoadmapGanttView({
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { isClient } = useProfile();
+  const qc = useQueryClient();
+  const patchBoardCardMutation = usePatchPlanBoardCardMutation({ auditId });
+  const [timelineTaskOverrides, setTimelineTaskOverrides] = useState<
+    Record<string, { start_time: number; end_time: number; group: string }>
+  >({});
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => searchParams.get(ROADMAP_SEARCH_PARAM_TASK));
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [laneMoveMenuOpen, setLaneMoveMenuOpen] = useState(false);
@@ -189,7 +198,12 @@ export function RoadmapGanttView({
     const value = searchParams.get(ROADMAP_SEARCH_PARAM_STATUS);
     return value === 'planned' || value === 'in-progress' || value === 'done' ? value : 'all';
   });
-  const [laneFilter, setLaneFilter] = useState<string>(() => searchParams.get(ROADMAP_SEARCH_PARAM_LANE) ?? 'all');
+  const [laneFilter, setLaneFilter] = useState<string>(() => {
+    const lane = searchParams.get(ROADMAP_SEARCH_PARAM_LANE);
+    if (lane != null && lane.trim() !== '') return lane;
+    const sharedLanes = readPlanLaneFilterKeys(`?${searchParams.toString()}`);
+    return sharedLanes[0] ?? 'all';
+  });
   const [blockedOnly, setBlockedOnly] = useState<boolean>(() => searchParams.get(ROADMAP_SEARCH_PARAM_BLOCKED) === '1');
   const [dependencyView, setDependencyView] = useState<'all' | 'selected' | 'hide-weak'>(() => {
     const value = searchParams.get(ROADMAP_SEARCH_PARAM_DEP_VIEW);
@@ -293,6 +307,21 @@ export function RoadmapGanttView({
     laneFilter,
     blockedOnly,
   });
+  const timelineTasks = useMemo(
+    () =>
+      filteredTasks.map((task) => {
+        if (task.kind !== 'task') return task;
+        const override = timelineTaskOverrides[task.id];
+        if (!override) return task;
+        return {
+          ...task,
+          start_time: override.start_time,
+          end_time: override.end_time,
+          group: override.group,
+        };
+      }),
+    [filteredTasks, timelineTaskOverrides],
+  );
 
   const chainTaskIds = useMemo(() => {
     if (!highlightDependencyChain || !selectedTaskId) return null;
@@ -303,6 +332,34 @@ export function RoadmapGanttView({
     return new Set<string>([...up, ...down, core.id]);
   }, [highlightDependencyChain, projection.downstreamByTask, projection.tasks, projection.upstreamByTask, selectedTaskId]);
 
+  const boardRowByPackNodeId = useMemo(() => {
+    const map = new Map<string, PlanBoardCardDto>();
+    for (const row of planBoardHydration?.cards ?? []) {
+      if (row.pack_graph_node_id) {
+        map.set(row.pack_graph_node_id, row);
+      }
+    }
+    return map;
+  }, [planBoardHydration?.cards]);
+  const timelineBoardEditEnabled =
+    !isClient &&
+    Boolean(planBoardHydration?.enabled) &&
+    !planBoardHydration?.pending &&
+    !planBoardHydration?.fetchFailed &&
+    !planBoardHydration?.blockedGovernance &&
+    !planBoardHydration?.blockedNoPack;
+  const timelineEditableTaskIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!timelineBoardEditEnabled) return set;
+    for (const task of timelineTasks) {
+      if (task.kind !== 'task') continue;
+      if (boardRowByPackNodeId.has(task.id)) {
+        set.add(task.id);
+      }
+    }
+    return set;
+  }, [boardRowByPackNodeId, timelineBoardEditEnabled, timelineTasks]);
+
   const dependencyChainShouldDim = useCallback(
     (dep: RoadmapGanttDependency) =>
       chainTaskIds != null &&
@@ -312,7 +369,7 @@ export function RoadmapGanttView({
   );
 
   const groups: TimelineGroupBase[] = useMemo(() => {
-    const availableLaneIds = new Set(filteredTasks.map((task) => task.group));
+    const availableLaneIds = new Set(timelineTasks.map((task) => task.group));
     return projection.lanes
       .filter((lane) => availableLaneIds.has(lane.id))
       .map((lane) => ({
@@ -322,19 +379,19 @@ export function RoadmapGanttView({
             ? ORCHESTRATION_UI_COPY.roadmapGanttMilestonesLaneTitle
             : lane.title,
       }));
-  }, [filteredTasks, projection.lanes]);
+  }, [projection.lanes, timelineTasks]);
 
   const items: GanttTaskItem[] = useMemo(
     () =>
-      filteredTasks.map((task) => ({
+      timelineTasks.map((task) => ({
         id: task.id,
         group: task.group,
         title: task.title,
         start_time: task.start_time,
         end_time: task.end_time,
-        canMove: false,
-        canResize: false,
-        canChangeGroup: false,
+        canMove: task.kind === 'task' && timelineEditableTaskIds.has(task.id),
+        canResize: task.kind === 'task' && timelineEditableTaskIds.has(task.id) ? 'both' : false,
+        canChangeGroup: task.kind === 'task' && timelineEditableTaskIds.has(task.id),
         status: task.status,
         kind: task.kind,
         onCriticalPath: task.onCriticalPath,
@@ -354,7 +411,7 @@ export function RoadmapGanttView({
           .filter(Boolean)
           .join(' '),
       })),
-    [chainTaskIds, filteredTasks],
+    [chainTaskIds, timelineEditableTaskIds, timelineTasks],
   );
 
   const selectedTask = useMemo(
@@ -382,9 +439,55 @@ export function RoadmapGanttView({
     if (!row) return { status: 'no_row' };
     return { status: 'ready', row, packVersion: h.packVersionUsed, role: h.role };
   }, [planBoardHydration, drawerTask]);
+
+  const updateTaskDatesFromTimeline = useCallback(
+    async (args: { taskId: string; startMs: number; endMs: number; groupId: string }) => {
+      const boardRow = boardRowByPackNodeId.get(args.taskId);
+      if (!boardRow || !timelineBoardEditEnabled || !planBoardHydration) return;
+      const prev = timelineTaskOverrides[args.taskId];
+      setTimelineTaskOverrides((current) => ({
+        ...current,
+        [args.taskId]: {
+          start_time: args.startMs,
+          end_time: args.endMs,
+          group: args.groupId,
+        },
+      }));
+      try {
+        await patchBoardCardMutation.mutateAsync({
+          cardId: boardRow.id,
+          body: {
+            expected_pack_version: planBoardHydration.packVersionUsed,
+            start_date: dayjs(args.startMs).format('YYYY-MM-DD'),
+            end_date: dayjs(args.endMs).format('YYYY-MM-DD'),
+            due_date: dayjs(args.endMs).format('YYYY-MM-DD'),
+            lane: args.groupId !== ROADMAP_GANTT_MILESTONE_LANE_ID ? args.groupId : undefined,
+          },
+        });
+        await invalidatePlanWorkspaceQueries(qc, auditId);
+      } catch {
+        setTimelineTaskOverrides((current) => {
+          const next = { ...current };
+          if (prev) next[args.taskId] = prev;
+          else delete next[args.taskId];
+          return next;
+        });
+        toast.error(ORCHESTRATION_UI_COPY.planRoadmapTimelineQueryFailedBody);
+      }
+    },
+    [
+      auditId,
+      boardRowByPackNodeId,
+      patchBoardCardMutation,
+      planBoardHydration,
+      qc,
+      timelineBoardEditEnabled,
+      timelineTaskOverrides,
+    ],
+  );
   const focusedTask = useMemo(
-    () => filteredTasks.find((task) => task.id === focusedTaskId) ?? null,
-    [filteredTasks, focusedTaskId],
+    () => timelineTasks.find((task) => task.id === focusedTaskId) ?? null,
+    [focusedTaskId, timelineTasks],
   );
   const selectableLanesForJump = useMemo(
     () => projection.lanes.filter((lane) => lane.id !== ROADMAP_GANTT_MILESTONE_LANE_ID),
@@ -426,7 +529,7 @@ export function RoadmapGanttView({
     }
   }, [taskIdListKey, resolvedFocusTaskId, taskParamFromUrl, projection.tasks]);
 
-  const isHeavyTaskLoad = filteredTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
+  const isHeavyTaskLoad = timelineTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
 
   const strokeForKind = (kind: string): string => {
     if (kind === 'FS') return 'var(--score-5)';
@@ -453,14 +556,14 @@ export function RoadmapGanttView({
   }, [blockedOnly, dependencyTypeFilter, dependencyView, filteredTaskIds, projection.dependencies, selectedTaskId]);
 
   const { dependencySvgPathsByDepId, mapX, mapY, dependencyCanvasHeight, timelineRangeMs } = useRoadmapGanttDependencySvgPaths({
-    filteredTasks,
+    filteredTasks: timelineTasks,
     groups,
     projection: { defaultTimeStart: projection.defaultTimeStart, defaultTimeEnd: projection.defaultTimeEnd },
     visibleDependencies,
     freezeGeometry: isOverviewDragging,
   });
 
-  const overviewTasks = filteredTasks.length > 0 ? filteredTasks : projection.tasks;
+  const overviewTasks = timelineTasks.length > 0 ? timelineTasks : projection.tasks;
   const hasScrollableTimeline = scrollMetrics.max > 2 && scrollMetrics.clientWidth > 0;
   const overviewWindowWidth = hasScrollableTimeline
     ? Math.min((scrollMetrics.clientWidth / Math.max(scrollMetrics.max + scrollMetrics.clientWidth, 1)) * 100, 100)
@@ -563,14 +666,14 @@ export function RoadmapGanttView({
   }, [groups.length, items.length, projection.defaultTimeEnd, projection.defaultTimeStart]);
 
   useEffect(() => {
-    if (filteredTasks.length === 0) {
+    if (timelineTasks.length === 0) {
       setFocusedTaskId(null);
       return;
     }
-    if (focusedTaskId == null || !filteredTasks.some((task) => task.id === focusedTaskId)) {
-      setFocusedTaskId(filteredTasks[0]!.id);
+    if (focusedTaskId == null || !timelineTasks.some((task) => task.id === focusedTaskId)) {
+      setFocusedTaskId(timelineTasks[0]!.id);
     }
-  }, [filteredTasks, focusedTaskId]);
+  }, [focusedTaskId, timelineTasks]);
 
   useEffect(() => {
     if (selectedTaskId && !projection.tasks.some((task) => task.id === selectedTaskId)) {
@@ -698,8 +801,8 @@ export function RoadmapGanttView({
   }, []);
 
   const pickNearestTaskForTime = (targetTs: number) => {
-    if (filteredTasks.length === 0) return null;
-    const sorted = [...filteredTasks].sort((a, b) => {
+    if (timelineTasks.length === 0) return null;
+    const sorted = [...timelineTasks].sort((a, b) => {
       const aInside = a.start_time <= targetTs && targetTs <= a.end_time;
       const bInside = b.start_time <= targetTs && targetTs <= b.end_time;
       if (aInside && !bInside) return -1;
@@ -749,7 +852,7 @@ export function RoadmapGanttView({
       return;
     }
     if (event.key.toLowerCase() === 'm') {
-      const t = focusedTask ?? filteredTasks[0] ?? null;
+      const t = focusedTask ?? timelineTasks[0] ?? null;
       if (
         t &&
         t.kind === 'task' &&
@@ -763,7 +866,7 @@ export function RoadmapGanttView({
       return;
     }
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(event.key)) return;
-    const anchorTask = focusedTask ?? filteredTasks[0] ?? null;
+    const anchorTask = focusedTask ?? timelineTasks[0] ?? null;
     if (!anchorTask) return;
 
     if (event.key === 'Enter' || event.key === ' ') {
@@ -1198,7 +1301,7 @@ export function RoadmapGanttView({
   };
 
   const handleOverviewKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (filteredTasks.length === 0) return;
+    if (timelineTasks.length === 0) return;
     const scrollNode = timelineScrollRef.current;
     if (!scrollNode) return;
     const maxScroll = Math.max(scrollNode.scrollWidth - scrollNode.clientWidth, 0);
@@ -1319,7 +1422,7 @@ export function RoadmapGanttView({
     setShowScheduleProgress(true);
     setDependencySort({ key: 'from', direction: 'asc' });
     setSelectedTaskId(null);
-    setFocusedTaskId(filteredTasks[0]?.id ?? null);
+    setFocusedTaskId(timelineTasks[0]?.id ?? null);
     setActivePanel('timeline');
     setDependenciesTab('graph');
     setShowAdvancedControls(false);
@@ -1360,6 +1463,43 @@ export function RoadmapGanttView({
     const dayViewEnd = dayjs(projection.defaultTimeStart).add(dayRangeDays, 'day').endOf('day').valueOf();
     return Math.min(dayViewEnd, projection.defaultTimeEnd);
   }, [dayRangeDays, isMonthScale, projection.defaultTimeEnd, projection.defaultTimeStart]);
+
+  const handleTimelineItemMove = useCallback(
+    (itemId: number | string, dragTime: number, newGroupOrder: number) => {
+      const taskId = String(itemId);
+      if (!timelineEditableTaskIds.has(taskId)) return;
+      const current = timelineTasks.find((task) => task.id === taskId && task.kind === 'task');
+      if (!current) return;
+      const nextGroupId = groups[newGroupOrder]?.id;
+      if (typeof nextGroupId !== 'string' || nextGroupId === ROADMAP_GANTT_MILESTONE_LANE_ID) return;
+      const duration = Math.max(ROADMAP_GANTT_DAY_MS, current.end_time - current.start_time);
+      void updateTaskDatesFromTimeline({
+        taskId,
+        startMs: dragTime,
+        endMs: dragTime + duration,
+        groupId: nextGroupId,
+      });
+    },
+    [groups, timelineEditableTaskIds, timelineTasks, updateTaskDatesFromTimeline],
+  );
+
+  const handleTimelineItemResize = useCallback(
+    (itemId: number | string, time: number, edge: 'left' | 'right') => {
+      const taskId = String(itemId);
+      if (!timelineEditableTaskIds.has(taskId)) return;
+      const current = timelineTasks.find((task) => task.id === taskId && task.kind === 'task');
+      if (!current) return;
+      const nextStart = edge === 'left' ? Math.min(time, current.end_time - ROADMAP_GANTT_DAY_MS) : current.start_time;
+      const nextEnd = edge === 'right' ? Math.max(time, current.start_time + ROADMAP_GANTT_DAY_MS) : current.end_time;
+      void updateTaskDatesFromTimeline({
+        taskId,
+        startMs: nextStart,
+        endMs: nextEnd,
+        groupId: current.group,
+      });
+    },
+    [timelineEditableTaskIds, timelineTasks, updateTaskDatesFromTimeline],
+  );
 
   return (
     <section className="space-y-4">
@@ -1437,7 +1577,7 @@ export function RoadmapGanttView({
           <div className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium ds-text-secondary">
             {ORCHESTRATION_UI_COPY.roadmapGanttTimelineHeaderCountsTemplate
               .replace('{lanes}', String(groups.length))
-              .replace('{tasks}', String(filteredTasks.length))}
+              .replace('{tasks}', String(timelineTasks.length))}
           </div>
         </div>
         {isHeavyTaskLoad ? (
@@ -1446,7 +1586,7 @@ export function RoadmapGanttView({
             aria-live="polite"
             className="mb-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs ds-text-secondary"
           >
-            {ORCHESTRATION_UI_COPY.roadmapGanttHeavyTaskLoadTimelineNotice.replace('{count}', String(filteredTasks.length)).replace(
+            {ORCHESTRATION_UI_COPY.roadmapGanttHeavyTaskLoadTimelineNotice.replace('{count}', String(timelineTasks.length)).replace(
               '{threshold}',
               String(ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD),
             )}
@@ -1455,7 +1595,7 @@ export function RoadmapGanttView({
         <RoadmapGanttToolbar
           projection={projection}
           groups={groups}
-          filteredTasksCount={filteredTasks.length}
+          filteredTasksCount={timelineTasks.length}
           visibleDependenciesCount={visibleDependencies.length}
           showRestoredViewNotice={showRestoredViewNotice}
           onDismissRestoredDefaults={() => {
@@ -1526,19 +1666,19 @@ export function RoadmapGanttView({
           activeFilterReason={activeFilterReason}
           toolbarLeadingSlot={toolbarLeadingSlot}
         />
-{filteredTasks.length > 0 ? (
+{timelineTasks.length > 0 ? (
         <div className="roadmap-grid-area">
           <div
             className="roadmap-grid-scroll-controls"
             aria-label="Timeline horizontal controls"
-            data-empty={filteredTasks.length === 0 ? 'true' : 'false'}
+            data-empty={timelineTasks.length === 0 ? 'true' : 'false'}
           >
             <button
               type="button"
               className="roadmap-scroll-button"
               onClick={() => scrollTimelineByDirection('left')}
               aria-label="Scroll timeline left"
-              disabled={filteredTasks.length === 0 || !canScrollLeft}
+              disabled={timelineTasks.length === 0 || !canScrollLeft}
             >
               ←
             </button>
@@ -1547,7 +1687,7 @@ export function RoadmapGanttView({
               className="roadmap-scroll-button"
               onClick={() => scrollTimelineByDirection('right')}
               aria-label="Scroll timeline right"
-              disabled={filteredTasks.length === 0 || !canScrollRight}
+              disabled={timelineTasks.length === 0 || !canScrollRight}
             >
               →
             </button>
@@ -1595,7 +1735,7 @@ export function RoadmapGanttView({
           <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttOverviewKeyboardHint}</p>
           <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.roadmapGanttOverviewPointerHint}</p>
           <RoadmapGanttOverviewStrip
-            filteredTasksLength={filteredTasks.length}
+            filteredTasksLength={timelineTasks.length}
             emptyFilteredLabel={ORCHESTRATION_UI_COPY.roadmapGanttOverviewEmptyFilteredLabel}
             overviewTasks={overviewTasks}
             mapX={mapX}
@@ -1643,8 +1783,9 @@ export function RoadmapGanttView({
             itemHeightRatio={0.72}
             sidebarWidth={220}
             rightSidebarWidth={0}
-            canMove={false}
-            canResize={false}
+            canMove
+            canResize="both"
+            canChangeGroup
             stackItems
             itemRenderer={renderTimelineItem}
             minZoom={ROADMAP_GANTT_TIMELINE_MIN_ZOOM_MS}
@@ -1670,6 +1811,8 @@ export function RoadmapGanttView({
               setSelectedTaskId(id);
               setFocusedTaskId(id);
             }}
+            onItemMove={handleTimelineItemMove}
+            onItemResize={handleTimelineItemResize}
             keys={{
               groupIdKey: 'id',
               groupTitleKey: 'title',
@@ -1716,7 +1859,7 @@ export function RoadmapGanttView({
           </div>
         </div>
         ) : null}
-        {filteredTasks.length === 0 ? (
+        {timelineTasks.length === 0 ? (
           <div className="mt-3 rounded-lg border border-dashed border-border bg-muted p-4 text-sm ds-text-secondary">
             {hasActiveFilters ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1874,7 +2017,7 @@ export function RoadmapGanttView({
                 dependencyCanvasHeight={dependencyCanvasHeight}
                 mapY={mapY}
                 isHeavyTaskLoad={isHeavyTaskLoad}
-                filteredTasksCount={filteredTasks.length}
+                filteredTasksCount={timelineTasks.length}
                 heavyTaskThreshold={ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD}
                 taskTitleById={taskTitleById}
                 hoveredDependencyId={hoveredDependencyId}

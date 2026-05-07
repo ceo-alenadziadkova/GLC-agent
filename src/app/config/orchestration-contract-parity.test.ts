@@ -83,7 +83,7 @@ describe('orchestration contract parity', () => {
   });
 
   it('keeps timeline-primary UX rollout default aligned (server SYSTEM_DEFAULTS vs APP_FEATURE_FLAGS)', () => {
-    expect(APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled).toBe(
+    expect(APP_FEATURE_FLAGS.orchestrationPlanWorkspacePrimaryUxEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled,
     );
   });
@@ -128,7 +128,7 @@ describe('orchestration contract parity', () => {
   });
 
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
-    expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
+    expect(APP_FEATURE_FLAGS.orchestrationRoadmapRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
     );
     expect(APP_FEATURE_FLAGS.directorDeepDiveRolloutMode).toBe(

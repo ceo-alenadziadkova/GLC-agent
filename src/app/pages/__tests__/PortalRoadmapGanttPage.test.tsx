@@ -7,8 +7,8 @@ import type { ReactNode } from 'react';
 
 import { PortalRoadmapGanttPage } from '../PortalRoadmapGanttPage';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { PLAN_WORKSPACE_UI_COPY } from '../../config/plan-workspace-ui-copy.en';
 import { buildAppRoute } from '../../config/route-paths';
-import { primaryPlanWorkbenchViewForStrategyLinks } from '../../config/plan-delivery-board-ui';
 import { buildPlanWorkspaceHref } from '../../lib/plan-cross-nav';
 import {
   ORCHESTRATION_LANE_LABELS,
@@ -125,7 +125,7 @@ describe('PortalRoadmapGanttPage', () => {
     });
   });
 
-  it('shows workbench segmented nav for consultants with Roadmap selected', async () => {
+  it('shows plan segmented nav for consultants with Roadmap selected', async () => {
     useProfileMock.mockReturnValue({ isClient: false });
     renderWithProviders(
       <MemoryRouter initialEntries={['/roadmap/audit-1']}>
@@ -137,33 +137,19 @@ describe('PortalRoadmapGanttPage', () => {
 
     await screen.findByText('Roadmap timeline');
 
-    const wb = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.workbenchSegment.ariaLabel });
-    const roadmap = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.planLabel,
+    const roadmap = screen.getByRole('link', {
+      name: STRATEGY_LAB_COPY.planViewSegment.roadmapTabLabel,
     });
-    const orchestration = within(wb).getByRole('link', {
-      name: STRATEGY_LAB_COPY.workbenchSegment.orchestrationLabel,
+    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-1', 'roadmap'));
+
+    const studioLink = screen.getByRole('link', {
+      name: PLAN_WORKSPACE_UI_COPY.planWorkbenchConsultantPrimaryAriaLabel,
     });
-    expect(roadmap).toHaveAttribute(
-      'href',
-      buildPlanWorkspaceHref({
-        auditId: 'audit-1',
-        isClient: false,
-        mode: 'execute',
-        view: primaryPlanWorkbenchViewForStrategyLinks(),
-      }),
-    );
-    expect(orchestration).toHaveAttribute(
+    expect(studioLink).toHaveAttribute(
       'href',
       buildPlanWorkspaceHref({ auditId: 'audit-1', isClient: false, mode: 'shape' }),
     );
     expect(roadmap).toHaveAttribute('aria-current', 'page');
-    expect(orchestration).not.toHaveAttribute('aria-current');
-
-    const planBc = screen.getByRole('navigation', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.navAriaLabel });
-    expect(
-      within(planBc).getByRole('link', { name: STRATEGY_LAB_COPY.planSurfaceBreadcrumb.strategyLabCrumb }),
-    ).toHaveAttribute('href', buildPlanWorkspaceHref({ auditId: 'audit-1', isClient: false, mode: 'shape' }));
   });
 
   it('shows mapper-empty guidance when lanes have rows but projection is empty', async () => {

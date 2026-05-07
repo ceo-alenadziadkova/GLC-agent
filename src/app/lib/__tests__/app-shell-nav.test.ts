@@ -21,21 +21,23 @@ describe('app-shell-nav', () => {
       null,
       null,
       null,
+      null,
     ]);
   });
 
   it('buildConsultantNav fills audit-scoped links when auditId is set', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildConsultantNav(id, { timelinePrimaryUx: true });
+    const nav = buildConsultantNav(id, { planWorkspacePrimaryUx: true });
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
-    expect(nav[7]?.to).toBe(buildAppRoute.plan(id));
-    expect(nav[8]?.to).toBe(`/reports/${id}`);
+    expect(nav[7]?.to).toBe(buildAppRoute.planStudio(id));
+    expect(nav[8]?.to).toBe(buildAppRoute.plan(id));
+    expect(nav[9]?.to).toBe(`/reports/${id}`);
   });
 
   it('buildConsultantNav keeps pipeline before timeline when timeline-first is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildConsultantNav(id, { timelinePrimaryUx: false });
+    const nav = buildConsultantNav(id, { planWorkspacePrimaryUx: false });
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
     expect(nav.some(i => i.to === buildAppRoute.plan(id))).toBe(true);
@@ -43,10 +45,11 @@ describe('app-shell-nav', () => {
 
   it('buildConsultantNav omits timeline when orchestration roadmap UI flag is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildConsultantNav(id, { timelinePrimaryUx: true, orchestrationRoadmapUiEnabled: false });
+    const nav = buildConsultantNav(id, { planWorkspacePrimaryUx: true, orchestrationRoadmapUiEnabled: false });
     expect(nav[5]?.to).toBe(`/pipeline/${id}`);
     expect(nav[6]?.to).toBe(`/audit/${id}`);
-    expect(nav[7]?.to).toBe(`/reports/${id}`);
+    expect(nav[7]?.to).toBeNull();
+    expect(nav[8]?.to).toBe(`/reports/${id}`);
     expect(nav.some(i => i.to === buildAppRoute.plan(id))).toBe(false);
   });
 
@@ -75,10 +78,11 @@ describe('app-shell-nav', () => {
 
   it('buildClientNav includes report link for selected audit (timeline-first)', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildClientNav(id, true, { timelinePrimaryUx: true });
+    const nav = buildClientNav(id, true, { planWorkspacePrimaryUx: true });
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,
+      buildAppRoute.portalPlanStudio(id),
       buildAppRoute.portalPlan(id),
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
@@ -87,10 +91,11 @@ describe('app-shell-nav', () => {
 
   it('buildClientNav orders pipeline before timeline when timeline-first is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildClientNav(id, true, { timelinePrimaryUx: false });
+    const nav = buildClientNav(id, true, { planWorkspacePrimaryUx: false });
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,
+      buildAppRoute.portalPlanStudio(id),
       `/portal/pipeline/${id}`,
       buildAppRoute.portalPlan(id),
       `/portal/reports/${id}`,
@@ -99,10 +104,11 @@ describe('app-shell-nav', () => {
 
   it('buildClientNav omits timeline when client timeline flag is off', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-    const nav = buildClientNav(id, true, { timelinePrimaryUx: true, clientTimelineEnabled: false });
+    const nav = buildClientNav(id, true, { planWorkspacePrimaryUx: true, clientPlanWorkspaceEnabled: false });
     expect(nav.map(i => i.to)).toEqual([
       '/portal',
       `/portal/audit/${id}`,
+      null,
       `/portal/pipeline/${id}`,
       `/portal/reports/${id}`,
     ]);
@@ -124,14 +130,32 @@ describe('app-shell-nav', () => {
     expect(isNavItemActive('/admin/snapshots', '/admin/requests')).toBe(false);
   });
 
-  it('isNavItemActive distinguishes plan views via search', () => {
+  it('isNavItemActive highlights Strategy Lab nav on /lab and not Plan execute', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    expect(isNavItemActive(`/lab/${id}`, buildAppRoute.planStudio(id), '')).toBe(true);
+    expect(isNavItemActive(`/lab/${id}`, buildAppRoute.plan(id), '')).toBe(false);
+  });
+
+  it('isNavItemActive highlights default plan link on delivery path', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const planDefault = buildAppRoute.plan(id);
+    expect(isNavItemActive(`/plan/${id}/board`, planDefault, '')).toBe(true);
+  });
+
+  it('isNavItemActive highlights default portal plan link when on /portal/lab', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    expect(isNavItemActive(`/portal/lab/${id}`, buildAppRoute.portalPlanStudio(id), '')).toBe(true);
+    expect(isNavItemActive(`/portal/lab/${id}`, buildAppRoute.portalPlan(id), '')).toBe(false);
+  });
+
+  it('isNavItemActive distinguishes plan views via path segment', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const planRoadmap = buildAppRoute.plan(id, 'roadmap');
     const planBoard = buildAppRoute.plan(id, 'board');
-    expect(isNavItemActive(`/plan/${id}`, planRoadmap, '?view=roadmap')).toBe(true);
-    expect(isNavItemActive(`/plan/${id}`, planBoard, '?view=roadmap')).toBe(false);
-    expect(isNavItemActive(`/plan/${id}`, planBoard, '?view=board')).toBe(true);
-    expect(isNavItemActive(`/plan/${id}`, planRoadmap, '?view=board')).toBe(false);
+    expect(isNavItemActive(`/plan/${id}/roadmap`, planRoadmap, '')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}/roadmap`, planBoard, '')).toBe(false);
+    expect(isNavItemActive(`/plan/${id}/board`, planBoard, '')).toBe(true);
+    expect(isNavItemActive(`/plan/${id}/board`, planRoadmap, '')).toBe(false);
   });
 
   it('isNavItemActive treats legacy timeline path as active for canonical plan board target', () => {

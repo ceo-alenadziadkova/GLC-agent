@@ -200,6 +200,26 @@ export function apiAuditsPlanBoardCard(auditId: string, cardId: string): string 
   return `${apiAuditsPlanBoard(auditId)}/cards/${cardId}`;
 }
 
+export function apiAuditsPlanBoardCardsBatch(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/cards:batch`;
+}
+
+export function apiAuditsPlanBoardCardEvents(auditId: string, cardId: string, query?: { limit?: number }): string {
+  const base = `${apiAuditsPlanBoardCard(auditId, cardId)}/events`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsPlanBoardCardComments(auditId: string, cardId: string, query?: { limit?: number }): string {
+  const base = `${apiAuditsPlanBoardCard(auditId, cardId)}/comments`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
 export function apiAuditsPlanBoardTelemetryViewOpened(auditId: string): string {
   return `${apiAuditsPlanBoard(auditId)}/telemetry/view-opened`;
 }

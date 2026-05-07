@@ -36,9 +36,21 @@ export async function runFreeSnapshotService(deps: RunFreeSnapshotServiceDeps): 
       throw startStatusErr;
     }
     await emitEvent(0, PIPELINE_EVENT_TYPES.started, ocFs.freeSnapshot.started);
+    await emitEvent(0, PIPELINE_EVENT_TYPES.log, ocFs.freeSnapshot.scanRunning, {
+      detail_level: 'debug',
+      snapshot_path: 'deterministic',
+    });
+    await emitEvent(4, PIPELINE_EVENT_TYPES.started, ocFs.freeSnapshot.previewStarted, {
+      detail_level: 'debug',
+      snapshot_path: 'deterministic',
+    });
 
     const { preview } = await runDeterministicSnapshot(auditId);
 
+    await emitEvent(0, PIPELINE_EVENT_TYPES.completed, ocFs.freeSnapshot.reconCompleted, {
+      detail_level: 'debug',
+      snapshot_path: 'deterministic',
+    });
     await emitEvent(4, PIPELINE_EVENT_TYPES.completed, ocFs.freeSnapshot.completed);
     logger.info('Free snapshot completed', { audit_id: auditId });
 

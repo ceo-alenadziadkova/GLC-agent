@@ -310,8 +310,10 @@ export {
 } from './marketing-brief-routing.js';
 export {
   APP_ROUTE_SEGMENTS,
+  PLAN_WORKSPACE_SURFACE_SEGMENTS,
   SPA_MARKETING_BRIEF_PATHS,
   SPA_ROUTE_SEGMENTS,
+  type PlanWorkspaceSurfacePathSegment,
   type SpaMarketingBriefSegmentKey,
 } from './spa-routes.js';
 export { DISCOVERY_SOCIAL_PLATFORM_OPTIONS } from './discovery-social-platform-options.js';

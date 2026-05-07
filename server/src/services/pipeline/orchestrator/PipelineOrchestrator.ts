@@ -216,7 +216,10 @@ export class PipelineOrchestrator {
    * Handles audit-level status updates, review gates, and full error propagation.
    * Used for Phase 0 (Recon), Phase 7 (Strategy), and pipeline/start-style entry.
    */
-  async startPhase(phase: number): Promise<SequentialPhaseOutcome> {
+  async startPhase(
+    phase: number,
+    opts?: { beforeReviewGate?: (phase: number) => Promise<void> },
+  ): Promise<SequentialPhaseOutcome> {
     const agentClass = agentClassForPhaseOrThrow(phase);
     const outcome = await runSinglePhaseWithLifecycle({
       mode: 'sequential',
@@ -229,6 +232,7 @@ export class PipelineOrchestrator {
       attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
       publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
       getExecutionPlan: () => this.getExecutionPlan(),
+      beforeSequentialReviewGate: opts?.beforeReviewGate,
     });
     if (outcome === undefined) {
       throw new Error('Invariant: sequential phase returned no outcome');
@@ -278,7 +282,7 @@ export class PipelineOrchestrator {
       loadExecutionPlan: () => this.getExecutionPlan(),
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
       runParallelBlock: (phases) => this.runParallelBlock(phases),
-      startPhaseSequential: (p) => this.startPhase(p),
+      startPhaseSequential: (p, opts) => this.startPhase(p, opts),
       emitEvent: this.emitEvent.bind(this),
       cancelledErrorFactory: () => new PipelineCancelledError(),
     });

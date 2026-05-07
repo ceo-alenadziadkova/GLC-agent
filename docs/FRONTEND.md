@@ -220,9 +220,10 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id` | `AuditWorkspace.tsx` | Domain-by-domain results |
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
-| `/strategy/:id` | `LegacyStrategyPathRedirect.tsx` | Legacy alias redirect to canonical **`/plan/:id?mode=shape`** (query/hash merged) |
-| `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id?view=board`** (query merged); narrative page removed and timeline route stays permanently legacy-only |
-| `/portal/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Same for **`/portal/plan/:id?view=board`**; timeline **read model** remains on **`GET /api/audits/:id/timeline`** for Roadmap/Board parity consumers |
+| `/strategy/:id` | `LegacyStrategyPathRedirect.tsx` | Legacy alias redirect to canonical **`/lab/:id?mode=shape`** (query/hash merged) |
+| `/lab/:id` | `PlanStudioWorkspacePage` (under `PlanWorkspaceLayout`) | Strategy Lab define/shape studio; `?mode=define|shape` |
+| `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id/board`** (query merged; `view=` stripped); narrative page removed and timeline route stays permanently legacy-only |
+| `/portal/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Same for **`/portal/plan/:id/board`**; timeline **read model** remains on **`GET /api/audits/:id/timeline`** for Roadmap/Board parity consumers |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
 | `/admin/requests` | `pages/admin-request-queue/AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |

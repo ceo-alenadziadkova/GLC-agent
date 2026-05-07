@@ -13,6 +13,7 @@ import { ApiError } from '../data/api-error';
 import { DIRECTOR_DEEP_DIVE_API_ERROR_CODES } from '../config/director-deep-dive-api-error-codes';
 import { useDirectorDeepDiveJob } from '../hooks/useDirectorDeepDiveJob';
 import { Textarea } from '../../design-system/ui';
+import { glcKeys } from '../lib/glc-keys';
 
 function createIdempotencyKey(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -56,13 +57,13 @@ export function DirectorDeepDiveDialog(props: {
   const { status: realtimeJobStatus, qaBlock } = useDirectorDeepDiveJob({ jobId, auditId, domainKey });
   const prefillFromBriefRef = useRef(false);
   const briefQuery = useQuery({
-    queryKey: ['directorDeepDiveBrief', auditId],
+    queryKey: glcKeys.directorDeepDive.brief(auditId),
     queryFn: () => api.getBrief(auditId),
     enabled: open,
     staleTime: 60_000,
   });
   const quotaQuery = useQuery({
-    queryKey: ['directorDeepDiveQuota', auditId, domainKey],
+    queryKey: glcKeys.directorDeepDive.quota(auditId, domainKey),
     queryFn: () => api.getDirectorDeepDiveQuota(auditId, domainKey),
     enabled: open,
     retry: false,

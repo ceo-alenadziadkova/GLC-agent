@@ -13,6 +13,7 @@ import { isPlanBoardOperationalReadOnlyPack } from '../../../config/plan-board-o
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { fetchPersistedGlcOrchestrationPackForUser } from '../../../services/orchestration/orchestration-read.service.js';
 import { resolveAuditPlanBoardAccess } from '../../../services/plan-board/plan-board-access.js';
+import { appendPlanTicketEvent } from '../../../services/plan-board/plan-ticket-activity.service.js';
 import { logger } from '../../../services/logger.js';
 import { supabase } from '../../../services/supabase.js';
 import { PlanBoardCardDeleteSchema } from '../../../schemas/plan-board.js';
@@ -73,6 +74,14 @@ export async function deletePlanBoardCardController(req: AuthRequest, res: Respo
       sendApiError(res, 500, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE);
       return;
     }
+
+    await appendPlanTicketEvent({
+      auditId,
+      cardId,
+      actorUserId: req.userId ?? null,
+      action: 'delete',
+      sourceSurface: 'board',
+    });
 
     res.json({ ok: true, pack_version_used: persisted.orchestration_pack_version });
   } catch (err) {

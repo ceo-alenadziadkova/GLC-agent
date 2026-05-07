@@ -44,6 +44,7 @@ import {
   emitPlanBoardConflict409,
   emitPlanBoardManualInProgressBlocked,
 } from '../../../services/plan-board/plan-board-pipeline-events.js';
+import { appendPlanTicketEvent } from '../../../services/plan-board/plan-ticket-activity.service.js';
 import { logger } from '../../../services/logger.js';
 import { supabase } from '../../../services/supabase.js';
 import { PlanBoardCardPatchSchema } from '../../../schemas/plan-board.js';
@@ -182,7 +183,23 @@ export async function patchPlanBoardCardController(req: AuthRequest, res: Respon
       return;
     }
 
-    if (role === 'client' && (parsed.data.delivery_area != null || parsed.data.title != null || parsed.data.lane != null)) {
+    if (
+      role === 'client'
+      && (
+        parsed.data.delivery_area != null
+        || parsed.data.title != null
+        || parsed.data.lane != null
+        || parsed.data.ticket_description != null
+        || parsed.data.assignee != null
+        || parsed.data.assignee_user_id != null
+        || parsed.data.labels != null
+        || parsed.data.story_points != null
+        || parsed.data.priority != null
+        || parsed.data.start_date != null
+        || parsed.data.due_date != null
+        || parsed.data.end_date != null
+      )
+    ) {
       sendApiError(res, 403, API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE);
       return;
     }
@@ -236,6 +253,16 @@ export async function patchPlanBoardCardController(req: AuthRequest, res: Respon
     if (parsed.data.delivery_area != null) patch.delivery_area = parsed.data.delivery_area;
     if (parsed.data.title != null) patch.manual_title = parsed.data.title;
     if (parsed.data.lane != null) patch.pack_lane_snapshot = parsed.data.lane;
+    if (parsed.data.ticket_description != null) patch.ticket_description = parsed.data.ticket_description;
+    if (parsed.data.assignee != null) patch.assignee = parsed.data.assignee;
+    if (parsed.data.assignee_user_id !== undefined) patch.assignee_user_id = parsed.data.assignee_user_id;
+    if (parsed.data.labels != null) patch.labels = parsed.data.labels;
+    if (parsed.data.story_points !== undefined) patch.story_points = parsed.data.story_points;
+    if (parsed.data.priority != null) patch.priority = parsed.data.priority;
+    if (parsed.data.start_date != null) patch.start_date = parsed.data.start_date;
+    if (parsed.data.due_date != null) patch.due_date = parsed.data.due_date;
+    if (parsed.data.end_date != null) patch.end_date = parsed.data.end_date;
+    patch.updated_by_user_id = req.userId!;
 
     const { error: writeErr } = await supabase.from('plan_task_delivery').update(patch).eq('audit_id', auditId).eq('id', cardId);
     if (writeErr) {
@@ -268,6 +295,14 @@ export async function patchPlanBoardCardController(req: AuthRequest, res: Respon
         },
       });
     }
+
+    await appendPlanTicketEvent({
+      auditId,
+      cardId,
+      actorUserId: req.userId ?? null,
+      action: parsed.data.to_column != null ? 'move' : 'update',
+      sourceSurface: 'board',
+    });
 
     const payload = {
       pack_version_used: persisted.orchestration_pack_version,

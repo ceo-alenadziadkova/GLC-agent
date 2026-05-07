@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '../../lib/tanstack-react-query';
 
 import { PORTAL_MANIFEST_WIZARD_COPY } from '../../config/portal-manifest-wizard-copy.en';
+import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 
 const flagState = vi.hoisted(() => ({
   clientRoadmapManifestWizardEnabled: true,
@@ -51,6 +52,7 @@ vi.mock('../../data/apiService', () => ({
   api: {
     getRoadmapManifestSnapshotLatest: (...args: unknown[]) => getRoadmapManifestSnapshotLatestMock(...args),
     postOrchestratorPreview: (...args: unknown[]) => postOrchestratorPreviewMock(...args),
+    postOrchestrationCompile: vi.fn(),
     postRoadmapManifestSnapshot: vi.fn(),
     postOrchestratorRun: vi.fn(),
   },
@@ -152,5 +154,18 @@ describe('PortalRoadmapManifestWizardPage', () => {
       );
     });
     expect(screen.getByRole('heading', { name: PORTAL_MANIFEST_WIZARD_COPY.stepPreviewTitle })).toBeInTheDocument();
+  });
+
+  it('uses single compile CTA on publish step', () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/portal/audit/audit-1/roadmap-manifest']}>
+        <Routes>
+          <Route path="/portal/audit/:id/roadmap-manifest" element={<PortalRoadmapManifestWizardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('button', { name: ORCHESTRATION_UI_COPY.compilePlan })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ORCHESTRATION_UI_COPY.confirmSaveManifest })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ORCHESTRATION_UI_COPY.buildPack })).not.toBeInTheDocument();
   });
 });
