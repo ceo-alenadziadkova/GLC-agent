@@ -49,7 +49,7 @@
       "designSystem": "Design system",
       "auditWorkspace": "Audit Workspace",
       "pipeline": "Pipeline",
-      "timeline": "Execution timeline",
+      "timeline": "Execution plan",
       "reports": "Reports",
       "strategyLab": "Strategy Lab"
     },
@@ -57,7 +57,7 @@
       "myPortal": "My Portal",
       "auditStatus": "Audit Status",
       "pipeline": "Pipeline",
-      "timeline": "Execution timeline",
+      "timeline": "Execution plan",
       "reports": "Report",
       "strategyLab": "Strategy Lab"
     },

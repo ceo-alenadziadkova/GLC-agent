@@ -8,6 +8,10 @@ import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-def
 
 export const FEATURE_ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
 export type FeatureRolloutMode = (typeof FEATURE_ROLLOUT_MODES)[number];
+const PLAN_WORKSPACE_PRIMARY_UX_ENABLED_DEFAULT = true;
+const CLIENT_PLAN_WORKSPACE_ENABLED_DEFAULT = true;
+const CLIENT_EXECUTION_PACKS_SURFACE_ENABLED_DEFAULT = true;
+const ORCHESTRATION_ROADMAP_ROLLOUT_MODE_DEFAULT = 'ga' as FeatureRolloutMode;
 
 export const APP_FEATURE_FLAGS = {
   questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
@@ -47,35 +51,30 @@ export const APP_FEATURE_FLAGS = {
    * Client portal timeline: list saved execution packs + link to Strategy Lab (V8 surface).
    * Server must allow `FEATURE_STRATEGY_EXECUTION_PACK`; when disabled, the list query may fail and UI shows a short error line.
    */
-  clientExecutionPackTimelineSurfaceEnabled: true,
+  clientExecutionPackWorkspaceSurfaceEnabled: CLIENT_EXECUTION_PACKS_SURFACE_ENABLED_DEFAULT,
   /**
-   * Client-facing timeline primary surface rollout.
+   * Client-facing Plan workspace primary surface rollout.
    */
-  clientTimelineEnabled: true,
+  clientPlanWorkspaceEnabled: CLIENT_PLAN_WORKSPACE_ENABLED_DEFAULT,
   /**
-   * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
+   * Plan-workspace-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
    */
-  orchestrationTimelinePrimaryUxEnabled: true,
+  orchestrationPlanWorkspacePrimaryUxEnabled: PLAN_WORKSPACE_PRIMARY_UX_ENABLED_DEFAULT,
   /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
   planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
-  /**
-   * When true, unified Plan (`PortalPlanPage`) skips `GET /timeline` while `view=board` if `timeline_parity`
-   * on `GET …/plan/board` is sufficient (ADR Delivery Board follow-up). SPA-only; redeploy to change.
-   */
-  planBoardDeferTimelineFetchOnBoardTabEnabled: true,
   /**
    * Delivery Board lane/owner hints queue for signed manifest snapshots (Epic 2.1-C).
    * Mirrors server `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD` (default on in SYSTEM_DEFAULTS); set false in both layers to rollback.
    */
   manifestDraftRevisionsFromBoard: true,
   /**
-   * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
-   * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
+   * Client roadmap narrative enhancements (lane promises, milestones, priority reasons).
+   * Staged promotion: see `orchestrationRoadmapRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
    */
   orchestrationRoadmapNarrativeEnabled: true,
-  /** Client timeline narrative staged rollout mode. */
-  orchestrationRoadmapNarrativeRolloutMode: 'ga' as FeatureRolloutMode,
-  /** On-demand director deep-dive from timeline/report surfaces. */
+  /** Client roadmap narrative staged rollout mode. */
+  orchestrationRoadmapRolloutMode: ORCHESTRATION_ROADMAP_ROLLOUT_MODE_DEFAULT,
+  /** On-demand director deep-dive from plan/report surfaces. */
   directorDeepDiveOnDemandEnabled: true,
   /** Director deep-dive staged rollout mode. */
   directorDeepDiveRolloutMode: 'ga' as FeatureRolloutMode,

@@ -9,12 +9,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../../design-system/ui';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
-import { ApiError } from '../data/api-error';
 import { DOMAIN_LABELS, type DomainKey } from '../data/auditTypes';
 import type { RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { toast } from 'sonner';
+import { useCompilePlanMutation } from '../hooks/useCompilePlanMutation';
 import { useManifestSavedSignatureBaseline } from '../hooks/useManifestSavedSignatureBaseline';
 import { useDebouncedOrchestratorManifestPreview } from '../hooks/useDebouncedOrchestratorManifestPreview';
 import {
@@ -39,6 +39,7 @@ import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { buildAppRoute } from '../config/route-paths';
 import { CLIENT_AUDIT_VIEW_COPY } from '../config/client-audit-view-copy';
 import { formatOrchestrationPackRunErrorMessage } from '../lib/orchestration-pack-api-error';
+import { buildPlanWorkspaceHref } from '../lib/plan-cross-nav';
 import { PortalPlanLayout } from './portal-plan/PortalPlanLayout';
 
 export function PortalRoadmapManifestWizardPage() {
@@ -57,9 +58,6 @@ export function PortalRoadmapManifestWizardPage() {
   const [season, setSeason] = useState<OrchestrationSeasonPreset>('rolling_90d');
   const [planHorizonStart, setPlanHorizonStart] = useState('');
   const [planHorizonEnd, setPlanHorizonEnd] = useState('');
-  const [manifestSnapshotId, setManifestSnapshotId] = useState<string | null>(null);
-  const [working, setWorking] = useState(false);
-
   const executionPlan = audit?.meta.execution_plan ?? null;
   const selectedDomains = useMemo(
     () => executionPlan?.selected_domains ?? NO_SELECTED_DOMAINS,
@@ -89,8 +87,7 @@ export function PortalRoadmapManifestWizardPage() {
   );
 
   const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
-  const { hasUnsavedManifestChanges, applySignatureFromManifestPayload, markDraftAsSavedBaseline, clearSavedSignature } =
-    useManifestSavedSignatureBaseline({
+  const { applySignatureFromManifestPayload, markDraftAsSavedBaseline, clearSavedSignature } = useManifestSavedSignatureBaseline({
     scenario,
     season,
     planHorizonStart,
@@ -105,7 +102,6 @@ export function PortalRoadmapManifestWizardPage() {
         const latest = await api.getRoadmapManifestSnapshotLatest(auditId);
         const row = latest.snapshot;
         if (cancelled || !row) return;
-        setManifestSnapshotId(row.id);
         setScenario(row.payload.change_scenario);
         setSeason(row.payload.season_preset);
         setPlanHorizonStart(row.payload.plan_horizon?.start_date ?? '');
@@ -113,7 +109,6 @@ export function PortalRoadmapManifestWizardPage() {
         applySignatureFromManifestPayload(row.payload);
       } catch {
         if (!cancelled) {
-          setManifestSnapshotId(null);
           clearSavedSignature();
         }
       }
@@ -129,54 +124,22 @@ export function PortalRoadmapManifestWizardPage() {
     enabled: wizardEnabled && Boolean(auditId) && selectedDomains.length > 0 && manifestCompareBody != null,
   });
 
-  const handleSaveManifest = useCallback(async () => {
-    if (!auditId || selectedDomains.length === 0) return;
-    setWorking(true);
-    try {
-      const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
-      const res = await api.postRoadmapManifestSnapshot(auditId, {
-        schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
-        selected_domains: selectedDomains,
-        change_scenario: scenario,
-        season_preset: season,
-        ...(planHorizon ? { plan_horizon: planHorizon } : {}),
-      });
-      setManifestSnapshotId(res.id);
-      markDraftAsSavedBaseline();
-      toast.success(ORCHESTRATION_UI_COPY.manifestSaved);
-    } catch (e) {
-      const detail =
-        e instanceof ApiError && e.details && typeof e.details === 'object' && e.details !== null && 'detail' in e.details
-          ? String((e.details as { detail?: unknown }).detail ?? '')
-          : '';
-      toast.error(detail ? `${ORCHESTRATION_UI_COPY.manifestSaveFailed} (${detail})` : ORCHESTRATION_UI_COPY.manifestSaveFailed);
-    } finally {
-      setWorking(false);
-    }
-  }, [
-    auditId,
-    selectedDomains,
-    scenario,
-    season,
-    planHorizonStart,
-    planHorizonEnd,
-    markDraftAsSavedBaseline,
-  ]);
+  const compileMutation = useCompilePlanMutation({
+    auditId: auditId ?? '',
+    onSettled: reload,
+  });
 
-  const handleBuildPack = useCallback(async () => {
-    if (!auditId || !manifestSnapshotId) return;
-    setWorking(true);
+  const handleCompilePlan = useCallback(async () => {
+    if (!auditId || !manifestCompareBody) return;
     try {
-      await api.postOrchestratorRun(auditId, { manifest_snapshot_id: manifestSnapshotId });
+      await compileMutation.mutateAsync(manifestCompareBody);
+      markDraftAsSavedBaseline();
       toast.success(`${ORCHESTRATION_UI_COPY.packBuilt} ${PORTAL_MANIFEST_WIZARD_COPY.successPackBuilt}`);
-      reload();
     } catch (e) {
       const { message, description } = formatOrchestrationPackRunErrorMessage(e, ORCHESTRATION_UI_COPY.packBuildFailed);
       toast.error(message, description ? { description, duration: 14_000 } : { duration: 6_000 });
-    } finally {
-      setWorking(false);
     }
-  }, [auditId, manifestSnapshotId, reload]);
+  }, [auditId, compileMutation, manifestCompareBody, markDraftAsSavedBaseline]);
 
   if (!wizardEnabled) {
     return (
@@ -265,7 +228,11 @@ export function PortalRoadmapManifestWizardPage() {
 
   const auditOverviewHref = buildAppRoute.portalAudit(auditId);
   const timelineHref = buildAppRoute.portalPlan(auditId);
-  const labHref = buildAppRoute.portalStrategy(auditId);
+  const labHref = buildPlanWorkspaceHref({
+    auditId,
+    isClient: true,
+    mode: 'shape',
+  });
 
   return (
     <AppShell title={PORTAL_MANIFEST_WIZARD_COPY.pageTitle} subtitle={PORTAL_MANIFEST_WIZARD_COPY.pageSubtitle}>
@@ -484,21 +451,16 @@ export function PortalRoadmapManifestWizardPage() {
           </h2>
           <p className="text-xs ds-text-secondary">{PORTAL_MANIFEST_WIZARD_COPY.stepPublishBody}</p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" disabled={working} onClick={() => void handleSaveManifest()}>
-              {ORCHESTRATION_UI_COPY.confirmSaveManifest}
-            </Button>
             <Button
               type="button"
               variant="default"
-              disabled={working || !manifestSnapshotId || hasUnsavedManifestChanges}
-              onClick={() => void handleBuildPack()}
+              disabled={compileMutation.isPending || !manifestCompareBody}
+              onClick={() => void handleCompilePlan()}
             >
-              {ORCHESTRATION_UI_COPY.buildPack}
+              {compileMutation.isPending ? ORCHESTRATION_UI_COPY.compilePlanStatusCompiling : ORCHESTRATION_UI_COPY.compilePlan}
             </Button>
           </div>
-          {hasUnsavedManifestChanges ? (
-            <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.buildPackNeedsManifestSync}</p>
-          ) : null}
+          <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.compilePlanStatusIdleHint}</p>
           <Button asChild variant="outline" size="sm" className="no-underline">
             <Link to={labHref}>{PORTAL_MANIFEST_WIZARD_COPY.openStrategyLab}</Link>
           </Button>

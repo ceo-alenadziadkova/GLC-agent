@@ -19,7 +19,7 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 
 The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** `public-brand-defaults.v1.json`, not a `VITE_*` variable.
 
-**Static front config (no `VITE_*`):** feature flags in [`src/app/config/app-feature-flags.ts`](../src/app/config/app-feature-flags.ts) (`APP_FEATURE_FLAGS`) — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback, plus orchestration/timeline rollout (`orchestrationRoadmapUiEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, …). These are **not** set via Railway/Vercel env; change constants and redeploy. Server mirror for timeline-first hooks: **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** — parity is enforced in [`src/app/config/orchestration-contract-parity.test.ts`](../src/app/config/orchestration-contract-parity.test.ts). Also: client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
+**Static front config (no `VITE_*`):** feature flags in [`src/app/config/app-feature-flags.ts`](../src/app/config/app-feature-flags.ts) (`APP_FEATURE_FLAGS`) — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback, plus orchestration/Plan-workspace rollout (`orchestrationRoadmapUiEnabled`, `clientPlanWorkspaceEnabled`, `orchestrationPlanWorkspacePrimaryUxEnabled`, …). These are **not** set via Railway/Vercel env; change constants and redeploy. Server mirror for Plan-workspace-first hooks: **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** — parity is enforced in [`src/app/config/orchestration-contract-parity.test.ts`](../src/app/config/orchestration-contract-parity.test.ts). Also: client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 
 Cross-page persistence keys for consultant flows live in **`storage_keys`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
 
@@ -220,7 +220,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id` | `AuditWorkspace.tsx` | Domain-by-domain results |
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
-| `/strategy/:id` | `strategy-lab/StrategyLabPage.tsx` | Strategic roadmap |
+| `/strategy/:id` | `LegacyStrategyPathRedirect.tsx` | Legacy alias redirect to canonical **`/plan/:id?mode=shape`** (query/hash merged) |
 | `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id?view=board`** (query merged); narrative page removed and timeline route stays permanently legacy-only |
 | `/portal/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Same for **`/portal/plan/:id?view=board`**; timeline **read model** remains on **`GET /api/audits/:id/timeline`** for Roadmap/Board parity consumers |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
@@ -236,6 +236,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 ## Page Descriptions
 
 ### `Login.tsx`
+
 - **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
 - Google OAuth on `/login` → **`signInWithOAuth`** (`redirectTo: <origin>/login`); optional **`preserveGuestSession`** on `signInWithGoogle` for legacy **`linkIdentity`** flows only
 - After a full (non-anonymous) session is established, if **`glc_pending_snapshot_token`** is set, calls **`api.claimSnapshot`** then clears it (or clears on **404/409/410**)
@@ -243,12 +244,14 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - Email field is rendered with password-manager-friendly semantics (`name="username"`, sign-in `autoComplete="username"`), while sign-up keeps `autoComplete="email"` for account creation UX.
 
 ### `/snapshot` (`SnapshotLanding.tsx`)
+
 - **`POST /api/snapshot`** with **`credentials: 'include'`** (no `Authorization` header); stores **`glc_pending_snapshot_token`** when a run starts
 - Polls **`GET /api/snapshot/:token`** with **`credentials: 'include'`**
 - Signed-in users see workspace link; guests see **Sign in** to save results via claim
 - Glassmorphism card, gradient button, GLC logo
 
 ### `SettingsPage.tsx`
+
 - Shared protected route for consultant and client
 - **Client portal — audit owner** (consultants): `GET` / `PATCH /api/platform/self-serve-owner` — pick which consultant owns audits started by clients; read-only when the server denies `can_manage` (see **`profiles.is_platform_admin`** / **`platform_settings.legacy_platform_admin_user_ids`** in [API.md](./API.md#platform-consultant))
 - Profile save uses `PATCH /api/profile` (editable `full_name`)
@@ -258,6 +261,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - Password-change form includes a hidden read-only `username` field to improve browser password-manager autofill behavior for current-password/new-password fields.
 
 ### `Dashboard.tsx`
+
 - Calls `useAudits()` → list of audits from `GET /api/audits`
 - KPI bar: total audits, completed, avg score, recent activity
 - Each card: company name/URL, status badge, overall score, created date
@@ -279,6 +283,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 (See also [ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md).)
 
 ### `PipelineMonitor.tsx`
+
 - `useParams<{ id: string }>()` for audit ID
 - `usePipeline(id)` → live pipeline events via Supabase Realtime
 - `useAudit(id)` → audit meta + domain statuses
@@ -290,6 +295,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - Review approval → `approveReview(phase, notes)` → `POST /api/audits/:id/reviews/:phase`
 
 ### `AuditWorkspace.tsx`
+
 - `useAudit(id)` for full audit data
 - Left sidebar: domain list from `DOMAIN_KEYS` (defined in `auditTypes.ts`), shows score badge per domain
 - **Edit intake brief** (when `audit.brief` / `intake_brief` exists): `BriefLayoutPreferenceCards` first (or persisted `glc_consultant_brief_layout_v1:<id>`), then **All sections at once** = `BankClassicBriefFields` (compact; same visible bank ids/order as wizard) or **Step by step** = `IntakeBankWizard`. **Change layout** clears the stored choice. `collection_mode === 'discovery'` applies the discovery subset to both modes; debounced `api.saveBrief` like New Audit
@@ -298,15 +304,17 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 - Empty state when domain not yet analyzed: "Domain analysis pending"
 
 ### `ReportViewer.tsx`
+
 - `useAudit(id)` → full audit including all domains + strategy
 - Animated score ring (SVG + Framer Motion) showing `audit.meta.overall_score`
 - Executive summary from `audit.strategy.executive_summary`
 - Domain scorecard (table: domain, score, label)
 - Aggregated issues across all domains, sorted by severity
 - Aggregated quick_wins across all domains
-- "View Strategy" link → `/strategy/:id` (shown only if `audit.strategy` exists)
+- "View Strategy" link → `/plan/:id?mode=shape` (shown only if `audit.strategy` exists)
 
 ### `strategy-lab/StrategyLabPage.tsx`
+
 - `useAudit(id)` → reads `audit.strategy`
 - Empty state if `!audit.strategy` (“Not available yet” / complete pipeline messaging)
 - Three initiative horizons (Quick wins / Core growth / Strategic); consultant orchestration panel when roadmap UI flags allow
@@ -321,26 +329,32 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 All hooks in ``.
 
 ### `useAuth()`
+
 ```typescript
 const { user, isAuthenticated, loading, signOut } = useAuth();
 ```
+
 - Subscribes to `supabase.auth.onAuthStateChange`
 - `signOut()` → `supabase.auth.signOut()` + redirect to `/login`
 - `loading` is true until auth state is confirmed (prevents flash of login page)
 
 ### `useIntakeBankMetrics()` / `useIntakeWizard()`
+
 Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types come from `bankQuestionUiCatalog.ts` + `question-bank.v1.json` (including canonical revenue id `a10`). Canonical list helper: `getVisibleBankBriefSections` in `bankClassicBrief`. Required-field progress on **New Audit** / **Client portal** uses **`pipelineRequiredIdsForProductMode`** + `resolveExpressSlaRequiredIds` / `resolveFullSlaRequiredIds` (same rules as `brief-gates` on the server).
 
 ### `useAudit(id: string | undefined)`
+
 ```typescript
 const { audit, loading, error, refetch } = useAudit(id);
 ```
+
 - `GET /api/audits/:id` on mount
 - Subscribes to Supabase Realtime on `audits` table (filter: `id=eq.${id}`) for status changes
 - Returns `AuditFull` shape (meta + recon + domains + strategy)
 - Refetches on Realtime `UPDATE` event
 
 ### `usePipeline(id: string | undefined)`
+
 ```typescript
 const {
  events,
@@ -351,21 +365,26 @@ const {
  approveReview,
 } = usePipeline(id);
 ```
+
 - Subscribes to `pipeline_events` for `audit_id=eq.${id}` via Supabase Realtime
 - Accumulates events in local state (never re-fetches full history)
 - Derives `phases` and `reviewPending` from event stream
 - `startPipeline()` / `approveReview()` call backend endpoints and optimistically update UI
 
 ### `useAudits()`
+
 ```typescript
 const { audits, loading, error } = useAudits();
 ```
+
 - `GET /api/audits` via **TanStack Query** (`@tanstack/react-query`), keyed by `limit` and `offset`; default **staleTime** 2 minutes (see `glc-query-client.ts`). Returning to Dashboard / Portal reuses in-memory query data and may refetch in the background. `reload()` invalidates all `['glc','audits','list', …]` queries. Cleared on sign-out (`queryClient.clear()` via `invalidateGlcSessionDataCaches`).
 
 ### `useDashboard()`
+
 - `GET /api/dashboard` through the same QueryClient (staleTime ~2 minutes). `reloadDashboard()` invalidates the dashboard query.
 
 ### Server data caching (overview)
+
 - **Query keys** live in `glc_keys`. **Targeted invalidation** after pipeline steps / brief saves: `invalidateAuditRelatedQueries` in `glc-invalidate-queries.ts` (audit + brief payloads).
 - **Admin Request queue** and **Discovery sessions** use a longer stale window (5 minutes).
 - **Window focus:** `refetchOnWindowFocus` is off in `glc-query-client.ts` so switching browser tabs does not trigger a blanket refetch; reconnect refetch stays on. **ProtectedRoute** blocks role-gated pages only while `profileLoading && !profile` (first load). **useProfile** treats repeat `SIGNED_IN` for the same user as a background refresh so the shell is not unmounted and local hooks (e.g. pipeline state) are not reset. Use per-page refresh / invalidation when fresh data is required.
@@ -376,17 +395,21 @@ const { audits, loading, error } = useAudits();
 ## Components
 
 ### `AppShell.tsx`
+
 Persistent layout wrapper — sidebar nav + header.
 
 - `useCurrentAuditId()` hook extracts audit ID from current URL path:
+
  ```typescript
  const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
  return match ? match[2] : null;
  ```
+
 - `buildNav(auditId)` builds nav items; audit-specific links are `null` when no audit in context (rendered as disabled/greyed)
 - `useAuth()` provides user email display and `signOut` button
 
 ### `ProtectedRoute.tsx`
+
 ```tsx
 export function ProtectedRoute({ children }) {
  const { isAuthenticated, loading } = useAuth();
@@ -397,7 +420,9 @@ export function ProtectedRoute({ children }) {
 ```
 
 ### `ReviewPointModal.tsx`
+
 Modal shown at review gates in PipelineMonitor.
+
 - **Review Gate #1 (after phase 0):** renders `ReconReviewSummary` using `GET /api/audits/:id` → `recon` (crawl list, tech signals, contacts, optional brief) plus a warning when phase 0 logged crawler context truncation; copy in `src/app/data/pipeline-monitor-copy.en.json` (`reviewModal.recon`), limits in `src/app/config/recon-review-summary-policy.ts`.
 - **Pipeline Monitor — Phase 0:** the same `ReconReviewSummary` block appears in `PhaseDetailPanel` for consultants (not the client portal) as soon as the pipeline is started, with intro lines from `detail.reconPreview*` in that JSON file.
 - Two textareas: "Consultant Notes" and "Interview Notes"
@@ -408,6 +433,7 @@ Modal shown at review gates in PipelineMonitor.
 ## Data Layer
 
 ### `supabase`
+
 ```typescript
 import { createClient } from '@supabase/supabase-js';
 export const supabase = createClient(
@@ -417,7 +443,9 @@ export const supabase = createClient(
 ```
 
 ### `apiService`
+
 Typed fetch wrapper. Adds `Authorization: Bearer <token>` from current Supabase session:
+
 ```typescript
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
  const { data: { session } } = await supabase.auth.getSession();
@@ -443,7 +471,9 @@ export const api = {
 ```
 
 ### `auditTypes`
+
 TypeScript types matching the DB schema. Includes `DOMAIN_KEYS` constant:
+
 ```typescript
 export const DOMAIN_KEYS = [
  'tech_infrastructure',
@@ -481,6 +511,7 @@ The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) a
 ## Vite Dev Proxy
 
 `vite.config.ts` proxies `/api/*` to the backend during development:
+
 ```typescript
 server: {
  proxy: {

@@ -19,6 +19,18 @@ function wrapper(initialPath: string) {
   };
 }
 
+function portalWrapper(initialPath: string) {
+  return function W({ children }: { children: ReactNode }) {
+    return (
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Routes>
+          <Route path="/portal/plan/:id" element={children} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
+}
+
 describe('usePlanFocusKey', () => {
   it('usePlanFocusCanonicalToken reads focus from search params', () => {
     const { result } = renderHook(() => usePlanFocusCanonicalToken(), {
@@ -68,5 +80,15 @@ describe('usePlanFocusKey', () => {
       wrapper: wrapper('/plan/a?focus=seo-42'),
     });
     expect(result.current).toBe('node-42');
+  });
+
+  it('preserves foreign query params when updating focus token in portal plan route', () => {
+    const { result } = renderHook(() => usePlanFocusKey(), {
+      wrapper: portalWrapper('/portal/plan/a?view=table&mode=execute'),
+    });
+    act(() => {
+      result.current.setFocusToken('seo-11');
+    });
+    expect(result.current.focusToken).toBe('seo-11');
   });
 });

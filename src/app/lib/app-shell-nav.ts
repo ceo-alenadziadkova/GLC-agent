@@ -17,14 +17,14 @@ import { APP_SHELL_COPY } from '../config/app-shell-copy';
 import { parsePortalPlanViewParam } from '../config/portal-plan';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
 
-type NavTimelinePrimaryOpts = {
-  /** When omitted, uses `APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled`. */
-  timelinePrimaryUx?: boolean;
+type NavPlanPrimaryOpts = {
+  /** When omitted, uses `APP_FEATURE_FLAGS.orchestrationPlanWorkspacePrimaryUxEnabled`. */
+  planWorkspacePrimaryUx?: boolean;
   /**
-   * When omitted, uses `APP_FEATURE_FLAGS.clientTimelineEnabled`.
+   * When omitted, uses `APP_FEATURE_FLAGS.clientPlanWorkspaceEnabled`.
    * (Tests may override without mutating module state.)
    */
-  clientTimelineEnabled?: boolean;
+  clientPlanWorkspaceEnabled?: boolean;
   /**
    * When omitted, uses `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`.
    * Hides consultant execution-timeline nav when roadmap/orchestration UI is off.
@@ -32,15 +32,15 @@ type NavTimelinePrimaryOpts = {
   orchestrationRoadmapUiEnabled?: boolean;
 };
 
-function resolveTimelinePrimaryUx(opts?: NavTimelinePrimaryOpts): boolean {
-  return opts?.timelinePrimaryUx ?? APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled;
+function resolvePlanPrimaryUx(opts?: NavPlanPrimaryOpts): boolean {
+  return opts?.planWorkspacePrimaryUx ?? APP_FEATURE_FLAGS.orchestrationPlanWorkspacePrimaryUxEnabled;
 }
 
-function resolveClientTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
-  return opts?.clientTimelineEnabled ?? APP_FEATURE_FLAGS.clientTimelineEnabled;
+function resolveClientPlanWorkspaceEnabled(opts?: NavPlanPrimaryOpts): boolean {
+  return opts?.clientPlanWorkspaceEnabled ?? APP_FEATURE_FLAGS.clientPlanWorkspaceEnabled;
 }
 
-function resolveConsultantTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
+function resolveConsultantPlanWorkspaceEnabled(opts?: NavPlanPrimaryOpts): boolean {
   return opts?.orchestrationRoadmapUiEnabled ?? APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
 }
 
@@ -51,17 +51,16 @@ export type AppShellNavItem = {
   badge: string | null;
 };
 
-export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePrimaryOpts): AppShellNavItem[] {
+export function buildConsultantNav(auditId: string | null, opts?: NavPlanPrimaryOpts): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.consultant;
-  const timelineFirst = resolveTimelinePrimaryUx(opts);
-  const consultantTimelineEnabled = resolveConsultantTimelineEnabled(opts);
-  const timelineItem: AppShellNavItem = {
-    to: auditId && consultantTimelineEnabled ? buildAppRoute.plan(auditId) : null,
+  const consultantPlanWorkspaceEnabled = resolveConsultantPlanWorkspaceEnabled(opts);
+  const planItem: AppShellNavItem = {
+    to: auditId && consultantPlanWorkspaceEnabled ? buildAppRoute.plan(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
   };
-  const sequencingPair = consultantTimelineEnabled ? [timelineItem] : [];
+  const sequencingPair = consultantPlanWorkspaceEnabled ? [planItem] : [];
   return [
     { to: APP_ROUTE_PATHS.dashboard,                           icon: SquaresFour,    label: n.dashboard,       badge: null },
     { to: APP_ROUTE_PATHS.adminAudits,                        icon: Briefcase,      label: n.allAudits,      badge: null },
@@ -80,13 +79,13 @@ export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePri
 export function buildClientNav(
   auditId: string | null,
   showPipelineInNav: boolean,
-  opts?: NavTimelinePrimaryOpts,
+  opts?: NavPlanPrimaryOpts,
 ): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.client;
-  const timelineFirst = resolveTimelinePrimaryUx(opts);
-  const clientTimelineEnabled = resolveClientTimelineEnabled(opts);
-  const timelineItem: AppShellNavItem = {
-    to: auditId && clientTimelineEnabled ? buildAppRoute.portalPlan(auditId) : null,
+  const planFirst = resolvePlanPrimaryUx(opts);
+  const clientPlanWorkspaceEnabled = resolveClientPlanWorkspaceEnabled(opts);
+  const planItem: AppShellNavItem = {
+    to: auditId && clientPlanWorkspaceEnabled ? buildAppRoute.portalPlan(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -97,10 +96,10 @@ export function buildClientNav(
     label: n.pipeline,
     badge: null,
   };
-  const sequencingPair = clientTimelineEnabled
-    ? timelineFirst
-      ? [timelineItem, pipelineItem]
-      : [pipelineItem, timelineItem]
+  const sequencingPair = clientPlanWorkspaceEnabled
+    ? planFirst
+      ? [planItem, pipelineItem]
+      : [pipelineItem, planItem]
     : [pipelineItem];
   return [
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
@@ -131,17 +130,24 @@ function auditIdFromCanonicalPlanPath(path: string): string | null {
   return main?.[1] ?? portal?.[1] ?? null;
 }
 
-function legacyPlanSurface(
-  pathname: string,
-  auditId: string,
-  portalSurface: boolean,
-): 'roadmap' | 'timeline' | null {
+function legacyPlanRoute(pathname: string, auditId: string, portalSurface: boolean): 'roadmap' | 'timeline' | null {
   if (portalSurface) {
     if (pathname === `/portal/roadmap/${auditId}`) return 'roadmap';
     if (pathname === `/portal/timeline/${auditId}`) return 'timeline';
   }
   if (pathname === `/roadmap/${auditId}`) return 'roadmap';
   if (pathname === `/timeline/${auditId}`) return 'timeline';
+  return null;
+}
+
+function legacyPlanSurface(
+  pathname: string,
+  auditId: string,
+  portalSurface: boolean,
+): 'roadmap' | 'legacy-board' | null {
+  const route = legacyPlanRoute(pathname, auditId, portalSurface);
+  if (route === 'roadmap') return 'roadmap';
+  if (route === 'timeline') return 'legacy-board';
   return null;
 }
 
@@ -164,8 +170,8 @@ export function isNavItemActive(pathname: string, to: string, search = ''): bool
     if (pathname === toPath) {
       return locPlanView === toPlanView;
     }
-    /** Legacy `/timeline/:id` redirects to canonical plan; highlight when destination view matches current location. */
-    if (legacy === 'timeline') {
+    /** Legacy `/timeline/:id` redirects to canonical board view. */
+    if (legacy === 'legacy-board') {
       return toPlanView === locPlanView;
     }
     /** Legacy `/roadmap/:id` — highlight roadmap tab targets without requiring query parity on the old path. */

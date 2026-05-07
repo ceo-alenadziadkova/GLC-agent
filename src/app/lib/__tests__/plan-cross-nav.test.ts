@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildPlanExecuteViewHref,
+  buildPlanUrlWithModePreservingForeignParams,
   buildPlanSurfaceHrefWithFocus,
   buildPlanUrlWithViewPreservingForeignParams,
   mergeFocusIntoPlanHref,
@@ -66,5 +68,38 @@ describe('plan-cross-nav', () => {
     expect(href).toContain('view=board');
     expect(href).toContain('focus=key1');
     expect(href).toContain('range=90');
+  });
+
+  it('keeps focus when switching execute views (board -> table -> roadmap)', () => {
+    const toTable = buildPlanExecuteViewHref({
+      pathname: '/plan/audit-1',
+      currentSearch: '?view=board&focus=node-7&lane=seo_digital',
+      nextView: 'table',
+    });
+    const tableQuery = new URLSearchParams(toTable.split('?')[1] ?? '');
+    expect(tableQuery.get('view')).toBe('table');
+    expect(tableQuery.get('focus')).toBe('node-7');
+    expect(tableQuery.get('lane')).toBe('seo_digital');
+
+    const toRoadmap = buildPlanExecuteViewHref({
+      pathname: '/plan/audit-1',
+      currentSearch: `?${tableQuery.toString()}`,
+      nextView: 'roadmap',
+    });
+    const roadmapQuery = new URLSearchParams(toRoadmap.split('?')[1] ?? '');
+    expect(roadmapQuery.get('view')).toBe('roadmap');
+    expect(roadmapQuery.get('focus')).toBe('node-7');
+  });
+
+  it('keeps focus while toggling workspace mode', () => {
+    const toShape = buildPlanUrlWithModePreservingForeignParams({
+      pathname: '/portal/plan/audit-2',
+      currentSearch: '?view=table&focus=cnk_22',
+      nextMode: 'shape',
+    });
+    const shapeQuery = new URLSearchParams(toShape.split('?')[1] ?? '');
+    expect(shapeQuery.get('mode')).toBe('shape');
+    expect(shapeQuery.get('focus')).toBe('cnk_22');
+    expect(shapeQuery.get('view')).toBe('table');
   });
 });
