@@ -33,15 +33,16 @@ export function PortalPlanRoadmapScopeCallout({
     }
   });
 
-  if (!urgent && educationAcked) {
-    return null;
-  }
-
   const [open, setOpen] = useState(urgent);
 
   useEffect(() => {
     if (urgent) setOpen(true);
   }, [urgent]);
+
+  // Hide-after-hooks gate so React Hook order stays stable across renders.
+  if (!urgent && educationAcked) {
+    return null;
+  }
 
   function dismissEducationForSession(): void {
     try {

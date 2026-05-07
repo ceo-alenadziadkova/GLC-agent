@@ -8,6 +8,7 @@ function escapeIcalText(s: string): string {
   return s
     .replace(/\r/g, '')
     .replace(/\t/g, ' ')
+    // eslint-disable-next-line no-control-regex -- iCal RFC 5545 strips disallowed control characters from TEXT values
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .replace(/\\/g, '\\\\')
     .replace(/\n/g, '\\n')
