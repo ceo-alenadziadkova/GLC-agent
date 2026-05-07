@@ -7,6 +7,7 @@ export const operationsAlertTitlesEn = {
   auditInitRollbackDeleteFailed: 'Audit initialization rollback failed',
   recoverStalledPersistenceFailed: 'Stalled pipeline recovery write failed',
   freeSnapshotAuditStatusUpdateFailed: 'Free snapshot could not update audit status',
+  orchestrationCompileSnapshotRollbackDeleteFailed: 'Orchestration compile: snapshot rollback delete failed',
 } as const;
 
 export function formatAuditInitRollbackDeleteFailedMessageEn(input: { auditId: string; error: string }): string {
@@ -25,4 +26,12 @@ export function formatFreeSnapshotAuditStatusUpdateFailedMessageEn(input: {
   error: string;
 }): string {
   return `After a free snapshot error, updating audits.status to failed did not succeed for audit ${input.auditId}: ${input.error}. The audit row may be inconsistent with pipeline_events.`;
+}
+
+export function formatOrchestrationCompileSnapshotRollbackDeleteFailedMessageEn(input: {
+  auditId: string;
+  snapshotId: string;
+  error: string;
+}): string {
+  return `After orchestration compile/persist failed, deleting manifest snapshot row ${input.snapshotId} for audit ${input.auditId} failed: ${input.error}. An orphan snapshot row may remain until manual cleanup.`;
 }

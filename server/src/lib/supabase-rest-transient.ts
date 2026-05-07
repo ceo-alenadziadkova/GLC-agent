@@ -1,6 +1,9 @@
 /**
  * Heuristic for PostgREST / Postgres errors that are worth retrying on idempotent writes.
- * Conservative: expand only with evidence from production logs.
+ *
+ * Conservative: **do not widen** substring matching on `message` without corroborating production logs or metrics —
+ * localized errors, proxy wording changes, and driver upgrades can skew behavior (miss transients or retry permanents).
+ * Prefer expanding `transientCodes` when PostgREST/Postgres supply stable codes.
  */
 
 function msg(err: { message?: string } | null): string {

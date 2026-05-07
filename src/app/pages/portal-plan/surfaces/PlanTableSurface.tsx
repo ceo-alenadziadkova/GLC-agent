@@ -1,27 +1,42 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 
+import { Button } from '../../../components/ui/button';
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
 import { InlineEditableText } from '../../../components/glc/InlineEditableText';
 import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
-import { usePatchPlanBoardCardMutation, usePlanBoardQuery } from '../../../data/api/plan-board-queries';
+import {
+  usePatchPlanBoardCardMutation,
+  usePlanBoardQuery,
+  usePostManifestDraftRevisionMutation,
+} from '../../../data/api/plan-board-queries';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import {
   ORCHESTRATION_LANE_LABELS,
+  ORCHESTRATION_UI_COPY,
   type OrchestrationLaneId,
 } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import { PLAN_WORKSPACE_UI_COPY } from '../../../config/plan-workspace-ui-copy.en';
+import { usePlanCommandRegistration } from '../../../context/PlanCommandRegistryContext';
 import { usePlanFocusCanonicalToken } from '../../../hooks/usePlanFocusKey';
 import { useProfile } from '../../../hooks/useProfile';
 import { useQueryClient } from '../../../lib/tanstack-react-query';
 import { invalidatePlanBoardQueriesAfterConflict } from '../../../lib/plan-board-query-invalidation';
+import {
+  buildPlanSurfaceHrefWithFocus,
+  mergeClearLaneFilterIntoLocationSearch,
+  mergeLaneFilterToggleIntoLocationSearch,
+  readPlanLaneFilterKeys,
+} from '../../../lib/plan-cross-nav';
+import type { PlanWorkspacePaletteCommand } from '../../../lib/plan-command-registry';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
 import { laneDisplayLabel } from '../board/plan-board-card-helpers';
 import { PortalPlanLayout } from '../PortalPlanLayout';
 import { usePortalPlanOrchestration } from '../PortalPlanOrchestrationProvider';
 import { PortalPlanSurfaceChrome } from '../PortalPlanUnifiedShell';
+import { toast } from 'sonner';
 
 const ORCHESTRATION_LANE_IDS_ORDERED = Object.keys(ORCHESTRATION_LANE_LABELS) as OrchestrationLaneId[];
 
@@ -45,6 +60,9 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
   const { isClient } = useProfile();
   const auditId = id ?? '';
   const focusToken = usePlanFocusCanonicalToken();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const laneFilterKeys = useMemo(() => readPlanLaneFilterKeys(location.search), [location.search]);
   const {
     audit,
     auditLoading: loading,
@@ -72,12 +90,23 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
   const governanceReadOnly = Boolean(boardQuery.data?.issues?.some(i => i.code === 'governance_blocked'));
   const showConsultantPlanTools = !isClient;
   const canMutateCard = showConsultantPlanTools && !governanceReadOnly;
+  const tablePaletteOperational =
+    Boolean(auditId) &&
+    Boolean(boardQuery.data) &&
+    !boardQuery.data!.issues.some(i => i.code === 'no_pack');
+  const manifestDraftMutation = usePostManifestDraftRevisionMutation(
+    APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools ? auditId : undefined,
+  );
+
+  const cardsById = useMemo(
+    () => new Map(boardQuery.data?.cards.map(c => [c.id, c]) ?? []),
+    [boardQuery.data?.cards],
+  );
 
   const laneSelectOptions: readonly InlineLaneOption[] = useMemo(
     () => ORCHESTRATION_LANE_IDS_ORDERED.map(laneId => ({ value: laneId, label: ORCHESTRATION_LANE_LABELS[laneId] })),
     [],
   );
-  const laneInlineEnabled = !(APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools);
 
   const commitCardTitleInline = useCallback(
     async (cardId: string, title: string) => {
@@ -95,8 +124,22 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
   );
 
   const commitCardLaneInline = useCallback(
-    async (cardId: string, lane: string) => {
+    async (cardId: string, lane: string, ownerHint?: string) => {
+      const card = cardsById.get(cardId);
       try {
+        if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools) {
+          const ck = card?.canonical_node_key;
+          if (ck) {
+            await manifestDraftMutation.mutateAsync({
+              canonical_node_key: ck,
+              expected_pack_version: orchestrationPackVersion,
+              lane,
+              ...(ownerHint != null && ownerHint !== '' ? { owner_hint: ownerHint } : {}),
+            });
+            toast.success(ORCHESTRATION_UI_COPY.manifestDraftLaneQueuedToast);
+            return;
+          }
+        }
         await patchMutation.mutateAsync({
           cardId,
           body: { expected_pack_version: orchestrationPackVersion, lane },
@@ -106,7 +149,7 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
         throw err;
       }
     },
-    [auditId, orchestrationPackVersion, patchMutation, qc],
+    [auditId, cardsById, manifestDraftMutation, orchestrationPackVersion, patchMutation, qc, showConsultantPlanTools],
   );
 
   const columnTitleById = useMemo(() => {
@@ -158,6 +201,71 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
     return out;
   }, [boardQuery.data?.cards, columnTitleById]);
 
+  const filteredGroupedRows = useMemo(() => {
+    if (laneFilterKeys.length === 0) return groupedRows;
+    const set = new Set(laneFilterKeys);
+    return groupedRows.filter(g => set.has(g.laneKey));
+  }, [groupedRows, laneFilterKeys]);
+
+  const planTablePaletteCommands = useMemo((): PlanWorkspacePaletteCommand[] => {
+    if (unifiedShellTabActive === false) return [];
+    if (!auditId || !tablePaletteOperational || boardQuery.isPending || !boardQuery.data) return [];
+    const cards = boardQuery.data.cards ?? [];
+    const out: PlanWorkspacePaletteCommand[] = [];
+    for (const card of cards) {
+      const safeTitle = (card.title ?? card.canonical_node_key ?? card.id).replace(/"/g, "'");
+      const focusForRoadmap = card.canonical_node_key ?? card.pack_graph_node_id ?? null;
+      if (focusForRoadmap) {
+        const href = buildPlanSurfaceHrefWithFocus({
+          auditId,
+          isClient,
+          view: 'roadmap',
+          focusCanonicalKey: focusForRoadmap,
+        });
+        out.push({
+          id: `table-open-roadmap-${card.id}`,
+          label: `Open "${safeTitle}" in Roadmap`,
+          keywords: `roadmap schedule focus ${safeTitle}`,
+          run: () => {
+            navigate(href);
+          },
+        });
+      }
+    }
+    for (const laneId of ORCHESTRATION_LANE_IDS_ORDERED) {
+      out.push({
+        id: `filter-lane-${laneId}`,
+        label: PLAN_WORKSPACE_UI_COPY.commandPaletteToggleLaneFilter.replace(
+          '{lane}',
+          ORCHESTRATION_LANE_LABELS[laneId],
+        ),
+        keywords: `filter lane table board ${laneId}`,
+        run: () => {
+          navigate(
+            mergeLaneFilterToggleIntoLocationSearch({
+              pathname: location.pathname,
+              currentSearch: location.search,
+              laneId,
+            }),
+          );
+        },
+      });
+    }
+    return out;
+  }, [
+    auditId,
+    boardQuery.data,
+    boardQuery.isPending,
+    isClient,
+    location.pathname,
+    location.search,
+    navigate,
+    tablePaletteOperational,
+    unifiedShellTabActive,
+  ]);
+
+  usePlanCommandRegistration('plan-table-surface', planTablePaletteCommands);
+
   const title = PLAN_WORKSPACE_UI_COPY.tableShellTitle;
   const subtitle = PLAN_WORKSPACE_UI_COPY.tableShellSubtitle;
 
@@ -187,11 +295,37 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
     <PortalPlanSurfaceChrome branch="table" tabActive={unifiedShellTabActive} title={title} subtitle={subtitle}>
       <PortalPlanLayout auditId={auditId} isClient={isClient} audit={audit} activePlanView="table">
         <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 md:px-6" data-testid="plan-table-surface-root">
+          {showConsultantPlanTools && laneFilterKeys.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2" role="status" aria-live="polite">
+              <span className="text-muted-foreground text-xs">
+                {PLAN_WORKSPACE_UI_COPY.laneFilterChipPrefix}{' '}
+                {laneFilterKeys
+                  .map(k => ORCHESTRATION_LANE_LABELS[k as OrchestrationLaneId] ?? k)
+                  .join(', ')}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  navigate(
+                    mergeClearLaneFilterIntoLocationSearch({
+                      pathname: location.pathname,
+                      currentSearch: location.search,
+                    }),
+                  )
+                }
+              >
+                {PLAN_WORKSPACE_UI_COPY.laneFilterChipClear}
+              </Button>
+            </div>
+          ) : null}
           {boardQuery.isPending || !boardQuery.data ?
             <p className="text-muted-foreground text-sm">{PLAN_WORKSPACE_UI_COPY.loadingHeadline}</p>
-          : groupedRows.length === 0 ?
+          : filteredGroupedRows.length === 0 ?
             <p className="text-muted-foreground text-sm">{PLAN_WORKSPACE_UI_COPY.tablePlaceholderBody}</p>
-          : groupedRows.map(group => (
+          : filteredGroupedRows.map(group => (
               <section key={`${group.laneKey}-${group.columnId}`} className="space-y-2" aria-labelledby={`plan-table-${group.laneKey}-${group.columnId}`}>
                 <h3 id={`plan-table-${group.laneKey}-${group.columnId}`} className="text-foreground text-sm font-semibold">
                   {group.laneLabel} · {group.columnLabel}
@@ -211,10 +345,9 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
                           key={card.id}
                           card={card}
                           canMutateCard={canMutateCard}
-                          laneInlineEnabled={laneInlineEnabled}
                           laneSelectOptions={laneSelectOptions}
                           onCommitTitle={title => commitCardTitleInline(card.id, title)}
-                          onCommitLane={lane => commitCardLaneInline(card.id, lane)}
+                          onCommitLane={(lane, hint) => commitCardLaneInline(card.id, lane, hint)}
                           isFocusTarget={cardFocusMatch(card, focusToken)}
                         />
                       ))}
@@ -232,10 +365,9 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
 function PlanTableRow(props: {
   card: PlanBoardCardDto;
   canMutateCard: boolean;
-  laneInlineEnabled: boolean;
   laneSelectOptions: readonly InlineLaneOption[];
   onCommitTitle: (title: string) => Promise<void>;
-  onCommitLane: (lane: string) => Promise<void>;
+  onCommitLane: (lane: string, ownerHint?: string) => Promise<void>;
   isFocusTarget: boolean;
 }) {
   const trRef = useRef<HTMLTableRowElement | null>(null);
@@ -266,12 +398,12 @@ function PlanTableRow(props: {
       </td>
       <td className="px-3 py-2 align-top text-muted-foreground">
         {props.card.lane ?
-          props.canMutateCard && props.laneInlineEnabled ?
+          props.canMutateCard ?
             <InlineEditableLanePicker
               value={props.card.lane}
               options={props.laneSelectOptions}
               ariaLabel={PLAN_BOARD_COPY.inlineLaneAriaLabel}
-              onCommit={props.onCommitLane}
+              onCommit={lane => props.onCommitLane(lane)}
             />
           : <span>{laneDisplayLabel(props.card.lane)}</span>
         : <span className="text-muted-foreground">—</span>}

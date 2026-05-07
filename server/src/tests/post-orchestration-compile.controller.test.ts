@@ -23,6 +23,10 @@ const flowMocks = vi.hoisted(() => ({
 }));
 
 const sendApiErrorMock = vi.hoisted(() => vi.fn());
+const notificationMocks = vi.hoisted(() => ({
+  emitStructuredNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
 const idempotencyMocks = vi.hoisted(() => ({
   getStoredIdempotentResponse: vi.fn(),
   storeIdempotentResponse: vi.fn(),
@@ -73,6 +77,10 @@ vi.mock('../lib/idempotency.js', () => ({
   getStoredIdempotentResponse: idempotencyMocks.getStoredIdempotentResponse,
   storeIdempotentResponse: idempotencyMocks.storeIdempotentResponse,
   isIdempotencyPayloadConflictError: idempotencyMocks.isIdempotencyPayloadConflictError,
+}));
+
+vi.mock('../services/notifications.js', () => ({
+  emitStructuredNotification: notificationMocks.emitStructuredNotification,
 }));
 
 import { API_ERROR_CODES } from '../config/api-error-codes.js';
@@ -166,6 +174,36 @@ describe('postOrchestrationCompileController', () => {
       auditId: 'audit-1',
       snapshotId: 'snap-1',
     });
+    expect(sendApiErrorMock).toHaveBeenCalled();
+  });
+
+  it('emits structured notification when rollback delete fails after pack flow fails', async () => {
+    flowMocks.runOrchestrationPackPersistFlowFromManifest.mockResolvedValue({
+      ok: false,
+      kind: 'not_ready',
+      reason_code: 'missing_timeline',
+    });
+    manifestMocks.deleteRoadmapManifestSnapshotById.mockResolvedValue({
+      error: { message: 'delete failed', code: '23503' },
+    });
+
+    const req = {
+      params: { id: 'audit-1' },
+      userId: 'user-1',
+      body: validBody,
+    } as unknown as import('../middleware/auth.js').AuthRequest;
+    const res = createRes();
+
+    await postOrchestrationCompileController(req, res);
+
+    expect(notificationMocks.emitStructuredNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'system',
+        event: 'orchestration_compile_snapshot_rollback_delete_failed',
+        auditId: 'audit-1',
+        payload: expect.objectContaining({ snapshot_id: 'snap-1', audit_id: 'audit-1' }),
+      }),
+    );
     expect(sendApiErrorMock).toHaveBeenCalled();
   });
 

@@ -18,6 +18,8 @@ import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards'
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import { StrategyPlanningChrome } from './StrategyPlanningChrome';
+import { api } from '../../data/apiService';
+import { toast } from 'sonner';
 import { StrategyLabInspectPackScrollBody } from './strategy-lab-inspect-pack-scroll-body';
 import { useStrategyJourneyStepStatuses } from '../../hooks/useStrategyJourneyStepStatuses';
 import type { StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
@@ -120,6 +122,21 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     },
     [id, queryClient],
   );
+
+  const handleTogglePreserveBoardIdentity = useCallback(async () => {
+    if (!id || !audit?.strategy) return;
+    const next = !(audit.strategy.strategy_lab_context?.preserve_board_identity_on_rename === true);
+    try {
+      const res = await api.patchStrategyLabContext(id, {
+        preserve_board_identity_on_rename: next ? true : null,
+      });
+      mergeStrategyLabContextInAuditCache(res.strategy_lab_context);
+      toast.success(STRATEGY_LAB_COPY.boardIdentity.saveOk);
+      void reload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.boardIdentity.saveFailed);
+    }
+  }, [audit?.strategy, id, mergeStrategyLabContextInAuditCache, reload]);
 
   const selectedPackNodeId = searchParams.get('node');
 
@@ -290,6 +307,9 @@ export function StrategyLab(props: StrategyLabProps = {}) {
       openInitiativeEditor={openInitiativeEditor}
       planExecutionHref={planExecutionHref}
       reportHref={reportHref}
+      auditId={id}
+      preserveBoardIdentityOnRename={audit.strategy.strategy_lab_context?.preserve_board_identity_on_rename === true}
+      onTogglePreserveBoardIdentity={() => void handleTogglePreserveBoardIdentity()}
     />
   );
 

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
+import { usePlanCommandSurfaceCommands } from '../context/PlanCommandRegistryContext';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { PLAN_WORKSPACE_COMPILE_REQUEST_EVENT } from '../config/plan-workspace-mode';
 import type { PortalPlanViewParam } from '../config/portal-plan';
@@ -19,9 +20,9 @@ export type PlanWorkspacePaletteCommand = {
 };
 
 /**
- * Cmd/Ctrl+K command list for canonical Plan workspace routes (`/plan`, `/portal/plan`).
+ * Built-in Cmd/Ctrl+K commands (modes, views, compile) for canonical Plan workspace routes.
  */
-export function usePlanWorkspacePaletteCommands(): PlanWorkspacePaletteCommand[] {
+function usePlanWorkspaceBasePaletteCommands(): PlanWorkspacePaletteCommand[] {
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const { id: auditId } = useParams<{ id: string }>();
@@ -68,4 +69,13 @@ export function usePlanWorkspacePaletteCommands(): PlanWorkspacePaletteCommand[]
       },
     ];
   }, [auditId, navigate, pathname, search]);
+}
+
+/**
+ * Cmd/Ctrl+K command list: built-in modes/views/compile plus surface-registered commands (Board, Table, Shape).
+ */
+export function usePlanWorkspacePaletteCommands(): PlanWorkspacePaletteCommand[] {
+  const base = usePlanWorkspaceBasePaletteCommands();
+  const surface = usePlanCommandSurfaceCommands();
+  return useMemo(() => [...base, ...surface], [base, surface]);
 }

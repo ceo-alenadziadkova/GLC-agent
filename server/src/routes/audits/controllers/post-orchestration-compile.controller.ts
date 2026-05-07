@@ -24,7 +24,12 @@ import {
   storeIdempotentResponse,
 } from '../../../lib/idempotency.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
+import {
+  formatOrchestrationCompileSnapshotRollbackDeleteFailedMessageEn,
+  operationsAlertTitlesEn,
+} from '../../../config/operations-alerts-copy.en.js';
 import { logger } from '../../../services/logger.js';
+import { emitStructuredNotification } from '../../../services/notifications.js';
 import { RoadmapManifestPayloadSchema } from '../../../schemas/roadmap-manifest.js';
 import {
   clearManifestDraftRevisionsForAudit,
@@ -196,6 +201,30 @@ export async function postOrchestrationCompileController(req: AuthRequest, res: 
           auditId,
           snapshot_id: manifestSnapshotId,
           error: delErr.message,
+          code: delErr.code,
+          metric: 'orchestration_compile.snapshot_rollback_delete_failed',
+        });
+        await emitStructuredNotification({
+          category: 'system',
+          event: 'orchestration_compile_snapshot_rollback_delete_failed',
+          priority: 'critical',
+          audience: 'consultants',
+          title: operationsAlertTitlesEn.orchestrationCompileSnapshotRollbackDeleteFailed,
+          message: formatOrchestrationCompileSnapshotRollbackDeleteFailedMessageEn({
+            auditId,
+            snapshotId: manifestSnapshotId,
+            error: delErr.message,
+          }),
+          auditId,
+          payload: { audit_id: auditId, snapshot_id: manifestSnapshotId, code: delErr.code },
+          sendInApp: true,
+          sendTelegram: true,
+        }).catch((notifyErr) => {
+          logger.error('route.orchestration_compile_snapshot_rollback_alert_emit_failed', {
+            auditId,
+            snapshot_id: manifestSnapshotId,
+            error: (notifyErr as Error).message,
+          });
         });
       }
 

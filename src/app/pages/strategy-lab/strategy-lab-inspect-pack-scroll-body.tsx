@@ -1,11 +1,20 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router';
-import { Path, SlidersHorizontal } from '@phosphor-icons/react';
+import { Path, SlidersHorizontal, DotsThreeOutlineVerticalIcon } from '@phosphor-icons/react';
 
 import type { KeyboardEvent, RefCallback } from 'react';
 
 import type { StrategyInitiativeBucket } from '../../config/strategy-lab';
 import { StrategyLabOrchestratorListBody, type StrategyLabOrchestratorTabId } from './StrategyLabOrchestratorListBody';
 import { Button } from '../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
+import { InlineEditableText } from '../../components/glc/InlineEditableText';
+import { useInitiativeTitleMutation } from '../../hooks/useInitiativeTitleMutation';
 import {
   Accordion,
   AccordionContent,
@@ -19,12 +28,14 @@ import {
 } from '../../config/strategy-lab-constraints';
 import { STRATEGY_LAB_PAGE_ANCHORS } from '../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { usePlanCommandRegistration } from '../../context/PlanCommandRegistryContext';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../../data/api/benchmarks';
 import type { StrategyInitiative, StrategyRoadmap } from '../../data/audit/contracts/report/report-domain.types';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { cn } from '../../components/ui/utils';
+import type { PlanWorkspacePaletteCommand } from '../../lib/plan-command-registry';
 
 export type StrategyLabInspectPackScrollBodyProps = {
   isClient: boolean;
@@ -57,6 +68,10 @@ export type StrategyLabInspectPackScrollBodyProps = {
   openInitiativeEditor: (bucket: StrategyInitiativeBucket, initiative: StrategyInitiative) => void;
   planExecutionHref: string;
   reportHref: string;
+  /** Required for consultant inline initiative title edits (Shape surface). */
+  auditId?: string;
+  preserveBoardIdentityOnRename?: boolean;
+  onTogglePreserveBoardIdentity?: () => void;
 };
 
 /** Main scroll column: define context (consultant reference) + shape-pack workbench / client shortcuts. */
@@ -92,7 +107,34 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
     openInitiativeEditor,
     planExecutionHref,
     reportHref,
+    auditId,
+    preserveBoardIdentityOnRename = false,
+    onTogglePreserveBoardIdentity,
   } = props;
+
+  const initiativeTitleMutation = useInitiativeTitleMutation({ auditId });
+
+  const shapePaletteCommands = useMemo((): PlanWorkspacePaletteCommand[] => {
+    if (!auditId || isClient || !glcPackView) return [];
+    const buckets = ['quick_wins', 'medium_term', 'strategic'] as const;
+    const out: PlanWorkspacePaletteCommand[] = [];
+    for (const bucket of buckets) {
+      for (const init of strategy[bucket] ?? []) {
+        const safeTitle = (init.title ?? init.id).replace(/"/g, "'");
+        out.push({
+          id: `shape-edit-initiative-${bucket}-${init.id}`,
+          label: `Edit "${safeTitle}"`,
+          keywords: `initiative edit shape ${bucket}`,
+          run: () => {
+            openInitiativeEditor(bucket, init);
+          },
+        });
+      }
+    }
+    return out;
+  }, [auditId, glcPackView, isClient, openInitiativeEditor, strategy]);
+
+  usePlanCommandRegistration('plan-shape-initiatives', shapePaletteCommands);
 
   return (
     <>
@@ -331,12 +373,66 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
                     {(strategy[bucket] ?? []).map(init => (
                       <li
                         key={init.id}
-                        className="bg-card flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                        className="bg-card flex flex-wrap items-center gap-2 rounded-lg border border-border px-3 py-2"
                       >
-                        <span className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug">{init.title}</span>
-                        <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => openInitiativeEditor(bucket, init)}>
-                          {STRATEGY_LAB_COPY.boardIdentity.editButton}
-                        </Button>
+                        <div className="flex min-w-0 flex-1 items-start gap-2">
+                          {auditId && !isClient ? (
+                            <InlineEditableText
+                              value={init.title}
+                              ariaLabel={STRATEGY_LAB_COPY.boardIdentity.initiativeRowInlineTitleAria}
+                              onCommit={async next => {
+                                await initiativeTitleMutation.mutateAsync({
+                                  bucket,
+                                  initiative: init,
+                                  title: next,
+                                });
+                              }}
+                              disabled={initiativeTitleMutation.isPending}
+                              minLength={2}
+                              maxLength={200}
+                              className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug"
+                            />
+                          ) : (
+                            <span className="text-foreground min-w-0 flex-1 text-sm font-medium leading-snug">{init.title}</span>
+                          )}
+                          {!isClient ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-border h-8 shrink-0 px-2"
+                                  aria-label={STRATEGY_LAB_COPY.boardIdentity.initiativeRowMenuAria}
+                                >
+                                  <DotsThreeOutlineVerticalIcon size={16} aria-hidden />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" collisionPadding={8}>
+                                <DropdownMenuItem
+                                  className="cursor-pointer"
+                                  onSelect={() => {
+                                    openInitiativeEditor(bucket, init);
+                                  }}
+                                >
+                                  {STRATEGY_LAB_COPY.boardIdentity.initiativeRowMenuEditDetails}
+                                </DropdownMenuItem>
+                                {onTogglePreserveBoardIdentity ? (
+                                  <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onSelect={() => {
+                                      onTogglePreserveBoardIdentity();
+                                    }}
+                                  >
+                                    {preserveBoardIdentityOnRename
+                                      ? STRATEGY_LAB_COPY.boardIdentity.initiativeRowMenuPreserveIdentityDisable
+                                      : STRATEGY_LAB_COPY.boardIdentity.initiativeRowMenuPreserveIdentityEnable}
+                                  </DropdownMenuItem>
+                                ) : null}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                   </ul>

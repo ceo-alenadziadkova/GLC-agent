@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../../../config/plan-board-copy.en';
 import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
-import { PlanBoardOperationalCard } from '../BoardView';
+import { PlanBoardOperationalCard } from '../PlanBoardOperationalCard';
 
 const DEFAULT_MOVE_MENU = PLAN_BOARD_UI_COLUMNS.map((id) => ({
   id,
@@ -53,10 +53,8 @@ describe('PlanBoardOperationalCard', () => {
     expect(await screen.findByText(PLAN_BOARD_COPY.menuMoveHeading)).toBeInTheDocument();
   });
 
-  it('shows edit and delete actions for mutable card', async () => {
+  it('shows delete action and optional manifest owner-hint menu for mutable card', async () => {
     const user = userEvent.setup();
-    const onEditTitle = vi.fn().mockResolvedValue(undefined);
-    const onEditLane = vi.fn().mockResolvedValue(undefined);
     const onDeleteCard = vi.fn().mockResolvedValue(undefined);
 
     renderWithDnd(
@@ -68,21 +66,20 @@ describe('PlanBoardOperationalCard', () => {
         moveMenuColumns={DEFAULT_MOVE_MENU}
         onMoveViaMenu={async () => {}}
         canMutateCard
-        onEditTitle={onEditTitle}
-        onEditLane={onEditLane}
+        onCommitTitleInline={async () => {}}
+        onCommitLaneInline={async () => {}}
+        laneSelectOptions={[{ value: 'marketing_narrative', label: 'Marketing' }]}
+        manifestDraftLaneHintsEnabled
         onDeleteCard={onDeleteCard}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: PLAN_BOARD_COPY.cardMenuAriaLabel }));
-    expect(await screen.findByText('Edit title')).toBeInTheDocument();
-    expect(screen.getByText('Edit lane')).toBeInTheDocument();
-    expect(screen.getByText('Delete card')).toBeInTheDocument();
-    await user.click(screen.getByText('Edit title'));
+    expect(await screen.findByText(PLAN_BOARD_COPY.menuRevisionOwnerHint)).toBeInTheDocument();
+    expect(screen.getByText(PLAN_BOARD_COPY.menuDeleteCardLabel)).toBeInTheDocument();
+    await user.click(screen.getByText(PLAN_BOARD_COPY.menuDeleteCardLabel));
 
-    expect(onEditTitle).toHaveBeenCalledTimes(1);
-    expect(onEditLane).toHaveBeenCalledTimes(0);
-    expect(onDeleteCard).toHaveBeenCalledTimes(0);
+    expect(onDeleteCard).toHaveBeenCalledTimes(1);
   });
 
   it('shows manual backlog alignment banner past next_up', () => {

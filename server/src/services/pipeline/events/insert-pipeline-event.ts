@@ -13,14 +13,23 @@ export type InsertPipelineEventParams = {
    */
   mergeObservabilityContext?: boolean;
   /**
-   * When false, log insert failure but do not throw (e.g. secondary telemetry while handling another error).
+   * When `false`: log failure via `logger.error` (`pipeline.pipeline_events_insert_failed`) but **do not throw**.
+   * Intended only for **best-effort secondary telemetry** on paths that already surfaced or will surface a primary
+   * error to the user (so a lost event row cannot mask the originating failure).
+   *
+   * **Current call-sites with `rethrowOnError: false`:**
+   * - `services/orchestration/orchestration-pack-synthesis-claude.ts`
+   * - `services/orchestration/orchestration-synthesis.service.ts`
+   * - `services/strategy/strategy-execution-pack-claude.ts`
+   *
+   * Do not use for primary pipeline lifecycle writes; prefer `true` (default) so inserts fail loudly.
    */
   rethrowOnError?: boolean;
 };
 
 /**
- * Single insert into `pipeline_events` with mandatory error handling.
- * Supabase resolves even on PostgREST failures — callers must not ignore `error`.
+ * Single insert into `pipeline_events` with mandatory error handling by default.
+ * Supabase resolves even on PostgREST failures — callers must not omit `error` handling when customizing behavior.
  */
 export async function insertPipelineEventRow(params: InsertPipelineEventParams): Promise<void> {
   const {

@@ -18,6 +18,7 @@ import { PortalPlanLayout } from './PortalPlanLayout';
 import { PortalPlanOrchestrationProvider, usePortalPlanOrchestration } from './PortalPlanOrchestrationProvider';
 import { PortalPlanUnifiedShellCoordinator } from './PortalPlanUnifiedShell';
 import type { PlanSurfaceBranch } from './PortalPlanUnifiedShell';
+import { PlanCommandRegistryProvider } from '../../context/PlanCommandRegistryContext';
 import { PlanAdvancedDrawerProvider } from '../../context/PlanAdvancedDrawerContext';
 import { PlanAdvancedDrawerShell } from '../strategy-lab/PlanAdvancedDrawer';
 import { PlanDefineSurface } from './surfaces/PlanDefineSurface';
@@ -121,16 +122,20 @@ export function PortalPlanPage() {
 
   if (mode === 'define' || mode === 'shape') {
     return (
-      <PortalPlanOrchestrationProvider auditId={id} includeTimeline>
-        <PortalPlanStudioPage auditId={id} mode={mode} />
-      </PortalPlanOrchestrationProvider>
+      <PlanCommandRegistryProvider>
+        <PortalPlanOrchestrationProvider auditId={id} includeTimeline>
+          <PlanCommandPalette />
+          <PortalPlanStudioPage auditId={id} mode={mode} />
+        </PortalPlanOrchestrationProvider>
+      </PlanCommandRegistryProvider>
     );
   }
 
   return (
-    <PortalPlanOrchestrationProvider auditId={id} includeTimeline={orchestrationIncludeTimeline}>
-      <PlanCommandPalette />
-      <PortalPlanUnifiedShellCoordinator activeView={view}>
+    <PlanCommandRegistryProvider>
+      <PortalPlanOrchestrationProvider auditId={id} includeTimeline={orchestrationIncludeTimeline}>
+        <PlanCommandPalette />
+        <PortalPlanUnifiedShellCoordinator activeView={view}>
         {mountedBoard ? (
           <div
             hidden={!boardActive}
@@ -162,7 +167,8 @@ export function PortalPlanPage() {
             </Suspense>
           </div>
         ) : null}
-      </PortalPlanUnifiedShellCoordinator>
-    </PortalPlanOrchestrationProvider>
+        </PortalPlanUnifiedShellCoordinator>
+      </PortalPlanOrchestrationProvider>
+    </PlanCommandRegistryProvider>
   );
 }

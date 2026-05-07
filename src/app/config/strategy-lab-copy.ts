@@ -105,6 +105,10 @@ export const STRATEGY_LAB_COPY = {
     title: 'Where you are',
     manifestDirty: 'Manifest has unsaved changes — save a snapshot before Build.',
     manifestSynced: 'Manifest matches the saved snapshot baseline.',
+    /** Short label for the status pill beside Compile (visible text). */
+    manifestDirtyChipLabel: 'Unsaved changes',
+    manifestSyncedChipLabel: 'Saved',
+    manifestCompilingChipLabel: 'Compiling…',
     packPresent: 'Execution pack saved (version {version}).',
     packMissing: 'No execution pack saved yet — save a manifest snapshot, then Build pack.',
     boardHintsQueued: 'Delivery Board hints are queued — save a manifest snapshot to sign them into the contract.',
@@ -295,6 +299,11 @@ export const STRATEGY_LAB_COPY = {
     bucketQuickWins: 'Quick wins',
     bucketMediumTerm: 'Medium-term initiatives',
     bucketStrategic: 'Strategic initiatives',
+    initiativeRowMenuEditDetails: 'Edit details & Board identity',
+    initiativeRowMenuPreserveIdentityEnable: 'Enable keep Board identity on rename (audit-wide)',
+    initiativeRowMenuPreserveIdentityDisable: 'Disable keep Board identity on rename (audit-wide)',
+    initiativeRowInlineTitleAria: 'Initiative title',
+    initiativeRowMenuAria: 'Initiative actions',
   },
 } as const;
 

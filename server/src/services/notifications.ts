@@ -1,3 +1,4 @@
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { formatStructuredTelegramMessage } from '../config/telegram-notification-format.en.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
@@ -45,6 +46,32 @@ export interface StructuredNotificationEvent {
   sendInApp?: boolean;
   sendTelegram?: boolean;
   occurredAt?: string;
+}
+
+/** Last emission time per dedup key; bounded naturally to keys active within the cooldown window. */
+const structuredNotificationDedupLastMs = new Map<string, number>();
+
+/** Vitest-only: clears in-memory structured-notification dedup state. */
+export function resetStructuredNotificationDedupForTests(): void {
+  structuredNotificationDedupLastMs.clear();
+}
+
+function buildStructuredNotificationDedupKey(event: StructuredNotificationEvent): string {
+  const audit = event.auditId ?? '';
+  if (event.audience === 'user') {
+    const uid = event.userId ?? '';
+    return `${event.category}:${event.event}:audience=user:user=${uid}:audit=${audit}`;
+  }
+  return `${event.category}:${event.event}:audit=${audit}`;
+}
+
+function acquireStructuredNotificationDedupSlot(key: string, nowMs: number, cooldownMs: number): boolean {
+  const prev = structuredNotificationDedupLastMs.get(key);
+  if (prev !== undefined && nowMs - prev < cooldownMs) {
+    return false;
+  }
+  structuredNotificationDedupLastMs.set(key, nowMs);
+  return true;
 }
 
 interface NotifyInput {
@@ -181,6 +208,23 @@ export async function notifyConsultants(
 }
 
 export async function emitStructuredNotification(event: StructuredNotificationEvent): Promise<void> {
+  const cooldownMs = SYSTEM_DEFAULTS.notifications.structuredNotificationDedupCooldownMs;
+  const dedupKey = buildStructuredNotificationDedupKey(event);
+  const nowMs = Date.now();
+  if (!acquireStructuredNotificationDedupSlot(dedupKey, nowMs, cooldownMs)) {
+    logger.info('notifications.structured_notification_deduped', {
+      component: 'notifications',
+      category: event.category,
+      notification_event: event.event,
+      audience: event.audience,
+      audit_id: event.auditId ?? null,
+      user_id: event.userId ?? null,
+      dedup_key: dedupKey,
+      cooldown_ms: cooldownMs,
+    });
+    return;
+  }
+
   const occurredAt = event.occurredAt ?? new Date().toISOString();
   const payload: NotificationPayload = {
     ...event.payload,

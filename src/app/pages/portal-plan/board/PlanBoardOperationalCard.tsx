@@ -1,7 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { DotsSixVerticalIcon, DotsThreeOutlineVerticalIcon } from '@phosphor-icons/react';
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 
 import { Button } from '../../../components/ui/button';
@@ -15,6 +15,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
@@ -36,18 +38,21 @@ export function PlanBoardOperationalCard(props: {
   priorityReasonLabel?: string | null;
   analysisDepth?: 'baseline' | 'deep' | null;
   canMutateCard?: boolean;
-  onEditTitle?: () => Promise<void>;
-  onEditLane?: () => Promise<void>;
   onDeleteCard?: () => Promise<void>;
   manifestDraftRevisionPending?: boolean;
-  /** When set with `canMutateCard`, title uses inline commit instead of opening the dialog by default. */
+  /** When set with `canMutateCard`, title uses inline commit. */
   onCommitTitleInline?: (title: string) => Promise<void>;
-  /** When set with `laneInlineEnabled`, lane uses compact picker instead of the simple lane dialog. */
-  onCommitLaneInline?: (lane: string) => Promise<void>;
+  /**
+   * Lane change: second arg is optional owner hint for manifest-draft-from-board queue.
+   */
+  onCommitLaneInline?: (lane: string, ownerHint?: string) => Promise<void>;
   laneSelectOptions?: readonly InlineLaneOption[];
-  laneInlineEnabled?: boolean;
+  /** When true, show menu + inline field to edit optional owner hint for manifest lane revisions. */
+  manifestDraftLaneHintsEnabled?: boolean;
 }) {
   const focusLiRef = useRef<HTMLLIElement | null>(null);
+  const [ownerHintExpanded, setOwnerHintExpanded] = useState(false);
+  const [ownerHintDraft, setOwnerHintDraft] = useState('');
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: props.card.id,
@@ -81,6 +86,13 @@ export function PlanBoardOperationalCard(props: {
   }, [props.isFocusTarget]);
 
   const roadmapLink = props.openOnRoadmapHref != null && props.openOnRoadmapHref !== '' ? props.openOnRoadmapHref : null;
+
+  const laneCommit = async (lane: string) => {
+    await props.onCommitLaneInline?.(lane, ownerHintDraft.trim() !== '' ? ownerHintDraft.trim() : undefined);
+  };
+
+  const showLaneInline =
+    Boolean(props.canMutateCard && props.onCommitLaneInline && props.laneSelectOptions?.length && props.card.lane);
 
   return (
     <li
@@ -128,17 +140,42 @@ export function PlanBoardOperationalCard(props: {
           {props.card.lane ? (
             <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
               <span>{PLAN_BOARD_COPY.laneLabelPrefix}:</span>
-              {props.canMutateCard && props.laneInlineEnabled && props.onCommitLaneInline && props.laneSelectOptions?.length ? (
+              {showLaneInline ? (
                 <InlineEditableLanePicker
                   value={props.card.lane}
-                  options={props.laneSelectOptions}
+                  options={props.laneSelectOptions!}
                   ariaLabel={PLAN_BOARD_COPY.inlineLaneAriaLabel}
-                  onCommit={props.onCommitLaneInline}
+                  onCommit={laneCommit}
                   disabled={props.dragLocked}
                 />
               ) : (
                 <span>{laneDisplayLabel(props.card.lane)}</span>
               )}
+            </div>
+          ) : null}
+
+          {props.manifestDraftLaneHintsEnabled && props.canMutateCard && ownerHintExpanded ? (
+            <div className="border-border bg-background space-y-2 rounded-md border p-2">
+              <p className="text-foreground text-xs font-medium">{PLAN_BOARD_COPY.ownerHintInlineTitle}</p>
+              <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-snug">
+                {PLAN_BOARD_COPY.ownerHintInlineDescription}
+              </p>
+              <div className="space-y-1">
+                <Label htmlFor={`plan-board-owner-hint-${props.card.id}`} className="text-muted-foreground text-xs">
+                  {PLAN_BOARD_COPY.manifestDraftOwnerHintLabel}
+                </Label>
+                <Input
+                  id={`plan-board-owner-hint-${props.card.id}`}
+                  value={ownerHintDraft}
+                  onChange={e => setOwnerHintDraft(e.target.value)}
+                  maxLength={200}
+                  autoComplete="off"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setOwnerHintExpanded(false)}>
+                {PLAN_BOARD_COPY.ownerHintInlineDone}
+              </Button>
             </div>
           ) : null}
 
@@ -229,26 +266,15 @@ export function PlanBoardOperationalCard(props: {
                   <Link to={roadmapLink}>{PLAN_BOARD_COPY.openOnRoadmapMenuLabel}</Link>
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem
-                disabled={!props.canMutateCard}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  void props.onEditTitle?.();
-                }}
-              >
-                {props.onCommitTitleInline ? PLAN_BOARD_COPY.menuEditTitleDialogLabel : PLAN_BOARD_COPY.menuEditTitleLabel}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!props.canMutateCard}
-                onSelect={(e) => {
-                  e.preventDefault();
-                  void props.onEditLane?.();
-                }}
-              >
-                {props.laneInlineEnabled && props.onCommitLaneInline
-                  ? PLAN_BOARD_COPY.menuEditLaneDialogLabel
-                  : PLAN_BOARD_COPY.menuEditLaneLabel}
-              </DropdownMenuItem>
+              {props.manifestDraftLaneHintsEnabled && props.canMutateCard ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setTimeout(() => setOwnerHintExpanded(true), 0);
+                  }}
+                >
+                  {PLAN_BOARD_COPY.menuRevisionOwnerHint}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 disabled={!props.canMutateCard}
                 onSelect={(e) => {

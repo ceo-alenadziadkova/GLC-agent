@@ -8,6 +8,51 @@ import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/or
 /** Shared deep-link parameter across Plan surfaces (Board / Roadmap / Table). */
 export const PORTAL_PLAN_FOCUS_QUERY_KEY = 'focus' as const;
 
+/** Comma-separated orchestration lane ids (`seo_digital,marketing_narrative`) for Board / Table filtering. */
+export const PORTAL_PLAN_LANE_QUERY_KEY = 'lane' as const;
+
+/**
+ * Parses `?lane=` as a comma-separated list of lane ids (trimmed, de-duplicated).
+ */
+export function readPlanLaneFilterKeys(search: string): readonly string[] {
+  const sp = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  const raw = sp.get(PORTAL_PLAN_LANE_QUERY_KEY);
+  if (raw == null || raw.trim() === '') return [];
+  const set = new Set<string>();
+  for (const part of raw.split(',')) {
+    const t = part.trim();
+    if (t !== '') set.add(t);
+  }
+  return [...set];
+}
+
+/**
+ * Toggles a lane id in `?lane=` (comma-separated) and returns the next pathname + query for `navigate`.
+ */
+export function mergeLaneFilterToggleIntoLocationSearch(args: {
+  pathname: string;
+  currentSearch: string;
+  laneId: string;
+}): string {
+  const sp = new URLSearchParams(args.currentSearch.startsWith('?') ? args.currentSearch.slice(1) : args.currentSearch);
+  const set = new Set(readPlanLaneFilterKeys(args.currentSearch));
+  if (set.has(args.laneId)) set.delete(args.laneId);
+  else set.add(args.laneId);
+  const arr = [...set].sort();
+  if (arr.length === 0) sp.delete(PORTAL_PLAN_LANE_QUERY_KEY);
+  else sp.set(PORTAL_PLAN_LANE_QUERY_KEY, arr.join(','));
+  const qs = sp.toString();
+  return qs ? `${args.pathname}?${qs}` : args.pathname;
+}
+
+/** Removes `?lane=` while preserving other query pairs. */
+export function mergeClearLaneFilterIntoLocationSearch(args: { pathname: string; currentSearch: string }): string {
+  const sp = new URLSearchParams(args.currentSearch.startsWith('?') ? args.currentSearch.slice(1) : args.currentSearch);
+  sp.delete(PORTAL_PLAN_LANE_QUERY_KEY);
+  const qs = sp.toString();
+  return qs ? `${args.pathname}?${qs}` : args.pathname;
+}
+
 /**
  * Absolute plan surface href with canonical `view` and optional `focus` (canonical node key / pack node id).
  * Preserves symmetry with roadmap → board linking in unified Plan shells.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import {
   DndContext,
   DragOverlay,
@@ -23,23 +23,6 @@ import {
   AlertDialogTitle,
 } from '../../../components/ui/alert-dialog';
 import { Button } from '../../../components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../components/ui/select';
 import type { AuditTimelineDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
 import { auditsOrchestrationApi } from '../../../data/api/audits-orchestration';
 import {
@@ -62,10 +45,18 @@ import {
   ORCHESTRATION_UI_COPY,
 } from '../../../config/orchestration-roadmap-ui-copy.en';
 import type { OrchestrationLaneId } from '../../../config/orchestration-roadmap-ui-copy.en';
+import { usePlanCommandRegistration } from '../../../context/PlanCommandRegistryContext';
 import { useProfile } from '../../../hooks/useProfile';
 import { usePlanFocusCanonicalToken } from '../../../hooks/usePlanFocusKey';
 import { useQueryClient } from '../../../lib/tanstack-react-query';
-import { buildPlanSurfaceHrefWithFocus, buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
+import {
+  buildPlanSurfaceHrefWithFocus,
+  buildPlanWorkspaceHref,
+  mergeClearLaneFilterIntoLocationSearch,
+  mergeLaneFilterToggleIntoLocationSearch,
+  readPlanLaneFilterKeys,
+} from '../../../lib/plan-cross-nav';
+import type { PlanWorkspacePaletteCommand } from '../../../lib/plan-command-registry';
 import { invalidatePlanBoardQueriesAfterConflict } from '../../../lib/plan-board-query-invalidation';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
 import {
@@ -132,6 +123,9 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     includeTimelineFetch,
   } = usePortalPlanOrchestration();
   const { isClient } = useProfile();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const laneFilterKeys = useMemo(() => readPlanLaneFilterKeys(location.search), [location.search]);
 
   const qc = useQueryClient();
   const showConsultantPlanTools = !isClient;
@@ -206,7 +200,8 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     () => ORCHESTRATION_LANE_IDS_ORDERED.map(laneId => ({ value: laneId, label: ORCHESTRATION_LANE_LABELS[laneId] })),
     [],
   );
-  const laneInlineEnabled = !(APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools);
+  const manifestDraftLaneHintsEnabled =
+    APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools;
 
   const commitCardTitleInline = useCallback(
     async (cardId: string, title: string) => {
@@ -224,8 +219,22 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   );
 
   const commitCardLaneInline = useCallback(
-    async (cardId: string, lane: string) => {
+    async (cardId: string, lane: string, ownerHint?: string) => {
+      const card = cardsById.get(cardId);
       try {
+        if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools) {
+          const ck = card?.canonical_node_key;
+          if (ck) {
+            await manifestDraftMutation.mutateAsync({
+              canonical_node_key: ck,
+              expected_pack_version: orchestrationPackVersion,
+              lane,
+              ...(ownerHint != null && ownerHint !== '' ? { owner_hint: ownerHint } : {}),
+            });
+            toast.success(ORCHESTRATION_UI_COPY.manifestDraftLaneQueuedToast);
+            return;
+          }
+        }
         await patchMutation.mutateAsync({
           cardId,
           body: { expected_pack_version: orchestrationPackVersion, lane },
@@ -235,7 +244,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
         throw err;
       }
     },
-    [auditId, orchestrationPackVersion, patchMutation, qc],
+    [auditId, cardsById, manifestDraftMutation, orchestrationPackVersion, patchMutation, qc, showConsultantPlanTools],
   );
 
   const dragLocked =
@@ -249,11 +258,6 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const orphanCount = boardQuery.data?.cards?.filter((c) => Boolean(c.orphaned_reason)).length ?? 0;
 
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-  const [laneEditCardId, setLaneEditCardId] = useState<string | null>(null);
-  const [laneEditSelectedLane, setLaneEditSelectedLane] = useState<OrchestrationLaneId>('marketing_narrative');
-  const [laneEditOwnerHint, setLaneEditOwnerHint] = useState('');
-  const [cardTitleDraft, setCardTitleDraft] = useState<{ cardId: string; title: string } | null>(null);
-  const [laneSimpleDraft, setLaneSimpleDraft] = useState<{ cardId: string; lane: OrchestrationLaneId } | null>(null);
   const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
 
@@ -275,111 +279,128 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const boardOperationalVisible =
     Boolean(boardQuery.data) && !boardQuery.data!.issues.some((i) => i.code === 'no_pack');
 
-  async function persistCardPlacement(prev: Record<string, string[]>, after: Record<string, string[]>, cardId: string) {
-    const prevColumn = findColumn(prev, cardId);
-    const nextColumn = findColumn(after, cardId);
-    if (!prevColumn || !nextColumn) return;
+  const persistCardPlacement = useCallback(
+    async (prev: Record<string, string[]>, after: Record<string, string[]>, cardId: string) => {
+      const prevColumn = findColumn(prev, cardId);
+      const nextColumn = findColumn(after, cardId);
+      if (!prevColumn || !nextColumn) return;
 
-    const body: {
-      expected_pack_version: number;
-      to_column?: string;
-      position?: number;
-    } = {
-      expected_pack_version: orchestrationPackVersion,
-      position: (after[nextColumn] ?? []).indexOf(cardId),
-    };
-    if (prevColumn !== nextColumn) body.to_column = nextColumn;
-
-    try {
-      await patchMutation.mutateAsync({
-        cardId,
-        body,
-      });
-    } catch (err) {
-      await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
-    }
-  }
-
-  async function moveCardViaMenu(targetCol: string, cardId: string) {
-    const prev = cloneBuckets(columnBuckets);
-    const draft = moveCardIntoColumn(prev, cardId, targetCol);
-    if (!draft) return;
-    setColumnBuckets(draft);
-    await persistCardPlacement(prev, draft, cardId);
-  }
-
-  function openTitleEdit(cardId: string): void {
-    const current = cardsById.get(cardId);
-    setCardTitleDraft({ cardId, title: (current?.title ?? '').trim() });
-  }
-
-  async function submitCardTitleDraft(): Promise<void> {
-    if (!cardTitleDraft) return;
-    const title = cardTitleDraft.title.trim();
-    if (title.length < 2) return;
-    try {
-      await patchMutation.mutateAsync({
-        cardId: cardTitleDraft.cardId,
-        body: { expected_pack_version: orchestrationPackVersion, title },
-      });
-      setCardTitleDraft(null);
-    } catch (err) {
-      await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
-    }
-  }
-
-  async function editCardLane(cardId: string) {
-    const current = cardsById.get(cardId);
-    if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools) {
-      const rawLane = current?.lane?.trim() ?? '';
-      const asLane =
-        rawLane !== '' && (ORCHESTRATION_LANE_IDS_ORDERED as readonly string[]).includes(rawLane)
-          ? (rawLane as OrchestrationLaneId)
-          : 'marketing_narrative';
-      setLaneEditSelectedLane(asLane);
-      setLaneEditOwnerHint('');
-      setLaneEditCardId(cardId);
-      return;
-    }
-    const rawLane = current?.lane?.trim() ?? '';
-    const asLane =
-      rawLane !== '' && (ORCHESTRATION_LANE_IDS_ORDERED as readonly string[]).includes(rawLane)
-        ? (rawLane as OrchestrationLaneId)
-        : 'marketing_narrative';
-    setLaneSimpleDraft({ cardId, lane: asLane });
-  }
-
-  async function submitLaneSimpleDraft(): Promise<void> {
-    if (!laneSimpleDraft) return;
-    try {
-      await patchMutation.mutateAsync({
-        cardId: laneSimpleDraft.cardId,
-        body: { expected_pack_version: orchestrationPackVersion, lane: laneSimpleDraft.lane },
-      });
-      setLaneSimpleDraft(null);
-    } catch (err) {
-      await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
-    }
-  }
-
-  async function submitManifestDraftLaneRevision() {
-    if (!laneEditCardId) return;
-    const card = cardsById.get(laneEditCardId);
-    const ck = card?.canonical_node_key;
-    if (!ck) return;
-    try {
-      await manifestDraftMutation.mutateAsync({
-        canonical_node_key: ck,
+      const body: {
+        expected_pack_version: number;
+        to_column?: string;
+        position?: number;
+      } = {
         expected_pack_version: orchestrationPackVersion,
-        lane: laneEditSelectedLane,
-        ...(laneEditOwnerHint.trim() !== '' ? { owner_hint: laneEditOwnerHint.trim() } : {}),
-      });
-      toast.success(ORCHESTRATION_UI_COPY.manifestDraftLaneQueuedToast);
-      setLaneEditCardId(null);
-    } catch (err) {
-      await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        position: (after[nextColumn] ?? []).indexOf(cardId),
+      };
+      if (prevColumn !== nextColumn) body.to_column = nextColumn;
+
+      try {
+        await patchMutation.mutateAsync({
+          cardId,
+          body,
+        });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+      }
+    },
+    [auditId, orchestrationPackVersion, patchMutation, qc],
+  );
+
+  const moveCardViaMenu = useCallback(
+    async (targetCol: string, cardId: string) => {
+      const prev = cloneBuckets(columnBuckets);
+      const draft = moveCardIntoColumn(prev, cardId, targetCol);
+      if (!draft) return;
+      setColumnBuckets(draft);
+      await persistCardPlacement(prev, draft, cardId);
+    },
+    [columnBuckets, persistCardPlacement],
+  );
+
+  const planBoardPaletteCommands = useMemo((): PlanWorkspacePaletteCommand[] => {
+    if (unifiedShellTabActive === false) return [];
+    if (!auditId || !boardOperationalVisible || boardQuery.isPending || !boardQuery.data) return [];
+    const cards = boardQuery.data.cards ?? [];
+    const out: PlanWorkspacePaletteCommand[] = [];
+    for (const card of cards) {
+      const safeTitle = (card.title ?? card.canonical_node_key ?? card.id).replace(/"/g, "'");
+      for (const col of operationalColumnDescriptors) {
+        if (col.id === card.column_id) continue;
+        out.push({
+          id: `move-card-${card.id}-${col.id}`,
+          label: `Move "${safeTitle}" to ${col.title}`,
+          keywords: `move card column delivery ${safeTitle} ${col.title}`,
+          run: () => {
+            void moveCardViaMenu(col.id, card.id);
+          },
+        });
+      }
+      const focusForRoadmap = card.canonical_node_key ?? card.pack_graph_node_id ?? null;
+      if (focusForRoadmap) {
+        const href = buildPlanSurfaceHrefWithFocus({
+          auditId,
+          isClient,
+          view: 'roadmap',
+          focusCanonicalKey: focusForRoadmap,
+        });
+        out.push({
+          id: `open-roadmap-${card.id}`,
+          label: `Open "${safeTitle}" in Roadmap`,
+          keywords: `roadmap schedule focus ${safeTitle}`,
+          run: () => {
+            navigate(href);
+          },
+        });
+      }
     }
-  }
+    out.push({
+      id: 'add-manual-card',
+      label: PLAN_WORKSPACE_UI_COPY.commandPaletteAddManualCard,
+      keywords: 'manual backlog card add create',
+      run: () => {
+        document.querySelector<HTMLElement>('[data-plan-manual-card-form]')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+        document.querySelector<HTMLInputElement>('[data-plan-manual-card-title]')?.focus();
+      },
+    });
+    for (const laneId of ORCHESTRATION_LANE_IDS_ORDERED) {
+      out.push({
+        id: `filter-lane-${laneId}`,
+        label: PLAN_WORKSPACE_UI_COPY.commandPaletteToggleLaneFilter.replace(
+          '{lane}',
+          ORCHESTRATION_LANE_LABELS[laneId],
+        ),
+        keywords: `filter lane table board ${laneId}`,
+        run: () => {
+          navigate(
+            mergeLaneFilterToggleIntoLocationSearch({
+              pathname: location.pathname,
+              currentSearch: location.search,
+              laneId,
+            }),
+          );
+        },
+      });
+    }
+    return out;
+  }, [
+    auditId,
+    boardOperationalVisible,
+    boardQuery.data,
+    boardQuery.isPending,
+    isClient,
+    location.pathname,
+    location.search,
+    moveCardViaMenu,
+    navigate,
+    operationalColumnDescriptors,
+    unifiedShellTabActive,
+  ]);
+
+  usePlanCommandRegistration('plan-board-operational', planBoardPaletteCommands);
 
   async function confirmDeleteCard(): Promise<void> {
     if (!deleteCardId) return;
@@ -509,6 +530,33 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
               <span className="sr-only" aria-live="polite">{`${PLAN_BOARD_COPY.draggingLiveMessage}: ${draggingCardId}`}</span>
             ) : null}
 
+            {boardOperationalVisible && showConsultantPlanTools && laneFilterKeys.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2" role="status" aria-live="polite">
+                <span className="text-muted-foreground text-xs">
+                  {PLAN_WORKSPACE_UI_COPY.laneFilterChipPrefix}{' '}
+                  {laneFilterKeys
+                    .map((k) => ORCHESTRATION_LANE_LABELS[k as OrchestrationLaneId] ?? k)
+                    .join(', ')}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() =>
+                    navigate(
+                      mergeClearLaneFilterIntoLocationSearch({
+                        pathname: location.pathname,
+                        currentSearch: location.search,
+                      }),
+                    )
+                  }
+                >
+                  {PLAN_WORKSPACE_UI_COPY.laneFilterChipClear}
+                </Button>
+              </div>
+            ) : null}
+
             {boardOperationalVisible ?
               <PlanBoardUnifiedPlanStatusBanner
                 strategyHref={strategyStudioHref}
@@ -555,7 +603,16 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                     {operationalColumnDescriptors.map((col) => {
                       const colId = col.id;
                       const heading = col.title;
-                      const ids = columnBuckets[colId] ?? [];
+                      const idsRaw = columnBuckets[colId] ?? [];
+                      const ids =
+                        laneFilterKeys.length === 0 ?
+                          idsRaw
+                        : idsRaw.filter((cid) => {
+                            const dto = cardsById.get(cid);
+                            if (!dto) return false;
+                            const lk = dto.lane?.trim() ?? '';
+                            return laneFilterKeys.includes(lk);
+                          });
                       const laneMixCaption = formatLaneDensityLine(ids, cardsById);
                       const backlog = isBacklogOperationalColumn(boardQuery.data?.columns, colId);
 
@@ -624,12 +681,14 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
                                   priorityReasonLabel={priorityReasonLabel}
                                   analysisDepth={analysisDepth}
                                   canMutateCard={showConsultantPlanTools && !governanceReadOnly}
-                                  onEditTitle={() => openTitleEdit(dto.id)}
-                                  onEditLane={() => editCardLane(dto.id)}
                                   onCommitTitleInline={t => commitCardTitleInline(dto.id, t)}
-                                  onCommitLaneInline={laneInlineEnabled ? l => commitCardLaneInline(dto.id, l) : undefined}
+                                  onCommitLaneInline={
+                                    showConsultantPlanTools && !governanceReadOnly
+                                      ? (lane, hint) => commitCardLaneInline(dto.id, lane, hint)
+                                      : undefined
+                                  }
                                   laneSelectOptions={laneSelectOptions}
-                                  laneInlineEnabled={laneInlineEnabled}
+                                  manifestDraftLaneHintsEnabled={manifestDraftLaneHintsEnabled}
                                   onDeleteCard={() => setDeleteCardId(dto.id)}
                                   isFocusTarget={
                                     focusToken != null &&
@@ -671,154 +730,6 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
             <p className="text-muted-foreground text-xs">{PLAN_BOARD_COPY.parityNote}</p>
           </section>
         </PortalPlanLayout>
-
-        <Dialog
-          open={laneEditCardId != null}
-          onOpenChange={(open) => {
-            if (!open) setLaneEditCardId(null);
-          }}
-        >
-          <DialogContent className="max-w-md border-border sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{PLAN_BOARD_COPY.manifestDraftLaneDialogTitle}</DialogTitle>
-            </DialogHeader>
-            <p className="text-muted-foreground text-sm">{PLAN_BOARD_COPY.manifestDraftLaneDialogDescription}</p>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="manifest-draft-lane">{PLAN_BOARD_COPY.manifestDraftLaneSelectLabel}</Label>
-                <Select value={laneEditSelectedLane} onValueChange={v => setLaneEditSelectedLane(v as OrchestrationLaneId)}>
-                  <SelectTrigger id="manifest-draft-lane" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORCHESTRATION_LANE_IDS_ORDERED.map((laneId) => (
-                      <SelectItem key={laneId} value={laneId}>
-                        {ORCHESTRATION_LANE_LABELS[laneId]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="manifest-draft-owner">{PLAN_BOARD_COPY.manifestDraftOwnerHintLabel}</Label>
-                <Input
-                  id="manifest-draft-owner"
-                  value={laneEditOwnerHint}
-                  onChange={e => setLaneEditOwnerHint(e.target.value)}
-                  maxLength={200}
-                />
-              </div>
-            </div>
-            <DialogFooter className="gap-2 sm:gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {PLAN_BOARD_COPY.manifestDraftLaneDialogCancel}
-                </Button>
-              </DialogClose>
-              <Button
-                type="button"
-                disabled={manifestDraftMutation.isPending || orchestrationPackVersion <= 0 || governanceReadOnly}
-                onClick={() => void submitManifestDraftLaneRevision()}
-              >
-                {PLAN_BOARD_COPY.manifestDraftLaneDialogSubmit}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={cardTitleDraft != null}
-          onOpenChange={(open) => {
-            if (!open) setCardTitleDraft(null);
-          }}
-        >
-          <DialogContent className="max-w-md border-border sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{PLAN_BOARD_COPY.cardTitleEditDialogTitle}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor="plan-card-title-edit">{PLAN_BOARD_COPY.cardTitleEditFieldLabel}</Label>
-              <Input
-                id="plan-card-title-edit"
-                value={cardTitleDraft?.title ?? ''}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setCardTitleDraft((d) => (d ? { ...d, title: v } : d));
-                }}
-                maxLength={200}
-                autoComplete="off"
-              />
-            </div>
-            <DialogFooter className="gap-2 sm:gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {PLAN_BOARD_COPY.cardTitleEditCancel}
-                </Button>
-              </DialogClose>
-              <Button
-                type="button"
-                disabled={
-                  patchMutation.isPending ||
-                  orchestrationPackVersion <= 0 ||
-                  governanceReadOnly ||
-                  (cardTitleDraft?.title.trim().length ?? 0) < 2
-                }
-                onClick={() => void submitCardTitleDraft()}
-              >
-                {PLAN_BOARD_COPY.cardTitleEditSave}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={laneSimpleDraft != null}
-          onOpenChange={(open) => {
-            if (!open) setLaneSimpleDraft(null);
-          }}
-        >
-          <DialogContent className="max-w-md border-border sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{PLAN_BOARD_COPY.cardLaneSimpleDialogTitle}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              <Label htmlFor="plan-card-lane-simple">{PLAN_BOARD_COPY.cardLaneSimpleFieldLabel}</Label>
-              <Select
-                value={laneSimpleDraft?.lane}
-                onValueChange={(v) => {
-                  setLaneSimpleDraft((d) =>
-                    d ? { ...d, lane: v as OrchestrationLaneId } : d,
-                  );
-                }}
-              >
-                <SelectTrigger id="plan-card-lane-simple" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ORCHESTRATION_LANE_IDS_ORDERED.map((laneId) => (
-                    <SelectItem key={laneId} value={laneId}>
-                      {ORCHESTRATION_LANE_LABELS[laneId]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter className="gap-2 sm:gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {PLAN_BOARD_COPY.cardLaneSimpleCancel}
-                </Button>
-              </DialogClose>
-              <Button
-                type="button"
-                disabled={patchMutation.isPending || orchestrationPackVersion <= 0 || governanceReadOnly}
-                onClick={() => void submitLaneSimpleDraft()}
-              >
-                {PLAN_BOARD_COPY.cardLaneSimpleSave}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         <AlertDialog open={deleteCardId != null} onOpenChange={(open) => !open && setDeleteCardId(null)}>
           <AlertDialogContent className="border-border">

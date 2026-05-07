@@ -68,6 +68,17 @@ export function usePipeline(
     [options?.detailLevel, options?.eventLimit],
   );
 
+  /** Single primitive key so refetch deps stay aligned when new option fields affect GET /pipeline/status. */
+  const pipelineReloadDepsKey = useMemo(
+    () =>
+      `${pipelineQueryOpts.detailLevel}|${pipelineQueryOpts.eventLimit ?? ''}|${pipelineQueryOpts.maxEventsInMemory}`,
+    [
+      pipelineQueryOpts.detailLevel,
+      pipelineQueryOpts.eventLimit,
+      pipelineQueryOpts.maxEventsInMemory,
+    ],
+  );
+
   const [state, setState] = useState<PipelineState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,10 +172,11 @@ export function usePipeline(
   maxEventsInMemoryRef.current = pipelineQueryOpts.maxEventsInMemory;
 
   // Fetch when audit id or query shape changes — without tearing down the Realtime channel when only `load` identity changes.
+  // Errors are cleared on audit change in the layout-effect above (`clearFailure`); this effect only refetches.
   useEffect(() => {
     if (!auditId) return;
     void loadRef.current();
-  }, [auditId, pipelineQueryOpts.detailLevel, pipelineQueryOpts.eventLimit]);
+  }, [auditId, pipelineReloadDepsKey]);
 
   // Subscribe to realtime pipeline events (lifecycle tied to auditId only).
   useEffect(() => {

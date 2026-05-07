@@ -11,12 +11,17 @@ export const PLAN_WORKSPACE_UI_COPY = {
   modeBarExecute: 'Execute',
   /** Cmd/Ctrl+K command palette (Plan workspace). */
   commandPaletteTitle: 'Plan commands',
-  commandPaletteDescription: 'Jump to a mode, view, or run compile from the keyboard.',
+  commandPaletteDescription: 'Jump to a mode, execute view, lane filter, audit command, or run compile from the keyboard.',
   commandPalettePlaceholder: 'Search commands…',
   commandPaletteEmpty: 'No matching commands.',
   commandPaletteGroupModes: 'Modes',
   commandPaletteGroupViews: 'Execute views',
   commandPaletteGroupActions: 'Actions',
+  commandPaletteGroupLanes: 'Lane filters',
+  commandPaletteGroupSurface: 'This audit',
+  /** Chip when `?lane=` filters are active (Board / Table). */
+  laneFilterChipPrefix: 'Filtered by lanes:',
+  laneFilterChipClear: 'Clear lane filters',
   commandPaletteModeDefine: 'Define — constraints & benchmarks',
   commandPaletteModeShape: 'Shape — manifest & compile',
   commandPaletteModeExecute: 'Execute — board, roadmap, table',
@@ -24,6 +29,9 @@ export const PLAN_WORKSPACE_UI_COPY = {
   commandPaletteViewRoadmap: 'Roadmap view',
   commandPaletteViewTable: 'Table view',
   commandPaletteRunCompile: 'Run compile pack',
+  commandPaletteAddManualCard: 'Add manual backlog card (focus form)',
+  /** `{lane}` is replaced with the human lane label. */
+  commandPaletteToggleLaneFilter: 'Toggle table/board filter: {lane}',
   /** Shared loading headline while audit, pack, and/or timeline are resolving. */
   loadingHeadline: 'Loading plan workspace…',
   /** Single secondary line — avoids mismatched subtitles between Board and Roadmap loaders. */

@@ -18,6 +18,7 @@ import type {
 import { api } from '../../data/apiService';
 import { ApiError } from '../../data/api-error';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
+import { PlanWorkspaceManifestStatePill } from '../../components/glc/PlanWorkspaceManifestStatePill';
 import { Button } from '../../components/ui/button';
 import {
   Accordion,
@@ -776,18 +777,37 @@ export function StrategyLabOrchestrationPanel({
 
       {/* Primary CTA: compile (snapshot + pack). Save-snapshot-only lives under Advanced. */}
       <div className="space-y-2">
-        <Button
-          type="button"
-          variant="default"
-          size="lg"
-          disabled={working || compileMutation.isPending}
-          onClick={() => void handleCompilePlan()}
-          aria-label={STRATEGY_LAB_COPY.panel.compilePlanPrimaryAria}
-          className="w-full sm:w-auto"
-        >
-          <Path className="h-4 w-4" aria-hidden />
-          {compileMutation.isPending ? ORCHESTRATION_UI_COPY.compilePlanStatusCompiling : ORCHESTRATION_UI_COPY.compilePlan}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="default"
+            size="lg"
+            disabled={working || compileMutation.isPending}
+            onClick={() => void handleCompilePlan()}
+            aria-label={STRATEGY_LAB_COPY.panel.compilePlanPrimaryAria}
+            className="w-full sm:w-auto"
+          >
+            <Path className="h-4 w-4" aria-hidden />
+            {compileMutation.isPending ? ORCHESTRATION_UI_COPY.compilePlanStatusCompiling : ORCHESTRATION_UI_COPY.compilePlan}
+          </Button>
+          <PlanWorkspaceManifestStatePill
+            tone={compileMutation.isPending ? 'pending' : hasUnsavedManifestChanges ? 'dirty' : 'saved'}
+            label={
+              compileMutation.isPending ?
+                STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestCompilingChipLabel
+              : hasUnsavedManifestChanges ?
+                STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestDirtyChipLabel
+              : STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestSyncedChipLabel
+            }
+            srLabel={
+              compileMutation.isPending ?
+                ORCHESTRATION_UI_COPY.compilePlanStatusCompiling
+              : hasUnsavedManifestChanges ?
+                STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestDirty
+              : STRATEGY_LAB_COPY.orchestrationWorkflowStatus.manifestSynced
+            }
+          />
+        </div>
         <p
           id={compileStatusRegionId}
           className="text-muted-foreground text-xs max-w-prose"

@@ -67,6 +67,12 @@ export const PLAN_BOARD_COPY = {
   inlineTitleAriaLabel: 'Card title',
   inlineLaneAriaLabel: 'Change lane',
   menuDeleteCardLabel: 'Delete card',
+  /** Consultant + manifest-draft-from-board: optional hint queued with lane revision. */
+  menuRevisionOwnerHint: 'Revision owner hint (optional)',
+  ownerHintInlineTitle: 'Owner hint for next lane revision',
+  ownerHintInlineDescription:
+    'Included when you change lane via the inline picker (queued manifest draft in Strategy Lab).',
+  ownerHintInlineDone: 'Done',
 
   cardTitleEditDialogTitle: 'Edit card title',
   cardTitleEditFieldLabel: 'Title',

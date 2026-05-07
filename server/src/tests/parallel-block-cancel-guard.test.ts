@@ -1,9 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { logger } from '../services/logger.js';
 import { runParallelBlockForAudit } from '../services/pipeline/orchestrator/parallel-block.js';
 import { PipelineCancelledError } from '../services/pipeline/orchestrator/pipeline-cancelled.error.js';
 
 describe('runParallelBlockForAudit', () => {
+  it('logs when multiple isolated phases reject with PipelineCancelledError', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    const first = new PipelineCancelledError();
+    const second = new PipelineCancelledError();
+    await expect(
+      runParallelBlockForAudit({
+        phases: [3, 4],
+        parallelFailureThreshold: 2,
+        emitEvent: vi.fn().mockResolvedValue(undefined),
+        updateAuditIfNotCancelled: vi.fn(),
+        assertNotCancelled: vi.fn().mockResolvedValue(undefined),
+        runIsolatedPhase: vi
+          .fn()
+          .mockRejectedValueOnce(first)
+          .mockRejectedValueOnce(second),
+      }),
+    ).rejects.toBe(first);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'pipeline.parallel_block_multiple_parallel_cancels',
+      expect.objectContaining({
+        parallel_cancel_error_count: 2,
+      }),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('re-checks cancellation after allSettled before audit updates or completion events', async () => {
     const emitEvent = vi.fn().mockResolvedValue(undefined);
     const updateAuditIfNotCancelled = vi.fn().mockResolvedValue(true);

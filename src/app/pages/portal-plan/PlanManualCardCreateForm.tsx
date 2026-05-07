@@ -24,6 +24,7 @@ export function PlanManualCardCreateForm(props: PlanManualCardCreateFormProps) {
 
   return (
     <form
+      data-plan-manual-card-form=""
       className="flex flex-col gap-3 md:flex-row md:items-end"
       onSubmit={(e) => {
         e.preventDefault();
@@ -47,6 +48,7 @@ export function PlanManualCardCreateForm(props: PlanManualCardCreateFormProps) {
         </label>
         <Input
           id="plan-manual-card-title-shared"
+          data-plan-manual-card-title=""
           value={manualTitle}
           onChange={(event) => setManualTitle(event.target.value)}
           placeholder={PLAN_BOARD_COPY.manualCardTitlePlaceholder}
