@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildBriefSchemaSnapshot, computePilotCriticalBottleneckRank, currentIntakeVersionTuple } from '@glc/intake-core';
+import { buildBriefSchemaSnapshot, currentIntakeVersionTuple } from '@glc/intake-core';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
-import { apiIntakeIntelligenceKpi } from '../../../config/api-paths';
-import { API_URL } from '../../../data/api-http';
 import { api, ApiError } from '../../../data/apiService';
 import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
 import {
@@ -25,7 +23,6 @@ import {
   buildIntakeContactFooterLines,
 } from '../../../lib/intake-client-copy';
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
-import { computeKpiCaseKeys } from '../../../lib/intake-kpi-case-keys';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import {
   patchBriefQuestionResponse,
@@ -33,8 +30,29 @@ import {
   patchUnknownResponse,
   patchWebsitePresenceResponse,
 } from '../lib/intake-brief-response-updates';
-import { INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID } from '../../../config/intake-critical-signal-map';
 import { splitPreBriefSlotsIntoQueueSteps } from '../lib/split-pre-brief-slot-queue';
+import {
+  buildFastPassQuestionIds,
+  buildPrecisionPassIds,
+  buildProgressiveQueue,
+  buildSkippedByConfidenceIds,
+} from '../lib/intake-brief-queue';
+import { shouldForceProgressiveMode } from '../guards/intakeBriefGuards';
+import {
+  intakeEntryModeStorageKey,
+  intakeProgressiveStateKey,
+  readIntakeEntryModeFromStorage,
+} from '../lib/intake-brief-storage';
+import { useIntakeBriefF1Effect } from '../effects/useIntakeBriefF1Effect';
+import { useIntakeBriefKpiEffects } from '../effects/useIntakeBriefKpiEffects';
+import { useIntakeBriefSubmissionActions } from '../effects/useIntakeBriefSubmissionActions';
+import {
+  buildIntelligenceByQuestionId,
+  buildRawQuestionList,
+  buildReadinessPanel,
+  buildSignalConfidenceByQuestionId,
+  buildVisibleQuestions,
+} from '../lib/intake-brief-derived';
 
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
 type IntakeJourneyStage = 'fast_pass' | 'precision_pass';
@@ -42,61 +60,6 @@ type IntakeQuestionMode = 'progressive' | 'all_questions';
 
 const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 const NL_INGRESS_CONSENT_KEY = 'glc:intake:nl-consent-v1';
-const INTAKE_PROGRESSIVE_STATE_KEY_PREFIX = 'glc:intake:progressive-state:';
-const INTAKE_ENTRY_MODE_KEY_PREFIX = 'glc:intake:entry-mode:';
-
-function readIntakeEntryModeFromStorage(token: string): 'form' | 'dictation' {
-  if (typeof window === 'undefined') return 'form';
-  try {
-    const v = window.localStorage.getItem(`${INTAKE_ENTRY_MODE_KEY_PREFIX}${token}`);
-    return v === 'dictation' ? 'dictation' : 'form';
-  } catch {
-    return 'form';
-  }
-}
-
-function intakeProgressiveStateKey(token: string): string {
-  return `${INTAKE_PROGRESSIVE_STATE_KEY_PREFIX}${token}`;
-}
-
-function isReliableSource(value: unknown): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const source = (value as { source?: unknown }).source;
-  return source === 'client' || source === 'consultant' || source === 'recon_confirmed';
-}
-
-function buildFastPassQuestionIds(args: {
-  questions: BriefQuestion[];
-  confidenceByQuestionId: Record<string, { confidence: 'high' | 'medium' | 'low' | 'unknown' }>;
-}): string[] {
-  const requiredIds = args.questions.filter(q => q.priority === 'required').map(q => q.id);
-  const lowConfidenceIds = args.questions
-    .filter(q => {
-      const confidence = args.confidenceByQuestionId[q.id]?.confidence ?? 'unknown';
-      return confidence === 'low' || confidence === 'unknown';
-    })
-    .map(q => q.id);
-  const dedup = Array.from(new Set([...requiredIds, ...lowConfidenceIds, ...args.questions.map(q => q.id)]));
-  return dedup.slice(0, 8);
-}
-
-function buildProgressiveQueue(visibleQuestions: BriefQuestion[], ids: string[]): string[][] {
-  const byId = new Set(visibleQuestions.map(q => q.id));
-  const queue: string[][] = [];
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (seen.has(id)) continue;
-    if (id === 'a5' && byId.has('a11') && ids.includes('a11')) {
-      queue.push(['a5', 'a11']);
-      seen.add('a5');
-      seen.add('a11');
-      continue;
-    }
-    queue.push([id]);
-    seen.add(id);
-  }
-  return queue;
-}
 
 export function useIntakeBriefController(rawToken: string | undefined) {
   const token = rawToken?.trim() ?? '';
@@ -173,86 +136,32 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     }
   }, [responses, intakeCollectionMode]);
 
-  const intelligenceByQuestionId = useMemo(() => {
-    const byId: Record<
-      string,
-      {
-        whyAsked: string;
-        semanticDomain: 'market' | 'value' | 'economics' | 'operations' | 'resources' | 'risks';
-        decisionImpact: Array<{ target: string; weight: 'low' | 'medium' | 'high'; effectDescription: string }>;
-      }
-    > = {};
-    const rows = intakeSchemaSnapshot?.questions ?? [];
-    for (const row of rows) {
-      if (row.intelligence) {
-        byId[row.id] = row.intelligence;
-      }
-    }
-    return byId;
-  }, [intakeSchemaSnapshot]);
+  const intelligenceByQuestionId = useMemo(
+    () => buildIntelligenceByQuestionId(intakeSchemaSnapshot),
+    [intakeSchemaSnapshot],
+  );
 
-  const signalConfidenceByQuestionId = useMemo(() => {
-    const byQuestion: Record<
-      string,
-      {
-        signalKey: string;
-        confidence: 'high' | 'medium' | 'low' | 'unknown';
-        certaintyStage: 'assumed' | 'confirming' | 'confirmed';
-      }
-    > = {};
-    const byKey = intakeSchemaSnapshot?.critical_signals?.by_key ?? {};
-    const certaintyBySignal = new Map<string, 'assumed' | 'confirming' | 'confirmed'>();
-    for (const entry of intakeSchemaSnapshot?.readiness?.trace ?? []) {
-      const signalKey = entry.signalKey;
-      if (!signalKey) continue;
-      if (entry.code === 'uncertainty_closed') {
-        certaintyBySignal.set(signalKey, 'confirmed');
-      } else if (entry.code === 'hypothesis_confirmed' && certaintyBySignal.get(signalKey) !== 'confirmed') {
-        certaintyBySignal.set(signalKey, 'confirming');
-      } else if (entry.code === 'hypothesis_formed' && !certaintyBySignal.has(signalKey)) {
-        certaintyBySignal.set(signalKey, 'confirming');
-      }
-    }
-    for (const [questionId, signalKeys] of Object.entries(INTAKE_PILOT_SIGNAL_KEYS_BY_QUESTION_ID)) {
-      const signalKey = signalKeys[0];
-      if (!signalKey) continue;
-      byQuestion[questionId] = {
-        signalKey,
-        confidence: byKey[signalKey] ?? 'unknown',
-        certaintyStage: certaintyBySignal.get(signalKey) ?? 'assumed',
-      };
-    }
-    return byQuestion;
-  }, [intakeSchemaSnapshot]);
+  const signalConfidenceByQuestionId = useMemo(
+    () => buildSignalConfidenceByQuestionId(intakeSchemaSnapshot),
+    [intakeSchemaSnapshot],
+  );
 
-  const rawQuestionList = useMemo((): BriefQuestion[] => {
-    if ((phase === 'review' || phase === 'success') && tailoredPayload) {
-      const byId = new Map<string, BriefQuestion>();
-      for (const q of questions) {
-        byId.set(q.id, q);
-      }
-      for (const q of tailoredPayload.questions) {
-        byId.set(q.id, q);
-      }
-      return Array.from(byId.values());
-    }
-    if (twoPhaseWave === 'tailored' && tailoredPayload) {
-      return tailoredPayload.questions;
-    }
-    return questions;
-  }, [phase, twoPhaseWave, tailoredPayload, questions]);
+  const rawQuestionList = useMemo(
+    () => buildRawQuestionList({ phase, twoPhaseWave, tailoredPayload, questions }),
+    [phase, twoPhaseWave, tailoredPayload, questions],
+  );
 
-  const visibleQuestions = useMemo(() => {
-    const filtered = rawQuestionList.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses)));
-    return filtered.map(q => {
-      const override = twoPhaseWave === 'tailored' && tailoredLabelOverrides[q.id]?.trim();
-      return {
-        ...q,
-        ...(override ? { question: override } : {}),
-        ...(intelligenceByQuestionId[q.id] ? intelligenceByQuestionId[q.id] : {}),
-      };
-    });
-  }, [rawQuestionList, responses, intelligenceByQuestionId, twoPhaseWave, tailoredLabelOverrides]);
+  const visibleQuestions = useMemo(
+    () =>
+      buildVisibleQuestions({
+        rawQuestionList,
+        responses,
+        twoPhaseWave,
+        tailoredLabelOverrides,
+        intelligenceByQuestionId,
+      }),
+    [rawQuestionList, responses, intelligenceByQuestionId, twoPhaseWave, tailoredLabelOverrides],
+  );
 
   const questionSections = useMemo(
     () => groupBriefQuestionsBySection(visibleQuestions),
@@ -263,25 +172,17 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     [visibleQuestions, signalConfidenceByQuestionId],
   );
   const precisionPassIds = useMemo(
-    () =>
-      visibleQuestions
-        .filter(q => !adaptiveFastPassIds.includes(q.id))
-        .filter(q => {
-          const confidence = signalConfidenceByQuestionId[q.id]?.confidence ?? 'unknown';
-          return confidence === 'low' || confidence === 'unknown';
-        })
-        .map(q => q.id),
+    () => buildPrecisionPassIds({ visibleQuestions, adaptiveFastPassIds, signalConfidenceByQuestionId }),
     [adaptiveFastPassIds, signalConfidenceByQuestionId, visibleQuestions],
   );
   const skippedByConfidenceIds = useMemo(
     () =>
-      visibleQuestions
-        .filter(q => !adaptiveFastPassIds.includes(q.id))
-        .filter(q => {
-          const confidence = signalConfidenceByQuestionId[q.id]?.confidence ?? 'unknown';
-          return (confidence === 'high' || confidence === 'medium') && isReliableSource(responses[q.id]);
-        })
-        .map(q => q.id),
+      buildSkippedByConfidenceIds({
+        visibleQuestions,
+        adaptiveFastPassIds,
+        signalConfidenceByQuestionId,
+        responses,
+      }),
     [adaptiveFastPassIds, responses, signalConfidenceByQuestionId, visibleQuestions],
   );
   const activeQuestionIds = useMemo(() => {
@@ -318,32 +219,10 @@ export function useIntakeBriefController(rawToken: string | undefined) {
 
   const answered = countPreBriefSatisfied(responses);
 
-  const readinessPanel = useMemo(() => {
-    const readiness = intakeSchemaSnapshot?.readiness;
-    const state = answered === 0
-      ? 'pristine'
-      : readiness?.auditReadinessStatus === 'blocked' || readiness?.flowReadinessStatus === 'blocked'
-        ? 'blocked'
-        : 'partial';
-    const questionLabelById = new Map(questions.map(q => [q.id, q.question]));
-    const remediation = (intakeSchemaSnapshot?.remediation_queue ?? []).map(id => ({
-      id,
-      label: questionLabelById.get(id) ?? id,
-    }));
-    const trace = (readiness?.trace ?? []).map(item => ({
-      code: item.code,
-      questionId: item.questionId,
-      signalKey: item.signalKey,
-    }));
-    return {
-      state,
-      flowReadinessStatus: readiness?.flowReadinessStatus ?? 'flow_ready',
-      auditReadinessStatus: readiness?.auditReadinessStatus ?? 'audit_ready',
-      criticalSignals: intakeSchemaSnapshot?.critical_signals?.by_key ?? {},
-      remediation,
-      trace,
-    };
-  }, [answered, intakeSchemaSnapshot, questions]);
+  const readinessPanel = useMemo(
+    () => buildReadinessPanel({ answered, intakeSchemaSnapshot, questions }),
+    [answered, intakeSchemaSnapshot, questions],
+  );
 
   const clientMeta = useMemo(() => parseIntakeClientMetadata(metadataRecord), [metadataRecord]);
   const consultantPrefilledIdentity = useMemo(
@@ -430,50 +309,20 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   }, [websitePresenceKey]);
 
   useEffect(() => {
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && questionMode === 'all_questions') {
+    if (shouldForceProgressiveMode(questionMode)) {
       setQuestionMode('progressive');
     }
   }, [questionMode]);
 
-  useEffect(() => {
-    if (!token || loading || phase !== 'form') return;
-    if (!APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled || !APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled) {
-      return;
-    }
-    const seq = ++intakeF1RequestSeqRef.current;
-    if (intakeF1DebounceRef.current) clearTimeout(intakeF1DebounceRef.current);
-    intakeF1DebounceRef.current = setTimeout(() => {
-      void (async () => {
-        setIntakeF1(prev => ({ status: 'loading', decision: prev.decision }));
-        const asMap = briefResponsesToIntakeMap(responses) as Record<string, unknown>;
-        try {
-          const result = await api.postIntakeNextQuestion(token, {
-            responses: asMap,
-            productMode: 'full',
-            collectionMode: 'pre_brief',
-            surface: 'client_form',
-            intakeVersionTuple: currentIntakeVersionTuple(),
-          });
-          if (seq !== intakeF1RequestSeqRef.current) return;
-          setIntakeF1({
-            status: 'ok',
-            decision: {
-              action: result.action,
-              questionId: result.questionId,
-              reason: result.reason,
-              caseKeys: result.caseKeys,
-            },
-          });
-        } catch {
-          if (seq !== intakeF1RequestSeqRef.current) return;
-          setIntakeF1({ status: 'unavailable', decision: null });
-        }
-      })();
-    }, 450);
-    return () => {
-      if (intakeF1DebounceRef.current) clearTimeout(intakeF1DebounceRef.current);
-    };
-  }, [token, loading, phase, responses]);
+  useIntakeBriefF1Effect({
+    token,
+    loading,
+    phase,
+    responses,
+    intakeF1DebounceRef,
+    intakeF1RequestSeqRef,
+    setIntakeF1,
+  });
 
   const total = getPreBriefSubmitSlotIds(responses).length;
   const formComplete = answered === total;
@@ -680,95 +529,27 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     [questionSections],
   );
 
-  useEffect(() => {
-    if (loading || !token || phase !== 'form') return;
-    const ids = kpiVisibleBankIds;
-    if (ids.length === 0) return;
-
-    const io = new IntersectionObserver(
-      entries => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const el = entry.target as HTMLElement;
-          const bankId = el.id?.replace(/^intake-q-/, '') ?? '';
-          if (!bankId || intakeKpiShownQuestionIdsRef.current.has(bankId)) continue;
-          intakeKpiShownQuestionIdsRef.current.add(bankId);
-          const asMap = briefResponsesToIntakeMap(responses) as Record<string, unknown>;
-          const bottleneck = computePilotCriticalBottleneckRank({
-            responses: asMap,
-            plan: { eligible: kpiVisibleBankIds },
-          });
-          const prev = intakeKpiBottleneckRankRef.current;
-          const confidenceMoved = bottleneck != null && prev != null && bottleneck > prev;
-          if (bottleneck != null) {
-            intakeKpiBottleneckRankRef.current = bottleneck;
-          }
-          void api.reportIntelligenceKpi(token, {
-            event: 'question_shown',
-            question_id: bankId,
-            client_session_id: intakeKpiSessionIdRef.current,
-            case_keys: computeKpiCaseKeys(asMap, kpiVisibleBankIds),
-            ...(confidenceMoved ? { confidence_moved: true } : {}),
-          });
-        }
-      },
-      { root: null, threshold: 0.25 },
-    );
-
-    const handle = window.requestAnimationFrame(() => {
-      for (const id of ids) {
-        const node = document.getElementById(`intake-q-${id}`);
-        if (node) io.observe(node);
-      }
-    });
-
-    return () => {
-      window.cancelAnimationFrame(handle);
-      io.disconnect();
-    };
-  }, [loading, token, phase, kpiVisibleBankIds, responses]);
-  useEffect(() => {
-    if (!token || phase !== 'form') return;
-    if (!fastPassStartedRef.current && journeyStage === 'fast_pass') {
-      fastPassStartedRef.current = true;
-      void api.reportIntelligenceKpi(token, {
-        event: 'fast_pass_started',
-        client_session_id: intakeKpiSessionIdRef.current,
-      });
-    }
-    if (!precisionPassStartedRef.current && journeyStage === 'precision_pass') {
-      precisionPassStartedRef.current = true;
-      void api.reportIntelligenceKpi(token, {
-        event: 'precision_pass_started',
-        client_session_id: intakeKpiSessionIdRef.current,
-      });
-    }
-  }, [journeyStage, phase, token]);
-
-  useEffect(() => {
-    if (!token) return;
-    const onPageHide = () => {
-      if (!intakeKpiHadActivityRef.current) return;
-      if (phase !== 'form') return;
-      const payload = JSON.stringify({
-        event: 'drop_off' as const,
-        client_session_id: intakeKpiSessionIdRef.current,
-      });
-      const url = `${API_URL}${apiIntakeIntelligenceKpi(token)}`;
-      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
-      }
-    };
-    window.addEventListener('pagehide', onPageHide);
-    return () => window.removeEventListener('pagehide', onPageHide);
-  }, [token, phase]);
+  useIntakeBriefKpiEffects({
+    loading,
+    token,
+    phase,
+    kpiVisibleBankIds,
+    responses,
+    journeyStage,
+    intakeKpiShownQuestionIdsRef,
+    intakeKpiBottleneckRankRef,
+    intakeKpiSessionIdRef,
+    intakeKpiHadActivityRef,
+    fastPassStartedRef,
+    precisionPassStartedRef,
+  });
 
   const onIntakeEntryModeChange = useCallback(
     (mode: 'form' | 'dictation') => {
       setIntakeEntryMode(mode);
       try {
         if (token) {
-          window.localStorage.setItem(`${INTAKE_ENTRY_MODE_KEY_PREFIX}${token}`, mode);
+          window.localStorage.setItem(intakeEntryModeStorageKey(token), mode);
         }
       } catch {
         // ignore storage quota
@@ -777,58 +558,20 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     [token],
   );
 
-  const submitNlIngress = useCallback(async () => {
-    if (!token || !nlIngressText.trim() || !nlIngressConsentAccepted) return;
-    setNlIngressStatus('sending');
-    try {
-      const res = await api.submitIntakeNlDescribe(token, nlIngressText.trim(), crypto.randomUUID());
-      const merged = res.authoritative?.merged_responses;
-      if (merged && typeof merged === 'object') {
-        setResponses(prev => {
-          const raw = merged as Record<string, unknown>;
-          const next = { ...prev };
-          for (const [k, v] of Object.entries(raw)) {
-            if (v != null && typeof v === 'object' && !Array.isArray(v) && 'value' in (v as Record<string, unknown>)) {
-              next[k] = v as (typeof prev)[string];
-            } else {
-              next[k] = { value: v as never, source: 'client' as const };
-            }
-          }
-          return next;
-        });
-      }
-      setNlIngressStatus('ok');
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setNlIngressStatus('hidden');
-      } else {
-        setNlIngressStatus('error');
-      }
-    }
-  }, [token, nlIngressText, nlIngressConsentAccepted]);
-
-  const confirmSubmit = useCallback(async () => {
-    if (!token) return;
-    setSubmitError(null);
-    setSubmitting(true);
-    try {
-      const result = await api.submitIntakeResponses(token, coerceA11ForNoWebsitePresence(responses));
-      setLastSubmittedIso(result.submitted_at);
-      setSubmittedAt(result.submitted_at);
-      setPhase('success');
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(intakeProgressiveStateKey(token));
-      }
-    } catch (err) {
-      if (err instanceof ApiError && (err.code === 'INTAKE_LINK_EXPIRED' || err.status === 410)) {
-        setExpired(true);
-      } else {
-        setSubmitError(toUiApiErrorMessage(err));
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [token, responses]);
+  const { submitNlIngress, confirmSubmit } = useIntakeBriefSubmissionActions({
+    token,
+    responses,
+    nlIngressText,
+    nlIngressConsentAccepted,
+    setNlIngressStatus,
+    setResponses,
+    setSubmitError,
+    setSubmitting,
+    setLastSubmittedIso,
+    setSubmittedAt,
+    setPhase,
+    setExpired,
+  });
 
   const companyName =
     briefResponseTrimmedString(responses.a12 ?? responses.intake_company_name) ||

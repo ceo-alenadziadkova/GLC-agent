@@ -118,7 +118,7 @@ export function PlanViewSegmentedNav({ auditId, isClient, active, layout = 'defa
               {learnMoreOpen ? copy.learnMoreHide : copy.learnMoreTrigger}
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="bg-card border-border mt-2 max-w-[min(22rem,calc(100vw-2rem))] rounded-md border p-3">
+          <CollapsibleContent className="bg-card border-border mt-2 max-w-[length:var(--strategy-lab-views-help-max-width)] rounded-md border p-3">
             <div className="text-muted-foreground space-y-2 text-xs leading-relaxed">
               <p className="m-0 font-medium">{copy.boardTabLabel}</p>
               <p className="m-0">{copy.boardContextHint}</p>

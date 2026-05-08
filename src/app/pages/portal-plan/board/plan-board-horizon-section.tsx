@@ -35,7 +35,7 @@ export function BoardHorizonBucketsSection(props: {
           <div
             key={bucket}
             aria-label={bucketHeading(bucket)}
-            className="bg-card border-border flex min-h-[10rem] flex-col rounded-lg border"
+            className="bg-card border-border flex min-h-[length:var(--portal-plan-horizon-min-height)] flex-col rounded-lg border"
           >
             <header className="border-border border-b px-3 py-2">
               <div className="text-foreground text-sm font-semibold">{bucketHeading(bucket)}</div>

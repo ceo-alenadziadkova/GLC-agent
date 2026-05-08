@@ -133,7 +133,7 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
             return (
               <li
                 key={step.id}
-                className="min-w-[length:var(--strategy-lab-steps-strip-min-width,12rem)] flex-1"
+                className="min-w-[length:var(--strategy-lab-steps-strip-min-width)] flex-1"
               >
                 <Link
                   to={planEntryHref}
@@ -154,7 +154,7 @@ export function StrategyJourneyHeader({ auditId, isClient, steps, visible }: Str
           }
 
           return (
-            <li key={step.id} className="min-w-[length:var(--strategy-lab-steps-strip-min-width,12rem)] flex-1">
+            <li key={step.id} className="min-w-[length:var(--strategy-lab-steps-strip-min-width)] flex-1">
               <Link
                 to={stepHref!}
                 aria-current={isStepActive ? 'step' : undefined}

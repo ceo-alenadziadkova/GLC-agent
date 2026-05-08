@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import type { ReactNode } from 'react';
 
 import { ReportViewer } from '../ReportViewer';
+import { REPORT_VIEWER_COPY } from '../../features/report-viewer/config/report-viewer.copy.en';
 
 const useAuditMock = vi.fn();
 const downloadReportPdfMock = vi.fn();
@@ -150,7 +151,7 @@ describe('ReportViewer feedback states', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Export PDF/i }));
+    fireEvent.click(screen.getByRole('button', { name: REPORT_VIEWER_COPY.buttons.exportPdfTitle }));
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith('Network failed');
@@ -167,7 +168,7 @@ describe('ReportViewer feedback states', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Action Plan CSV/i }));
+    fireEvent.click(screen.getByRole('button', { name: REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle }));
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith('Network failed');
@@ -190,7 +191,7 @@ describe('ReportViewer feedback states', () => {
       </MemoryRouter>,
     );
 
-    const pdfButton = screen.getByRole('button', { name: /Export PDF/i });
+    const pdfButton = screen.getByRole('button', { name: REPORT_VIEWER_COPY.buttons.exportPdfTitle });
     fireEvent.click(pdfButton);
     expect(pdfButton).toHaveAttribute('aria-busy', 'true');
     expect(pdfButton).toBeDisabled();

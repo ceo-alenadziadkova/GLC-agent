@@ -245,7 +245,7 @@ export function RoadmapGanttTaskBar(props: RoadmapGanttTaskBarProps) {
     return (
       <ContextMenu>
         <ContextMenuTrigger asChild>{taskBar}</ContextMenuTrigger>
-        <ContextMenuContent className="max-h-72 min-w-[12rem] overflow-y-auto">
+        <ContextMenuContent className="max-h-72 min-w-[length:var(--marketing-dropdown-min-width)] overflow-y-auto">
           <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
             {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuLabel}
           </ContextMenuLabel>

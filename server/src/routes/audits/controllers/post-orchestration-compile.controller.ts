@@ -201,7 +201,6 @@ export async function postOrchestrationCompileController(req: AuthRequest, res: 
           auditId,
           snapshot_id: manifestSnapshotId,
           error: delErr.message,
-          code: delErr.code,
           metric: 'orchestration_compile.snapshot_rollback_delete_failed',
         });
         await emitStructuredNotification({
@@ -216,7 +215,7 @@ export async function postOrchestrationCompileController(req: AuthRequest, res: 
             error: delErr.message,
           }),
           auditId,
-          payload: { audit_id: auditId, snapshot_id: manifestSnapshotId, code: delErr.code },
+          payload: { audit_id: auditId, snapshot_id: manifestSnapshotId },
           sendInApp: true,
           sendTelegram: true,
         }).catch((notifyErr) => {

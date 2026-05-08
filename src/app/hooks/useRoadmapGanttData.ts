@@ -181,6 +181,13 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
     selection,
     isOverviewDragging,
   } = args;
+  const {
+    selectedTaskId,
+    focusedTaskId,
+    hoveredDependencyId,
+    setSelectedTaskId,
+    setFocusedTaskId,
+  } = selection;
 
   // ---------- Owned state ----------
   const [timelineTaskOverrides, setTimelineTaskOverrides] = useState<RoadmapGanttTimelineTaskOverrides>({});
@@ -219,10 +226,10 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
     () =>
       buildChainTaskIds({
         projection,
-        selectedTaskId: selection.selectedTaskId,
+        selectedTaskId: selectedTaskId,
         enabled: filters.highlightDependencyChain,
       }),
-    [filters.highlightDependencyChain, projection, selection.selectedTaskId],
+    [filters.highlightDependencyChain, projection, selectedTaskId],
   );
 
   // ---------- Plan Board hydration & inline edit gating ----------
@@ -280,7 +287,7 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
         dependencyTypeFilter: filters.dependencyTypeFilter,
         blockedOnly: filters.blockedOnly,
         dependencyView: filters.dependencyView,
-        selectedTaskId: selection.selectedTaskId,
+        selectedTaskId: selectedTaskId,
       }),
     [
       filters.blockedOnly,
@@ -288,7 +295,7 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
       filters.dependencyView,
       filteredTaskIds,
       projection.dependencies,
-      selection.selectedTaskId,
+      selectedTaskId,
     ],
   );
 
@@ -303,8 +310,8 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
   );
 
   const hoveredDependency = useMemo(
-    () => visibleDependencies.find((dep) => dep.id === selection.hoveredDependencyId) ?? null,
-    [visibleDependencies, selection.hoveredDependencyId],
+    () => visibleDependencies.find((dep) => dep.id === hoveredDependencyId) ?? null,
+    [visibleDependencies, hoveredDependencyId],
   );
 
   const highlightedTaskIds = useMemo(
@@ -316,16 +323,16 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
     () =>
       buildDependencyChainShouldDim({
         chainTaskIds,
-        selectedTaskId: selection.selectedTaskId,
+        selectedTaskId: selectedTaskId,
         projectionTasks: projection.tasks,
       }),
-    [chainTaskIds, projection.tasks, selection.selectedTaskId],
+    [chainTaskIds, projection.tasks, selectedTaskId],
   );
 
   // ---------- Selection / drawer ----------
   const selectedTask = useMemo(
-    () => projection.tasks.find((task) => task.id === selection.selectedTaskId) ?? null,
-    [projection.tasks, selection.selectedTaskId],
+    () => projection.tasks.find((task) => task.id === selectedTaskId) ?? null,
+    [projection.tasks, selectedTaskId],
   );
   const drawerTask = selectedTask?.kind === 'task' ? selectedTask : null;
   const downstreamTaskCount =
@@ -346,8 +353,8 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
 
   // ---------- Focus & lane-move helpers ----------
   const focusedTask = useMemo(
-    () => timelineTasks.find((task) => task.id === selection.focusedTaskId) ?? null,
-    [selection.focusedTaskId, timelineTasks],
+    () => timelineTasks.find((task) => task.id === focusedTaskId) ?? null,
+    [focusedTaskId, timelineTasks],
   );
 
   const selectableLanesForJump = useMemo(
@@ -379,33 +386,27 @@ export function useRoadmapGanttData(args: UseRoadmapGanttDataArgs): UseRoadmapGa
       projectionTaskIds: projectionTaskIdSet,
     });
     if (next != null) {
-      selection.setSelectedTaskId(next);
-      selection.setFocusedTaskId(next);
+      setSelectedTaskId(next);
+      setFocusedTaskId(next);
     }
-    // selection setters are stable from useState; intentionally omitted from deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskIdListKey, resolvedFocusTaskId, urlTaskParam, projectionTaskIdSet]);
+  }, [taskIdListKey, resolvedFocusTaskId, urlTaskParam, projectionTaskIdSet, setSelectedTaskId, setFocusedTaskId]);
 
   // ---------- Focus reconciliation ----------
   useEffect(() => {
     if (timelineTasks.length === 0) {
-      selection.setFocusedTaskId(null);
+      setFocusedTaskId(null);
       return;
     }
-    if (selection.focusedTaskId == null || !timelineTasks.some((task) => task.id === selection.focusedTaskId)) {
-      selection.setFocusedTaskId(timelineTasks[0]!.id);
+    if (focusedTaskId == null || !timelineTasks.some((task) => task.id === focusedTaskId)) {
+      setFocusedTaskId(timelineTasks[0]!.id);
     }
-    // selection setters are stable; intentionally omitted from deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection.focusedTaskId, timelineTasks]);
+  }, [focusedTaskId, timelineTasks, setFocusedTaskId]);
 
   useEffect(() => {
-    if (selection.selectedTaskId && !projection.tasks.some((task) => task.id === selection.selectedTaskId)) {
-      selection.setSelectedTaskId(null);
+    if (selectedTaskId && !projection.tasks.some((task) => task.id === selectedTaskId)) {
+      setSelectedTaskId(null);
     }
-    // selection setters are stable; intentionally omitted from deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projection.tasks, selection.selectedTaskId]);
+  }, [projection.tasks, selectedTaskId, setSelectedTaskId]);
 
   const isHeavyTaskLoad = timelineTasks.length >= ROADMAP_GANTT_HEAVY_TASK_COUNT_THRESHOLD;
 

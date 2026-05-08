@@ -54,7 +54,7 @@ export function PlanManualCardCreateForm(props: PlanManualCardCreateFormProps) {
           placeholder={PLAN_BOARD_COPY.manualCardTitlePlaceholder}
         />
       </div>
-      <div className="md:w-[14rem]">
+      <div className="md:w-[length:var(--portal-plan-manual-lane-width)]">
         <label className="text-muted-foreground text-xs sr-only" htmlFor="plan-manual-card-lane-shared">
           {PLAN_BOARD_COPY.laneLabelPrefix}
         </label>

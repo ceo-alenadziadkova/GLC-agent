@@ -39,6 +39,7 @@ export function ConsultantOrchestrationCockpitPage() {
     queryFn: () => api.getRoadmapManifestSnapshotLatest(auditId as string),
     enabled: Boolean(auditId) && APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled,
   });
+  const compileMutation = useCompilePlanMutation({ auditId: auditId ?? '' });
 
   if (!APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled) {
     return <Navigate to="/dashboard" replace />;
@@ -54,8 +55,6 @@ export function ConsultantOrchestrationCockpitPage() {
   const titles = view ? orchestrationNodeTitleMap(view) : new Map<string, string>();
   const latestManifestPayload = latestManifestQuery.data?.snapshot?.payload ?? null;
   const decisionHint = governance?.decision_hint;
-  const compileMutation = useCompilePlanMutation({ auditId: auditId ?? '' });
-
   const onRebuild = async () => {
     if (!latestManifestPayload) {
       toast.error(ORCHESTRATION_UI_COPY.consultantCockpitNoManifest);

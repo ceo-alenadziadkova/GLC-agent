@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BriefSchemaSnapshot } from '../../data/api/brief-profile-platform';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
-import { api } from '../../data/apiService';
 import { useIntakeBankMetrics } from '../../hooks/useIntakeWizard';
 import {
   areEarlyBriefCaptureSlotsSatisfied,
@@ -12,7 +11,6 @@ import {
 } from '@glc/intake-core';
 import { briefResponsesToIntakeMap } from '../../data/intakeBriefMap';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
-import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import {
   readClientPortalNewAuditDraft,
   readConsultantNewAuditDraft,
@@ -42,14 +40,11 @@ const EMPTY_INTELLIGENCE_WORDING_UI: Pick<
   hint_overrides: {},
   option_display_overrides: {},
 };
-import { applyIntelligenceInferredSelections } from './apply-intelligence-inferred';
 import { useCoverageSelectionState } from './wizard-state/useCoverageSelectionState';
 import { useBriefLayoutState } from './wizard-state/useBriefLayoutState';
 import { usePreBriefState } from './wizard-state/usePreBriefState';
 import { useWizardDiscoveryPrefill } from './wizard-effects/useWizardDiscoveryPrefill';
 import { resolveResponseSource } from './wizard-services/response-source.resolver';
-import { createPreBriefToken, validatePreBriefInput } from './wizard-services/prebrief-token.service';
-import { BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS } from '../../config/client-analytics-batching';
 import {
   BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST,
 } from './wizard-config/wizard-constants';
@@ -57,7 +52,6 @@ import type { NewAuditVariant, NewAuditWizardContract } from './wizard-contract/
 import {
   NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY,
 } from '../../config/route-paths';
-import { normalizeServerBriefResponsesForWizard } from '../../lib/new-audit-brief-state';
 import { useWizardStepState } from './wizard-state/useWizardStepState';
 import { useWizardValidationProgress } from './wizard-state/useWizardValidationProgress';
 import { useConsultantDpaConsent } from './wizard-services/useConsultantDpaConsent';
@@ -65,12 +59,18 @@ import { useWizardDraftAndLaunchActions } from './wizard-services/useWizardDraft
 import { useWizardSnapshotStateMachine } from './state-machine/useWizardSnapshotStateMachine';
 import { shouldOpenSnapshotGate } from './validators/newAuditWizardGuards';
 import { useWizardDraftPersistence } from './draft/useWizardDraftPersistence';
+import { useNewAuditF1SyncEffect } from './effects/useNewAuditF1SyncEffect';
+import { useNewAuditBriefDiagnosticsEffect } from './effects/useNewAuditBriefDiagnosticsEffect';
+import { useNewAuditSnapshotActions } from './effects/useNewAuditSnapshotActions';
+import { useNewAuditResponseHandlers } from './effects/useNewAuditResponseHandlers';
+import { useNewAuditPreBriefActions } from './effects/useNewAuditPreBriefActions';
 import {
-  getSnapshotGenericError,
-  runBriefIntelligenceSnapshotAction,
-  runBriefIntelligenceWordingAction,
-  saveBriefBeforeIntelligence,
-} from './api-actions/newAuditApiActions';
+  getBriefTailoredFollowUpUnlocked,
+  getBriefWizardIntakeAnalytics,
+  getEarlyIntelligenceEligible,
+  getNewAuditBankIntakeSurface,
+  getNewAuditCollectionModeForPlan,
+} from './mappers/newAuditWizardMappers';
 
 export type { NewAuditVariant } from './wizard-contract/useNewAuditWizard.types';
 
@@ -81,13 +81,13 @@ export function shouldRunNewAuditSnapshotGate(args: {
   briefIntelligenceSubStep: 'short_brief' | 'snapshot_confirm';
   intakePrefillActive: boolean;
 }): boolean {
-  return (
-    args.snapshotStepEnabled &&
-    !args.isClientSelfServe &&
-    args.hasDraftAuditId &&
-    args.briefIntelligenceSubStep === 'short_brief' &&
-    !args.intakePrefillActive
-  );
+  if (!args.snapshotStepEnabled) return false;
+  return shouldOpenSnapshotGate({
+    isClientSelfServe: args.isClientSelfServe,
+    draftAuditId: args.hasDraftAuditId ? 'draft' : null,
+    briefIntelligenceSubStep: args.briefIntelligenceSubStep,
+    intakePrefillActive: args.intakePrefillActive,
+  });
 }
 
 export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAuditWizardContract {
@@ -249,11 +249,6 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     string[] | undefined
   >(undefined);
 
-  const newAuditF1DebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const newAuditF1RequestSeqRef = useRef(0);
-  /** Preserves early vs full snapshot choice when a POST fails before the confirm step. */
-  const lastIntelligenceSnapshotRequestEarlyRef = useRef(false);
-
   const bumpClientProjectContextSyncTick = useCallback(() => {
     setClientProjectContextSyncTick(prev => prev + 1);
   }, []);
@@ -316,10 +311,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
    * Portal self-serve without site sub-step still skips straight to full eligible set for that flow.
    */
   const briefTailoredFollowUpUnlocked = useMemo(
-    () =>
-      briefTailoredPhaseUnlocked ||
-      intakePrefillActive ||
-      !APP_FEATURE_FLAGS.newAuditIntelligenceSnapshotStepEnabled,
+    () => getBriefTailoredFollowUpUnlocked({ briefTailoredPhaseUnlocked, intakePrefillActive }),
     [briefTailoredPhaseUnlocked, intakePrefillActive],
   );
 
@@ -355,38 +347,33 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     [pipelineGateBriefResponses],
   );
 
-  const earlyIntelligenceEligible = useMemo(() => {
-    if (!APP_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled) return false;
-    if (!APP_FEATURE_FLAGS.newAuditIntelligenceSnapshotStepEnabled) return false;
-    if (noPublicWebsite) return false;
-    if (isClientSelfServe || !draftAuditId) return false;
-    if (intakePrefillActive) return false;
-    if (briefTailoredFollowUpUnlocked) return false;
-    return (
-      areEarlyBriefCaptureSlotsSatisfied(intakeMapForSnapshots) &&
-      !arePreBriefSubmitSlotsSatisfied(intakeMapForSnapshots)
-    );
-  }, [
-    briefTailoredFollowUpUnlocked,
-    draftAuditId,
-    intakeMapForSnapshots,
-    intakePrefillActive,
-    isClientSelfServe,
-    noPublicWebsite,
-  ]);
-
-  /** Client portal (self-serve) must use `client_form` — was wrongly using consultant surface for metrics. */
-  const newAuditBankIntakeSurface: IntakeSurface | undefined = useMemo(() => {
-    if (noPublicWebsite) return undefined;
-    return isClientSelfServe ? 'client_form' : 'consultant_interview';
-  }, [isClientSelfServe, noPublicWebsite]);
-  const newAuditCollectionModeForPlan = useMemo(
+  const earlyIntelligenceEligible = useMemo(
     () =>
-      newAuditStep1CollectionMode({
+      getEarlyIntelligenceEligible({
         noPublicWebsite,
         isClientSelfServe,
-        tailoredPhaseUnlocked: briefTailoredFollowUpUnlocked,
+        draftAuditId,
+        intakePrefillActive,
+        briefTailoredFollowUpUnlocked,
+        intakeMapForSnapshots,
       }),
+    [
+      briefTailoredFollowUpUnlocked,
+      draftAuditId,
+      intakeMapForSnapshots,
+      intakePrefillActive,
+      isClientSelfServe,
+      noPublicWebsite,
+    ],
+  );
+
+  /** Client portal (self-serve) must use `client_form` — was wrongly using consultant surface for metrics. */
+  const newAuditBankIntakeSurface: IntakeSurface | undefined = useMemo(
+    () => getNewAuditBankIntakeSurface({ noPublicWebsite, isClientSelfServe }),
+    [isClientSelfServe, noPublicWebsite],
+  );
+  const newAuditCollectionModeForPlan = useMemo(
+    () => getNewAuditCollectionModeForPlan({ noPublicWebsite, isClientSelfServe, briefTailoredFollowUpUnlocked }),
     [briefTailoredFollowUpUnlocked, isClientSelfServe, noPublicWebsite],
   );
   const bankMetrics = useIntakeBankMetrics(
@@ -402,36 +389,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     [intakeTokenFromUrl, preBriefState.preBriefToken],
   );
 
-  useEffect(() => {
-    if (step !== 1 || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) return;
-    if (!f1IntakeToken) return;
-    if (!APP_FEATURE_FLAGS.diagnosticIntakePilotEnabled || !APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled) return;
-
-    const seq = ++newAuditF1RequestSeqRef.current;
-    if (newAuditF1DebounceRef.current) clearTimeout(newAuditF1DebounceRef.current);
-    newAuditF1DebounceRef.current = setTimeout(() => {
-      void (async () => {
-        const asMap = briefResponsesToIntakeMap(pipelineGateBriefResponses) as Record<string, unknown>;
-        const collectionF1 = isClientSelfServe ? 'self_serve' : 'interview';
-        const surfaceF1: IntakeSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
-        try {
-          await api.postIntakeNextQuestion(f1IntakeToken, {
-            responses: asMap,
-            productMode: briefProductMode,
-            collectionMode: collectionF1,
-            surface: surfaceF1,
-            intakeVersionTuple: draftIntakeVersions ?? currentIntakeVersionTuple(),
-          });
-        } catch {
-          // Route disabled or token unlinked / 404
-        }
-        if (seq !== newAuditF1RequestSeqRef.current) return;
-      })();
-    }, 450);
-    return () => {
-      if (newAuditF1DebounceRef.current) clearTimeout(newAuditF1DebounceRef.current);
-    };
-  }, [
+  useNewAuditF1SyncEffect({
     step,
     noPublicWebsite,
     briefLayoutChoice,
@@ -440,323 +398,85 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     isClientSelfServe,
     briefProductMode,
     draftIntakeVersions,
-  ]);
+  });
 
-  const briefWizardIntakeAnalytics = useMemo(():
-    | {
-        auditId: string;
-        surface: BriefIntakeAnalyticsSurface;
-        getIntakeVersions: () => IntakeVersionTuple | null;
-      }
-    | undefined => {
-    if (!draftAuditId || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) return undefined;
-    const surface: BriefIntakeAnalyticsSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
-    return {
-      auditId: draftAuditId,
-      surface,
-      getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
-    };
-  }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
+  const briefWizardIntakeAnalytics = useMemo(
+    () =>
+      getBriefWizardIntakeAnalytics({
+        draftAuditId,
+        noPublicWebsite,
+        briefLayoutChoice,
+        isClientSelfServe,
+        draftIntakeVersions,
+      }),
+    [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions],
+  );
 
   const responsesFingerprint = useMemo(() => JSON.stringify(responses), [responses]);
 
-  useEffect(() => {
-    if (step !== 1 || !draftAuditId || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) {
-      setBriefExecutionDiagnostic(null);
-      setBriefWizardServerVisibleQuestionIds(undefined);
-      setBriefExecutionDiagnosticLoading(false);
-      setBriefExecutionDiagnosticError(false);
-      return;
-    }
-
-    let cancelled = false;
-    setBriefExecutionDiagnosticLoading(true);
-    setBriefExecutionDiagnosticError(false);
-    const tid = window.setTimeout(() => {
-      void api
-        .getBrief(draftAuditId)
-        .then(payload => {
-          if (cancelled) return;
-          const visibleFromBrief = Array.isArray(payload.questions)
-            ? payload.questions
-                .map((q): string =>
-                  q && typeof q === 'object' && q !== null && 'id' in q
-                    ? String((q as { id?: unknown }).id ?? '')
-                    : '',
-                )
-                .filter(id => id.length > 0)
-            : [];
-          setBriefWizardServerVisibleQuestionIds(
-            visibleFromBrief.length > 0 ? visibleFromBrief : undefined,
-          );
-          if (payload.readiness != null && payload.critical_signals != null) {
-            setBriefExecutionDiagnostic({
-              readiness: payload.readiness,
-              critical_signals: payload.critical_signals,
-              remediation_queue: payload.remediation_queue ?? [],
-            });
-          } else {
-            setBriefExecutionDiagnostic(null);
-          }
-          setBriefExecutionDiagnosticLoading(false);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setBriefExecutionDiagnosticError(true);
-            setBriefWizardServerVisibleQuestionIds(undefined);
-            setBriefExecutionDiagnosticLoading(false);
-          }
-        });
-    }, BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(tid);
-    };
-  }, [step, draftAuditId, noPublicWebsite, briefLayoutChoice, responsesFingerprint]);
-
-  function handleResponseChange(id: string, value: string | string[] | number | null) {
-    setResponses(prev => ({ ...prev, [id]: { value, source: responseSource } }));
-  }
-
-  function handleSetUnknown(id: string) {
-    setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
-  }
-
-  const runBriefIntelligenceSnapshot = useCallback(async (opts?: { earlyCapture?: boolean }) => {
-    if (!draftAuditId) {
-      setIntelligenceSnapshotError(WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.missingAuditId);
-      return;
-    }
-    setIntelligenceSnapshotLoading(true);
-    setIntelligenceSnapshotError(null);
-    lastIntelligenceSnapshotRequestEarlyRef.current = Boolean(opts?.earlyCapture);
-    try {
-      const nextVersions = await saveBriefBeforeIntelligence({
-        draftAuditId,
-        isClientSelfServe,
-        url,
-        noPublicWebsite,
-        name,
-        industry,
-        industrySpecify,
-        responses,
-        briefLayoutChoice,
-        preBriefToken: preBriefState.preBriefToken,
-        intakeTokenFromUrl,
-        draftIntakeVersions,
-      });
-      if (nextVersions) {
-        setDraftIntakeVersions(nextVersions);
-      }
-      bumpClientProjectContextSyncTick();
-      const snap = await runBriefIntelligenceSnapshotAction({
-        draftAuditId,
-        earlyCapture: opts?.earlyCapture,
-      });
-      snapshotMachine.moveToSnapshotConfirm(snap, opts?.earlyCapture ? 'early' : 'standard');
-    } catch (e) {
-      setIntelligenceSnapshotPhase('standard');
-      setIntelligenceSnapshotError(getSnapshotGenericError(e));
-    } finally {
-      setIntelligenceSnapshotLoading(false);
-    }
-  }, [
-    briefLayoutChoice,
-    bumpClientProjectContextSyncTick,
+  useNewAuditBriefDiagnosticsEffect({
+    step,
     draftAuditId,
-    draftIntakeVersions,
+    noPublicWebsite,
+    briefLayoutChoice,
+    responsesFingerprint,
+    setBriefExecutionDiagnostic,
+    setBriefWizardServerVisibleQuestionIds,
+    setBriefExecutionDiagnosticLoading,
+    setBriefExecutionDiagnosticError,
+  });
+
+  const { handleResponseChange, handleSetUnknown, handleBriefCloneFromAudit } = useNewAuditResponseHandlers({
+    responseSource,
+    setResponses,
+    draftAuditId,
+    bumpClientProjectContextSyncTick,
+  });
+
+  const {
+    runBriefIntelligenceSnapshot,
+    runEarlyBriefIntelligenceSnapshot,
+    retryBriefIntelligenceSnapshot,
+    handleStep1ContinueToReview,
+    handleIntelligenceSnapshotSkipToReview,
+    handleIntelligenceSnapshotSaveApplyAndWording,
+    handleIntelligenceSnapshotBackToBriefForm,
+    handleBackFromStep2ToStep1,
+    handleBackFromStep1ToStep0,
+  } = useNewAuditSnapshotActions({
+    draftAuditId,
+    isClientSelfServe,
+    url,
+    noPublicWebsite,
+    name,
     industry,
     industrySpecify,
-    intakeTokenFromUrl,
-    isClientSelfServe,
-    name,
-    noPublicWebsite,
-    preBriefState.preBriefToken,
     responses,
+    responseSource,
+    briefLayoutChoice,
+    preBriefToken: preBriefState.preBriefToken,
+    intakeTokenFromUrl,
+    draftIntakeVersions,
+    bumpClientProjectContextSyncTick,
     snapshotMachine,
-    url,
-  ]);
-
-  const runEarlyBriefIntelligenceSnapshot = useCallback(async () => {
-    await runBriefIntelligenceSnapshot({ earlyCapture: true });
-  }, [runBriefIntelligenceSnapshot]);
-
-  const retryBriefIntelligenceSnapshot = useCallback(async () => {
-    await runBriefIntelligenceSnapshot(lastIntelligenceSnapshotRequestEarlyRef.current ? { earlyCapture: true } : {});
-  }, [runBriefIntelligenceSnapshot]);
-
-  const applyMergedBriefServerRowIntoState = useCallback(
-    (briefRow: unknown) => {
-      const next = normalizeServerBriefResponsesForWizard(briefRow, responseSource);
-      if (Object.keys(next).length === 0) return;
-      setResponses(next);
-    },
-    [responseSource],
-  );
-
-  const handleBriefCloneFromAudit = useCallback(
-    async (sourceAuditId: string) => {
-      if (!draftAuditId || !APP_FEATURE_FLAGS.briefCloneFromAuditEnabled) return;
-      const merged = await api.postAuditsBriefCloneFrom(draftAuditId, { source_audit_id: sourceAuditId });
-      applyMergedBriefServerRowIntoState(merged.brief);
-      bumpClientProjectContextSyncTick();
-    },
-    [applyMergedBriefServerRowIntoState, bumpClientProjectContextSyncTick, draftAuditId],
-  );
-
-  const handleStep1ContinueToReview = useCallback(async () => {
-    if (!step2Complete) return;
-    const useSnapshotGate = shouldOpenSnapshotGate({
-      isClientSelfServe,
-      draftAuditId,
-      briefIntelligenceSubStep,
-      intakePrefillActive,
-    });
-    if (!useSnapshotGate) {
-      setStep(2);
-      return;
-    }
-    if (intelligenceLlm1Done) {
-      setStep(2);
-      return;
-    }
-    await runBriefIntelligenceSnapshot();
-  }, [
+    intelligenceSnapshotPhase,
+    intelligenceSnapshotResult,
     briefIntelligenceSubStep,
-    draftAuditId,
     intakePrefillActive,
     intelligenceLlm1Done,
-    isClientSelfServe,
-    runBriefIntelligenceSnapshot,
     step2Complete,
-  ]);
-
-  const handleIntelligenceSnapshotSkipToReview = useCallback(() => {
-    snapshotMachine.skipSnapshotAndGoReview(setStep);
-  }, [snapshotMachine, setStep]);
-
-  const handleIntelligenceSnapshotSaveApplyAndWording = useCallback(
-    async (selectedInferredIds: Set<string>) => {
-      if (!draftAuditId || !intelligenceSnapshotResult) {
-        return;
-      }
-      setIntelligenceSnapshotError(null);
-
-      if (intelligenceSnapshotPhase === 'early') {
-        setIntelEarlyMergePending(true);
-        try {
-          const nextResponses = applyIntelligenceInferredSelections(
-            responses,
-            intelligenceSnapshotResult.inferred_preview,
-            selectedInferredIds,
-            responseSource,
-          );
-          setResponses(nextResponses);
-          const nextVersions = await saveBriefBeforeIntelligence({
-            draftAuditId,
-            isClientSelfServe,
-            url,
-            noPublicWebsite,
-            name,
-            industry,
-            industrySpecify,
-            responses: nextResponses,
-            briefLayoutChoice,
-            preBriefToken: preBriefState.preBriefToken,
-            intakeTokenFromUrl,
-            draftIntakeVersions,
-          });
-          if (nextVersions) {
-            setDraftIntakeVersions(nextVersions);
-          }
-          bumpClientProjectContextSyncTick();
-          snapshotMachine.resetToShortBrief();
-        } catch (e) {
-          setIntelligenceSnapshotError(getSnapshotGenericError(e));
-        } finally {
-          setIntelEarlyMergePending(false);
-        }
-        return;
-      }
-
-      setIntelligenceWordingLoading(true);
-      try {
-        const nextResponses = applyIntelligenceInferredSelections(
-          responses,
-          intelligenceSnapshotResult.inferred_preview,
-          selectedInferredIds,
-          responseSource,
-        );
-        setResponses(nextResponses);
-        const nextVersions = await saveBriefBeforeIntelligence({
-          draftAuditId,
-          isClientSelfServe,
-          url,
-          noPublicWebsite,
-          name,
-          industry,
-          industrySpecify,
-          responses: nextResponses,
-          briefLayoutChoice,
-          preBriefToken: preBriefState.preBriefToken,
-          intakeTokenFromUrl,
-          draftIntakeVersions,
-        });
-        if (nextVersions) {
-          setDraftIntakeVersions(nextVersions);
-        }
-        bumpClientProjectContextSyncTick();
-        const wording = await runBriefIntelligenceWordingAction(draftAuditId);
-        setIntelligenceWordingUi({
-          label_overrides: wording.label_overrides ?? {},
-          hint_overrides: wording.hint_overrides ?? {},
-          option_display_overrides: wording.option_display_overrides ?? {},
-        });
-        setBriefTailoredPhaseUnlocked(true);
-        snapshotMachine.resetToShortBrief();
-      } catch (e) {
-        setIntelligenceSnapshotError(getSnapshotGenericError(e));
-      } finally {
-        setIntelligenceWordingLoading(false);
-      }
-    },
-    [
-      briefLayoutChoice,
-      bumpClientProjectContextSyncTick,
-      draftAuditId,
-      draftIntakeVersions,
-      industry,
-      industrySpecify,
-      intakeTokenFromUrl,
-      intelligenceSnapshotPhase,
-      intelligenceSnapshotResult,
-      isClientSelfServe,
-      name,
-      noPublicWebsite,
-      preBriefState.preBriefToken,
-      responses,
-      responseSource,
-      snapshotMachine,
-      url,
-    ],
-  );
-
-  const handleIntelligenceSnapshotBackToBriefForm = useCallback(() => {
-    snapshotMachine.resetToShortBrief();
-  }, [snapshotMachine]);
-
-  const handleBackFromStep2ToStep1 = useCallback(() => {
-    setBriefTailoredPhaseUnlocked(true);
-    snapshotMachine.resetToShortBrief();
-    setStep(1);
-  }, [snapshotMachine]);
-
-  const handleBackFromStep1ToStep0 = useCallback(() => {
-    snapshotMachine.resetToShortBrief();
-    setIntelligenceWordingUi({ ...EMPTY_INTELLIGENCE_WORDING_UI });
-    setStep(0);
-    setBasicsSubStep(0);
-  }, [snapshotMachine]);
+    setStep,
+    setResponses,
+    setDraftIntakeVersions,
+    setIntelligenceSnapshotLoading,
+    setIntelligenceSnapshotError,
+    setIntelligenceSnapshotPhase,
+    setIntelEarlyMergePending,
+    setIntelligenceWordingLoading,
+    setIntelligenceWordingUi,
+    setBriefTailoredPhaseUnlocked,
+    setBasicsSubStep,
+  });
 
   const { handleSaveClientDraft, handleLaunch, handleStep0ContinueFromBasics } =
     useWizardDraftAndLaunchActions({
@@ -798,51 +518,10 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     handleWizardStepIndicatorClick(visual);
   }, [handleWizardStepIndicatorClick, snapshotMachine]);
 
-  async function handlePreBriefCreate() {
-    preBriefState.setPreBriefErr(null);
-    preBriefState.setPreBriefLoading(true);
-    preBriefState.setPreBriefLink(null);
-    try {
-      const validation = validatePreBriefInput({
-        company: preBriefState.preBriefCompany,
-        website: preBriefState.preBriefWebsite,
-        industryField: preBriefState.preBriefIndustryField,
-        industrySpecify: preBriefState.preBriefIndustrySpecify,
-        message: preBriefState.preBriefMessage,
-        consultantName: preBriefState.preBriefConsultantName,
-        expectedContact: preBriefState.preBriefExpectedContact,
-        contactChannel: preBriefState.preBriefContactChannel,
-        email: preBriefState.preBriefEmail,
-        whatsapp: preBriefState.preBriefWhatsapp,
-      });
-      if (validation.hasError) {
-        preBriefState.setPreBriefErr(WORKSPACE_PAGE_COPY.newAudit.preBriefIndustryOtherRequired);
-        preBriefState.setPreBriefLoading(false);
-        return;
-      }
-      const { url: link, token } = await createPreBriefToken({
-        user,
-        draft: {
-          company: preBriefState.preBriefCompany,
-          website: preBriefState.preBriefWebsite,
-          industryField: preBriefState.preBriefIndustryField,
-          industrySpecify: preBriefState.preBriefIndustrySpecify,
-          message: preBriefState.preBriefMessage,
-          consultantName: preBriefState.preBriefConsultantName,
-          expectedContact: preBriefState.preBriefExpectedContact,
-          contactChannel: preBriefState.preBriefContactChannel,
-          email: preBriefState.preBriefEmail,
-          whatsapp: preBriefState.preBriefWhatsapp,
-        },
-      });
-      preBriefState.setPreBriefLink(link);
-      preBriefState.setPreBriefToken(token);
-    } catch (e) {
-      preBriefState.setPreBriefErr((e as Error).message);
-    } finally {
-      preBriefState.setPreBriefLoading(false);
-    }
-  }
+  const { handlePreBriefCreate } = useNewAuditPreBriefActions({
+    user,
+    preBriefState,
+  });
 
   return {
     // Props derived

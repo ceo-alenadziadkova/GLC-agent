@@ -15,7 +15,7 @@ export function BoardColumnShell(props: {
     <section
       ref={setNodeRef}
       aria-label={heading}
-      className={`bg-card border-border flex min-h-[12rem] min-w-[11rem] flex-col rounded-lg border ${isOver ? 'ring-muted ring-2 ring-offset-2' : ''}`}
+      className={`bg-card border-border flex min-h-[length:var(--portal-plan-column-min-height)] min-w-[length:var(--portal-plan-column-min-width)] flex-col rounded-lg border ${isOver ? 'ring-muted ring-2 ring-offset-2' : ''}`}
     >
       <header className="border-border border-b px-3 py-2">
         <h2 className="text-foreground text-sm font-semibold">{heading}</h2>

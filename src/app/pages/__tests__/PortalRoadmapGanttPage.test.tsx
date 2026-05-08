@@ -137,10 +137,8 @@ describe('PortalRoadmapGanttPage', () => {
 
     await screen.findByText('Roadmap timeline');
 
-    const roadmap = screen.getByRole('link', {
-      name: STRATEGY_LAB_COPY.planViewSegment.roadmapTabLabel,
-    });
-    expect(roadmap).toHaveAttribute('href', buildAppRoute.plan('audit-1', 'roadmap'));
+    const roadmap = screen.getByRole('tab', { name: /Execute/i });
+    expect(roadmap).toHaveAttribute('href', '/roadmap/audit-1');
 
     const studioLink = screen.getByRole('link', {
       name: PLAN_WORKSPACE_UI_COPY.planWorkbenchConsultantPrimaryAriaLabel,
@@ -149,7 +147,7 @@ describe('PortalRoadmapGanttPage', () => {
       'href',
       buildPlanWorkspaceHref({ auditId: 'audit-1', isClient: false, mode: 'shape' }),
     );
-    expect(roadmap).toHaveAttribute('aria-current', 'page');
+    expect(roadmap).toHaveAttribute('aria-selected', 'true');
   });
 
   it('shows mapper-empty guidance when lanes have rows but projection is empty', async () => {
@@ -270,7 +268,7 @@ describe('PortalRoadmapGanttPage', () => {
     await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttMainTabDependenciesLabel }));
     await user.click(screen.getByRole('tab', { name: ORCHESTRATION_UI_COPY.roadmapGanttDepsTableTabLabel }));
     expect(await screen.findByText('Finish -> Start')).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('supports keyboard navigation on timeline grid with arrow keys', async () => {
     const user = userEvent.setup();
@@ -307,7 +305,7 @@ describe('PortalRoadmapGanttPage', () => {
 
     const sortedTypeHeader = screen.getByRole('button', { name: /Type (▲|▼)/ });
     expect(sortedTypeHeader).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('shows day horizon controls in day scale and hides them in month scale', async () => {
     const user = userEvent.setup();

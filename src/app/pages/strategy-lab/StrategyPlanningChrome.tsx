@@ -166,7 +166,7 @@ export function StrategyPlanningChrome({
                         <DotsThreeVertical className="h-5 w-5" weight="bold" aria-hidden />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[12rem]" collisionPadding={8}>
+                    <DropdownMenuContent align="end" className="min-w-[length:var(--marketing-dropdown-min-width)]" collisionPadding={8}>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onSelect={() => {

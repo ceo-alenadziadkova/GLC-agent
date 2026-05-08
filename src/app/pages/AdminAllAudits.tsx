@@ -106,8 +106,8 @@ export function AdminAllAudits() {
     : '';
 
   const actionsGridClass = canManagePlatformSettings
-    ? '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_minmax(5.5rem,auto)]'
-    : '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_40px]';
+    ? '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_minmax(var(--admin-all-audits-actions-min-width),auto)]'
+    : '[grid-template-columns:2fr_1fr_1fr_1fr_1fr_88px_var(--admin-all-audits-icon-col-width)]';
 
   return (
     <AppShell

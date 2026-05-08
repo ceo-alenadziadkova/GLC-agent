@@ -240,7 +240,7 @@ export function RoadmapGanttTimelinePanel(props: RoadmapGanttTimelinePanelProps)
                     {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuTrigger}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-[12rem]">
+                <DropdownMenuContent align="start" className="min-w-[length:var(--marketing-dropdown-min-width)]">
                   <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
                     {ORCHESTRATION_UI_COPY.roadmapGanttLaneMoveMenuLabel}
                   </DropdownMenuLabel>

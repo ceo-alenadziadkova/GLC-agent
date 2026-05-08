@@ -66,13 +66,13 @@ export function PhaseDetailStalledCallout(props: Props) {
           </label>
           <textarea
             id="phase-rerun-comment"
-            className="w-full min-h-[4.5rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 text-xs"
+            className="w-full min-h-[length:var(--pipeline-monitor-retry-comment-min-height)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2 text-xs"
             value={rerunCommentDraft}
             maxLength={PIPELINE_RETRY_COMMENT_MAX_LENGTH}
             onChange={(event) => setRerunCommentDraft(event.target.value)}
             placeholder={detailCopy.retryCommentPlaceholder}
           />
-          <p className={cn('text-right text-[11px]', rerunCommentCounterClassName)} aria-live="polite">
+          <p className={cn('text-right text-[length:var(--text-xs)]', rerunCommentCounterClassName)} aria-live="polite">
             {rerunCommentLength}/{PIPELINE_RETRY_COMMENT_MAX_LENGTH}
           </p>
         </div>

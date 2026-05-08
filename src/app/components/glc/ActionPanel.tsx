@@ -71,7 +71,7 @@ function SubSection({ label, icon, count, children }: SubSectionProps) {
 
 function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
   return (
-    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
+    <div className="ds-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -90,7 +90,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        className="ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity ds-touch-target"
         title="Go to pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -101,7 +101,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
 
 function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
   return (
-    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
+    <div className="ds-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -118,7 +118,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        className="ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity ds-touch-target"
         title="Start pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -129,7 +129,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
 
 function FailureRow({ item }: { item: DashboardFailureItem }) {
   return (
-    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
+    <div className="ds-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -146,7 +146,7 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
       </div>
       <Link
         to={`/audit/${item.id}`}
-        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        className="ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity ds-touch-target"
         title="View audit"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
 
 function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
   return (
-    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
+    <div className="ds-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar name={null} url={item.url} />
       <div className="flex-1 min-w-0">
@@ -170,7 +170,7 @@ function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
       </div>
       <Link
         to="/admin/requests"
-        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        className="ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity ds-touch-target"
         title="View request queue"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -189,8 +189,8 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
   const isEmpty = !loading && items !== undefined && totalItems === 0;
 
   return (
-    <div className="glc-card rounded-[var(--radius-xl)] p-5">
-      <div className="glc-panel-head">
+    <div className="ds-card rounded-[var(--radius-xl)] p-5">
+      <div className="ds-panel-head">
         <SectionLabel>Action Required</SectionLabel>
         {totalItems > 0 && (
           <span className="ds-action-panel-count-badge tabular-nums">
@@ -198,7 +198,7 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
           </span>
         )}
       </div>
-      <p className="glc-panel-meta">Priority queue across review gates, SLA risks, failures, and requests.</p>
+      <p className="ds-panel-meta">Priority queue across review gates, SLA risks, failures, and requests.</p>
 
       {loading && !items && (
         <div className="space-y-3">

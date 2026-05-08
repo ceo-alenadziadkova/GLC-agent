@@ -187,7 +187,7 @@ export function BriefPortfolioTools({
           </div>
         </details>
       ) : (
-        <p className="text-muted-foreground text-[0.7rem]">{copyParent.cloneDisabledFlag}</p>
+        <p className="text-muted-foreground text-[length:var(--text-xs)]">{copyParent.cloneDisabledFlag}</p>
       )}
     </div>
   );

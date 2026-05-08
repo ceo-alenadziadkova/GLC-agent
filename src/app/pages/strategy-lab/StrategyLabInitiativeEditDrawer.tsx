@@ -134,7 +134,7 @@ export function StrategyLabInitiativeEditDrawer({
               value={descriptionDraft}
               onChange={e => setDescriptionDraft(e.target.value)}
               rows={6}
-              className="bg-card text-foreground border-border min-h-[120px] rounded-md border px-2 py-2 text-sm"
+              className="bg-card text-foreground border-border min-h-[length:var(--strategy-lab-drawer-textarea-min-height)] rounded-md border px-2 py-2 text-sm"
             />
           </label>
           <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">

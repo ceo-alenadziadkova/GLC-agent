@@ -20,7 +20,8 @@ export const DESIGN_SYSTEM_INTERNAL_MANIFEST = {
       'src/styles/index.css',
       'src/styles/theme.css',
       'src/styles/base.css',
-      'src/styles/components.css',
+      'src/styles/components/index.css',
+      'src/styles/components/',
       'src/styles/features.css',
       'src/styles/utilities.css',
       'src/styles/tailwind.css',
@@ -28,7 +29,7 @@ export const DESIGN_SYSTEM_INTERNAL_MANIFEST = {
     tsTokenFacades: 'src/design-system/tokens/',
     uiPrimitives: ['src/design-system/ui/', 'src/app/components/ui/'],
     patterns: 'src/design-system/patterns/',
-    patternCssBridges: 'src/styles/components.css (.ds-pattern-*, .ds-*)',
+    patternCssBridges: 'src/styles/components/*.css (.ds-pattern-*, .ds-*)',
     semanticUiConfig: 'src/app/config/ui-semantic-colors.ts',
     marketingMotionConfig: [
       'src/app/config/marketing-motion.ts',
@@ -68,7 +69,7 @@ export const DESIGN_SYSTEM_INTERNAL_MANIFEST = {
   policyHighlights: {
     runtimeGate: '§4.2 — zero violations; baseline/primitive-boundary grandfather files are not applied.',
     migrationTracking: '§4.1 — violations-export and drift-budget track legacy signatures without blocking merge alone.',
-    patternsLayer: 'src/design-system/patterns/** must not embed Tailwind visual utilities or raw colors; use .ds-pattern-* in components.css.',
+    patternsLayer: 'src/design-system/patterns/** must not embed Tailwind visual utilities or raw colors; use .ds-pattern-* in src/styles/components/*.css.',
     utilitiesLayer: 'src/styles/utilities.css — layout-only (no colors, typography, shadows, radius).',
   },
   knownHardcodeOrDriftBuckets: [

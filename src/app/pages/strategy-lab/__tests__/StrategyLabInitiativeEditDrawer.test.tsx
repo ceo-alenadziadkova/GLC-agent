@@ -34,7 +34,7 @@ describe('StrategyLabInitiativeEditDrawer', () => {
     patchSpy.mockResolvedValue({ ok: true, phase_number: PIPELINE_STRATEGY_PHASE_INDEX, updated: true });
   });
 
-  it('renders title field and checkbox unchecked when initiative has no board_identity_key', async () => {
+  it('renders initiative title summary and unchecked identity checkbox when no board_identity_key', async () => {
     render(
       <StrategyLabInitiativeEditDrawer
         open
@@ -46,12 +46,16 @@ describe('StrategyLabInitiativeEditDrawer', () => {
       />,
     );
 
-    expect(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.titleLabel)).toHaveValue('Original title');
+    expect(screen.getByText(STRATEGY_LAB_COPY.boardIdentity.titleLabel)).toBeInTheDocument();
+    expect(screen.getByText('Original title')).toBeInTheDocument();
+    expect(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.descriptionLabel)).toHaveValue(
+      'Original description text that is long enough.',
+    );
     const cb = screen.getByRole('checkbox', { name: STRATEGY_LAB_COPY.boardIdentity.checkboxLabel });
     expect(cb).not.toBeChecked();
   });
 
-  it('shows rename warning when title changes and identity checkbox is unchecked', async () => {
+  it('shows identity warning copy while checkbox is unchecked', async () => {
     const user = userEvent.setup();
     render(
       <StrategyLabInitiativeEditDrawer
@@ -64,8 +68,8 @@ describe('StrategyLabInitiativeEditDrawer', () => {
       />,
     );
 
-    await user.clear(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.titleLabel));
-    await user.type(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.titleLabel), 'Renamed');
+    await user.clear(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.descriptionLabel));
+    await user.type(screen.getByLabelText(STRATEGY_LAB_COPY.boardIdentity.descriptionLabel), 'Updated description');
 
     expect(screen.getByText(STRATEGY_LAB_COPY.boardIdentity.warningWhenOff)).toBeInTheDocument();
   });

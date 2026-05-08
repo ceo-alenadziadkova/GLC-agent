@@ -66,7 +66,7 @@ export const DESIGN_SYSTEM_INTERNAL_PAGE_COPY = {
     },
     reportViewer: {
       heading: 'REPORT_VIEWER_LAYOUT',
-      body: 'Report viewer findings grid — composition only; card visuals use .ds-report-* in components.css.',
+      body: 'Report viewer findings grid — composition only; card visuals use .ds-report-* in src/styles/components/*.css.',
     },
     sandboxLabel: 'Live preview',
     codeLabel: 'Exported class strings',

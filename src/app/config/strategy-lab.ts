@@ -25,7 +25,7 @@ export const STRATEGY_LAB_PAGE_ANCHORS = {
 export const STRATEGY_LAB_LAYOUT_POLICY = {
   /**
    * Below this width consultants use the Sheet plan summary instead of `ResizablePanel`.
-   * Keeps readable orchestrator + roadmap preview in roughly 650–1024px where split panes cram.
+   * Keeps readable orchestrator + roadmap preview in roughly 650-1024 width range where split panes cram.
    */
   packSummarySheetMaxWidthPx: 1024,
   sidebarLayoutAutoSaveId: 'strategy-lab:summary-layout',

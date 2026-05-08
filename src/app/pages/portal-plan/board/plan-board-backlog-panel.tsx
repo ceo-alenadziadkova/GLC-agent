@@ -8,7 +8,7 @@ export function PlanBoardBacklogPanel(props: { isBacklog: boolean; children: Rea
   const { isBacklog, children } = props;
   if (!isBacklog) return <>{children}</>;
   return (
-    <div data-testid="plan-board-backlog-panel" className="w-[min(100%,22rem)] shrink-0">
+    <div data-testid="plan-board-backlog-panel" className="w-[length:var(--portal-plan-backlog-panel-width)] shrink-0">
       {children}
     </div>
   );

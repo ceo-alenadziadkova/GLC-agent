@@ -266,7 +266,7 @@ export function TaskDetailsDrawer({
                     <CaretDownIcon size={16} aria-hidden className="shrink-0 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-[12rem]" collisionPadding={8}>
+                <DropdownMenuContent align="start" className="min-w-[length:var(--marketing-dropdown-min-width)]" collisionPadding={8}>
                   {PLAN_BOARD_UI_COLUMNS.map((colId) => (
                     <DropdownMenuItem
                       key={colId}

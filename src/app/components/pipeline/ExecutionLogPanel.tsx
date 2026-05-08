@@ -35,7 +35,7 @@ function PipelineExecutionLogRow({
       <p className="text-[var(--text-secondary)]">{event.message ?? PIPELINE_UI_COPY.executionLog.noMessage}</p>
       <p className="text-[var(--text-muted)]">{formatAppMediumDateTime(event.created_at)}</p>
       {detailLevel === 'debug' ? (
-        <pre className="mt-2 overflow-auto rounded bg-[var(--bg-muted)] p-2 text-[10px]">
+        <pre className="mt-2 overflow-auto rounded bg-[var(--bg-muted)] p-2 text-[length:var(--text-2xs)]">
           {JSON.stringify(event.data, null, 2)}
         </pre>
       ) : null}

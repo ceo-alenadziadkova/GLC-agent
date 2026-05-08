@@ -64,7 +64,7 @@ export function PlanModeBar({ statuses }: PlanModeBarProps) {
               <span
                 aria-hidden
                 className={cn(
-                  'ml-2 inline-block text-[11px] leading-none',
+                  'ml-2 inline-block text-[length:var(--strategy-lab-mode-glyph-font-size)] leading-none',
                   status === 'done'
                     ? 'text-emerald-600'
                     : status === 'current'

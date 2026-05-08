@@ -10,23 +10,25 @@ export async function listPlanBoardCardsForAudit(args: { auditId: string }): Pro
   const selectExtended =
     'id, source, canonical_node_key, pack_graph_node_id, pack_lane_snapshot, manual_title, ticket_description, assignee, assignee_user_id, labels, story_points, priority, start_date, due_date, end_date, updated_by_user_id, delivery_area, column_id, position, pinned, last_applied_pack_version, orphaned_reason';
 
-  let queryResult = await supabase
+  const extendedResult = await supabase
     .from('plan_task_delivery')
     .select(selectExtended)
     .eq('audit_id', args.auditId)
     .order('column_id')
     .order('position');
-
-  if (queryResult.error && isMissingTicketColumnsError(queryResult.error.message)) {
-    queryResult = await supabase
+  const fallbackToLegacy = Boolean(
+    extendedResult.error && isMissingTicketColumnsError(extendedResult.error.message),
+  );
+  const queryResult = fallbackToLegacy
+    ? await supabase
       .from('plan_task_delivery')
       .select(selectLegacy)
       .eq('audit_id', args.auditId)
       .order('column_id')
-      .order('position');
-  }
+      .order('position')
+    : extendedResult;
 
-  const { data, error } = queryResult;
+  const { data, error } = queryResult as { data: Array<Record<string, unknown>> | null; error: { message: string } | null };
   if (error) return { cards: [], error: new Error(error.message) };
 
   const cards: PlanTaskDeliveryCardSnapshot[] = (data ?? []).map(row => ({

@@ -30,7 +30,7 @@ function PlanTableGroupSectionBase(props: PlanTableGroupSectionProps) {
         {props.group.laneLabel} · {props.group.columnLabel}
       </h3>
       <div className="border-border overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[40rem] text-left text-sm">
+        <table className="w-full min-w-[length:var(--portal-plan-table-group-min-width)] text-left text-sm">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
               <th className="px-3 py-2 font-medium">Select</th>

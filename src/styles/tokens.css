@@ -374,6 +374,10 @@
   --strategy-lab-form-field-min-width: 10rem;
   --strategy-lab-roadmap-preview-max-height: min(50vh, 26rem);
   --strategy-lab-orchestrator-tab-min-width: 5.5rem;
+  --strategy-lab-steps-strip-min-width: 12rem;
+  --strategy-lab-drawer-textarea-min-height: 7.5rem;
+  --strategy-lab-views-help-max-width: min(22rem, calc(100vw - 2rem));
+  --strategy-lab-mode-glyph-font-size: var(--text-xs);
 
   /* Consultant orchestration table */
   --consultant-orchestration-initiatives-table-min-width: 32rem;
@@ -386,12 +390,25 @@
   --pipeline-monitor-client-header-progress-min-width: 7rem;
   --pipeline-monitor-mobile-stacked-aside-max-height: min(45vh, 24rem);
   --pipeline-monitor-header-actions-max-width: 15rem;
+  --pipeline-monitor-retry-comment-min-height: 4.5rem;
+  --pipeline-monitor-result-editor-min-height-sm: 5rem;
+  --pipeline-monitor-result-editor-min-height-md: 8rem;
+  --pipeline-monitor-result-editor-min-height-lg: 10rem;
 
   /* Settings token usage table */
   --settings-token-usage-audit-name-max-width: 200px;
 
   /* Intake NL ingress textarea */
   --intake-nl-ingress-textarea-min-height: 5.5rem;
+  --portal-plan-loading-min-height: 12rem;
+  --portal-plan-manual-lane-width: 14rem;
+  --portal-plan-backlog-panel-width: min(100%, 22rem);
+  --portal-plan-column-min-height: 12rem;
+  --portal-plan-column-min-width: 11rem;
+  --portal-plan-horizon-min-height: 10rem;
+  --portal-plan-table-group-min-width: 40rem;
+  --admin-all-audits-actions-min-width: 5.5rem;
+  --admin-all-audits-icon-col-width: 40px;
   --text-sm: 0.8125rem;
   --text-base: 0.9375rem;
   --text-lg: 1.0625rem;

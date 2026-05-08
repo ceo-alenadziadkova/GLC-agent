@@ -40,7 +40,7 @@ function Probe(props: {
     <div
       ref={(el) => {
         if (!el) return;
-        ctl.refs.timelineShellRef.current = el;
+        (ctl.refs.timelineShellRef as { current: HTMLDivElement | null }).current = el;
         const scroll = el.querySelector('.rct-scroll') as HTMLElement | null;
         if (scroll) {
           Object.defineProperty(scroll, 'scrollWidth', {
@@ -146,7 +146,7 @@ describe('useRoadmapGanttViewport', () => {
         toJSON: () => ({}),
       }),
     } as unknown as HTMLDivElement;
-    captured.refs.overviewTrackRef.current = fakeTrack;
+    (captured.refs.overviewTrackRef as { current: HTMLDivElement | null }).current = fakeTrack;
 
     act(() => {
       captured.handlers.handleOverviewPointer(50);

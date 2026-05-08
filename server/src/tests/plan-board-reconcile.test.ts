@@ -50,10 +50,35 @@ function buildPack(
   return GlcOrchestrationPackSchema.parse(raw);
 }
 
-function snapshotCard(patch: Omit<PlanTaskDeliveryCardSnapshot, 'manual_title'>): PlanTaskDeliveryCardSnapshot {
+function snapshotCard(
+  patch: Partial<PlanTaskDeliveryCardSnapshot> & Pick<
+    PlanTaskDeliveryCardSnapshot,
+    | 'id'
+    | 'source'
+    | 'canonical_node_key'
+    | 'pack_graph_node_id'
+    | 'pack_lane_snapshot'
+    | 'delivery_area'
+    | 'column_id'
+    | 'position'
+    | 'pinned'
+    | 'last_applied_pack_version'
+    | 'orphaned_reason'
+  >,
+): PlanTaskDeliveryCardSnapshot {
   return {
     ...patch,
     manual_title: null,
+    ticket_description: patch.ticket_description ?? null,
+    assignee: patch.assignee ?? null,
+    assignee_user_id: patch.assignee_user_id ?? null,
+    labels: patch.labels ?? [],
+    story_points: patch.story_points ?? null,
+    priority: patch.priority ?? null,
+    start_date: patch.start_date ?? null,
+    due_date: patch.due_date ?? null,
+    end_date: patch.end_date ?? null,
+    updated_by_user_id: patch.updated_by_user_id ?? null,
   };
 }
 

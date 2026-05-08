@@ -39,10 +39,25 @@ export async function collectDomUxSignals(url: string): Promise<DomUxSignalSnaps
 
     const snapshot = await page.evaluate(() => {
       const ctaPattern = /(saber m[aá]s|contacta|solicita|pide presupuesto|get started|learn more|contact|book|reserve|sign up)/i;
-      const ctaCandidates = Array.from(document.querySelectorAll('a,button,[role="button"]'));
+      const globalWithDocument = globalThis as {
+        document?: {
+          querySelectorAll: (selector: string) => ArrayLike<{ textContent?: string | null }>;
+          querySelector: (selector: string) => unknown;
+        };
+      };
+      const doc = globalWithDocument.document;
+      if (!doc) {
+        return {
+          collected: false,
+          viewport_meta_present: false,
+          cta_count: 0,
+          form_count: 0,
+        };
+      }
+      const ctaCandidates = Array.from(doc.querySelectorAll('a,button,[role="button"]'));
       const ctaCount = ctaCandidates.filter((el) => ctaPattern.test((el.textContent ?? '').trim())).length;
-      const formCount = document.querySelectorAll('form').length;
-      const viewportMetaPresent = Boolean(document.querySelector('meta[name="viewport"]'));
+      const formCount = doc.querySelectorAll('form').length;
+      const viewportMetaPresent = Boolean(doc.querySelector('meta[name="viewport"]'));
       return {
         collected: true,
         viewport_meta_present: viewportMetaPresent,

@@ -61,7 +61,7 @@ function EditableImpactListEditor(props: {
               />
             </div>
             <textarea
-              className="w-full min-h-[5rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+              className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-sm)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
               value={row.description}
               onChange={(event) =>
                 setRows((prev) =>
@@ -139,7 +139,7 @@ function EditableQuickWinListEditor(props: {
               />
             </div>
             <textarea
-              className="w-full min-h-[5rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+              className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-sm)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
               value={row.description}
               onChange={(event) =>
                 setRows((prev) =>
@@ -232,7 +232,7 @@ export function PhaseResultEditor(props: Props) {
         <div className="space-y-2">
           <label className="text-muted-foreground text-xs">{editorCopy.executiveSummaryLabel}</label>
           <textarea
-            className="w-full min-h-[10rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+            className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-lg)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
             value={executiveSummaryDraft}
             onChange={(event) => setExecutiveSummaryDraft(event.target.value)}
           />
@@ -250,7 +250,7 @@ export function PhaseResultEditor(props: Props) {
           <div className="space-y-2">
             <label className="text-muted-foreground text-xs">{editorCopy.summaryLabel}</label>
             <textarea
-              className="w-full min-h-[8rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+              className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-md)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
               value={summaryDraft}
               onChange={(event) => setSummaryDraft(event.target.value)}
             />
@@ -259,7 +259,7 @@ export function PhaseResultEditor(props: Props) {
             <div className="space-y-2">
               <label className="text-muted-foreground text-xs">{editorCopy.strengthsLabel}</label>
               <textarea
-                className="w-full min-h-[8rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+                className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-md)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
                 value={strengthsDraft}
                 onChange={(event) => setStrengthsDraft(event.target.value)}
               />
@@ -267,7 +267,7 @@ export function PhaseResultEditor(props: Props) {
             <div className="space-y-2">
               <label className="text-muted-foreground text-xs">{editorCopy.weaknessesLabel}</label>
               <textarea
-                className="w-full min-h-[8rem] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
+                className="w-full min-h-[length:var(--pipeline-monitor-result-editor-min-height-md)] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm"
                 value={weaknessesDraft}
                 onChange={(event) => setWeaknessesDraft(event.target.value)}
               />

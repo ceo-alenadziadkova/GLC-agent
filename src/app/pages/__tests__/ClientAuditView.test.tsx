@@ -7,6 +7,7 @@ import { ClientAuditView } from '../ClientAuditView';
 import { ClientPortalPipelineProvider } from '../../context/ClientPortalPipelineContext';
 import * as apiService from '../../data/apiService';
 import { buildAppRoute } from '../../config/route-paths';
+import { CLIENT_AUDIT_VIEW_COPY } from '../../config/client-audit-view-copy';
 
 vi.mock('../../components/AppShell', () => ({
   AppShell: ({ children, title }: { children: React.ReactNode; title?: string }) => (
@@ -306,7 +307,7 @@ describe('ClientAuditView', () => {
       '/portal/reports/audit-nav-1',
     );
     const strategyNavLinks = screen.getAllByRole('link', { name: /Strategy details/i });
-    expect(strategyNavLinks.some((el) => el.getAttribute('href') === '/portal/strategy/audit-nav-1')).toBe(true);
+    expect(strategyNavLinks.some((el) => el.getAttribute('href') === '/portal/lab/audit-nav-1?mode=shape')).toBe(true);
   });
 
   it('renders post-audit cockpit CTAs for completed paid audits', async () => {
@@ -329,7 +330,7 @@ describe('ClientAuditView', () => {
     const strategyLinks = screen.getAllByRole('link', { name: /Strategy details/i });
     expect(strategyLinks.length).toBeGreaterThan(0);
     for (const link of strategyLinks) {
-      expect(link).toHaveAttribute('href', '/portal/strategy/audit-cockpit-1');
+      expect(link).toHaveAttribute('href', '/portal/lab/audit-cockpit-1?mode=shape');
     }
   });
 

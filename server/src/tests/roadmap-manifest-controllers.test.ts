@@ -84,6 +84,7 @@ function createRes() {
   return {
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
+    setHeader: vi.fn(),
   } as unknown as import('express').Response;
 }
 

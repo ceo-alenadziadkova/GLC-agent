@@ -1,0 +1,1596 @@
+/* Extracted from legacy.css (safe split pass).
+ * Blocks moved 1:1; selectors/variables unchanged.
+ */
+
+/* Marketing AuditCompare matrix: token-driven surfaces (no inline visual styles in TSX). */
+.ds-audit-compare-root-flat {
+  overflow: hidden;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: none;
+}
+
+.ds-audit-compare-thead-row {
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-muted) 82%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 45%, transparent) 100%
+  );
+}
+
+.ds-audit-compare-th-base {
+  color: var(--text-primary);
+}
+
+.ds-audit-compare-th-sticky-shadow {
+  box-shadow: 0 1px 0 var(--border-subtle);
+}
+
+.ds-audit-compare-th-bg-header {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-muted) 82%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 45%, transparent) 100%
+  );
+}
+
+.ds-audit-compare-th-bg-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 44%, var(--bg-surface));
+}
+
+.ds-audit-compare-th-bg-pro {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 62%, var(--bg-surface));
+}
+
+.ds-audit-compare-row {
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-audit-compare-row-highlight {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 26%, transparent);
+}
+
+.ds-audit-compare-col-emphasis {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 34%, transparent);
+}
+
+.ds-audit-compare-col-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 24%, transparent);
+}
+
+.ds-audit-compare-footer {
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-inset);
+}
+
+.ds-audit-compare-footer-link {
+  background-color: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-audit-compare-footer-link-primary {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+}
+
+.ds-audit-compare-table {
+  min-width: 32.5rem;
+}
+
+.ds-audit-compare-scroll-region {
+  overflow-x: auto;
+}
+
+@media (min-width: 768px) {
+  .ds-audit-compare-scroll-region--sticky {
+    max-height: min(70vh, 32.5rem);
+    overflow-y: auto;
+  }
+}
+
+/* MarketingHeader.tsx */
+.ds-marketing-header-brief-cta {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  box-shadow: none;
+}
+
+.ds-marketing-header-signin-link {
+  color: var(--glc-blue);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 35%, var(--border-default));
+}
+
+.ds-marketing-header-menu-button {
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Home hero eyebrow chip (HomeHeroSection, PackageMarketingHero, etc.) */
+.ds-home-hero-eyebrow-chip {
+  background-color: color-mix(in oklab, var(--bg-surface) 94%, transparent);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.ds-package-marketing-hero-card {
+  border-color: var(--border-subtle);
+  background-color: color-mix(in oklab, var(--bg-surface) 94%, var(--bg-muted));
+}
+
+/* Former `marketing-surface-tokens.ts` — surfaces and package hero (SSOT: values only in tokens.css via var). */
+.ds-marketing-surface-comparison-shell {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: unset;
+}
+
+/* --- Marketing spatial glass (public package + home) — SSOT in tokens.css + these bridges only --- */
+.ds-marketing-mesh-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background-color: var(--marketing-canvas-deep);
+}
+
+.ds-marketing-mesh-blobs-wrap {
+  position: absolute;
+  inset: -50%;
+  height: 200%;
+  width: 200%;
+  opacity: 0.6;
+}
+
+.ds-marketing-mesh-blob {
+  position: absolute;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+}
+
+.ds-marketing-mesh-blob--tl {
+  left: 25%;
+  top: 25%;
+  width: 800px;
+  height: 800px;
+  background: color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  filter: blur(120px);
+}
+
+.ds-marketing-mesh-blob--br {
+  right: 25%;
+  bottom: 25%;
+  width: 600px;
+  height: 600px;
+  background: color-mix(in oklab, var(--glc-orange) 10%, transparent);
+  filter: blur(100px);
+}
+
+.ds-marketing-mesh-blob--c {
+  left: 50%;
+  top: 50%;
+  width: 700px;
+  height: 700px;
+  translate: -50% -50%;
+  background: color-mix(in oklab, var(--glc-green) 15%, transparent);
+  filter: blur(140px);
+}
+
+/* Marketing: `class="dark"` on subtree does not set `html.dark` — use light copy on deep canvas. */
+.dark.ds-marketing-page-home,
+.dark.ds-marketing-page-express {
+  --text-primary: #e6edf3;
+  --text-secondary: #9ea8b3;
+  --text-tertiary: #7d8793;
+  --text-quaternary: #6a737d;
+  --border-subtle: #2a313b;
+  --border-default: #3a4451;
+  color: var(--text-primary);
+}
+
+/* Light "paper" island on marketing canvas (body copy on elevated surface). */
+.ds-marketing-elevated-paper {
+  --text-primary: oklch(0.2 0.03 255);
+  --text-secondary: oklch(0.37 0.03 252);
+  --text-tertiary: oklch(0.58 0.02 252);
+  --border-subtle: oklch(0.88 0.014 248);
+  --border-default: oklch(0.8 0.017 248);
+  color: var(--text-primary);
+}
+
+.ds-marketing-page-express {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--marketing-canvas-deep);
+  color: var(--text-primary);
+}
+
+.ds-marketing-page-express ::selection,
+.dark.ds-marketing-page-home ::selection {
+  background: color-mix(in oklab, var(--glc-blue) 30%, transparent);
+}
+
+.ds-marketing-glass-panel {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ds-marketing-glass-panel--padded {
+  padding: 1.5rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-panel--padded {
+    padding: 2rem 2.5rem;
+  }
+}
+
+.ds-marketing-glass-mid-cta {
+  max-width: var(--marketing-max-w-content);
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 2.5rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-mid-cta {
+    padding: 3.5rem 3rem;
+  }
+}
+
+.ds-marketing-glass-hero-tilt-wrap {
+  perspective: var(--marketing-cockpit-perspective);
+}
+
+.ds-marketing-glass-hero-tilt-inner {
+  transform-origin: top center;
+}
+
+.ds-marketing-glass-hero-coverage {
+  max-width: var(--marketing-max-w-hero-content);
+}
+
+.ds-marketing-glass-hero-coverage-box {
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-glass-hero-coverage-box {
+    padding: 2rem;
+  }
+}
+
+.ds-marketing-text-muted {
+  color: var(--marketing-text-muted);
+}
+
+.ds-marketing-hero-display-title {
+  display: block;
+  font-size: var(--marketing-hero-title-size);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: var(--marketing-hero-title-track);
+  text-shadow: var(--marketing-hero-title-shadow);
+}
+
+.ds-marketing-hero-cockpit-surface {
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--marketing-cockpit-ambient);
+  -webkit-mask-image: linear-gradient(to bottom, #fff 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #fff 60%, transparent 100%);
+}
+
+.ds-marketing-hero-cockpit-perspective {
+  perspective: var(--marketing-cockpit-perspective);
+}
+
+.ds-marketing-cta-glass {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, #ffffff 20%, transparent);
+  background: color-mix(in oklab, #ffffff 10%, transparent);
+  padding: 0.75rem 2rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--marketing-fg-on-glass);
+  text-decoration: none;
+  box-shadow: var(--marketing-shadow-cta);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ds-marketing-cta-glass:hover {
+  background: color-mix(in oklab, #ffffff 20%, transparent);
+  box-shadow: var(--marketing-shadow-cta-hover);
+}
+
+.ds-marketing-eyebrow-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 0.375rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--marketing-fg-on-glass);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--glc-ink) 8%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease;
+}
+
+.ds-marketing-eyebrow-chip:hover {
+  background: color-mix(in oklab, #ffffff 5%, transparent);
+}
+
+.ds-marketing-eyebrow-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--glc-blue) 0%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue) 20%, transparent) 50%,
+    color-mix(in oklab, var(--glc-blue) 0%, transparent) 100%
+  );
+  transform: translateX(-100%);
+  animation: marketing-shimmer 3s ease-in-out infinite;
+}
+
+@keyframes marketing-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.ds-marketing-outcome-pill {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 3%, transparent);
+  color: var(--marketing-text-muted);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ds-marketing-outcome-pill:hover {
+  background: color-mix(in oklab, #ffffff 8%, transparent);
+}
+
+.ds-marketing-outcome-pill--active {
+  border-color: color-mix(in oklab, var(--glc-blue) 30%, transparent);
+  background: color-mix(in oklab, var(--glc-blue) 10%, transparent);
+  color: var(--marketing-fg-on-glass);
+  box-shadow: var(--marketing-outcome-pill-glow);
+}
+
+.ds-marketing-outcome-specimen {
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ds-marketing-outcome-specimen-glow {
+  position: absolute;
+  z-index: 0;
+  right: -5rem;
+  top: -5rem;
+  height: 10rem;
+  width: 10rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--glc-blue) 20%, transparent);
+  filter: blur(var(--marketing-specimen-orb));
+  mix-blend-mode: screen;
+}
+
+.ds-marketing-outcome-glass-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: var(--marketing-glass-tint-soft);
+  box-shadow: 0 25px 50px -12px color-mix(in oklab, var(--glc-ink) 50%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.ds-marketing-outcome-glass-card:hover {
+  background: var(--marketing-glass-tint);
+  border-color: color-mix(in oklab, #ffffff 10%, transparent);
+}
+
+.ds-marketing-scope-truth-surface {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  border-radius: 2rem;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 2.5rem 1.5rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-scope-truth-surface {
+    padding: 4rem 3rem;
+  }
+}
+
+.ds-marketing-scope-coverage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: color-mix(in oklab, #ffffff 3%, transparent);
+  padding: 1rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: color-mix(in oklab, #ffffff 50%, transparent);
+}
+
+.ds-marketing-next-steps-card {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Audience / teaser: compact glass card (package + home rails). */
+.ds-marketing-audience-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ds-marketing-audience-card:hover {
+  background: color-mix(in oklab, #0a0a0c 90%, #ffffff 4%);
+  border-color: color-mix(in oklab, #ffffff 20%, transparent);
+}
+
+.ds-marketing-teaser-card {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-sm);
+  padding: 1.5rem;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-teaser-card {
+    padding: 2rem;
+  }
+}
+
+.ds-marketing-teaser-card:hover {
+  background: color-mix(in oklab, #0a0a0c 90%, #ffffff 2%);
+  border-color: color-mix(in oklab, #ffffff 20%, transparent);
+}
+
+.ds-marketing-timeline-connector {
+  position: absolute;
+  bottom: 0;
+  left: 15px;
+  top: 2rem;
+  width: 1px;
+  background: color-mix(in oklab, #ffffff 10%, transparent);
+}
+
+/* Home guided path — large rounded glass (matches home hero rhythm). */
+.ds-marketing-guided-path {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  overflow: hidden;
+  border-radius: var(--marketing-radius-card-3xl);
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-lg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-guided-path {
+    padding: 2.5rem;
+  }
+}
+
+.ds-marketing-hero-billboard {
+  position: relative;
+  display: flex;
+  max-width: var(--marketing-max-w-content);
+  margin-left: auto;
+  margin-right: auto;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 4rem;
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .ds-marketing-hero-billboard {
+    padding-top: 6rem;
+  }
+}
+
+.ds-marketing-cta-glow-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, #ffffff 10%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.group:hover .ds-marketing-cta-glow-sweep,
+.ds-marketing-cta-glass:hover .ds-marketing-cta-glow-sweep {
+  transform: translateX(100%);
+}
+
+.ds-marketing-glass-tile {
+  height: 100%;
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, #ffffff 5%, transparent);
+  background: color-mix(in oklab, #ffffff 2%, transparent);
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px 0 color-mix(in oklab, var(--glc-ink) 5%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ds-marketing-express-glass-grid {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: var(--marketing-max-w-content);
+  border-radius: 2rem;
+  border: 1px solid color-mix(in oklab, #ffffff 10%, transparent);
+  background: var(--marketing-glass-tint);
+  box-shadow: var(--marketing-shadow-glass-md);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 2.5rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-express-glass-grid {
+    padding: 3rem 2.5rem;
+  }
+}
+
+.ds-marketing-surface-muted-band {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-muted);
+}
+
+.ds-home-scope-band {
+  background:
+    radial-gradient(
+      ellipse 118% 78% at 10% -14%,
+      color-mix(in oklab, var(--glc-blue-muted) 18%, transparent) 0%,
+      transparent 66%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-surface) 95%, var(--bg-canvas)) 0%,
+      color-mix(in oklab, var(--bg-muted) 92%, var(--bg-surface)) 100%
+    );
+  box-shadow: 0 14px 30px rgba(15, 21, 36, 0.09), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+.ds-marketing-surface-inset-section {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-inset);
+}
+
+.ds-marketing-package-badge-focus {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 66%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 36%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-package-badge-context {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 84%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-package-badge-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 72%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 34%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-coverage-cell {
+  border-color: color-mix(in oklab, var(--overlay-white-20) 56%, var(--border-subtle));
+  background-color: color-mix(in oklab, var(--bg-muted) 75%, var(--bg-surface));
+}
+
+.ds-marketing-coverage-cell--active {
+  border-color: color-mix(in oklab, var(--glc-blue) 48%, var(--border-default));
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 92%, var(--bg-surface));
+}
+
+.ds-marketing-coverage-label-active {
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-coverage-label-inactive {
+  color: var(--text-tertiary);
+}
+
+.ds-marketing-package-hero-chip {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 76%, transparent);
+  border-color: color-mix(in oklab, var(--glc-blue) 24%, var(--border-subtle));
+  color: var(--glc-blue-deeper);
+}
+
+.ds-package-audience-section-card {
+  border-color: color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle));
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%,
+    var(--bg-surface) 100%
+  );
+}
+
+/* NextStepsCta.tsx */
+.ds-next-steps-card {
+  border-radius: var(--radius-2xl);
+}
+
+.ds-next-steps-card[data-home='true'] {
+  box-shadow: none;
+  border: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-next-steps-card[data-home='false'] {
+  box-shadow: var(--shadow-card);
+}
+
+.ds-next-steps-header {
+  border-color: var(--border-subtle);
+}
+
+.ds-next-steps-header[data-home='true'] {
+  background: var(--bg-muted);
+}
+
+.ds-next-steps-header[data-home='false'] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-muted) 62%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 46%, transparent) 100%
+  );
+}
+
+.ds-next-steps-tile-link {
+  text-decoration: none;
+  border-color: var(--border-subtle);
+}
+
+.ds-next-steps-tile-link[data-primary='true'] {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 40%, transparent);
+}
+
+.ds-next-steps-tile-link[data-primary='false'] {
+  background-color: var(--bg-surface);
+}
+
+.ds-next-steps-row-link {
+  text-decoration: none;
+}
+
+.ds-next-steps-row-link[data-primary='false'] {
+  background-color: transparent;
+  border: var(--border-width-default) solid transparent;
+}
+
+.ds-next-steps-row-link[data-primary='true'][data-home='true'] {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 35%, transparent);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
+}
+
+.ds-next-steps-row-link[data-primary='true'][data-home='false'] {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 50%, transparent);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
+}
+
+.ds-sync-loader-ball-glow {
+  filter: drop-shadow(0 0 8px rgba(28, 189, 255, 0.6));
+}
+
+.ds-sync-loader-fullscreen-vignette {
+  background-image: var(--sync-loader-fullscreen-vignette);
+}
+
+/* Home hero cockpit: layout chrome only — visuals stay in frozen `HomeHeroCockpit.tsx`. */
+.ds-home-hero-cockpit-floating-panel {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 200ms;
+}
+
+.ds-home-hero-cockpit-floating-panel:hover {
+  border-color: var(--border-default);
+}
+
+.ds-audit-teaser-panel {
+  box-sizing: border-box;
+  background: var(--audit-teaser-panel-bg);
+  border: 1px solid var(--audit-teaser-panel-border);
+}
+
+.ds-audit-teaser-section-label {
+  font-size: var(--text-xs);
+  color: var(--audit-teaser-section-label);
+}
+
+.ds-audit-teaser-bullet-text {
+  font-size: 1.0625rem;
+  color: var(--audit-teaser-bullet-text);
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+}
+
+.ds-full-audit-tier-card {
+  border-color: var(--border-subtle);
+  background: linear-gradient(
+    165deg,
+    var(--bg-surface) 0%,
+    color-mix(in oklab, var(--bg-muted) 65%, var(--bg-surface)) 100%
+  );
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-text-glc-blue-light {
+  color: var(--glc-blue-light);
+}
+
+.ds-intake-progress-fill {
+  background: var(--gradient-brand);
+}
+
+.ds-intake-review-card-shell {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-intake-review-section-bar {
+  background: var(--bg-muted);
+  color: var(--text-quaternary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ds-intake-review-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+}
+
+.ds-intake-review-edit-btn {
+  border: 1px solid var(--border-subtle);
+  color: var(--glc-blue);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.ds-intake-review-submit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  font-weight: 600;
+  border-radius: var(--radius-xl);
+  font-size: var(--text-sm);
+}
+
+.ds-intake-review-submit[data-submitting='false'] {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-intake-review-submit[data-submitting='true'] {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  cursor: wait;
+}
+
+.ds-auth-tablist-border {
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-auth-tab-active {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-auth-tab-inactive {
+  background-color: transparent;
+  color: var(--text-tertiary);
+  box-shadow: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ds-intake-brief-progress-track {
+  height: var(--space-0-5);
+  background-color: var(--bg-muted);
+}
+
+.ds-intake-review-link-btn {
+  color: var(--glc-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ds-intake-review-summary-box {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-intake-brief-mesh-backdrop {
+  background: var(--mesh-brand);
+  opacity: 0.4;
+}
+
+.ds-login-mesh-backdrop {
+  background: var(--mesh-brand);
+  opacity: 0.55;
+}
+
+.ds-settings-tabs-trigger-transparent {
+  background: transparent;
+}
+
+.ds-snapshot-badge-denom {
+  color: var(--text-quaternary);
+  font-weight: 700;
+  font-size: var(--text-2xs);
+}
+
+.ds-snapshot-badge-denom--bento {
+  font-size: 0.45em;
+}
+
+.ds-snapshot-badge-denom--compact {
+  font-size: 0.5em;
+}
+
+.ds-snapshot-badge-score-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--mirror-score-fg);
+}
+
+.ds-snapshot-badge-score-value--bento {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.ds-snapshot-badge-score-value--compact {
+  font-size: var(--text-3xl);
+}
+
+.ds-snapshot-tech-pill {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.ds-snapshot-tentative-tech-pill {
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  color: var(--text-tertiary);
+}
+
+.ds-intake-form-section-heading {
+  letter-spacing: 0.12em;
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  color: var(--text-quaternary);
+}
+
+.ds-score-badge-filter-host {
+  filter: var(--score-badge-filter);
+}
+
+.ds-mirror-score-big-number {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--mirror-score-fg);
+}
+
+.ds-mirror-score-big-number--compact {
+  font-size: var(--text-3xl);
+}
+
+.ds-mirror-score-band-label {
+  color: var(--mirror-label-fg);
+}
+
+.ds-snapshot-callout-panel {
+  background: var(--snapshot-callout-panel-bg);
+}
+
+/* Marketing home + package hero (raw-values checker: literals live in CSS only) */
+.ds-home-hero-billboard-grid {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 72rem;
+  gap: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .ds-home-hero-billboard-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr);
+    align-items: start;
+    gap: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .ds-home-hero-billboard-grid {
+    gap: 3.5rem;
+  }
+}
+
+.ds-tracking-marketing-eyebrow {
+  letter-spacing: 0.1em;
+}
+
+.ds-home-hero-billboard-title {
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6.2vw, 4.125rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-hero-billboard-title {
+    max-width: none;
+    letter-spacing: -0.02em;
+  }
+}
+
+.ds-home-hero-supporting-line {
+  margin-top: 1rem;
+  max-width: 60ch;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: var(--text-tertiary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-hero-supporting-line {
+    font-size: 0.95rem;
+  }
+}
+
+.ds-package-marketing-hero-grid {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 72rem;
+  gap: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+  .ds-package-marketing-hero-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr);
+    align-items: center;
+    gap: 3rem;
+  }
+}
+
+.ds-package-marketing-hero-cover {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  display: none;
+  width: 100%;
+  max-width: 340px;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .ds-package-marketing-hero-cover {
+    display: block;
+  }
+}
+
+.ds-package-marketing-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-package-marketing-hero-title {
+    letter-spacing: -0.02em;
+  }
+}
+
+.ds-home-hero-cockpit-wrap {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  display: none;
+  width: 100%;
+  max-width: 420px;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .ds-home-hero-cockpit-wrap {
+    display: block;
+  }
+}
+
+.ds-home-hero-cockpit-stage {
+  position: relative;
+  height: min(360px, 42vw);
+  width: 100%;
+}
+
+.ds-home-hero-cockpit-panel-offset {
+  top: 5.5rem;
+}
+
+.ds-home-hero-cockpit-cell {
+  border: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-home-section-desc-size {
+  font-size: 1rem;
+}
+
+@media (min-width: 640px) {
+  .ds-home-section-desc-size {
+    font-size: 1.02rem;
+  }
+}
+
+.ds-home-section-desc-rail {
+  padding-left: 0;
+}
+
+@media (min-width: 640px) {
+  .ds-home-section-desc-rail {
+    padding-left: 3.25rem;
+  }
+}
+
+.ds-marketing-mid-cta-body {
+  margin-top: 0.5rem;
+  max-width: 60ch;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.ds-home-mid-cta-band {
+  border-top: none;
+  border-bottom: none;
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(
+      ellipse 115% 72% at 14% -10%,
+      color-mix(in oklab, var(--glc-blue-muted) 20%, transparent) 0%,
+      transparent 64%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-surface) 95%, var(--bg-canvas)) 0%,
+      color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted)) 100%
+    );
+  box-shadow: 0 16px 34px rgba(15, 21, 36, 0.11), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-mid-cta-body {
+    font-size: 0.95rem;
+  }
+}
+
+.ds-package-audience-caps {
+  letter-spacing: 0.12em;
+}
+
+.ds-process-timeline-connector {
+  position: absolute;
+  left: 15px;
+  top: 2rem;
+  bottom: 0;
+  width: var(--border-width-default);
+}
+
+.ds-home-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metric-value {
+    font-size: 1.65rem;
+  }
+}
+
+/* Marketing home — asymmetric “at a glance” lead + dossier column */
+.ds-home-metric-value-lead {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 3.2vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.ds-home-metric-value-compact {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metric-value-compact {
+    font-size: 1.5rem;
+  }
+}
+
+.ds-home-metrics-tagline {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metrics-tagline {
+    margin-top: 2.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+.ds-home-metrics-proof-label {
+  margin: 0 0 0.65rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .ds-home-metrics-proof-label {
+    text-align: left;
+  }
+}
+
+/* Home metrics proof grid (replaces segmented tablist to avoid visual concatenation) */
+.ds-home-proof-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .ds-home-proof-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+  }
+}
+
+.ds-home-proof-card {
+  min-height: 100%;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: color-mix(in oklab, var(--bg-surface) 90%, var(--bg-muted));
+  padding: 1rem 1.05rem;
+}
+
+.ds-home-proof-card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.ds-home-proof-card-body {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.ds-home-route-option {
+  background:
+    radial-gradient(
+      ellipse 130% 84% at 8% -12%,
+      color-mix(in oklab, var(--glc-blue-muted) 22%, transparent) 0%,
+      transparent 68%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-surface) 95%, var(--bg-canvas)) 0%,
+      color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted)) 100%
+    );
+  box-shadow: 0 10px 24px rgba(15, 21, 36, 0.08), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.ds-home-route-option:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 21, 36, 0.12), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.ds-home-outcome-specimen {
+  background:
+    radial-gradient(
+      ellipse 120% 78% at 12% -14%,
+      color-mix(in oklab, var(--glc-blue-muted) 18%, transparent) 0%,
+      transparent 66%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-surface) 95%, var(--bg-canvas)) 0%,
+      color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted)) 100%
+    );
+  box-shadow: 0 14px 30px rgba(15, 21, 36, 0.1), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.ds-home-outcome-card {
+  background:
+    radial-gradient(
+      ellipse 128% 82% at 10% -12%,
+      color-mix(in oklab, var(--glc-blue-muted) 18%, transparent) 0%,
+      transparent 68%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-surface) 95%, var(--bg-canvas)) 0%,
+      color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted)) 100%
+    );
+  box-shadow: 0 14px 30px rgba(15, 21, 36, 0.09), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.ds-home-scope-truth-expand-trigger {
+  margin-top: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-lg);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--glc-blue-deeper);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.ds-home-coverage-map-row {
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.ds-home-coverage-map-row:hover {
+  background-color: color-mix(in oklab, var(--bg-surface) 85%, var(--glc-blue-muted));
+  border-color: color-mix(in oklab, var(--glc-blue) 24%, var(--border-subtle));
+}
+
+.ds-home-scope-truth-expand-trigger:hover {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 40%, var(--bg-surface));
+}
+
+.ds-home-scope-truth-expand-trigger:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-muted),
+    0 0 0 4px var(--glc-blue);
+}
+
+.ds-home-scope-truth-expand-chevron {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ds-home-scope-truth-expand-trigger[data-state='open'] .ds-home-scope-truth-expand-chevron {
+  transform: rotate(180deg);
+}
+
+.ds-home-coherence-proof {
+  display: grid;
+  gap: 0.75rem;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  padding: 1rem;
+  background: color-mix(in oklab, var(--bg-surface) 88%, var(--bg-muted));
+}
+
+@media (min-width: 768px) {
+  .ds-home-coherence-proof {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    padding: 1.25rem;
+  }
+}
+
+.ds-home-coherence-proof-col {
+  min-width: 0;
+}
+
+.ds-home-coherence-proof-label {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ds-home-coherence-proof-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ds-home-coherence-proof-stack > span {
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  background-color: color-mix(in oklab, var(--bg-surface) 80%, transparent);
+}
+
+.ds-home-coherence-proof-arrow {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--glc-blue-deeper);
+  opacity: 0.8;
+}
+
+.ds-home-coherence-proof-result {
+  display: grid;
+  gap: 0.35rem;
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 40%, var(--border-subtle));
+  border-radius: var(--radius-xl);
+  padding: 0.7rem 0.85rem;
+  background: color-mix(in oklab, var(--glc-blue-muted) 34%, var(--bg-surface));
+}
+
+.ds-home-coherence-proof-result > strong {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.ds-home-coherence-proof-result > span {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.ds-home-coverage-map {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ds-home-coverage-map-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ds-home-coverage-map-columns {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 860px) {
+  .ds-home-coverage-map-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+}
+
+.ds-home-coverage-visual {
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in oklab, var(--bg-surface) 85%, var(--bg-muted));
+  padding: 0.7rem;
+}
+
+.ds-home-coverage-visual-head {
+  display: none;
+  margin-bottom: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 640px) {
+  .ds-home-coverage-visual-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+  }
+}
+
+.ds-home-coverage-map-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in oklab, var(--bg-surface) 90%, var(--bg-muted));
+}
+
+.ds-home-coverage-map-label {
+  font-size: 0.825rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.ds-home-coverage-map-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 32%, var(--border-subtle));
+  background: color-mix(in oklab, var(--glc-blue-muted) 46%, var(--bg-surface));
+  padding: 0.16rem 0.48rem;
+  color: var(--glc-blue-deeper);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ds-home-trust-caps {
+  letter-spacing: 0.14em;
+}
+
+.ds-snapshot-results-stack {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: min(100%, 38.75rem);
+}
+
+@media (min-width: 1024px) {
+  .ds-snapshot-results-stack {
+    max-width: 72rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ds-snapshot-score-hero-minh {
+    min-height: 15rem;
+  }
+}
+
+.ds-snapshot-section-eyebrow {
+  letter-spacing: 0.08em;
+}
+
+.ds-snapshot-signals-heading {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (min-width: 640px) {
+  .ds-snapshot-signals-heading {
+    font-size: var(--text-xs);
+  }
+}
+
+.ds-results-cta-primary-minw {
+  min-width: 12rem;
+}
+

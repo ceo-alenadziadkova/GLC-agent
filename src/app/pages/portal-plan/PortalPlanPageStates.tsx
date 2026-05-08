@@ -54,7 +54,7 @@ export function PortalPlanLoadingState(props: {
 
   return (
     <div
-      className="flex min-h-[12rem] flex-col items-center justify-center gap-3 rounded-xl border border-border bg-muted/40 px-4 py-8 text-sm ds-text-secondary"
+      className="flex min-h-[length:var(--portal-plan-loading-min-height)] flex-col items-center justify-center gap-3 rounded-xl border border-border bg-muted/40 px-4 py-8 text-sm ds-text-secondary"
       role="status"
       aria-live="polite"
       aria-busy="true"

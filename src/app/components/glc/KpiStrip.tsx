@@ -88,7 +88,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
         {[0, 1, 2, 3].map(i => (
           <div
             key={i}
-            className="glc-card h-[90px] animate-pulse rounded-[var(--radius-xl)] p-4"
+            className="ds-card h-[90px] animate-pulse rounded-[var(--radius-xl)] p-4"
           />
         ))}
       </div>
@@ -97,7 +97,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
 
   return (
     <motion.div
-      className="glc-glass-strip grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
+      className="ds-glass-strip grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
       variants={listVariants}
       initial="hidden"
       animate="visible"
@@ -108,7 +108,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
           variants={itemVariants}
           whileHover={{ y: -2, boxShadow: 'var(--shadow-md)' }}
           transition={{ duration: 0.18 }}
-          className="glc-card cursor-default rounded-[var(--radius-xl)] p-4"
+          className="ds-card cursor-default rounded-[var(--radius-xl)] p-4"
         >
           {/** tone classes keep icon/background token-driven without inline style */}
           {(() => {

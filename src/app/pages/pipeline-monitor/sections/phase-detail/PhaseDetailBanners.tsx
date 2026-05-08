@@ -72,7 +72,7 @@ export function PhaseDetailBanners(props: Props) {
                       <p className="text-[var(--text-secondary)] mb-1 text-xs font-semibold">
                         {detailCopy.intakeReadinessBlockedTriageCodesLabel}
                       </p>
-                      <pre className="bg-[var(--bg-inset)] text-[var(--text-secondary)] max-h-32 overflow-auto rounded-md border border-[var(--border-subtle)] p-2 font-mono text-[10px] leading-snug whitespace-pre-wrap">
+                      <pre className="bg-[var(--bg-inset)] text-[var(--text-secondary)] max-h-32 overflow-auto rounded-md border border-[var(--border-subtle)] p-2 font-mono text-[length:var(--text-2xs)] leading-snug whitespace-pre-wrap">
                         {triage.join(', ')}
                       </pre>
                     </div>
@@ -170,7 +170,7 @@ export function PhaseDetailBanners(props: Props) {
                       <p className="text-[var(--text-secondary)] mb-1 text-xs font-semibold">
                         {detailCopy.intakeReadinessBlockedTriageCodesLabel}
                       </p>
-                      <pre className="bg-[var(--bg-inset)] text-[var(--text-secondary)] max-h-32 overflow-auto rounded-md border border-[var(--border-subtle)] p-2 font-mono text-[10px] leading-snug whitespace-pre-wrap">
+                      <pre className="bg-[var(--bg-inset)] text-[var(--text-secondary)] max-h-32 overflow-auto rounded-md border border-[var(--border-subtle)] p-2 font-mono text-[length:var(--text-2xs)] leading-snug whitespace-pre-wrap">
                         {triage.join(', ')}
                       </pre>
                     </div>

@@ -68,7 +68,7 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     bodyMaxHeightDefault: 'max-h-[length:var(--pipeline-monitor-review-body-max-height)]',
     bodyMaxHeightWithRecon: 'max-h-[length:var(--pipeline-monitor-review-body-with-recon-max-height)]',
   },
-  /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `components.css`). */
+  /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `src/styles/components/*.css`). */
   clientPortal: {
     headerProgressTrackClassName:
       'h-[length:var(--space-1)] min-w-[length:var(--pipeline-monitor-client-header-progress-min-width)] flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)] sm:w-40 sm:flex-none',

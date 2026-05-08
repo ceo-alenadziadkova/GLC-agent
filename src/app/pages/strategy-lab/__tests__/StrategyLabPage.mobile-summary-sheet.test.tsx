@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 
 import { ORCHESTRATION_LANE_LABELS } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../../config/orchestration-contract';
+import { STRATEGY_LAB_LAYOUT_POLICY } from '../../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import type { AuditState } from '../../../data/audit/contracts/state/audit-state.types';
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
@@ -16,8 +17,9 @@ import { QueryClient, QueryClientProvider } from '../../../lib/tanstack-react-qu
 const useAuditMock = vi.fn();
 const reloadMock = vi.fn();
 
-/** Mirrors `StrategyLab`: pack summary Sheet when `(max-width: 1023px)`; stacked main when `(max-width: 767px)`. */
+/** Mirrors `StrategyLab`: pack summary Sheet below layout cutoff; stacked main below narrow-mobile cutoff. */
 const mobileState = vi.hoisted(() => ({ packSummaryStacked: false, narrowMobile: false }));
+const NARROW_MOBILE_MAX_WIDTH_PX = 768;
 
 vi.mock('../StrategyLabOrchestrationPanel', () => ({
   StrategyLabOrchestrationPanel: () => <div data-testid="orchestration-panel-stub" />,
@@ -38,8 +40,8 @@ vi.mock('../../../hooks/useBrowserOnline', () => ({
 vi.mock('../../../hooks/useMediaQuery', () => ({
   useMediaQuery: (q: string) => {
     const s = String(q);
-    if (s.includes(String(1024 - 1))) return mobileState.packSummaryStacked;
-    if (s.includes(String(768 - 1))) return mobileState.narrowMobile;
+    if (s.includes(String(STRATEGY_LAB_LAYOUT_POLICY.packSummarySheetMaxWidthPx - 1))) return mobileState.packSummaryStacked;
+    if (s.includes(String(NARROW_MOBILE_MAX_WIDTH_PX - 1))) return mobileState.narrowMobile;
     return false;
   },
 }));

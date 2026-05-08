@@ -12,9 +12,7 @@ export async function appendPlanTicketEvent(args: {
   fieldChanges?: PlanTicketFieldChanges;
 }): Promise<void> {
   try {
-    const table = supabase.from('plan_ticket_events') as { insert?: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }> };
-    if (typeof table.insert !== 'function') return;
-    const { error } = await table.insert({
+    const { error } = await supabase.from('plan_ticket_events').insert({
       audit_id: args.auditId,
       card_id: args.cardId,
       actor_user_id: args.actorUserId,

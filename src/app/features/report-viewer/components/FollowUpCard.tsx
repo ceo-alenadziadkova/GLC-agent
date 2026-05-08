@@ -76,7 +76,7 @@ export function FollowUpCard({ followUpQuestions, followUpQuestionsCount, answer
           <li key={item.id} className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2">
             <div className="flex items-start justify-between gap-3">
               <p className="text-xs text-[var(--text-primary)]">{item.text}</p>
-              <span className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+              <span className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">
                 {item.answered ? REPORT_VIEWER_COPY.followUp.answeredStatus : REPORT_VIEWER_COPY.followUp.pendingStatus}
               </span>
             </div>

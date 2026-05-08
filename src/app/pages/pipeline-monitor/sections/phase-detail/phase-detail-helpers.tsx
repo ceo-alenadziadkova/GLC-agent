@@ -29,7 +29,7 @@ export function PipelineIntakeReadinessMissingQuestions(props: {
           return (
             <li key={id}>
               <span className="text-[var(--text-primary)]">{q.question}</span>{' '}
-              <span className="font-mono text-[10px] opacity-70">({id})</span>
+              <span className="font-mono text-[length:var(--text-2xs)] opacity-70">({id})</span>
             </li>
           );
         })}

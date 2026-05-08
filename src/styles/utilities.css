@@ -19,6 +19,14 @@
   justify-content: center;
 }
 
+.ds-touch-target {
+  min-width: var(--glc-touch-target-min);
+  min-height: var(--glc-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .glc-page-content {
   padding: var(--space-6);
 }

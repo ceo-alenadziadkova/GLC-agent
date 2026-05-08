@@ -277,6 +277,7 @@ body.glc-site-polish :is(a, button):not(:disabled) {
   .ds-cta-primary,
   .glc-btn-secondary,
   .glc-btn-icon,
+  .ds-action-panel-icon-link,
   [data-pipeline-controls],
   .pipeline-controls {
     display: none !important;
