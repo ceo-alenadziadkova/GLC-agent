@@ -131,7 +131,7 @@ Additional agent families (competitors, vendor discovery, etc.) appear as **opti
 
 Gaps (strategic backlog — not all are ship-blockers for the minimal MVP resync above):
 
-- No **board-view by periods** (`Now / Next / Later`) with initiative cards as the primary interaction surface.
+- No **board-view by periods** (`Now / Next / Later`) with initiative cards as the primary interaction surface. **Closed by** [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
 - No **what-if comparison scenario** (for example: “if you select these 3 initiatives, how the plan changes”).
 - No explicit **selection package evaluation** at set level (total effort range, expected impact, key risks).
 - Insufficient **decision confidence at set level** (confidence is mostly shown per initiative, not for the selected bundle).

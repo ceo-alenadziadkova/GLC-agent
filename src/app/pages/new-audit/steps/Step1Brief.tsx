@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, CheckCircle, Circle } from '@phosphor-icons/react';
+import { ArrowLeft, CheckCircle, Circle, Spinner } from '@phosphor-icons/react';
 import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
@@ -21,12 +21,14 @@ import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-doma
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import type { BriefSchemaSnapshot } from '../../../data/api/brief-profile-platform';
 import { getQuestionLabel } from '../../../lib/intake-question-lookup';
-import { listMissingPipelineRequiredIds } from '../newAuditValidation';
+import { listMissingPipelineRequiredIds, newAuditStep1CollectionMode } from '../newAuditValidation';
 import {
   NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID,
   NEW_AUDIT_STEP1_MISSING_REQUIRED_LABELS_PREVIEW_MAX,
 } from '../wizard-config/wizard-constants';
 import { cn } from '../../../components/ui/utils';
+import { ClientProjectContextPanel } from '../../../components/ClientProjectContextPanel';
+import { BriefPortfolioTools } from '../components/BriefPortfolioTools';
 
 export type BriefLayoutChoice = 'unset' | 'classic' | 'wizard';
 
@@ -82,7 +84,9 @@ export type Step1BriefProps = {
 
   // Navigation
   onBackToStep0: () => void;
-  onGoToStep2: () => void;
+  onGoToStep2: () => void | Promise<void>;
+  /** Consultant intelligence snapshot: save + POST snapshot in flight. */
+  continueToReviewPending?: boolean;
 
   clientDraftSaveSection: ReactNode;
   clientDraftSaveInlineAction?: ReactNode;
@@ -99,6 +103,34 @@ export type Step1BriefProps = {
   briefExecutionDiagnosticError: boolean;
   /** Optional visible order from GET …/brief `questions` (resolver-authored). */
   serverVisibleQuestionIds?: string[];
+  /** Set after draft audit is created (portal / save). Drives `GET …/client-project-context`. */
+  draftAuditId: string | null;
+  /** Sync tick from server-side save/snapshot actions; avoids per-input context refreshes. */
+  clientProjectContextSyncTick: number;
+  /** B1 display copy from `POST …/brief/intelligence-wording` (consultant new audit). */
+  questionLabelOverrides?: Record<string, string>;
+  questionHintOverrides?: Record<string, string>;
+  questionOptionDisplayOverrides?: Record<string, string[]>;
+  /** Drives pre-brief slot gating (consultant + URL) when set. */
+  intakeVersionTuple?: IntakeVersionTuple | null;
+  /**
+   * After intelligence wording: use full bank / planner follow-ups in Step 1 (not pre_brief-only).
+   * Mirrors `useNewAuditWizard` `briefTailoredFollowUpUnlocked`.
+   */
+  briefTailoredFollowUpUnlocked: boolean;
+  /** Locks Step 1 into guided wizard mode while collecting short pre-brief. */
+  forceWizardDuringShortBrief?: boolean;
+  /** Consultant-only: early snapshot + clone-from audit (same client linkage). */
+  portfolioBriefTools?:
+    | {
+        draftAuditId: string | null;
+        earlyIntelEligible: boolean;
+        earlyIntelPending: boolean;
+        onRunEarlyIntel: () => void | Promise<void>;
+        onCloneFromAudit: (sourceAuditId: string) => Promise<void>;
+        cloneFromAuditEnabled: boolean;
+      }
+    | undefined;
 };
 
 export function Step1Brief({
@@ -130,6 +162,7 @@ export function Step1Brief({
   step2Complete,
   onBackToStep0,
   onGoToStep2,
+  continueToReviewPending = false,
   clientDraftSaveSection,
   clientDraftSaveInlineAction,
   isClientSelfServe,
@@ -137,6 +170,15 @@ export function Step1Brief({
   briefExecutionDiagnosticLoading,
   briefExecutionDiagnosticError,
   serverVisibleQuestionIds,
+  draftAuditId,
+  clientProjectContextSyncTick,
+  questionLabelOverrides,
+  questionHintOverrides,
+  questionOptionDisplayOverrides,
+  intakeVersionTuple,
+  briefTailoredFollowUpUnlocked,
+  forceWizardDuringShortBrief = false,
+  portfolioBriefTools,
 }: Step1BriefProps) {
   const [focusedWizardQuestionId, setFocusedWizardQuestionId] = useState<string | null>(null);
   const [showMissingRequired, setShowMissingRequired] = useState(false);
@@ -154,6 +196,9 @@ export function Step1Brief({
           industrySpecify,
           answerSource: step0PipelineAnswerSource,
         },
+        isClientSelfServe,
+        intakeVersionTuple: intakeVersionTuple ?? null,
+        tailoredPhaseUnlocked: briefTailoredFollowUpUnlocked,
       }),
     [
       responses,
@@ -164,6 +209,9 @@ export function Step1Brief({
       industry,
       industrySpecify,
       step0PipelineAnswerSource,
+      isClientSelfServe,
+      intakeVersionTuple,
+      briefTailoredFollowUpUnlocked,
     ],
   );
   const missingRequiredPreview = useMemo(() => {
@@ -179,15 +227,21 @@ export function Step1Brief({
     : isClientSelfServe
       ? 'client_form'
       : 'consultant_interview';
-  /** Aligned with `useNewAuditWizard` plan inputs (self_serve for portal, else legacy `undefined` for consultant). */
-  const briefCollectionMode = noPublicWebsite
-    ? 'discovery'
-    : isClientSelfServe
-      ? 'self_serve'
-      : undefined;
+  const briefCollectionMode = newAuditStep1CollectionMode({
+    noPublicWebsite,
+    isClientSelfServe,
+    tailoredPhaseUnlocked: briefTailoredFollowUpUnlocked,
+  });
   const isBlockedReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'blocked';
   const isCaveatReadiness = briefExecutionDiagnostic?.readiness?.auditReadinessStatus === 'ready_with_caveats';
   const remainingRequiredCount = Math.max(pipelineRequiredTotal - answeredRequired, 0);
+  const effectiveLayoutChoice: BriefLayoutChoice =
+    forceWizardDuringShortBrief && !isClientSelfServe ? 'wizard' : briefLayoutChoice;
+
+  const clientProjectContextSyncKey = useMemo(
+    () => `${draftAuditId ?? 'none'}:${clientProjectContextSyncTick}`,
+    [clientProjectContextSyncTick, draftAuditId],
+  );
 
   useEffect(() => {
     if (step2Complete && showMissingRequired) {
@@ -221,7 +275,7 @@ export function Step1Brief({
 
         {isClientSelfServe ? clientDraftSaveInlineAction : null}
 
-        {layoutSelected && !isClientSelfServe && (
+        {layoutSelected && !isClientSelfServe && !forceWizardDuringShortBrief && (
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -234,7 +288,7 @@ export function Step1Brief({
         )}
       </div>
 
-      {!layoutSelected && !isClientSelfServe && (
+      {!layoutSelected && !isClientSelfServe && !forceWizardDuringShortBrief && (
         <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
           {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
           <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
@@ -252,6 +306,23 @@ export function Step1Brief({
 
       {layoutSelected && (
         <>
+          {!isClientSelfServe && portfolioBriefTools ? (
+            <BriefPortfolioTools
+              draftAuditId={portfolioBriefTools.draftAuditId}
+              briefCloneEnabled={portfolioBriefTools.cloneFromAuditEnabled}
+              earlyIntelEligible={portfolioBriefTools.earlyIntelEligible}
+              earlyIntelPending={portfolioBriefTools.earlyIntelPending}
+              onRunEarlyIntel={() => {
+                void portfolioBriefTools.onRunEarlyIntel();
+              }}
+              onCloneApplied={portfolioBriefTools.onCloneFromAudit}
+            />
+          ) : null}
+          <ClientProjectContextPanel
+            auditId={draftAuditId}
+            briefSyncKey={clientProjectContextSyncKey}
+            clientStep0Basics={{ industry, industrySpecify }}
+          />
           {isBlockedReadiness ? (
             <Callout intent="warning" className="mb-4" title={WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutTitle}>
               <p className="m-0 mb-2">{WORKSPACE_PAGE_COPY.newAudit.step1.blockedCalloutBody}</p>
@@ -406,7 +477,7 @@ export function Step1Brief({
             </details>
           ) : null}
 
-          {briefLayoutChoice === 'wizard' ? (
+          {effectiveLayoutChoice === 'wizard' ? (
             <div className="ds-step1-brief-scroll">
               <IntakeBankWizard
                 responses={responses}
@@ -419,7 +490,11 @@ export function Step1Brief({
                 intakeAnalytics={intakeAnalytics}
                 productMode={briefProductMode}
                 focusQuestionId={focusedWizardQuestionId}
-                serverVisibleQuestionIds={serverVisibleQuestionIds}
+                serverVisibleQuestionIds={
+                  briefCollectionMode === 'pre_brief' && !briefTailoredFollowUpUnlocked
+                    ? undefined
+                    : serverVisibleQuestionIds
+                }
                 clientGuidedRail={isClientSelfServe}
                 clientGuidedFastPassLabel={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedFastPassLabel}
                 clientGuidedPrecisionPassLabel={WORKSPACE_PAGE_COPY.newAudit.step1.clientGuidedPrecisionPassLabel}
@@ -436,6 +511,9 @@ export function Step1Brief({
                 reportInputGapsPrefix={WORKSPACE_PAGE_COPY.newAudit.step1.guidanceGapsPrefix}
                 reportInputGapsOverflowSuffix={WORKSPACE_PAGE_COPY.newAudit.step1.guidanceGapsOverflowSuffix}
                 noVisibleQuestionsHint={WORKSPACE_PAGE_COPY.newAudit.step1.noVisibleQuestionsHint}
+                questionLabelOverrides={questionLabelOverrides}
+                questionHintOverrides={questionHintOverrides}
+                questionOptionDisplayOverrides={questionOptionDisplayOverrides}
               />
             </div>
           ) : (
@@ -449,6 +527,9 @@ export function Step1Brief({
                 onSetUnknown={onSetUnknown}
                 emphasizeClientSource={intakePrefillActive}
                 interviewMode={interviewMode}
+                questionLabelOverrides={questionLabelOverrides}
+                questionHintOverrides={questionHintOverrides}
+                questionOptionDisplayOverrides={questionOptionDisplayOverrides}
               />
             </div>
           )}
@@ -478,8 +559,11 @@ export function Step1Brief({
           ) : null}
           <button
             type="button"
-            onClick={onGoToStep2}
-            disabled={!step2Complete}
+            onClick={() => {
+              void onGoToStep2();
+            }}
+            disabled={!step2Complete || continueToReviewPending}
+            data-busy={continueToReviewPending ? 'true' : undefined}
             aria-describedby={!step2Complete && showMissingRequired ? NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID : undefined}
             className={cn(
               'glc-touch-target flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all',
@@ -488,7 +572,12 @@ export function Step1Brief({
                 : 'bg-muted text-muted-foreground cursor-not-allowed border',
             )}
           >
-            {step2Complete ? (
+            {continueToReviewPending ? (
+              <>
+                <Spinner className="h-4 w-4 animate-spin" />
+                {WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.loading}
+              </>
+            ) : step2Complete ? (
               <>
                 <CheckCircle className="w-4 h-4" />{' '}
                 {isClientSelfServe

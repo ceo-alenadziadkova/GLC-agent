@@ -13,7 +13,7 @@ export function MirrorSiteReadSection({
   if (!siteLine) return null;
   return (
     <div
-      className="glc-card glc-snapshot-result-card p-5 text-left lg:p-6"
+      className="ds-card ds-snapshot-result-card p-5 text-left lg:p-6"
       style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardOutlined}
     >
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">

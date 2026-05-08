@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as featureFlags from '../config/feature-flags.js';
 import { FactChecker } from '../services/fact-checker.js';
 import type { DomainResult } from '../types/audit.js';
 import { createControlObjectV1 } from '../schemas/control-object.js';
@@ -7,11 +8,11 @@ describe('FactChecker buildControlObject — causal DAG', () => {
   const fc = new FactChecker();
 
   beforeEach(() => {
-    vi.stubEnv('FEATURE_CAUSAL_DAG', 'true');
+    vi.spyOn(featureFlags, 'isCausalDagEnabled').mockReturnValue(true);
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   function baseIssue(overrides: Partial<DomainResult['issues'][0]> = {}) {

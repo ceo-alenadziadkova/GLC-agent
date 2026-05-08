@@ -71,7 +71,10 @@ describe('runPipelineOrchestratorBlock — strategy quality gate', () => {
       loadExecutionPlan: async () => FULL_PLAN,
       updateAuditIfNotCancelled: async () => true,
       runParallelBlock: async () => [],
-      startPhaseSequential: async () => 'completed',
+      startPhaseSequential: async (_phase, options) => {
+        await options?.beforeReviewGate?.(7);
+        return 'completed';
+      },
       emitEvent: async () => {},
       cancelledErrorFactory: () => new PipelineCancelledError(),
     });

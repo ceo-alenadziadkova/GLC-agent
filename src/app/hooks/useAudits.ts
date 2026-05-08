@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { api } from '../data/apiService';
 import { glcKeys } from '../lib/glc-keys';
 import { AUDITS_LIST_DEFAULTS } from '../config/audits-list-defaults';

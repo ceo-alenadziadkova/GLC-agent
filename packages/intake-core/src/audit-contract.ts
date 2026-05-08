@@ -62,9 +62,11 @@ export interface BriefResponseEntry {
 export type FlowReadinessStatus = 'flow_ready' | 'blocked';
 
 export type AuditReadinessStatus = 'audit_ready' | 'blocked' | 'ready_with_caveats';
+export type IntakeReadinessExecutionContext = 'default' | 'admin_presale';
 export type IntakeReadinessCaveatClass =
   | 'full_scope_required_gaps'
   | 'unknown_source_signal_evidence'
+  | 'presale_missing_data_allowed'
   | 'surface_limited_context'
   | 'execution_scope_missing_signals'
   | 'critical_signal_low_confidence'

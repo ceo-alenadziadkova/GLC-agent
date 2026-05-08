@@ -9,9 +9,11 @@ import { createAuditLimiter, generalLimiter } from '../../middleware/rate-limit.
 import { createAuditController } from './controllers/create-audit.controller.js';
 import { listAuditsController } from './controllers/list-audits.controller.js';
 import { tokenUsageSummaryController } from './controllers/token-usage-summary.controller.js';
+import { patchAuditTokenBudgetController } from './controllers/patch-audit-token-budget.controller.js';
 import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
 import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
 import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
+import { postRoadmapManifestDraftRevisionController } from './controllers/post-roadmap-manifest-draft-revision.controller.js';
 import { postRoadmapManifestSnapshotController } from './controllers/post-roadmap-manifest-snapshot.controller.js';
 import { getRoadmapManifestSnapshotsController } from './controllers/get-roadmap-manifest-snapshots.controller.js';
 import { getRoadmapManifestSnapshotLatestController } from './controllers/get-roadmap-manifest-snapshot-latest.controller.js';
@@ -25,8 +27,22 @@ import { getOrchestrationSprintExportController } from './controllers/get-orches
 import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
 import { postOrchestratorPreviewController } from './controllers/post-orchestrator-preview.controller.js';
 import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
+import { postOrchestrationCompileController } from './controllers/post-orchestration-compile.controller.js';
 import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
 import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
+import { getPlanBoardController } from './controllers/get-plan-board.controller.js';
+import { patchPlanBoardColumnPolicyController } from './controllers/patch-plan-board-column-policy.controller.js';
+import { patchPlanBoardCardController } from './controllers/patch-plan-board-card.controller.js';
+import { patchPlanBoardCardsBatchController } from './controllers/patch-plan-board-cards-batch.controller.js';
+import { deletePlanBoardCardController } from './controllers/delete-plan-board-card.controller.js';
+import { postPlanBoardManualCardController } from './controllers/post-plan-board-manual-card.controller.js';
+import { postPlanBoardReconcileController } from './controllers/post-plan-board-reconcile.controller.js';
+import { postPlanBoardReconcilePreviewController } from './controllers/post-plan-board-reconcile-preview.controller.js';
+import { postPlanBoardViewOpenedController } from './controllers/post-plan-board-view-opened.controller.js';
+import { getPlanTicketEventsController } from './controllers/get-plan-ticket-events.controller.js';
+import { getPlanTicketCommentsController } from './controllers/get-plan-ticket-comments.controller.js';
+import { postPlanTicketCommentController } from './controllers/post-plan-ticket-comment.controller.js';
+import { patchPipelinePhaseResultController } from './controllers/patch-pipeline-phase-result.controller.js';
 import { postDirectorDeepDiveController } from './controllers/post-director-deep-dive.controller.js';
 import { getDirectorDeepDiveStatusController } from './controllers/get-director-deep-dive-status.controller.js';
 import { getDirectorDeepDiveQuotaController } from './controllers/get-director-deep-dive-quota.controller.js';
@@ -38,7 +54,12 @@ import { getBriefSchemaController } from './controllers/brief/get-brief-schema.c
 import { postBriefAnalyticsController } from './controllers/brief/post-brief-analytics.controller.js';
 import { getBriefController } from './controllers/brief/get-brief.controller.js';
 import { postBriefHelpRequestController } from './controllers/brief/post-brief-help-request.controller.js';
+import { postBriefCloneFromController } from './controllers/brief/post-brief-clone-from.controller.js';
 import { putBriefController } from './controllers/brief/put-brief.controller.js';
+import { postBriefIntelligenceSnapshotController } from './controllers/brief/post-brief-intelligence-snapshot.controller.js';
+import { postBriefIntelligenceWordingController } from './controllers/brief/post-brief-intelligence-wording.controller.js';
+import { getClientProjectContextController } from './controllers/get-client-project-context.controller.js';
+import { getIntakeFollowupSuggestionsController } from './controllers/get-intake-followup-suggestions.controller.js';
 
 export const auditsRouter = Router();
 
@@ -54,6 +75,12 @@ auditsRouter.get(
   ...consultantGuard,
   rejectGuestFromPortal,
   tokenUsageSummaryController,
+);
+auditsRouter.patch(
+  '/:id/token-budget',
+  ...consultantGuard,
+  rejectGuestFromPortal,
+  patchAuditTokenBudgetController,
 );
 auditsRouter.post(
   '/:id/strategy/execution-pack',
@@ -85,6 +112,12 @@ auditsRouter.post(
   rejectGuestFromPortal,
   postRoadmapManifestSnapshotController,
 );
+auditsRouter.post(
+  '/:id/roadmap/manifest/draft-revisions',
+  attachProfile,
+  rejectGuestFromPortal,
+  postRoadmapManifestDraftRevisionController,
+);
 auditsRouter.get(
   '/:id/roadmap/manifest-snapshots',
   attachProfile,
@@ -102,6 +135,12 @@ auditsRouter.post(
   attachProfile,
   rejectGuestFromPortal,
   postOrchestrationPackController,
+);
+auditsRouter.post(
+  '/:id/orchestration/compile',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestrationCompileController,
 );
 auditsRouter.post(
   '/:id/orchestration/pack/regenerate',
@@ -158,6 +197,84 @@ auditsRouter.get(
   getAuditTimelineController,
 );
 auditsRouter.get(
+  '/:id/plan/board',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanBoardController,
+);
+auditsRouter.patch(
+  '/:id/plan/board/column-policy',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardColumnPolicyController,
+);
+auditsRouter.patch(
+  '/:id/plan/board/cards/:cardId',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardCardController,
+);
+auditsRouter.patch(
+  '/:id/plan/board/cards:batch',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPlanBoardCardsBatchController,
+);
+auditsRouter.delete(
+  '/:id/plan/board/cards/:cardId',
+  attachProfile,
+  rejectGuestFromPortal,
+  deletePlanBoardCardController,
+);
+auditsRouter.patch(
+  '/:id/pipeline/phases/:phase/result',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchPipelinePhaseResultController,
+);
+auditsRouter.post(
+  '/:id/plan/board/cards',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardManualCardController,
+);
+auditsRouter.get(
+  '/:id/plan/board/cards/:cardId/events',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanTicketEventsController,
+);
+auditsRouter.get(
+  '/:id/plan/board/cards/:cardId/comments',
+  attachProfile,
+  rejectGuestFromPortal,
+  getPlanTicketCommentsController,
+);
+auditsRouter.post(
+  '/:id/plan/board/cards/:cardId/comments',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanTicketCommentController,
+);
+auditsRouter.post(
+  '/:id/plan/board/reconcile/preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardReconcilePreviewController,
+);
+auditsRouter.post(
+  '/:id/plan/board/reconcile',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardReconcileController,
+);
+auditsRouter.post(
+  '/:id/plan/board/telemetry/view-opened',
+  attachProfile,
+  rejectGuestFromPortal,
+  postPlanBoardViewOpenedController,
+);
+auditsRouter.get(
   '/:id/directors/:domain/deep-dive/quota',
   attachProfile,
   rejectGuestFromPortal,
@@ -193,5 +310,35 @@ auditsRouter.delete('/:id', ...consultantGuard, deleteAuditController);
 auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, getBriefSchemaController);
 auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromPortal, postBriefAnalyticsController);
 auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, getBriefController);
+auditsRouter.post(
+  '/:id/brief/intelligence-snapshot',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefIntelligenceSnapshotController,
+);
+auditsRouter.post(
+  '/:id/brief/intelligence-wording',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefIntelligenceWordingController,
+);
+auditsRouter.get(
+  '/:id/client-project-context',
+  attachProfile,
+  rejectGuestFromPortal,
+  getClientProjectContextController,
+);
+auditsRouter.get(
+  '/:id/intake-followup-suggestions',
+  attachProfile,
+  rejectGuestFromPortal,
+  getIntakeFollowupSuggestionsController,
+);
 auditsRouter.post('/:id/brief/help-request', attachProfile, postBriefHelpRequestController);
+auditsRouter.post(
+  '/:id/brief/clone-from',
+  attachProfile,
+  rejectGuestFromPortal,
+  postBriefCloneFromController,
+);
 auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, putBriefController);

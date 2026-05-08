@@ -25,10 +25,10 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
   const total = distribution?.total_scored ?? 0;
 
   return (
-    <div className="glc-card h-full rounded-[var(--radius-xl)] p-5">
-      <div className="glc-panel-head">
+    <div className="ds-card h-full rounded-[var(--radius-xl)] p-5">
+      <div className="ds-panel-head">
         <SectionLabel>Score Distribution</SectionLabel>
-        <span className="glc-panel-meta">Bands 1-5</span>
+        <span className="ds-panel-meta">Bands 1-5</span>
       </div>
 
       {loading && !distribution && (

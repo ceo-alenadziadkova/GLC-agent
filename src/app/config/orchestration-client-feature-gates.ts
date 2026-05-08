@@ -38,12 +38,13 @@ function isRolloutModeUnlockedForUser(
   return isEmailInAllowlist(userEmail, allowlist);
 }
 
+/** Effective rollout for roadmap narrative copy in the Plan workspace. */
 export function getEffectiveOrchestrationRoadmapNarrativeEnabled(
   userEmail: string | null | undefined,
 ): boolean {
   if (APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled) return true;
   return isRolloutModeUnlockedForUser(
-    APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
+    APP_FEATURE_FLAGS.orchestrationRoadmapRolloutMode,
     userEmail,
     ORCHESTRATION_CLIENT_ROLLOUT_ALLOWLIST_EMAILS,
   );

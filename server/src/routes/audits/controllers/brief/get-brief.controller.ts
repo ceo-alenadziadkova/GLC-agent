@@ -12,7 +12,10 @@ import { sendApiError } from '../../mappers/audits-http.mapper.js';
 import { fetchAuditForBriefById } from '../../../../repositories/audits/audits.repository.js';
 import { fetchBriefByAuditId } from '../../../../repositories/audits/audit-brief.repository.js';
 import { canAccessAudit } from '../../../../services/audits/audits-access.service.js';
-import { buildBriefReadPayload } from '../../../../services/audits/audits-brief.service.js';
+import {
+  applyReconSuggestedAnswersToResponses,
+  buildBriefReadPayload,
+} from '../../../../services/audits/audits-brief.service.js';
 import { normalizeExecutionPlan } from '../../../../services/execution-plan.js';
 
 export async function getBriefController(req: AuthRequest, res: Response) {
@@ -28,7 +31,13 @@ export async function getBriefController(req: AuthRequest, res: Response) {
       return;
     }
     const { data: brief } = await fetchBriefByAuditId(id);
-    const payload = buildBriefReadPayload({ audit, brief, actorUserId: req.userId! });
+    const recon = brief?.recon_prefills as Record<string, unknown> | undefined;
+    const mergedResponses = applyReconSuggestedAnswersToResponses(
+      (brief?.responses as Record<string, unknown>) ?? {},
+      recon,
+    );
+    const briefForRead = brief ? { ...brief, responses: mergedResponses } : null;
+    const payload = buildBriefReadPayload({ audit, brief: briefForRead, actorUserId: req.userId! });
     res.json({
       product_mode: audit.product_mode,
       coverage_package: normalizeExecutionPlan(

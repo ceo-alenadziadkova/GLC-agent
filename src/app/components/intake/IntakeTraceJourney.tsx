@@ -45,13 +45,13 @@ export function IntakeTraceJourney({
   );
 
   if (!current) {
-    return <p className="text-sm text-[var(--glc-muted)]">No journey steps available for this plan.</p>;
+    return <p className="text-sm text-[var(--text-tertiary)]">No journey steps available for this plan.</p>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs text-[var(--glc-muted)]">
+        <label className="text-xs text-[var(--text-tertiary)]">
           Step {index + 1} of {steps.length}
         </label>
         <input
@@ -64,47 +64,47 @@ export function IntakeTraceJourney({
         />
         <div className="text-sm">
           <span className="font-medium">{current.label ?? current.stepId}</span>
-          <span className="text-[var(--glc-muted)]"> ({current.stepId})</span>
+          <span className="text-[var(--text-tertiary)]"> ({current.stepId})</span>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Shown in this step</div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Shown in this step</div>
           <ul className="space-y-1 text-xs">
             {current.questionIds.map(id => (
               <li key={id}>
                 <span className="font-mono">{id}</span>
-                <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                <span className="text-[var(--text-tertiary)]"> — {resolveLabel(id)}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Newly shown vs previous</div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Newly shown vs previous</div>
           <ul className="space-y-1 text-xs">
             {newlyShown.length === 0 ? (
-              <li className="text-[var(--glc-muted)]">No additions</li>
+              <li className="text-[var(--text-tertiary)]">No additions</li>
             ) : (
               newlyShown.map(id => (
                 <li key={id}>
                   <span className="font-mono">{id}</span>
-                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                  <span className="text-[var(--text-tertiary)]"> — {resolveLabel(id)}</span>
                 </li>
               ))
             )}
           </ul>
         </div>
-        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">No longer shown</div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">No longer shown</div>
           <ul className="space-y-1 text-xs">
             {noLongerShown.length === 0 ? (
-              <li className="text-[var(--glc-muted)]">No removals</li>
+              <li className="text-[var(--text-tertiary)]">No removals</li>
             ) : (
               noLongerShown.map(id => (
                 <li key={id}>
                   <span className="font-mono">{id}</span>
-                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                  <span className="text-[var(--text-tertiary)]"> — {resolveLabel(id)}</span>
                 </li>
               ))
             )}

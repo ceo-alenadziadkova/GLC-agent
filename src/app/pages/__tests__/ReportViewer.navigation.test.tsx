@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { ReportViewer } from '../ReportViewer';
 
 const useAuditMock = vi.fn();
+const getReportPageViewModelMock = vi.fn();
 
 vi.mock('../../hooks/useAudit', () => ({
   useAudit: (...args: unknown[]) => useAuditMock(...args),
@@ -15,52 +16,41 @@ vi.mock('../../components/AppShell', () => ({
 }));
 
 vi.mock('../../features/report-viewer/domain/selectors', () => ({
-  getReportProfileOptions: () => [{ key: 'full', label: 'Full', Icon: () => null }],
-  getReportPageViewModel: () => ({
-    companyName: 'Example Co',
-    executiveSummary: 'Summary',
-    averageScore: 4,
-    criticalIssues: [],
-    allQuickWins: [],
-    coverage: {
-      coveredDomains: [],
-      missingDomains: [],
-      coverageRatio: 1,
-      coverageAdjustedScore: 4,
-    },
-    profileDomains: [],
-    visibleDomainEntries: [],
-    allStrengths: [],
-    answeredFollowUps: 0,
-    followUpQuestions: [],
-  }),
+  getReportPageViewModel: (...args: unknown[]) => getReportPageViewModelMock(...args),
 }));
 
-vi.mock('../../features/report-viewer/components/ProfileTabs', () => ({
-  ProfileTabs: () => null,
-}));
-vi.mock('../../features/report-viewer/components/ReportHeroCard', () => ({
-  ReportHeroCard: () => null,
-}));
-vi.mock('../../features/report-viewer/components/CoverageCard', () => ({
-  CoverageCard: () => null,
-}));
 vi.mock('../../features/report-viewer/components/DomainScorecard', () => ({
   DomainScorecard: () => null,
 }));
 vi.mock('../../features/report-viewer/components/ReportFindings', () => ({
   ReportFindings: () => null,
 }));
-vi.mock('../../features/report-viewer/components/FollowUpCard', () => ({
-  FollowUpCard: () => null,
-}));
 
 describe('ReportViewer navigation targets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getReportPageViewModelMock.mockReturnValue({
+      companyName: 'Example Co',
+      executiveSummary: 'Summary',
+      averageScore: 4,
+      criticalIssues: [],
+      allQuickWins: [],
+      coverage: {
+        coveredDomains: [],
+        missingDomains: [],
+        coverageRatio: 1,
+        coverageAdjustedScore: 4,
+      },
+      profileDomains: [],
+      visibleDomainEntries: [],
+      allStrengths: [],
+      answeredFollowUps: 0,
+      followUpQuestions: [],
+    });
     useAuditMock.mockReturnValue({
       loading: false,
       error: null,
+      reload: vi.fn(),
       audit: {
         meta: {
           status: 'completed',
@@ -72,24 +62,19 @@ describe('ReportViewer navigation targets', () => {
     });
   });
 
-  it('uses portal timeline path when opened from portal report', async () => {
+  it('normalizes legacy profile query to full mode', () => {
     render(
-      <MemoryRouter initialEntries={['/portal/reports/audit-1']}>
+      <MemoryRouter initialEntries={['/reports/audit-1?profile=tech']}>
         <Routes>
-          <Route path="/portal/reports/:id" element={<ReportViewer />} />
+          <Route path="/reports/:id" element={<ReportViewer />} />
         </Routes>
       </MemoryRouter>,
     );
 
-    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
-    expect(timelineLinks.some(link => link.getAttribute('href') === '/portal/timeline/audit-1')).toBe(true);
-    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
-      'href',
-      '/portal/timeline/audit-1#manifest-setup',
-    );
+    expect(getReportPageViewModelMock).toHaveBeenCalledWith(expect.any(Object), 'full');
   });
 
-  it('uses consultant timeline path when opened from workspace report', async () => {
+  it('renders only scorecard and findings sections', () => {
     render(
       <MemoryRouter initialEntries={['/reports/audit-1']}>
         <Routes>
@@ -98,12 +83,27 @@ describe('ReportViewer navigation targets', () => {
       </MemoryRouter>,
     );
 
-    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline|View execution timeline/i });
-    expect(timelineLinks.some(link => link.getAttribute('href') === '/timeline/audit-1')).toBe(true);
-    expect(screen.getByRole('link', { name: /Open timeline setup/i })).toHaveAttribute(
-      'href',
-      '/timeline/audit-1#manifest-setup',
+    expect(screen.getAllByRole('button', { name: /Domain Scorecard/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Critical Issues/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Analysis essentials/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Full Report mode is active/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Quick navigation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Follow-up/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Execution Log/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps simplified structure for portal report route', () => {
+    render(
+      <MemoryRouter initialEntries={['/portal/reports/audit-1']}>
+        <Routes>
+          <Route path="/portal/reports/:id" element={<ReportViewer />} />
+        </Routes>
+      </MemoryRouter>,
     );
+
+    expect(screen.getAllByRole('button', { name: /Domain Scorecard/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Critical Issues/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Execution Log/i)).not.toBeInTheDocument();
   });
 });
 

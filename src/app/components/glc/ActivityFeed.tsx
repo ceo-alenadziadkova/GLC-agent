@@ -30,8 +30,8 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="glc-card rounded-[var(--radius-xl)] p-5">
-      <div className="glc-panel-head">
+    <div className="ds-card rounded-[var(--radius-xl)] p-5">
+      <div className="ds-panel-head">
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-md text-left"
@@ -44,7 +44,7 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
             aria-hidden
           />
         </button>
-        <span className="glc-panel-meta">
+        <span className="ds-panel-meta">
           {events?.length ?? 0} events
         </span>
       </div>
@@ -67,7 +67,7 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
       {!collapsed && events && events.length > 0 && (
         <div className="space-y-2.5">
           {events.map(ev => (
-            <div key={ev.id} className="glc-hover-row flex items-start gap-3 px-2 py-1.5">
+            <div key={ev.id} className="ds-hover-row flex items-start gap-3 px-2 py-1.5">
               {/* Event type pill */}
               <span
                 className={cn(

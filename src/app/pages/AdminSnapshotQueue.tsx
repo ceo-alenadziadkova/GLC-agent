@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../lib/tanstack-react-query';
 import { ArrowsClockwise, Lightning, Spinner, Warning, Tray } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';

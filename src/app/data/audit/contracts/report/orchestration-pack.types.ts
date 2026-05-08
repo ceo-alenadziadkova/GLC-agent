@@ -41,6 +41,8 @@ export interface GlcOrchestrationPackView {
         missing: number;
       };
       evidence_refs?: string[];
+      /** Optional stable Delivery Board hint; aligns with `@glc/intake-core` canonical key materialisation. */
+      board_identity_key?: string;
     }>;
     edges: Array<{ from: string; to: string; relation?: OrchestrationDependencyRelation; weight?: number }>;
     meta?: unknown;

@@ -9,35 +9,29 @@ import { REPORT_VIEWER_CONSTANTS } from '../config/report-viewer.constants';
 import { REPORT_VIEWER_COPY, formatRoadmapCockpitCoverageLine } from '../config/report-viewer.copy.en';
 import type { ReportPageViewModel } from '../domain/types';
 import { isGlcOrchestrationPackView } from '../../../lib/orchestration-pack-guards';
-import { getEffectiveDirectorDeepDiveOnDemandEnabled } from '../../../config/orchestration-client-feature-gates';
-import { useAuthEmail } from '../../../hooks/useAuthEmail';
-import { ORCHESTRATION_UI_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
 
 type ReportRoadmapCockpitSectionProps = {
   audit: AuditState;
   reportVm: ReportPageViewModel;
-  timelineHref: string;
   manifestHref: string;
   compareHref: string;
   hasOrchestrationPack: boolean;
+  audience?: 'consultant' | 'portal';
 };
 
 export function ReportRoadmapCockpitSection({
   audit,
   reportVm,
-  timelineHref,
   manifestHref,
   compareHref,
   hasOrchestrationPack,
+  audience = 'consultant',
 }: ReportRoadmapCockpitSectionProps) {
   const { pathname } = useLocation();
   const anchorIds = REPORT_VIEWER_CONSTANTS.roadmapCockpit.anchors;
   const maxDx = REPORT_VIEWER_CONSTANTS.roadmapCockpit.maxDiagnosisIssues;
   const primaryIssue = (reportVm.criticalIssues ?? []).slice(0, maxDx)[0];
   const diagnosis = primaryIssue?.title ?? null;
-
-  const userEmail = useAuthEmail();
-  const effectiveDeepDiveOnDemand = getEffectiveDirectorDeepDiveOnDemandEnabled(userEmail);
 
   const inContract =
     audit.meta.execution_plan?.selected_domains?.length ??
@@ -56,6 +50,8 @@ export function ReportRoadmapCockpitSection({
   const deepNodesCount =
     pack?.graph.nodes.filter(node => node.source === 'director' && node.analysis_depth === 'deep').length ?? 0;
   const showFallbackQualityHint = pack?.input_quality?.degraded ?? false;
+
+  const showAdvancedCtas = audience === 'consultant';
 
   return (
     <motion.div
@@ -123,30 +119,17 @@ export function ReportRoadmapCockpitSection({
       )}
 
       <div className="flex flex-wrap gap-2 border-t border-[var(--border-default)] pt-4">
-        <Button asChild variant="default" size="sm" className="no-underline">
-          <Link to={timelineHref}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaTimeline}</Link>
-        </Button>
-        {hasOrchestrationPack ? (
-          <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={`${timelineHref}#portal-timeline-priorities`}>
-              {REPORT_VIEWER_COPY.roadmapCockpit.ctaMarkNextStepOnTimeline}
-            </Link>
-          </Button>
-        ) : null}
-        <Button asChild variant={hasOrchestrationPack ? 'outline' : 'default'} size="sm" className="no-underline">
+        <Button asChild variant="outline" size="sm" className="no-underline">
           <Link to={manifestHref}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaManifest}</Link>
         </Button>
-        {hasOrchestrationPack ? (
+        {hasOrchestrationPack && showAdvancedCtas ? (
           <Button asChild variant="outline" size="sm" className="no-underline">
             <Link to={compareHref}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaCompare}</Link>
           </Button>
         ) : null}
-        <Button asChild variant="outline" size="sm" className="no-underline">
-          <Link to={`${pathname}#${anchorIds.domainScorecard}`}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaScorecard}</Link>
-        </Button>
-        {effectiveDeepDiveOnDemand ? (
+        {showAdvancedCtas ? (
           <Button asChild variant="outline" size="sm" className="no-underline">
-            <Link to={timelineHref}>{ORCHESTRATION_UI_COPY.deepDiveCta}</Link>
+            <Link to={`${pathname}#${anchorIds.domainScorecard}`}>{REPORT_VIEWER_COPY.roadmapCockpit.ctaScorecard}</Link>
           </Button>
         ) : null}
       </div>

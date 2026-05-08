@@ -21,7 +21,12 @@ export function OrchestrationNodeDetailCard({
   const node = pack.graph.nodes.find(n => n.id === nodeId);
   if (!node) {
     return (
-      <div className="bg-background rounded-lg border p-3 text-xs text-[var(--text-secondary)]">
+      <div
+        role="region"
+        aria-live="polite"
+        aria-label={STRATEGY_LAB_COPY.orchestratorTabs.unknownNode}
+        className="bg-background rounded-lg border p-3 text-xs text-[var(--text-secondary)]"
+      >
         {STRATEGY_LAB_COPY.orchestratorTabs.unknownNode}
         <Button type="button" variant="ghost" size="sm" className="mt-2 h-8" onClick={onClear}>
           {STRATEGY_LAB_COPY.orchestratorTabs.clearSelection}

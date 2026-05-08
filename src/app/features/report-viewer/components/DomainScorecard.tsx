@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { CaretRight, ChartBar } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { ScoreBadge, ScoreBar } from '../../../components/glc/ScoreBadge';
@@ -13,6 +13,7 @@ type DomainScorecardProps = {
   domainEntriesCount: number;
   isFilteredProfile: boolean;
   averageScore: number;
+  buildDomainHref: (auditId: string, domainKey: string) => string;
 };
 
 const listVariants = {
@@ -40,21 +41,23 @@ export function DomainScorecard({
   domainEntriesCount,
   isFilteredProfile,
   averageScore,
+  buildDomainHref,
 }: DomainScorecardProps) {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <motion.div
       id={REPORT_VIEWER_CONSTANTS.roadmapCockpit.anchors.domainScorecard}
       variants={listVariants}
-      initial="hidden"
+      initial={shouldReduceMotion ? false : 'hidden'}
       animate="visible"
       className="glc-card overflow-hidden ds-radius-xl"
     >
-      <div className="ds-report-scorecard-head flex items-center justify-between px-5 py-3">
+      <div className="ds-report-scorecard-head flex flex-col items-start gap-1.5 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <ChartBar className="w-4 h-4 ds-text-brand"  />
           <SectionLabel>{REPORT_VIEWER_COPY.sections.scorecard}</SectionLabel>
         </div>
-        <span className="ds-report-scorecard-meta text-[length:var(--text-xs)]">
+        <span className="ds-report-scorecard-meta text-[length:var(--text-xs)] break-words sm:text-right">
           {domainEntriesCount} {isFilteredProfile ? `of ${REPORT_VIEWER_CONSTANTS.totalDomainCount}` : ''}{' '}
           domains · avg {averageScore.toFixed(1)}/{REPORT_VIEWER_CONSTANTS.scoreMax}
         </span>
@@ -64,25 +67,31 @@ export function DomainScorecard({
           <motion.div
             key={domain.key}
             variants={itemVariants}
-            className="ds-report-scorecard-row group flex items-center gap-4 px-5 py-3.5"
+            transition={shouldReduceMotion ? { duration: 0 } : undefined}
+            className="ds-report-scorecard-row group grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3 md:flex md:items-center md:gap-4 md:px-5 md:py-3.5"
           >
             <span className="w-5 flex-shrink-0 tabular-nums font-mono text-xs text-[var(--text-quaternary)]">
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span className="ds-letterspace-tight-01 flex-1 text-sm font-medium text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+            <span className="ds-letterspace-tight-01 min-w-0 text-sm font-medium text-[var(--text-primary)] font-[family-name:var(--font-display)] md:flex-1">
               {domain.label}
             </span>
-            <div className="w-32">{domain.score > 0 && <ScoreBar score={domain.score} />}</div>
-            {domain.score > 0 ? (
-              <ScoreBadge score={domain.score} size="sm" />
-            ) : (
-              <span className="text-xs ds-text-quaternary" >
-                —
-              </span>
-            )}
+            <div className="col-span-2 min-w-0 pr-1 md:col-span-1 md:w-28 md:pr-0 lg:w-32">
+              {domain.score > 0 && <ScoreBar score={domain.score} />}
+            </div>
+            <div className="justify-self-end md:justify-self-auto">
+              {domain.score > 0 ? (
+                <ScoreBadge score={domain.score} size="sm" />
+              ) : (
+                <span className="text-xs ds-text-quaternary" >
+                  —
+                </span>
+              )}
+            </div>
             <Link
-              to={`/audit/${auditId}/${domain.key}`}
-              className="glc-btn-icon h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
+              to={buildDomainHref(auditId, domain.key)}
+              aria-label={`Open ${domain.label} details`}
+              className="glc-btn-icon h-11 w-11 md:h-9 md:w-9 justify-self-end md:justify-self-auto group-hover:bg-[var(--surface-hover)] group-focus-within:bg-[var(--surface-hover)]"
             >
               <CaretRight className="w-3.5 h-3.5" />
             </Link>

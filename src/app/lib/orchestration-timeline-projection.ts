@@ -1,9 +1,14 @@
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 import type { OrchestrationSeasonPreset } from '../config/orchestration-roadmap-manifest';
 import { ORCHESTRATION_TIMELINE_TARGET_WINDOW_DAYS } from '../config/orchestration-ui-limits';
+import {
+  criticalPathCountSplitBounds,
+  timeBucketForSeasonIndexOneBased,
+  type OrchestrationTimelineTimeBucket,
+} from './time-bucket-normalization';
 
 export type OrchestrationTimelineBucketId = 'near' | 'mid' | 'far';
-export type OrchestrationTimelineTimeBucket = 'now' | 'next' | 'later';
+export type { OrchestrationTimelineTimeBucket } from './time-bucket-normalization';
 
 export interface OrchestrationRoadmapNodeProjection {
   node_id: string;
@@ -50,13 +55,10 @@ export function projectRoadmapNodesFromCriticalPath(args: {
   const ids = [...args.pack.critical_path];
   if (ids.length === 0) return [];
   const target_window_days = ORCHESTRATION_TIMELINE_TARGET_WINDOW_DAYS[args.seasonPreset];
-  const n = ids.length;
-  const a = Math.ceil(n / 3);
-  const b = Math.ceil((2 * n) / 3);
+  const { a, b } = criticalPathCountSplitBounds(ids.length);
   return ids.map((node_id, index) => {
     const season_index = index < a ? 1 : index < b ? 2 : 3;
-    const time_bucket: OrchestrationTimelineTimeBucket =
-      season_index === 1 ? 'now' : season_index === 2 ? 'next' : 'later';
+    const time_bucket = timeBucketForSeasonIndexOneBased(season_index);
     return {
       node_id,
       season_index,
@@ -78,9 +80,7 @@ export function projectCriticalPathToTimelineBuckets(
       { id: 'far', title: bucketTitles.far, nodeIds: [] },
     ];
   }
-  const n = ids.length;
-  const a = Math.ceil(n / 3);
-  const b = Math.ceil((2 * n) / 3);
+  const { a, b } = criticalPathCountSplitBounds(ids.length);
   return [
     { id: 'near', title: bucketTitles.near, nodeIds: ids.slice(0, a) },
     { id: 'mid', title: bucketTitles.mid, nodeIds: ids.slice(a, b) },

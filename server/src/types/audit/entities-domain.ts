@@ -5,6 +5,8 @@ import type { PhaseStatus } from './phase-status.js';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
+export type FindingStatus = 'confirmed' | 'unverified' | 'not_assessed';
+export type VerificationMethod = 'single_source' | 'multi_source' | 'heuristic' | 'manual_review' | 'not_assessed';
 
 /**
  * A raw data point that backs a finding.
@@ -39,6 +41,10 @@ export interface AuditIssue {
   evidence_refs: EvidenceRef[];
   /** Where the finding data came from. */
   data_source: DataSource;
+  /** Reliability state used by quality gates and report rendering. */
+  status?: FindingStatus;
+  /** How the claim was checked before publication. */
+  verification_method?: VerificationMethod;
   /**
    * When FEATURE_CAUSAL_DAG is enabled, links this finding to prior-phase claims it builds on.
    * Omitted in most runs until prompts teach the model to populate it.
@@ -54,6 +60,14 @@ export interface Recommendation {
   estimated_cost: string;
   estimated_time: string;
   impact: string;
+  /** Optional evidence links for reliability-aware rendering. */
+  evidence_refs?: EvidenceRef[];
+  /** Source attribution for recommendation rationale. */
+  data_source?: DataSource;
+  /** Reliability state used by narrative filtering. */
+  status?: FindingStatus;
+  /** How recommendation rationale was verified. */
+  verification_method?: VerificationMethod;
 }
 
 export interface QuickWin {

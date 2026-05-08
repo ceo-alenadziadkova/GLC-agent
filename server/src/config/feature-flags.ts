@@ -174,6 +174,12 @@ function readFeatureRolloutMode(env: string | undefined, defaultValue: FeatureRo
   return readEnumFeatureFlag(env, ROLLOUT_MODES, defaultValue);
 }
 
+function readCsvEnv(env: string | undefined, defaultValue: readonly string[]): readonly string[] {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  return raw.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
 /**
  * Plan-level governance rollout mode for orchestration persistence gate.
  * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
@@ -200,6 +206,14 @@ export function isDirectorOrchestrationAgentOutputEnabled(): boolean {
   return readFeatureFlagEnv(
     process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT,
     FF.directorOrchestrationAgentOutputEnabled,
+  );
+}
+
+/** Deterministic domain-agent tool payload repairs before DomainOutputSchema. Env: FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE */
+export function isDomainOutputCoalitionNormalizeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE,
+    FF.domainOutputCoalitionNormalizeEnabled,
   );
 }
 
@@ -349,6 +363,34 @@ export function isNlIngressLlmEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_NL_INGRESS_LLM, FF.nlIngressLlmEnabled);
 }
 
+/** Intelligence snapshot LLM (intake `POST /intelligence-snapshot`). Env: FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM */
+export function isIntakeIntelligenceSnapshotLlmEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM,
+    FF.intakeIntelligenceSnapshotLlmEnabled,
+  );
+}
+
+/** B1 wording pass (`POST /brief/intelligence-wording`). Env: FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM */
+export function isIntakeIntelligenceWordingLlmEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM,
+    FF.intakeIntelligenceWordingLlmEnabled,
+  );
+}
+
+const DEFAULT_INTAKE_WORDING_VOICE =
+  'Voice: clear, professional, empathetic, concise. Never invent a new question; only rephrase the label for the given id.';
+
+/** Extra copy-hint appended to the wording system prompt. Env: FEATURE_INTAKE_WORDING_VOICE_HINT */
+export function getIntakeIntelligenceWordingVoiceSystemLine(): string {
+  const hint = process.env.FEATURE_INTAKE_WORDING_VOICE_HINT?.trim();
+  if (hint && hint.length > 0) {
+    return `${DEFAULT_INTAKE_WORDING_VOICE} ${hint}`;
+  }
+  return DEFAULT_INTAKE_WORDING_VOICE;
+}
+
 /** Rollout mode for NL ingress LLM mapper. Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE */
 export function getNlIngressLlmRolloutMode(): FeatureRolloutMode {
   return readFeatureRolloutMode(
@@ -432,4 +474,173 @@ export function isPlanControlObjectEnabled(): boolean {
 /** Anthropic prompt cache (ephemeral) on stable prefixes. Env: FEATURE_LLM_PROMPT_CACHE */
 export function isLlmPromptCacheEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_LLM_PROMPT_CACHE, FF.llmPromptCacheEnabled);
+}
+
+/**
+ * Fire-and-forget Lighthouse on new-audit create + prefill bank hints. Env: FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP
+ */
+export function isNewAuditLighthouseBootstrapEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP,
+    FF.newAuditLighthouseBootstrapEnabled,
+  );
+}
+
+/** Deterministic new-audit site scrape (recon pre-seed). Env: FEATURE_NEW_AUDIT_SITE_SCRAPE */
+export function isNewAuditSiteScrapeEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_NEW_AUDIT_SITE_SCRAPE, FF.newAuditSiteScrapeEnabled);
+}
+
+/** Sparse LLM readout (`early_capture`) on authenticated brief snapshot. Env: FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT */
+export function isBriefEarlyIntelligenceSnapshotEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT,
+    FF.briefEarlyIntelligenceSnapshotEnabled,
+  );
+}
+
+/** Copy brief responses from another audit. Env: FEATURE_BRIEF_CLONE_FROM_AUDIT */
+export function isBriefCloneFromAuditEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_BRIEF_CLONE_FROM_AUDIT, FF.briefCloneFromAuditEnabled);
+}
+
+/**
+ * Delivery Board staged rollout (SSOT). Env: `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`.
+ *
+ * Optional ops shorthand when the rollout env is **unset**: `PLAN_DELIVERY_BOARD=true` → `internal`
+ * (enables board APIs/tab alignment with older runbooks); `false` → `shadow`. Explicit rollout env always wins.
+ */
+export function getPlanDeliveryBoardRolloutMode(): FeatureRolloutMode {
+  const rolloutExplicit = process.env.FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE?.trim();
+  if (rolloutExplicit) {
+    return readFeatureRolloutMode(rolloutExplicit, FF.planDeliveryBoardRolloutMode);
+  }
+  const thin = process.env.PLAN_DELIVERY_BOARD?.trim();
+  if (thin) {
+    return readFeatureFlagEnv(thin, false) ? 'internal' : 'shadow';
+  }
+  return FF.planDeliveryBoardRolloutMode;
+}
+
+/**
+ * When true, **`source='manual'`** cards cannot enter **`in_progress`** (PATCH moves + POST manual-card `column_id`).
+ * Env: `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`
+ */
+export function isPlanBoardStrictManualInProgressBlocked(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS,
+    FF.planBoardStrictManualInProgressBlocked,
+  );
+}
+
+/** Dry-run reconcile diff (`POST …/plan/board/reconcile/preview`). Env: `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW` */
+export function isPlanBoardReconcileDiffPreviewEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW,
+    FF.planBoardReconcileDiffPreviewEnabled,
+  );
+}
+
+/**
+ * Pack-persist reconcile uses transactional Postgres RPC (`078_plan_board_reconcile_apply_batch.sql`).
+ * Env: `FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`
+ */
+export function isPlanBoardReconcileTransactionalApplyEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY,
+    FF.planBoardReconcileTransactionalApplyEnabled,
+  );
+}
+
+/**
+ * Per-audit custom board columns (PATCH `…/plan/board/column-policy`). Env: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`
+ */
+export function isPlanBoardCustomColumnsFeatureEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_PLAN_BOARD_CUSTOM_COLUMNS, FF.planBoardCustomColumnsEnabled);
+}
+
+/**
+ * Board execution hints enqueue as manifest draft revisions (POST `…/roadmap/manifest/draft-revisions`).
+ * Env: `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`
+ */
+export function isManifestDraftRevisionsFromBoardEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD,
+    FF.manifestDraftRevisionsFromBoardEnabled,
+  );
+}
+
+// ─── Collaborative Director Protocol ────────────────────────────────────────
+//
+// Concept ADR: `docs/adrs/ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md`.
+// Rollout: `docs/adrs/ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-ROLLOUT.md`.
+// All thresholds and caps live in `server/src/config/coalition-protocol-policy.ts`.
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Master switch for the Collaborative Director Protocol. When false, the
+ * pipeline runs in legacy mode (byte-equivalent to pre-protocol behavior).
+ * Env: `FEATURE_COALITION_PROTOCOL_ENABLED`.
+ */
+export function isCoalitionProtocolEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_COALITION_PROTOCOL_ENABLED, FF.coalitionProtocolEnabled);
+}
+
+/**
+ * Rollout mode (`shadow | internal | pilot | ga`).
+ *
+ * - `shadow`: coalition phases run, results persist, but Phase 4 finalize ignores them.
+ * - `internal+`: coalition results feed finalize and the Approve-Coalition gate replaces Gate 1.
+ *
+ * Env: `FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE`.
+ */
+export function getCoalitionProtocolRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE,
+    FF.coalitionProtocolRolloutMode as FeatureRolloutMode,
+  );
+}
+
+export function getCoalitionProtocolAllowlistUserIds(): readonly string[] {
+  return readCsvEnv(
+    process.env.FEATURE_COALITION_PROTOCOL_ALLOWLIST_USER_IDS,
+    FF.coalitionProtocolAllowlistUserIds,
+  );
+}
+
+export function getCoalitionProtocolAllowlistClientIds(): readonly string[] {
+  return readCsvEnv(
+    process.env.FEATURE_COALITION_PROTOCOL_ALLOWLIST_CLIENT_IDS,
+    FF.coalitionProtocolAllowlistClientIds,
+  );
+}
+
+/**
+ * Returns true when the rollout mode allows coalition results to feed Phase 4
+ * finalize. False under `shadow` (collect-only) or when the master switch is off.
+ */
+export function isCoalitionProtocolFinalizingEnabled(): boolean {
+  if (!isCoalitionProtocolEnabled()) return false;
+  const mode = getCoalitionProtocolRolloutMode();
+  return mode !== 'shadow';
+}
+
+/**
+ * V2+ iterative multi-turn between directors during Phase 3 (conflict resolver).
+ * V1 always uses single-call. Env: `FEATURE_COALITION_PHASE3_ITERATIVE`.
+ */
+export function isCoalitionPhase3IterativeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_COALITION_PHASE3_ITERATIVE,
+    FF.coalitionPhase3IterativeEnabled,
+  );
+}
+
+/**
+ * Allows auto-loop to retrigger Phase 0.5 (Context Director) when the resolver
+ * surfaces escalations or critical-confidence assumptions. Capped per audit by
+ * `COALITION_AUTO_LOOP_MAX_RUNS` in policy. Env: `FEATURE_COALITION_AUTO_LOOP_ENABLED`.
+ */
+export function isCoalitionAutoLoopEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_COALITION_AUTO_LOOP_ENABLED, FF.coalitionAutoLoopEnabled);
 }

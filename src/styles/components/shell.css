@@ -1,0 +1,227 @@
+/* Extracted from legacy.css (safe split pass).
+ * Shell/layout/navigation bridges moved 1:1 to preserve behavior.
+ */
+
+/* Use background shorthand so linear-gradient tokens paint correctly (Tailwind bg-* uses background-color). */
+.ds-app-shell-sidebar {
+  background: var(--app-shell-sidebar-bg);
+}
+
+.ds-app-shell-sidebar-mesh {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: var(--mesh-ink);
+  opacity: var(--app-shell-sidebar-mesh-opacity);
+}
+
+/* Align sidebar chrome row height with .ds-desktop-header (3.5rem). */
+.ds-app-shell-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 3.5rem;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  border-bottom: var(--border-width-default) solid var(--app-shell-sidebar-hairline);
+}
+
+/* App shell desktop header: token-driven shell chrome (avoids inline visual styles in TSX). */
+.ds-desktop-header {
+  background-color: var(--bg-surface);
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  min-height: 3.5rem;
+  box-shadow: var(--shadow-xs);
+  /* Match horizontal inset of `.ds-pattern-page-shell-body` on sm+ (header is `hidden sm:flex`). */
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+}
+
+.ds-desktop-header-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-display);
+}
+
+.ds-desktop-header-subtitle {
+  margin: 0;
+  margin-top: var(--space-0-5);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-subtitle);
+}
+
+.ds-mobile-bottom-nav {
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  min-height: var(--glc-mobile-nav-height);
+  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0rem));
+  box-shadow: var(--shadow-mobile-bottom-nav);
+}
+
+/* Pattern layer bridges: visuals for layout contracts live in CSS (see patterns-lock CI). */
+.ds-pattern-section-shell-root {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-default);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+}
+
+@media (width >= 40rem) {
+  .ds-pattern-section-shell-root {
+    padding: var(--space-5);
+  }
+}
+
+@media (width >= 64rem) {
+  .ds-pattern-section-shell-root {
+    padding: var(--space-6);
+  }
+}
+
+.ds-pattern-form-section-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+}
+
+@media (width >= 40rem) {
+  .ds-pattern-form-section-root {
+    padding: var(--space-5);
+  }
+}
+
+/* ThemeToggle: icon color driven by custom properties on parent (no `color:` inline). */
+.ds-theme-toggle-sun {
+  color: var(--theme-toggle-sun, var(--text-secondary));
+}
+
+.ds-theme-toggle-moon {
+  color: var(--theme-toggle-moon, var(--text-secondary));
+}
+
+.ds-text-brand-deeper {
+  color: var(--glc-blue-deeper);
+}
+
+.ds-text-accent-orange {
+  color: var(--glc-orange);
+}
+
+.ds-bg-border-default {
+  background-color: var(--border-default);
+}
+
+.ds-card-radius-elevated {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.ds-section-accent-bar {
+  background-color: var(--glc-blue);
+}
+
+.ds-section-brand-gradient-bar {
+  background: var(--gradient-brand);
+}
+
+.ds-scorebar-track {
+  height: 3px;
+  min-width: 48px;
+  background-color: var(--border-subtle);
+}
+
+.ds-scorebar-fill {
+  background: var(--scorebar-fill, var(--glc-blue));
+}
+
+/* WorkspaceSidebar.tsx */
+.ds-workspace-sidebar-aside {
+  border-right: var(--border-width-default) solid var(--border-subtle);
+  background: var(--audit-workspace-sidebar-bg);
+}
+
+/* App shell sidebar active row (literals live in CSS, not TSX). */
+.ds-sidebar-nav-active-backdrop {
+  background: linear-gradient(
+    90deg,
+    var(--glc-blue-muted-strong) 0%,
+    var(--glc-blue-muted-soft) 100%
+  );
+  border: 1px solid var(--callout-info-border);
+}
+
+.ds-sidebar-nav-active-rail {
+  height: 60%;
+  background: var(--glc-blue);
+  box-shadow: var(--glow-blue-sm);
+}
+
+/* DomainNav.tsx — active row matches app shell sidebar (no light-theme-only --glc-blue-xlight sheet on dark UI). */
+.ds-audit-domain-nav-row-active {
+  background: linear-gradient(
+    90deg,
+    var(--glc-blue-muted-strong) 0%,
+    var(--glc-blue-muted-soft) 100%
+  );
+  border-color: var(--callout-info-border);
+}
+
+/* Wave 3 — audit workspace, pipeline, new audit, snapshot shell, discovery, settings */
+.ds-audit-workspace-main-h {
+  height: calc(100vh - var(--glc-mobile-nav-height));
+}
+
+/** Main scroll column — mesh + canvas from tokens (light/dark in tokens.css). */
+.ds-audit-workspace-main {
+  background: var(--audit-workspace-main-bg);
+  background-attachment: local;
+}
+
+.ds-audit-workspace-sidebar-w {
+  width: 232px;
+}
+
+.ds-pipeline-monitor-sidebar-w {
+  width: 252px;
+}
+
+.ds-strategy-lab-plan-column {
+  width: 280px;
+}
+
+.ds-strategy-lab-orchestration-scroll-anchor {
+  scroll-margin-top: var(--strategy-lab-orchestration-scroll-margin-top);
+}
+
+.ds-strategy-lab-studio-embed-scroll-anchor {
+  scroll-margin-top: var(--strategy-lab-studio-embed-scroll-margin-top);
+}
+
+.ds-new-audit-wizard-shell--wide {
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ds-new-audit-wizard-shell--wide {
+    max-width: 40rem;
+  }
+}
+
+.ds-new-audit-wizard-shell--narrow {
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ds-new-audit-wizard-shell--narrow {
+    max-width: 28.75rem;
+  }
+}
+

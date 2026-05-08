@@ -1,4 +1,4 @@
-import type { RoadmapManifestPreviewDto } from '../data/api/audits-orchestration';
+import type { RoadmapManifestPreviewDto } from '../data/api/orchestration-types';
 
 export type ScenarioCompareResult = {
   lanesAdded: string[];

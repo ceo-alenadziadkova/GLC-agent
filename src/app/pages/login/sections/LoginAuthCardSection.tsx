@@ -89,7 +89,7 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
 
   return (
     <div
-      className="glc-card glc-auth-card space-y-5 rounded-[var(--radius-2xl)] p-6 shadow-[var(--shadow-lg)]"
+      className="ds-card ds-auth-card space-y-5 rounded-[var(--radius-2xl)] p-6 shadow-[var(--shadow-lg)]"
     >
       {!passwordRecoveryMode && mode !== 'forgot' && (
         <AuthTabs

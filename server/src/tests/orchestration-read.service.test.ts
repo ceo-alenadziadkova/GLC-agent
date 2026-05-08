@@ -24,6 +24,10 @@ vi.mock('../services/orchestration/roadmap-manifest.service.js', async (importOr
   };
 });
 
+vi.mock('../services/pipeline/events/insert-pipeline-event.js', () => ({
+  insertPipelineEventRow: vi.fn(async () => undefined),
+}));
+
 import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
 import { RoadmapManifestMismatchError } from '../services/orchestration/roadmap-manifest.service.js';
 import { buildOrchestrationPackForAudit } from '../services/orchestration/orchestration-read.service.js';

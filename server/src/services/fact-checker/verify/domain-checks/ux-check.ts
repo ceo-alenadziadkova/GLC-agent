@@ -12,6 +12,7 @@ export function checkUx(
 ): void {
   const a11y = collected['accessibility'];
   if (!a11y) return;
+  const noCrawlData = a11y.no_crawl_data === true;
 
   const imageA11y = a11y.image_accessibility as { alt_coverage_percent: number } | undefined;
   const headingHierarchy = a11y.heading_hierarchy as {
@@ -25,6 +26,7 @@ export function checkUx(
 
   if (
     imageA11y &&
+    !noCrawlData &&
     imageA11y.alt_coverage_percent < T.ux.imageAltMinCoveragePercent &&
     result.score >= T.ux.flagMinScore
   ) {
@@ -42,6 +44,7 @@ export function checkUx(
 
   if (
     headingHierarchy &&
+    !noCrawlData &&
     headingHierarchy.pages_with_no_h1 > T.ux.maxPagesWithoutH1 &&
     result.score >= T.ux.flagMinScore
   ) {
@@ -59,6 +62,7 @@ export function checkUx(
 
   if (
     headingHierarchy &&
+    !noCrawlData &&
     headingHierarchy.pages_with_broken_hierarchy > T.ux.maxBrokenHeadingPages &&
     result.score >= T.ux.flagMinScore
   ) {
@@ -76,6 +80,7 @@ export function checkUx(
 
   if (
     pagesAnalyzed > 0 &&
+    !noCrawlData &&
     structuredDataPresent === false &&
     result.score >= T.ux.flagMinScore
   ) {

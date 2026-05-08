@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "legacyCssMaxLines": 269,
+  "legacyCssMaxGlcSelectors": 27,
+  "note": "Update intentionally when compatibility scope changes."
+}

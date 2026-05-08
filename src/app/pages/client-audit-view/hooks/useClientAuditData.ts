@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '../../../lib/tanstack-react-query';
 import { api } from '../../../data/apiService';
 import { useAudit } from '../../../hooks/useAudit';
 import { GLC_QUERY_STALE_TIME_MS_BRIEF } from '../../../config/query-client-defaults';

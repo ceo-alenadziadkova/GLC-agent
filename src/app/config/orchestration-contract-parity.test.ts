@@ -83,8 +83,14 @@ describe('orchestration contract parity', () => {
   });
 
   it('keeps timeline-primary UX rollout default aligned (server SYSTEM_DEFAULTS vs APP_FEATURE_FLAGS)', () => {
-    expect(APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled).toBe(
+    expect(APP_FEATURE_FLAGS.orchestrationPlanWorkspacePrimaryUxEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled,
+    );
+  });
+
+  it('keeps plan delivery board rollout default aligned', () => {
+    expect(APP_FEATURE_FLAGS.planDeliveryBoardRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode,
     );
   });
 
@@ -122,7 +128,7 @@ describe('orchestration contract parity', () => {
   });
 
   it('keeps roadmap/deep-dive rollout mode defaults aligned with server', () => {
-    expect(APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode).toBe(
+    expect(APP_FEATURE_FLAGS.orchestrationRoadmapRolloutMode).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode,
     );
     expect(APP_FEATURE_FLAGS.directorDeepDiveRolloutMode).toBe(
@@ -139,6 +145,42 @@ describe('orchestration contract parity', () => {
     );
     expect(APP_FEATURE_FLAGS.intakeNextQuestionClientEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.intakeNextQuestionEndpointEnabled,
+    );
+  });
+
+  it('keeps new-audit brief early snapshot + clone-from flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.briefCloneFromAuditEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.briefCloneFromAuditEnabled,
+    );
+  });
+
+  it('keeps Delivery Board reconcile preview flag default aligned with server', () => {
+    expect(APP_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled,
+    );
+  });
+
+  it('keeps Delivery Board custom columns feature default aligned with server', () => {
+    expect(APP_FEATURE_FLAGS.planBoardCustomColumnsEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardCustomColumnsEnabled,
+    );
+  });
+
+  it('keeps coalition protocol SPA mirror flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.coalitionProtocolEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionProtocolRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolRolloutMode,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionPhase3IterativeEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionPhase3IterativeEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionAutoLoopEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionAutoLoopEnabled,
     );
   });
 

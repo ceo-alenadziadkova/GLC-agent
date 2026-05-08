@@ -54,6 +54,17 @@ import { API_ERROR_CODES } from '../config/api-error-codes.js';
 
 const PRL = SYSTEM_DEFAULTS.publicRouteRateLimits;
 
+/** Public intake routes include `token` in `req.params` — key per link + IP (not all links sharing one client IP). */
+function intakeTokenAndIpKey(req: Request): string {
+  const token = typeof req.params.token === 'string' && req.params.token.length > 0 ? req.params.token : 'missing';
+  return `${token}:${req.ip ?? 'unknown'}`;
+}
+
+const INTAKE_PUBLIC_WRITE_MAX_PER_HOUR =
+  process.env.NODE_ENV === 'production'
+    ? PRL.intakeWriteMaxPerHour
+    : PRL.intakeWriteMaxPerHourNonProduction;
+
 function retryAfterMinutesFromWindow(windowMs: number): number {
   return Math.max(1, Math.ceil(windowMs / MINUTE_MS));
 }
@@ -422,7 +433,7 @@ export const intakePublicReadLimiter = rateLimit({
   windowMs: HOUR_MS,
   max: PRL.intakeReadMaxPerHour,
   store: distributedStore('intake_public_read'),
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => intakeTokenAndIpKey(req),
   message: {
     error: RATE_LIMIT_INTAKE_READ_MESSAGE,
     code: API_ERROR_CODES.INTAKE_READ_RATE_LIMITED,
@@ -435,9 +446,9 @@ export const intakePublicReadLimiter = rateLimit({
 /** POST /api/intake/:token/respond — public saves. */
 export const intakePublicWriteLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: PRL.intakeWriteMaxPerHour,
+  max: INTAKE_PUBLIC_WRITE_MAX_PER_HOUR,
   store: distributedStore('intake_public_write'),
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => intakeTokenAndIpKey(req),
   message: {
     error: RATE_LIMIT_INTAKE_WRITE_MESSAGE,
     code: API_ERROR_CODES.INTAKE_WRITE_RATE_LIMITED,

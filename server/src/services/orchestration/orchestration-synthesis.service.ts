@@ -11,8 +11,8 @@ import type { GlcOrchestrationSynthesisToolOutput } from '../../schemas/glc-orch
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 import { logger } from '../logger.js';
 import { TokenTracker } from '../token-tracker.js';
-import { supabase } from '../supabase.js';
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
+import { insertPipelineEventRow } from '../pipeline/events/insert-pipeline-event.js';
 
 import { buildOrchestrationSynthesisUserJson } from './orchestration-synthesis-context.js';
 import { invokeOrchestrationPackSynthesisClaude } from './orchestration-pack-synthesis-claude.js';
@@ -79,18 +79,18 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
 }): Promise<GlcOrchestrationPack> {
   const orchestrationPhase = -1;
   const startedAt = Date.now();
-  await supabase.from('pipeline_events').insert({
-    audit_id: args.auditId,
+  await insertPipelineEventRow({
+    auditId: args.auditId,
     phase: orchestrationPhase,
-    event_type: PIPELINE_EVENT_TYPES.orchestrationStarted,
+    eventType: PIPELINE_EVENT_TYPES.orchestrationStarted,
     message: 'Orchestration synthesis started',
     data: { detail_level: 'default', component: 'orchestration_synthesis' },
   });
   if (!isOrchestrationConflictSynthesisEnabled()) {
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationCompleted,
       message: 'Orchestration synthesis skipped by feature flag',
       data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
     });
@@ -105,10 +105,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       rollout_percent: rolloutPercent,
       audit_bucket: bucket,
     });
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationCompleted,
       message: 'Orchestration synthesis skipped by rollout segment',
       data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
     });
@@ -124,10 +124,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       remaining: budget.remaining,
       metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
     });
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationCompleted,
       message: 'Orchestration synthesis skipped by token budget',
       data: { detail_level: 'default', skipped: true, component: 'orchestration_synthesis' },
     });
@@ -140,10 +140,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       audit_id: args.auditId,
       metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
     });
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationError,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationError,
       message: 'Orchestration synthesis failed: missing prompt',
       data: { detail_level: 'default', component: 'orchestration_synthesis' },
     });
@@ -168,10 +168,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       rollout_percent: rolloutPercent,
       audit_bucket: bucket,
     });
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationCompleted,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationCompleted,
       message: 'Orchestration synthesis completed',
       data: {
         detail_level: 'default',
@@ -189,10 +189,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       component: 'orchestration_synthesis',
       metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
     });
-    await supabase.from('pipeline_events').insert({
-      audit_id: args.auditId,
+    await insertPipelineEventRow({
+      auditId: args.auditId,
       phase: orchestrationPhase,
-      event_type: PIPELINE_EVENT_TYPES.orchestrationError,
+      eventType: PIPELINE_EVENT_TYPES.orchestrationError,
       message: 'Orchestration synthesis failed',
       data: {
         detail_level: 'default',
@@ -200,6 +200,7 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
         latency_ms: Date.now() - startedAt,
         error: error.message,
       },
+      rethrowOnError: false,
     });
     return args.deterministicPack;
   }

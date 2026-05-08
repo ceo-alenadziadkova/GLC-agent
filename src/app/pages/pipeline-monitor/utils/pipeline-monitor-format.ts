@@ -2,6 +2,7 @@ import { APP_ROUTE_SEGMENTS } from '@glc/intake-core';
 import { formatAuditWebsiteDisplay } from '../../../data/no-public-website';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
 import { STRATEGY_PHASE_ID } from '../phase-meta';
+import { buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 
 type AuditMetaLite = {
   company_name?: string | null;
@@ -24,18 +25,26 @@ export function getPipelineMonitorCompanyName(audit: AuditLite): string {
 
 export function getWorkspacePath(id: string | undefined, isClient: boolean): string {
   if (!id) return '/';
-  return isClient ? `/portal/audit/${id}` : `/audit/${id}`;
+  return isClient ? `/${APP_ROUTE_SEGMENTS.portalAuditById.replace(':id', id)}` : `/audit/${id}`;
 }
 
 /** Strategy phase output is shown in Strategy Lab; domain phases use audit workspace. */
 export function buildStrategyLabPath(auditId: string | undefined): string {
   if (!auditId) return '/';
-  return `/${APP_ROUTE_SEGMENTS.strategyById.replace(':id', auditId)}`;
+  return buildPlanWorkspaceHref({
+    auditId,
+    isClient: false,
+    mode: 'shape',
+  });
 }
 
 export function buildPortalStrategyLabPath(auditId: string | undefined): string {
   if (!auditId) return '/';
-  return `/${APP_ROUTE_SEGMENTS.portalStrategyById.replace(':id', auditId)}`;
+  return buildPlanWorkspaceHref({
+    auditId,
+    isClient: true,
+    mode: 'shape',
+  });
 }
 
 export function buildPortalReportPath(auditId: string | undefined): string {

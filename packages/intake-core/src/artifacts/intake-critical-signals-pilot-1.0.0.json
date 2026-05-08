@@ -58,14 +58,6 @@
       "evidenceType": "explicit",
       "conflictResolutionRule": "prefer_explicit_latest",
       "unknownHandlingRule": "unknown_blocks_audit_ready"
-    },
-    "delivery_shape_baseline": {
-      "bankIds": ["d_closing_flow"],
-      "normalizerRef": "unwrap_multi_v1",
-      "sourcesByPriority": ["explicit", "recon_confirmed", "imported", "inferred"],
-      "evidenceType": "explicit",
-      "conflictResolutionRule": "prefer_explicit_latest",
-      "unknownHandlingRule": "unknown_blocks_audit_ready"
     }
   }
 }

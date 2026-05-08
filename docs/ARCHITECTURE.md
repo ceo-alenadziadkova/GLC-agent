@@ -70,6 +70,8 @@ Some operational endpoints are intentionally **non-JWT** and use alternative con
 
 **Horizontal scale:** public limiters use `**RedisStore`** when `**RATE_LIMIT_REDIS_URL**` is set. Snapshot quota (`GET /api/snapshot/quota` and `POST /api/snapshot`) shares the same distributed store when Redis is configured. If Redis is unset, fallback is process-local memory and counters do not aggregate across instances.
 
+**Multi-instance Express API:** additional app replicas behind a load balancer are consistent with current design — route handlers remain stateless aside from intentional in-memory caches in a few helpers. Pipeline **execution** does not rely on a single PID: durable state lives in Postgres (`job_runs`, `phase_runs`), and **lease-owner strings** come from **`server/src/lib/generate-lock-token.ts`** (`glc:<uuid>:<hostname>`), not `process.pid`, so coordinated workers/containers avoid owner collisions under horizontal scale. Operational clustering still requires **Redis** where documented (rate-limit store, optional alert/bandit worker locks), **applied migrations**, and Bull’s shared Redis connectivity.
+
 **Authenticated brief writes (`intake_versions`):** supported artifact tuples are validated on **PUT**; unsupported → **400**, mismatch with stored row → **409** (except allowed upgrades). The **server** persists answers and the effective tuple — clients cannot force an unsupported bundle or skip validation by tuple alone. See [API.md](./API.md).
 
 **SPA vs API releases:** the stored **version tuple** and PUT rules reduce “client rendered one bank snapshot, server validated another” drift; they do **not** remove every UX edge case if the SPA and API ship incompatible `@glc/intake-core` resolver changes out of sync. Prefer **aligned** frontend and backend releases when changing intake semantics.
@@ -80,6 +82,12 @@ Some operational endpoints are intentionally **non-JWT** and use alternative con
 - Auth issues JWTs for frontend users; backend verifies them
 - Realtime publishes row changes from `pipeline_events` and `audits` to subscribed frontend clients
 - RLS enforces data isolation; consultants and linked clients have distinct access patterns — policies evolve with migrations ([DATABASE.md](./DATABASE.md))
+
+**Pipeline Realtime contract (SPA):** table names, filters, and payload parsers live in `src/app/config/pipeline-realtime-schema.ts` (consumed by `usePipeline`). When changing `pipeline_events` / `audits` Realtime shape or required UI fields, update that module and extend `src/app/config/__tests__/pipeline-realtime-schema.test.ts`.
+
+**Distributed locks (Redis):** shared compare-and-delete token lock helpers are in `server/src/lib/redis-token-lock.ts`; lock owner strings use `server/src/lib/generate-lock-token.ts`. TTL sources: `SYSTEM_DEFAULTS.alerts` (alert worker tick), `SYSTEM_DEFAULTS.bandits` (bandit recompute). Postgres-native leases (`phase_runs`, snapshot `snapshot_fresh_lease`) are separate and stay documented under [DATABASE.md](./DATABASE.md).
+
+**When to use multi-statement RPC transactions:** Prefer a single Postgres RPC wrapping related writes when user-visible inconsistency would matter if statements run separately (pattern: migrations **080** / **082**). Acceptable exceptions include background recovery with structured logging/alerts when one half fails (inventory and criteria: [TECH_DEBT.md](./TECH_DEBT.md) — multi-row writes / RPC candidates).
 
 ### Anthropic Claude
 
@@ -146,6 +154,27 @@ Track these metrics in PR review (and automation where possible):
 - Count of new inline style declarations in `src/app/**/*.{tsx,ts}`.
 - Count of new raw color literals (`#`, `rgb`, `rgba`) outside token files.
 - Count of duplicate badge/progress/card implementations outside `src/app/components/ui/*`.
+
+#### Plan workspace (Delivery Board vs Roadmap)
+
+The SPA exposes a unified **Plan** route with tabs; **Roadmap** is a **schedule projection** (pack + execution timeline API), while **Delivery Board** is **operational workflow** persisted in `plan_task_delivery` (columns, ordering, reconcile on pack saves). Moving cards on the board does **not** rewrite the pack graph. User-facing loader copy is aligned via `src/app/config/plan-workspace-ui-copy.en.ts`.
+
+```mermaid
+flowchart TB
+  userTouches[User_drag_and_crud_on_Board_tab]
+  userReads[User_reads_Roadmap_Gantt_projection]
+  pack[glc_orchestration_pack]
+  timeline[GET_timeline_projection]
+  opRows[plan_task_delivery_rows]
+  reconcile[Deterministic_reconcile_on_pack_save]
+  pack --> timeline
+  pack --> userReads
+  timeline --> userReads
+  userTouches --> opRows
+  pack --> reconcile
+  reconcile --> opRows
+  opRows --> userTouches
+```
 
 ### Strict layer boundaries (operational policy)
 
@@ -371,13 +400,14 @@ ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAY
 
 - `audit_strategy.glc_orchestration_pack` (JSONB) + `orchestration_pack_version` (monotonic counter when a new pack is saved) + optional `glc_orchestration_last_revision_diff` (JSONB diff from the prior pack when version ≥ 2).
 - `audit_roadmap_manifest_snapshots` — immutable manifest rows (`payload` JSON); `glc_orchestration_pack.manifest_snapshot_id` references the confirming snapshot.
+- `plan_task_delivery` rows — Delivery Board operational state keyed by deterministic `canonical_node_key` (`source=pack`), optional consultant manual cards (`canonical_node_key` null), reconcile-on-pack-persist hooks (`runPlanBoardReconcileAfterPackPersist`), SPA **`PATCH`** moves gated by **`Idempotency-Key`** + optimistic `expected_pack_version`. When **`pack.input_quality.degraded`** (same signal as Timeline `degraded`), the API forbids operational writes (**`409`** **`PLAN_BOARD_GOVERNANCE_BLOCKED`**). Pack JSON remains immutable per persisted version (`server/src/services/plan-board/`, migrations **`074_*`**, **`075_*`**).
 - `audits.execution_plan` stays the canonical **coverage** contract only ([partial audit ADR](./adrs/ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md)); manifest `selected_domains` must match `execution_plan.selected_domains` (same set).
 
 **Code:** `server/src/services/orchestration/` (see README there), schema `server/src/schemas/glc-orchestration-pack.ts`, feature flag `isOrchestrationConflictSynthesisEnabled()` (`FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS`, default off) for an optional single Claude tool call (`orchestration-pack-synthesis-claude.ts`) that appends `conflicts_resolved` rows (`synthesis_applied` / `synthesis_pending`) after the deterministic graph build, without changing per-domain FactChecker semantics. Persistence uses optimistic version checks on `audit_strategy.orchestration_pack_version` with bounded retries from config.
 
 **Checklist:** Orchestrator services must not import FactChecker for orchestration output; domain-phase CO semantics remain unchanged.
 
-ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md).
+ADR: [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR](./adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md), [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE](./adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md), [ADR-Delivery Board operational layer](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
 
 ### Director deep-dive two-stage
 

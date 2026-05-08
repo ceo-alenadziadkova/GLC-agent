@@ -12,6 +12,7 @@ type MobileDrawerProps = {
   isClient: boolean;
   isAuthenticated: boolean;
   pathname: string;
+  locationSearch: string;
   onClose: () => void;
   onSignOut: () => void;
   shellCopy: import('../../../config/app-shell-copy').AppShellCopy;
@@ -26,6 +27,7 @@ export function MobileDrawer({
   isClient,
   isAuthenticated,
   pathname,
+  locationSearch,
   onClose,
   onSignOut,
   shellCopy,
@@ -41,25 +43,25 @@ export function MobileDrawer({
         onClick={onClose}
       />
       <div
-        className="ds-app-shell-sidebar relative ml-auto flex h-full w-[var(--app-shell-drawer-width)] flex-col overflow-hidden shadow-[var(--shadow-ink)] glc-safe-pad-t glc-safe-pad-b"
+        className="ds-app-shell-sidebar relative ml-auto flex h-full w-[var(--app-shell-drawer-width)] flex-col overflow-hidden shadow-[var(--shadow-ink)] ds-safe-pad-t ds-safe-pad-b"
       >
         <div className="ds-app-shell-sidebar-mesh" aria-hidden />
         <div
-          className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--sidebar-border)] px-4 py-3 glc-safe-pad-x"
+          className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--sidebar-border)] px-4 py-3 ds-safe-pad-x"
         >
           <span className="text-[length:var(--text-sm)] font-semibold ds-app-drawer-text">
             {shellCopy.sidebar.menu}
           </span>
           <button
             type="button"
-            className="glc-touch-target ds-app-drawer-text flex items-center justify-center rounded-lg border-0 bg-[var(--sidebar-border)]"
+            className="ds-touch-target ds-app-drawer-text flex items-center justify-center rounded-lg border-0 bg-[var(--sidebar-border)]"
             onClick={onClose}
             aria-label={shellCopy.aria.closeMenu}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 glc-safe-pad-x">
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 ds-safe-pad-x">
           <div
             className="px-2 py-1.5 text-[length:var(--text-2xs)] font-bold tracking-[var(--tracking-drawer-caps)] text-[color:var(--app-shell-sidebar-caps-fg)]"
           >
@@ -70,6 +72,7 @@ export function MobileDrawer({
               key={`drawer-${item.label}`}
               item={item}
               pathname={pathname}
+              locationSearch={locationSearch}
               itemKey={`drawer-${item.label}`}
               onClick={onClose}
             />
@@ -85,7 +88,7 @@ export function MobileDrawer({
           {!isGuest && (isClient || roleUnknown) && (
             <NavLink
               to={APP_ROUTE_PATHS.portalAuditNew}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--glc-blue)] no-underline glc-touch-target"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--text-blue)] no-underline ds-touch-target"
               onClick={onClose}
             >
               <PlusCircle className="w-5 h-5 flex-shrink-0" />
@@ -95,7 +98,7 @@ export function MobileDrawer({
           {!isGuest && !isClient && !roleUnknown && (
             <NavLink
               to={APP_ROUTE_PATHS.auditNew}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--glc-orange)] no-underline glc-touch-target"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--text-accent)] no-underline ds-touch-target"
               onClick={onClose}
             >
               <Lightning className="w-5 h-5 flex-shrink-0" />
@@ -105,7 +108,7 @@ export function MobileDrawer({
           {isGuest && (
             <NavLink
               to={APP_ROUTE_PATHS.login}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--glc-blue)] no-underline glc-touch-target"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--text-blue)] no-underline ds-touch-target"
               onClick={onClose}
             >
               <PlusCircle className="w-5 h-5 flex-shrink-0" />
@@ -116,7 +119,7 @@ export function MobileDrawer({
           {!isGuest && (
             <NavLink
               to={APP_ROUTE_PATHS.settings}
-              className="ds-app-drawer-text-muted flex items-center gap-2.5 rounded-lg px-2.5 py-3 no-underline glc-touch-target"
+              className="ds-app-drawer-text-muted flex items-center gap-2.5 rounded-lg px-2.5 py-3 no-underline ds-touch-target"
               onClick={onClose}
             >
               <GearSix className="w-5 h-5 flex-shrink-0" />
@@ -127,7 +130,7 @@ export function MobileDrawer({
           {isAuthenticated && (
             <button
               type="button"
-              className="ds-app-drawer-text-faint glc-touch-target w-full rounded-lg border-0 px-2.5 py-3 text-left"
+              className="ds-app-drawer-text-faint ds-touch-target w-full rounded-lg border-0 px-2.5 py-3 text-left"
               onClick={onSignOut}
             >
               <SignOut className="w-5 h-5 flex-shrink-0" />

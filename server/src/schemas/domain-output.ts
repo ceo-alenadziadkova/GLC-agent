@@ -9,9 +9,9 @@ import {
   STRATEGY_INITIATIVE_PRIORITIES,
   type StrategyInitiativeDomainKey,
 } from '../config/strategy-initiative-policy.js';
-import { DOMAIN_KEYS } from '@glc/intake-core';
+import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS, DOMAIN_KEYS } from '@glc/intake-core';
 
-import { GlcDirectorOrchestrationSliceSchema } from './glc-director-orchestration-slice.js';
+import { GlcDirectorOrchestrationSliceFromToolInputSchema } from './glc-director-orchestration-slice.js';
 
 const L = STRATEGY_INITIATIVE_LIMITS;
 const EP = STRATEGY_EXECUTION_PACK_LIMITS;
@@ -37,7 +37,7 @@ export const ReconOutputSchema = z.object({
   key_services_products: z.array(z.string()),
   value_proposition: z.string().nullable(),
   competitive_landscape_notes: z.string().nullable(),
-  mallorca_relevance: z.string().nullable(),
+  regional_relevance: z.string().nullable(),
   initial_observations: z.array(z.string()),
   suggested_interview_questions: z.array(z.string()),
 });
@@ -56,37 +56,64 @@ export const EvidenceRefSchema = z.object({
 });
 
 // ─── Issue Schema ──────────────────────────────────────────
-export const IssueSchema = z.object({
-  id: z.string(),
-  severity: z.enum(['critical', 'high', 'medium', 'low']),
-  title: z.string(),
-  description: z.string(),
-  impact: z.string(),
+export const IssueSchema = z
+  .object({
+    id: z.string(),
+    severity: z.enum(['critical', 'high', 'medium', 'low']),
+    title: z.string(),
+    description: z.string(),
+    impact: z.string(),
   /**
    * How confident the agent is in this finding.
    * high   — directly observable from collected data
    * medium — inferred from partial signals
    * low    — assumed / no direct data available
    */
-  confidence: z.enum(['high', 'medium', 'low']),
-  /** Raw data points that back this finding. At least one required. */
-  evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
-  /** Where the finding data came from. */
-  data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
+    confidence: z.enum(['high', 'medium', 'low']),
+    /** Raw data points that back this finding. At least one required. */
+    evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
+    /** Where the finding data came from. */
+    data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
+    /** Reliability state for downstream quality gates and rendering. */
+    status: z.enum(['confirmed', 'unverified', 'not_assessed']).optional(),
+    /** How this claim was verified before report publication. */
+    verification_method: z
+      .enum(['single_source', 'multi_source', 'heuristic', 'manual_review', 'not_assessed'])
+      .optional(),
   /**
    * Optional cross-phase premise links for causal DAG (Phase 8).
    * phase_id: recon | tech_infrastructure | … | strategy; claim_id: 1-based issue index in that phase's CO.
    */
-  premise_refs: z
-    .array(
-      z.object({
-        phase_id: z.string(),
-        claim_id: z.number().int().positive(),
-      }),
-    )
-    .max(20)
-    .optional(),
-});
+    premise_refs: z
+      .array(
+        z.object({
+          phase_id: z.string(),
+          claim_id: z.number().int().positive(),
+        }),
+      )
+      .max(20)
+      .optional(),
+  })
+  .superRefine((issue, ctx) => {
+    if (
+      issue.status &&
+      issue.status !== 'confirmed' &&
+      (issue.severity === 'critical' || issue.severity === 'high')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Non-confirmed findings must not use critical/high severity.',
+        path: ['severity'],
+      });
+    }
+    if (issue.status === 'not_assessed' && issue.verification_method && issue.verification_method !== 'not_assessed') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'not_assessed findings must use verification_method=not_assessed.',
+        path: ['verification_method'],
+      });
+    }
+  });
 
 // ─── Quick Win Schema ──────────────────────────────────────
 export const QuickWinSchema = z.object({
@@ -98,15 +125,55 @@ export const QuickWinSchema = z.object({
 });
 
 // ─── Recommendation Schema ─────────────────────────────────
-export const RecommendationSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  description: z.string(),
-  priority: z.enum(['high', 'medium', 'low']),
-  estimated_cost: z.string(),
-  estimated_time: z.string(),
-  impact: z.string(),
-});
+export const RecommendationSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    priority: z.enum(['high', 'medium', 'low']),
+    estimated_cost: z.string(),
+    estimated_time: z.string(),
+    impact: z.string(),
+    evidence_refs: z.array(EvidenceRefSchema).min(1).max(5).optional(),
+    data_source: z.enum(['auto_detected', 'from_brief', 'inferred']).optional(),
+    status: z.enum(['confirmed', 'unverified', 'not_assessed']).optional(),
+    verification_method: z
+      .enum(['single_source', 'multi_source', 'heuristic', 'manual_review', 'not_assessed'])
+      .optional(),
+  })
+  .superRefine((recommendation, ctx) => {
+    const hasPercent = /\b\d{1,3}\s*-\s*\d{1,3}%|\b\d{1,3}%/.test(recommendation.impact);
+    const hasSourceCue = /\b(source|benchmark|industry|study)\b/i.test(recommendation.impact);
+    if (hasPercent && !hasSourceCue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Numeric impact claims require benchmark/source annotation.',
+        path: ['impact'],
+      });
+    }
+    if (
+      recommendation.status &&
+      recommendation.status !== 'confirmed' &&
+      (recommendation.evidence_refs?.length ?? 0) === 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Non-confirmed recommendations should include rationale evidence_refs or remain omitted.',
+        path: ['evidence_refs'],
+      });
+    }
+    if (
+      recommendation.status === 'not_assessed' &&
+      recommendation.verification_method &&
+      recommendation.verification_method !== 'not_assessed'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'not_assessed recommendations must use verification_method=not_assessed.',
+        path: ['verification_method'],
+      });
+    }
+  });
 
 // ─── Domain Analysis Output ────────────────────────────────
 export const DomainOutputSchema = z.object({
@@ -133,7 +200,7 @@ export const DomainOutputSchema = z.object({
    * (`director-orchestration-policy.ts`, optionally narrowed by `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT`)
    * require a parseable slice before the row is accepted.
    */
-  glc_director_execution: GlcDirectorOrchestrationSliceSchema.optional(),
+  glc_director_execution: GlcDirectorOrchestrationSliceFromToolInputSchema,
 });
 
 export type DomainOutput = z.infer<typeof DomainOutputSchema>;
@@ -145,6 +212,17 @@ export const StrategyInitiativeEvidenceSourceSchema = z.object({
   issue_id: z.string().max(L.idMaxLength).optional(),
   /** Free-text signal when no stable issue id exists. */
   signal: z.string().max(L.bulletMaxLength).optional(),
+});
+
+export const StrategyInitiativeCrossDomainDependencySchema = z.object({
+  domain_key: z.enum(evidenceDomainEnum),
+  hypothesis_id: z
+    .string()
+    .regex(
+      /^(tech_infrastructure|security_compliance|seo_digital|ux_conversion|marketing_utp|automation_processes):H[1-9]\d*$/,
+    )
+    .optional(),
+  conflict_id: z.string().regex(/^CONF-[1-9]\d*$/).optional(),
 });
 
 export const StrategyInitiativeExecutionPathSchema = z.object({
@@ -226,9 +304,18 @@ export const StrategyInitiativeSchema = z.object({
       .array(StrategyInitiativeEvidenceSourceSchema)
       .min(1)
       .max(L.evidenceSourcesMax),
+    cross_domain_dependencies: z
+      .array(StrategyInitiativeCrossDomainDependencySchema)
+      .max(L.crossDomainDependenciesMax)
+      .default([]),
   }),
   /** Set server-side after evidence link validation. */
   evidence_verified: z.boolean().optional(),
+  /**
+   * Optional stable hint for Delivery Board `canonical_node_key` (Epic 1).
+   * When set, renaming `title` does not orphan the card while manifest signature + lane match.
+   */
+  board_identity_key: z.string().min(1).max(CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS).optional(),
 });
 
 /** One initiative's generated execution pack (on-demand Claude output). */
@@ -346,6 +433,11 @@ function zodToJson(schema: z.ZodTypeAny): Record<string, unknown> {
   if (schema instanceof z.ZodNullable) return { ...zodToJson(schema.unwrap()), nullable: true };
   if (schema instanceof z.ZodOptional) return zodToJson(schema.unwrap());
   if (schema instanceof z.ZodDefault) return zodToJson(schema._def.innerType);
+  // `.superRefine` / transforms wrap inner schema — JSON Schema mirrors the structural shape only.
+  if (schema instanceof z.ZodEffects) {
+    const inner = (schema._def as { schema: z.ZodTypeAny }).schema;
+    return zodToJson(inner);
+  }
 
   // Fallback
   return { type: 'string' };

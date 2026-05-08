@@ -75,6 +75,16 @@ export function phaseIdsFromMetaPlan(meta: { execution_plan?: ExecutionPlanLike 
 }
 
 /**
+ * When the audit has an explicit domain selection, phases outside the plan are UI-skipped
+ * (pipeline monitor); null = legacy / unknown plan — do not skip by coverage.
+ */
+export function plannedExecutionPhaseIdSet(meta: { execution_plan?: ExecutionPlanLike | null }): ReadonlySet<number> | null {
+  const selected = meta.execution_plan?.selected_domains ?? [];
+  if (!meta.execution_plan || selected.length === 0) return null;
+  return new Set(phaseIdsFromMetaPlan(meta));
+}
+
+/**
  * Pro-like / express-like execution: only recon + auto wing phases (0-4), no strategy.
  * Used by UI copy and phase visibility, independent of legacy `product_mode`.
  */

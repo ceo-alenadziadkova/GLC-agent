@@ -2,11 +2,14 @@ import { useEffect } from 'react';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import type { AuditCoveragePackage, DomainKey, IntakeVersionTuple } from '../../../data/auditTypes';
 import { NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS } from '../../../config/ui-feedback-defaults';
-import { writeClientPortalNewAuditDraft } from '../../../lib/client-portal-new-audit-draft';
+import {
+  writeClientPortalNewAuditDraft,
+  writeConsultantNewAuditDraft,
+} from '../../../lib/client-portal-new-audit-draft';
 import type { BriefLayoutChoice } from '../wizard-state/useBriefLayoutState';
 
 export function useDraftAutosaveEffect(params: {
-  isClientSelfServe: boolean;
+  persistNewAuditDraft: 'portal' | 'consultant' | 'none';
   step: 0 | 1 | 2 | 3;
   url: string;
   noPublicWebsite: boolean;
@@ -22,10 +25,10 @@ export function useDraftAutosaveEffect(params: {
   selectedDomains: DomainKey[];
 }): void {
   useEffect(() => {
-    if (!params.isClientSelfServe) return;
+    if (params.persistNewAuditDraft === 'none') return;
     const t = window.setTimeout(() => {
-      writeClientPortalNewAuditDraft({
-        v: 1,
+      const draft = {
+        v: 1 as const,
         step: params.step,
         url: params.url,
         noPublicWebsite: params.noPublicWebsite,
@@ -40,11 +43,16 @@ export function useDraftAutosaveEffect(params: {
         ...(params.coveragePackage != null
           ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
           : {}),
-      });
+      };
+      if (params.persistNewAuditDraft === 'consultant') {
+        writeConsultantNewAuditDraft(draft);
+      } else {
+        writeClientPortalNewAuditDraft(draft);
+      }
     }, NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [
-    params.isClientSelfServe,
+    params.persistNewAuditDraft,
     params.step,
     params.url,
     params.noPublicWebsite,

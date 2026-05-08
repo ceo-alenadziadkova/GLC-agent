@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
-import type { RoadmapManifestRequestBody, RoadmapManifestPreviewDto } from '../../data/api/audits-orchestration';
+import type { RoadmapManifestRequestBody, RoadmapManifestPreviewDto } from '../../data/api/orchestration-types';
 import { api } from '../../data/apiService';
 import { compareRoadmapManifestPreviews } from '../../lib/scenario-compare';
 import { logger } from '../../lib/logger';

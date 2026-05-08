@@ -178,7 +178,8 @@ async function main() {
   console.log(`  Pipeline log:  ${GLC_DEV_SPA_ORIGIN}/pipeline/${DEMO_AUDIT_ID}`);
   console.log(`  Audit detail:  ${GLC_DEV_SPA_ORIGIN}/audit/${DEMO_AUDIT_ID}`);
   console.log(`  Report:        ${GLC_DEV_SPA_ORIGIN}/reports/${DEMO_AUDIT_ID}`);
-  console.log(`  Strategy Lab:  ${GLC_DEV_SPA_ORIGIN}/strategy/${DEMO_AUDIT_ID}\n`);
+  console.log(`  Plan Board:    ${GLC_DEV_SPA_ORIGIN}/plan/${DEMO_AUDIT_ID}/board`);
+  console.log(`  Strategy Lab:  ${GLC_DEV_SPA_ORIGIN}/lab/${DEMO_AUDIT_ID}\n`);
 }
 
 main().catch((err) => {

@@ -8,6 +8,22 @@ import { fileURLToPath } from 'url';
 
 import { DOMAIN_KEYS } from '@glc/intake-core';
 
+import {
+  CLAUDE_COALITION_ALIGNMENT_TOOL_NAME,
+  CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME,
+  CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME,
+  CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME,
+  CLAUDE_DOMAIN_SUBMIT_TOOL_NAME,
+} from '../../config/agent-claude-contract.js';
+import {
+  COALITION_NON_DOMAIN_SECURITY_PROMPT_NAMES,
+  COALITION_PIPELINE_TRUST_BOUNDARY_PROMPT_NAMES,
+  COALITION_PROMPT_NAMES,
+} from '../../config/coalition-protocol-policy.js';
+import { isCoalitionProtocolFinalizingEnabled } from '../../config/feature-flags.js';
+import { ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME } from '../../config/orchestration-synthesis-policy.js';
+import { renderPromptIndustryHeuristics } from '../../config/prompt-industry-heuristics.js';
+import { STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME } from '../../config/strategy-initiative-policy.js';
 import { logger } from '../../services/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -96,6 +112,19 @@ const NON_DOMAIN_SECURITY_CORE_APPEND = (() => {
   }
 })();
 
+const PIPELINE_TRUST_BOUNDARY_APPEND = (() => {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, '_append-pipeline-trust-boundary.md'), 'utf-8');
+    return stripVersionHeader(raw).trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-pipeline-trust-boundary.md',
+    });
+    return '';
+  }
+})();
+
 const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
   try {
     const raw = readFileSync(join(PROMPTS_DIR, '_append-runtime-output-contract.md'), 'utf-8');
@@ -109,27 +138,123 @@ const RUNTIME_OUTPUT_CONTRACT_APPEND = (() => {
   }
 })();
 
+const COALITION_PROTOCOL_APPEND = (() => {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, '_append-collaboration-protocol.md'), 'utf-8');
+    return stripVersionHeader(raw).trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-collaboration-protocol.md',
+    });
+    return '';
+  }
+})();
+
 const DOMAIN_PROMPT_SET = new Set<string>(DOMAIN_KEYS);
+const PIPELINE_TRUST_BOUNDARY_PROMPT_SET = new Set<string>([
+  'recon',
+  'strategy',
+  ...COALITION_PIPELINE_TRUST_BOUNDARY_PROMPT_NAMES,
+]);
 const NON_DOMAIN_SECURITY_PROMPT_SET = new Set<string>([
+  'strategy',
   'strategy-execution-pack',
   'orchestration-pack-synthesis',
+  ...COALITION_NON_DOMAIN_SECURITY_PROMPT_NAMES,
+]);
+const COALITION_PROTOCOL_PROMPT_SET = new Set<string>(COALITION_PROMPT_NAMES);
+
+/**
+ * `<domain>-finalize` prompts inherit the domain stack (security-core,
+ * readability, director-execution) just like the legacy `<domain>` prompts. The
+ * loader also accepts the legacy bare name via `PROMPT_NAME_ALIAS_MAP` below.
+ */
+const DOMAIN_FINALIZE_PROMPT_SET = new Set<string>(DOMAIN_KEYS.map((d) => `${d}-finalize`));
+
+/**
+ * Per-domain hypothesis and alignment prompts inherit the domain stack
+ * (security-core, readability, director-execution) so their output remains
+ * compatible with the existing provenance contract.
+ */
+const DOMAIN_HYPOTHESIS_PROMPT_SET = new Set<string>(DOMAIN_KEYS.map((d) => `${d}-hypothesis`));
+const DOMAIN_ALIGNMENT_PROMPT_SET = new Set<string>(DOMAIN_KEYS.map((d) => `${d}-alignment`));
+
+/**
+ * Alias map: legacy `<domain>` → `<domain>-finalize`. Allows the runtime to load
+ * the same content under either name during the rollout. Concept ADR rollout
+ * Phase 5 wires `<domain>` to read the finalize file while keeping legacy
+ * audits using the unaliased file in flight.
+ */
+function resolvePromptFileName(name: string): string {
+  if (DOMAIN_PROMPT_SET.has(name) && isCoalitionProtocolFinalizingEnabled()) {
+    return `${name}-finalize`;
+  }
+  return name;
+}
+
+/**
+ * Canonical Claude tool name per prompt. Sourced from the same constants the
+ * runtime uses when calling Anthropic — single source of truth, no hardcoded
+ * tool names in base prompt files.
+ */
+const PROMPT_TOOL_NAME_MAP: ReadonlyMap<string, string> = new Map<string, string>([
+  ['recon', CLAUDE_DOMAIN_SUBMIT_TOOL_NAME],
+  ...DOMAIN_KEYS.map((domainKey) => [domainKey, CLAUDE_DOMAIN_SUBMIT_TOOL_NAME] as const),
+  ...DOMAIN_KEYS.map(
+    (domainKey) => [`${domainKey}-finalize`, CLAUDE_DOMAIN_SUBMIT_TOOL_NAME] as const,
+  ),
+  ...DOMAIN_KEYS.map(
+    (domainKey) => [`${domainKey}-hypothesis`, CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME] as const,
+  ),
+  ...DOMAIN_KEYS.map(
+    (domainKey) => [`${domainKey}-alignment`, CLAUDE_COALITION_ALIGNMENT_TOOL_NAME] as const,
+  ),
+  ['strategy', CLAUDE_DOMAIN_SUBMIT_TOOL_NAME],
+  ['strategy-execution-pack', STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME],
+  ['orchestration-pack-synthesis', ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME],
+  ['context-director', CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME],
+  ['cross-domain-conflict-resolver', CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME],
 ]);
 
 /**
  * Load a prompt from server/prompts/<name>.md, stripping the version comment header.
  * Falls back to empty string if the file is missing (shouldn't happen in prod).
+ *
+ * Composition order is non-negotiable (see ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-ROLLOUT
+ * § CI regression checklist):
+ *   domain stack (security → readability → director-execution)
+ * → sub-agent stack (research-rigor → sub-agent-safety)
+ * → pipeline trust boundary
+ * → non-domain security
+ * → industry heuristics
+ * → coalition protocol append (when applicable)
+ * → tool-name gate
+ * → runtime output contract
  */
 export function loadPrompt(name: string): string {
   try {
-    const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf-8');
+    const fileName = resolvePromptFileName(name);
+    const raw = readFileSync(join(PROMPTS_DIR, `${fileName}.md`), 'utf-8');
     let body = stripVersionHeader(raw);
-    if (DOMAIN_PROMPT_SET.has(name) && DOMAIN_SECURITY_CORE_APPEND) {
+
+    const isLegacyDomainPrompt = DOMAIN_PROMPT_SET.has(name);
+    const isDomainFinalizePrompt = DOMAIN_FINALIZE_PROMPT_SET.has(name) || DOMAIN_FINALIZE_PROMPT_SET.has(fileName);
+    const isDomainHypothesisPrompt = DOMAIN_HYPOTHESIS_PROMPT_SET.has(name);
+    const isDomainAlignmentPrompt = DOMAIN_ALIGNMENT_PROMPT_SET.has(name);
+    const isDomainStackPrompt =
+      isLegacyDomainPrompt
+      || isDomainFinalizePrompt
+      || isDomainHypothesisPrompt
+      || isDomainAlignmentPrompt;
+
+    if (isDomainStackPrompt && DOMAIN_SECURITY_CORE_APPEND) {
       body = `${body}\n\n${DOMAIN_SECURITY_CORE_APPEND}`;
     }
-    if (DOMAIN_PROMPT_SET.has(name) && DOMAIN_READABLE_OUTPUT_APPEND) {
+    if (isDomainStackPrompt && DOMAIN_READABLE_OUTPUT_APPEND) {
       body = `${body}\n\n${DOMAIN_READABLE_OUTPUT_APPEND}`;
     }
-    if (DOMAIN_PROMPT_SET.has(name) && DOMAIN_DIRECTOR_EXECUTION_APPEND) {
+    if (isDomainStackPrompt && DOMAIN_DIRECTOR_EXECUTION_APPEND) {
       body = `${body}\n\n${DOMAIN_DIRECTOR_EXECUTION_APPEND}`;
     }
     if (name.startsWith('sub-agents/') && DIRECTOR_RESEARCH_RIGOR_CORE_APPEND) {
@@ -138,8 +263,25 @@ export function loadPrompt(name: string): string {
     if (name.startsWith('sub-agents/') && SUB_AGENT_SAFETY_CORE_APPEND) {
       body = `${body}\n\n${SUB_AGENT_SAFETY_CORE_APPEND}`;
     }
+    if (PIPELINE_TRUST_BOUNDARY_PROMPT_SET.has(name) && PIPELINE_TRUST_BOUNDARY_APPEND) {
+      body = `${body}\n\n${PIPELINE_TRUST_BOUNDARY_APPEND}`;
+    }
     if (NON_DOMAIN_SECURITY_PROMPT_SET.has(name) && NON_DOMAIN_SECURITY_CORE_APPEND) {
       body = `${body}\n\n${NON_DOMAIN_SECURITY_CORE_APPEND}`;
+    }
+    const industryHeuristicsAppend = renderPromptIndustryHeuristics(name);
+    if (industryHeuristicsAppend) {
+      body = `${body}\n\n${industryHeuristicsAppend}`;
+    }
+    if (
+      (COALITION_PROTOCOL_PROMPT_SET.has(name) || COALITION_PROTOCOL_PROMPT_SET.has(fileName))
+      && COALITION_PROTOCOL_APPEND
+    ) {
+      body = `${body}\n\n${COALITION_PROTOCOL_APPEND}`;
+    }
+    const toolName = PROMPT_TOOL_NAME_MAP.get(name);
+    if (toolName) {
+      body = `${body}\n\nUse the ${toolName} tool only. Output only the tool payload.`;
     }
     if (RUNTIME_OUTPUT_CONTRACT_APPEND) {
       body = `${body}\n\n${RUNTIME_OUTPUT_CONTRACT_APPEND}`;
@@ -157,7 +299,8 @@ export function loadPrompt(name: string): string {
  */
 export function promptVersion(name: string): string {
   try {
-    const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf-8');
+    const fileName = resolvePromptFileName(name);
+    const raw = readFileSync(join(PROMPTS_DIR, `${fileName}.md`), 'utf-8');
     const match = raw.match(/<!--\s*version:\s*([\d.]+)/);
     return match?.[1] ?? 'unknown';
   } catch {

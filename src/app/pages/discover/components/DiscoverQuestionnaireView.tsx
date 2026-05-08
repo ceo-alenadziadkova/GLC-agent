@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, ChartBar, CheckCircle } from '@phosphor-icons/react';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import type { DiscoveryAnswers, DiscoveryQuestion } from '../../../lib/discovery-flow';
-import discoveryUiCopy from '../../../data/discovery-ui-copy.en.json';
+import discoveryUiCopy from '../../../locales/en/discovery-ui-copy.en.json';
 import { DISCOVER_QUESTION_SCROLL_DELAY_MS } from '../../../config/discover-page-defaults';
 import { QuestionInput } from './QuestionInput';
 import { summariseAnswer } from '../services';

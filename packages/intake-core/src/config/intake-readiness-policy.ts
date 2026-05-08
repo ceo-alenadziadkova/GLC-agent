@@ -34,5 +34,4 @@ export const INTAKE_CRITICAL_SIGNAL_REGISTRY_POLICY: Record<string, IntakeSignal
   primary_problem: { owner: 'product', minimumConfidenceForAuditReady: 'low' },
   operations_bottleneck: { owner: 'product', minimumConfidenceForAuditReady: 'low' },
   audit_focus: { owner: 'product', minimumConfidenceForAuditReady: 'low' },
-  delivery_shape_baseline: { owner: 'product', minimumConfidenceForAuditReady: 'low' },
 };

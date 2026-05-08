@@ -84,6 +84,10 @@ export function IntakeBrief() {
                 onToggleQuestionMode={c.onToggleQuestionMode}
                 onDismissResumeBanner={c.onDismissResumeBanner}
                 onGoReview={() => c.setPhase('review')}
+                hideGuidedAllToggle={c.hideGuidedAllToggle}
+                tailoredPhaseBanner={c.tailoredPhaseBanner}
+                modeSubtitleOverride={c.modeSubtitleOverride}
+                progressiveContinueBusy={c.progressiveContinueBusy}
               />
             )}
           </AnimatePresence>

@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '../../lib/tanstack-react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { AuditState, IntakeBrief } from '../../data/auditTypes';
 import { ClientAuditView } from '../ClientAuditView';
 import { ClientPortalPipelineProvider } from '../../context/ClientPortalPipelineContext';
 import * as apiService from '../../data/apiService';
+import { buildAppRoute } from '../../config/route-paths';
+import { CLIENT_AUDIT_VIEW_COPY } from '../../config/client-audit-view-copy';
 
 vi.mock('../../components/AppShell', () => ({
   AppShell: ({ children, title }: { children: React.ReactNode; title?: string }) => (
@@ -305,7 +307,7 @@ describe('ClientAuditView', () => {
       '/portal/reports/audit-nav-1',
     );
     const strategyNavLinks = screen.getAllByRole('link', { name: /Strategy details/i });
-    expect(strategyNavLinks.some((el) => el.getAttribute('href') === '/portal/strategy/audit-nav-1')).toBe(true);
+    expect(strategyNavLinks.some((el) => el.getAttribute('href') === '/portal/lab/audit-nav-1?mode=shape')).toBe(true);
   });
 
   it('renders post-audit cockpit CTAs for completed paid audits', async () => {
@@ -315,10 +317,11 @@ describe('ClientAuditView', () => {
       expect(screen.getByText('What you have now')).toBeInTheDocument();
     });
 
-    const timelineLinks = screen.getAllByRole('link', { name: /Open timeline/i });
+    const timelineLinks = screen.getAllByRole('link', { name: /Open Plan/i });
     expect(timelineLinks.length).toBeGreaterThan(0);
+    const expectedTimeline = buildAppRoute.portalPlan('audit-cockpit-1');
     for (const link of timelineLinks) {
-      expect(link).toHaveAttribute('href', '/portal/timeline/audit-cockpit-1');
+      expect(link).toHaveAttribute('href', expectedTimeline);
     }
     expect(screen.getByRole('link', { name: /Full domain report/i })).toHaveAttribute(
       'href',
@@ -327,7 +330,7 @@ describe('ClientAuditView', () => {
     const strategyLinks = screen.getAllByRole('link', { name: /Strategy details/i });
     expect(strategyLinks.length).toBeGreaterThan(0);
     for (const link of strategyLinks) {
-      expect(link).toHaveAttribute('href', '/portal/strategy/audit-cockpit-1');
+      expect(link).toHaveAttribute('href', '/portal/lab/audit-cockpit-1?mode=shape');
     }
   });
 

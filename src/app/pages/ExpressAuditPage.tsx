@@ -12,7 +12,7 @@ import { ProcessTimeline } from '../marketing/blocks/ProcessTimeline';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { SnapshotTeaser, DiscoveryTeaser } from '../marketing/blocks/RepeatingTeasers';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
-import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../locales/en/marketing-workspace-packaging.en.json';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';

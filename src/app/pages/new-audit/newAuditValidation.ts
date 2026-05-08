@@ -1,14 +1,21 @@
-import { ensureHttpsUrl, readinessBadgeFromProgress } from '@glc/intake-core';
+import {
+  ensureHttpsUrl,
+  getPreBriefSubmitSlotIds,
+  isPreBriefSubmitSlotSatisfied,
+  readinessBadgeFromProgress,
+} from '@glc/intake-core';
 import type {
   AuditCoveragePackage,
   BriefResponseSource,
   DomainKey,
+  IntakeBriefCollectionMode,
   IntakeNextBestAction,
   IntakeReadinessBadge,
+  IntakeVersionTuple,
 } from '../../data/auditTypes';
 import type { BriefResponses } from '../../data/briefQuestions';
 import { countAnswered, pipelineRequiredIdsForProductMode } from '../../data/briefQuestions';
-import { effectiveBriefForPipelineGates } from '../../data/intakeBriefMap';
+import { effectiveBriefForPipelineGates, briefResponsesToIntakeMap } from '../../data/intakeBriefMap';
 import { NEW_AUDIT_COVERAGE_SELECTION_LIMITS } from '../../config/new-audit-coverage-policy';
 import { buildStep0IntakePatch } from '../../lib/new-audit-helpers';
 
@@ -39,6 +46,53 @@ export function effectiveBriefForNewAuditPipelineGates(params: {
   );
   return { ...patch, ...base };
 }
+
+/**
+ * Public URL path: discovery (no site), client portal self-serve, or pre-brief slice for consultant
+ * (aligns with `IntakeBankWizard` / `BankClassicBriefFields` on New Audit step 1).
+ * After intelligence wording, `tailoredPhaseUnlocked` switches the consultant+URL path to the full bank
+ * (planner follow-ups + specialized questions), not only `pre_brief.bankIncluded`.
+ */
+export function newAuditStep1CollectionMode(args: {
+  noPublicWebsite: boolean;
+  isClientSelfServe?: boolean;
+  /** After LLM wording step (or equivalent): show full eligible bank for consultant + public URL. */
+  tailoredPhaseUnlocked?: boolean;
+}): IntakeBriefCollectionMode | undefined {
+  if (args.noPublicWebsite) {
+    if (args.tailoredPhaseUnlocked) {
+      return args.isClientSelfServe ? 'self_serve' : 'discovery';
+    }
+    return 'pre_brief';
+  }
+  if (args.isClientSelfServe) return 'self_serve';
+  if (args.tailoredPhaseUnlocked) return undefined;
+  return 'pre_brief';
+}
+
+function useConsultantPreBriefSubmitPipelineGate(args: {
+  noPublicWebsite: boolean;
+  isClientSelfServe?: boolean;
+  tailoredPhaseUnlocked?: boolean;
+}): boolean {
+  return newAuditStep1CollectionMode({
+    noPublicWebsite: args.noPublicWebsite,
+    isClientSelfServe: args.isClientSelfServe,
+    tailoredPhaseUnlocked: args.tailoredPhaseUnlocked,
+  }) === 'pre_brief';
+}
+
+export type PipelineGateBase = {
+  responses: BriefResponses;
+  noPublicWebsite: boolean;
+  briefProductMode: 'express' | 'full';
+  step0Basics?: NewAuditStep0BasicsForPipelineGates;
+  /** `true` = client portal; `false`/omit = consultant (pre-brief submit gate when URL path). */
+  isClientSelfServe?: boolean;
+  intakeVersionTuple?: IntakeVersionTuple | null;
+  /** Full-bank + full SLA gates after tailored / wording round (consultant + URL). */
+  tailoredPhaseUnlocked?: boolean;
+};
 
 export type NewAuditStep0Input = {
   url: string;
@@ -94,18 +148,22 @@ export function validateNewAuditStep0Input(input: NewAuditStep0Input): {
 }
 
 /** Pipeline-required question IDs not yet answered (same gating as `computeNewAuditWizardProgress`). */
-export function listMissingPipelineRequiredIds(params: {
-  responses: BriefResponses;
-  noPublicWebsite: boolean;
-  briefProductMode: 'express' | 'full';
-  step0Basics?: NewAuditStep0BasicsForPipelineGates;
-}): string[] {
+export function listMissingPipelineRequiredIds(params: PipelineGateBase): string[] {
   const effectiveBriefForGates = effectiveBriefForNewAuditPipelineGates({
     responses: params.responses,
     noPublicWebsite: params.noPublicWebsite,
     step0Basics: params.step0Basics,
   });
-  const bankCollectionModeForGates = params.noPublicWebsite ? 'discovery' : undefined;
+  if (useConsultantPreBriefSubmitPipelineGate(params)) {
+    const m = briefResponsesToIntakeMap(effectiveBriefForGates) as Record<string, unknown>;
+    const slotIds = getPreBriefSubmitSlotIds(m, 'pre_brief', params.intakeVersionTuple ?? undefined);
+    return slotIds.filter(id => !isPreBriefSubmitSlotSatisfied(id, m));
+  }
+  const bankCollectionModeForGates = newAuditStep1CollectionMode({
+    noPublicWebsite: params.noPublicWebsite,
+    isClientSelfServe: params.isClientSelfServe,
+    tailoredPhaseUnlocked: params.tailoredPhaseUnlocked,
+  });
   const pipelineRequiredIds = pipelineRequiredIdsForProductMode(
     params.briefProductMode,
     effectiveBriefForGates,
@@ -115,18 +173,22 @@ export function listMissingPipelineRequiredIds(params: {
 }
 
 /** Pipeline-required question IDs that already have an answer (stable order from `pipelineRequiredIdsForProductMode`). */
-export function listAnsweredPipelineRequiredIds(params: {
-  responses: BriefResponses;
-  noPublicWebsite: boolean;
-  briefProductMode: 'express' | 'full';
-  step0Basics?: NewAuditStep0BasicsForPipelineGates;
-}): string[] {
+export function listAnsweredPipelineRequiredIds(params: PipelineGateBase): string[] {
   const effectiveBriefForGates = effectiveBriefForNewAuditPipelineGates({
     responses: params.responses,
     noPublicWebsite: params.noPublicWebsite,
     step0Basics: params.step0Basics,
   });
-  const bankCollectionModeForGates = params.noPublicWebsite ? 'discovery' : undefined;
+  if (useConsultantPreBriefSubmitPipelineGate(params)) {
+    const m = briefResponsesToIntakeMap(effectiveBriefForGates) as Record<string, unknown>;
+    const slotIds = getPreBriefSubmitSlotIds(m, 'pre_brief', params.intakeVersionTuple ?? undefined);
+    return slotIds.filter(id => isPreBriefSubmitSlotSatisfied(id, m));
+  }
+  const bankCollectionModeForGates = newAuditStep1CollectionMode({
+    noPublicWebsite: params.noPublicWebsite,
+    isClientSelfServe: params.isClientSelfServe,
+    tailoredPhaseUnlocked: params.tailoredPhaseUnlocked,
+  });
   const pipelineRequiredIds = pipelineRequiredIdsForProductMode(
     params.briefProductMode,
     effectiveBriefForGates,
@@ -135,19 +197,39 @@ export function listAnsweredPipelineRequiredIds(params: {
   return pipelineRequiredIds.filter(id => countAnswered(effectiveBriefForGates, [id]) > 0);
 }
 
-export function computeNewAuditWizardProgress(params: {
-  responses: BriefResponses;
-  noPublicWebsite: boolean;
-  briefProductMode: 'express' | 'full';
-  step0Basics?: NewAuditStep0BasicsForPipelineGates;
-}): NewAuditWizardProgress {
+export function computeNewAuditWizardProgress(params: PipelineGateBase): NewAuditWizardProgress {
   const effectiveBriefForGates = effectiveBriefForNewAuditPipelineGates({
     responses: params.responses,
     noPublicWebsite: params.noPublicWebsite,
     step0Basics: params.step0Basics,
   });
-  const bankCollectionModeForGates = params.noPublicWebsite ? 'discovery' : undefined;
+  if (useConsultantPreBriefSubmitPipelineGate(params)) {
+    const m = briefResponsesToIntakeMap(effectiveBriefForGates) as Record<string, unknown>;
+    const slotIds = getPreBriefSubmitSlotIds(m, 'pre_brief', params.intakeVersionTuple ?? undefined);
+    const missing = slotIds.filter(id => !isPreBriefSubmitSlotSatisfied(id, m));
+    const pipelineRequiredTotal = slotIds.length;
+    const answeredRequired = pipelineRequiredTotal - missing.length;
+    const step2Complete = missing.length === 0;
+    const progressPct = pipelineRequiredTotal === 0
+      ? 100
+      : Math.min(100, Math.round((answeredRequired / pipelineRequiredTotal) * 100));
+    const readinessBadge = readinessBadgeFromProgress(progressPct);
+    const nextBestAction: IntakeNextBestAction = step2Complete ? 'add_recommended' : 'complete_required';
+    return {
+      answeredRequired,
+      pipelineRequiredTotal,
+      step2Complete,
+      progressPct,
+      readinessBadge,
+      nextBestAction,
+    };
+  }
 
+  const bankCollectionModeForGates = newAuditStep1CollectionMode({
+    noPublicWebsite: params.noPublicWebsite,
+    isClientSelfServe: params.isClientSelfServe,
+    tailoredPhaseUnlocked: params.tailoredPhaseUnlocked,
+  });
   const pipelineRequiredIds = pipelineRequiredIdsForProductMode(
     params.briefProductMode,
     effectiveBriefForGates,

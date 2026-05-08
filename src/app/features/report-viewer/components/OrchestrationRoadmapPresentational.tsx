@@ -96,7 +96,9 @@ export function OrchestrationRoadmapPresentational({
       <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">{copy.sectionHint}</p>
       {selectedScopeCount > 0 ? (
         <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
-          Scope: {selectedScopeCount} selected domain{selectedScopeCount > 1 ? 's' : ''}
+          {ORCHESTRATION_UI_COPY.roadmapSelectedScopeLabel
+            .replace('{count}', String(selectedScopeCount))
+            .replace('{pluralSuffix}', selectedScopeCount > 1 ? 's' : '')}
         </p>
       ) : null}
       {typeof packVersion === 'number' && packVersion > 0 && (
@@ -117,7 +119,7 @@ export function OrchestrationRoadmapPresentational({
           </p>
           {danglingDataGaps > 0 ? (
             <p className="mt-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
-              Dangling dependencies detected: {danglingDataGaps}
+              {ORCHESTRATION_UI_COPY.dataGapsDanglingDependenciesLabel} {danglingDataGaps}
             </p>
           ) : null}
         </div>
@@ -132,7 +134,7 @@ export function OrchestrationRoadmapPresentational({
       <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">{ORCHESTRATION_UI_COPY.timelineHint}</p>
       {targetWindowDays ? (
         <p className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
-          Planning window: {targetWindowDays} days
+          {ORCHESTRATION_UI_COPY.roadmapPlanningWindowLabel.replace('{days}', String(targetWindowDays))}
         </p>
       ) : null}
       {(topActions7d.length > 0 || topActions30d.length > 0) && (

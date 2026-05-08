@@ -1,6 +1,9 @@
 export const SYSTEM_DEFAULTS_PIPELINE_ORCHESTRATOR = {
   stalledPhaseTimeoutMin: 15,
   parallelFailureThreshold: 2,
+  completedDomainReadRetryMaxAttempts: 3,
+  completedDomainReadRetryBaseDelayMs: 150,
+  completedDomainReadRetryJitterMs: 100,
 } as const;
 
 export const SYSTEM_DEFAULTS_PIPELINE_WORKER = {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '../../../../lib/tanstack-react-query';
 import { MemoryRouter } from 'react-router';
 
 import { ClientPostAuditCockpitSection } from '../ClientPostAuditCockpitSection';
@@ -28,7 +28,7 @@ vi.mock('../../../../features/report-viewer/domain/selectors', () => ({
 
 vi.mock('../../../../config/app-feature-flags', () => ({
   APP_FEATURE_FLAGS: {
-    clientTimelineEnabled: true,
+    clientPlanWorkspaceEnabled: true,
     orchestrationRoadmapUiEnabled: true,
     clientRoadmapManifestWizardEnabled: true,
   },

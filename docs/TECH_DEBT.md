@@ -2,7 +2,7 @@
 
 **Purpose:** Track engineering debt, audit findings, and structural follow-ups. This is **not** the product UX backlog — deferred product ideas stay in [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 
-**How to use:** Add rows when audits, reviews, or incidents surface issues; set **Status** to `open`, `in_progress`, or `done`. Prefer linking PRs in **Notes**.
+**How to use:** Add rows when audits, reviews, or incidents surface issues; set **Status** to `open`, `in_progress`, `done`, or `accepted_risk` (documented trade-off, no further work unless product reopens). Prefer linking PRs in **Notes**.
 
 **Related standards:** [.cursor/rules/code-design-standards.mdc](../.cursor/rules/code-design-standards.mdc), [.cursor/rules/no-hardcode.mdc](../.cursor/rules/no-hardcode.mdc), [ARCHITECTURE.md](./ARCHITECTURE.md) (layer boundaries).
 
@@ -44,6 +44,38 @@
 | TD-019 | open | P3 | `benchmark_recompute_secret` | Hardcoded custom security header name (`x-benchmark-recompute-secret`). | Move header name to server config (with stable default) and reuse from one source. | Hardcode audit 2026-04 |
 | TD-020 | open | P3 | `integrations` | Telegram base URL fallback hardcoded (`https://api.telegram.org`). | Keep as documented fallback, but prefer explicit infra env in production (`TELEGRAM_API_BASE`). | Hardcode audit 2026-04 |
 | TD-021 | open | P2 | Audits / intake / DB | **Legacy `product_mode` (`express` / `full` / `free_snapshot`) coexists with canonical `execution_plan.coverage_package`.** | **Does not block main pipeline execution:** `PipelineOrchestrator` resolves phases via `getExecutionPlan()` → `normalizeExecutionPlan` + `executionPlanToPhases` only (`pipeline`). Remaining uses: persisted `audits.product_mode` column, `audit_requests` CHECK (`express`\|`full`), public snapshot filters (`free_snapshot`), intake SLA gates via `full` vs `express` corridor in `@glc/intake-core`, legacy API fields/copy. | Centralize in `audit_coverage_bridge`; align new surfaces on `coverage_package`; later: intake-core gates keyed by package, trim `product_mode` from API responses, optional DB migration. | 2026-04-13 |
+| TD-022 | done | P2 | Strategy Lab / Plan / Gantt | **Post-audit UX follow-up (2026-05)** — progressive disclosure on Gantt toolbar, empty-state differentiation on Roadmap page, shared planning chrome layout, iCal line folding, dead `stepsStrip` copy. | **Done:** minimal primary Gantt toolbar row; `StrategyPlanningChrome`; `countTimelineLaneItems` + copy for mapper-empty vs API-empty; DESCRIPTION folding in `roadmap-gantt-ical.ts`; `stepsStrip` removed from copy SSOT (tests use `journeyStrip`). | Landed 2026-05 |
+| TD-023 | done | P3 | Delivery Board | **Roadmap parity on Board** — `GET …/plan/board` now attaches **`timeline_parity`** (`top_7d` / `top_30d`, `top_priorities.reason_code`, `milestones`, `season_preset`), produced by **`buildPlanBoardTimelineParity`** sharing logic with **`GET …/timeline`**. SPA Board prefers this block over timeline rows when rendering priority chips (`BoardView.tsx`). | Optional follow-up: skip **`GET …/timeline`** entirely on Board-only workloads (conditional **`includeTimeline`** gated on parity freshness / feature flag). | Landed 2026-05 |
+| TD-024 | accepted_risk | P3 | Delivery Board | **Reconcile racing `PATCH`** — cross-request overlap with concurrent **`PATCH …/plan/board/cards`** cannot be fully eliminated without broader locking on card moves; pack-persist reconcile itself is now **atomic** via **`plan_board_apply_reconcile_batch`** (`078_plan_board_reconcile_apply_batch.sql`, advisory `pg_advisory_xact_lock`, **`FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`** default **on**, legacy loop on RPC failure / flag `false`). | **Still monitor** unusual **`409`** / **`plan_board_conflict_409`** shortly after **`plan_board_reconciled`**; alert worker `alert_plan_board_conflict_burst_post_reconcile` unchanged (`server/src/config/alerts-config.ts`). **Ops gate:** sustained incident-worthy bursts over **two consecutive weeks** remain the signal to review disabling transactional apply only as rollback / deeper redesign — see `ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md` §GLC-PB-023. | ADR Delivery Board 2026-05; GLC-PB-023 landed |
+| TD-025 | open | P3 | Delivery Board | **Manual accessibility bar (Lighthouse) on `?view=board`** per ADR Appendix B P0 wording — not automated in CI. | Run Lighthouse a11y category on Board after major UI changes; record score in release checklist. | ADR Delivery Board 2026-05 |
+| TD-026 | done | P2 | Pipeline / snapshot UX | **Flow stability audit §3–§4 (2026-05):** silent `audit_recon` update on snapshot persist; `stateRef` vs React state when paginating pipeline events; wording drift on upgrade/review transactions. | Snapshot: check `error` on `audit_recon.update` and throw. SPA: sync `stateRef` with `useLayoutEffect` before paint. Docs: record mitigations below (RPC **080**/**082**, ordering **081** + `id` tie-break). | Landed 2026-05 |
+| TD-027 | open | P2 | DB / pipeline | **Multi-row writes without a single transaction** where paired updates are user-visible or safety-critical. | Use SQL RPC (`BEGIN`…`COMMIT`) when both sides must appear together (see **080**, **082**). **Candidates (review before RPC):** `recoverStalledPipelines` (`pipeline_events` insert + `audits` update); domain persistence paths that emit `pipeline_events` + mutate `audit_domains` in separate round-trips. **Acceptable best-effort:** background recovery with existing alerts; `request_missing_data` without a paired event (by design). | Arch audit §8 2026-05; [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| TD-028 | open | P2 | E2E / scaling checklist | **Browser Playwright coverage** for cross-user RLS, concurrent `POST …/pipeline/next` (“double continue”), and pipeline UI ordering under parallel phases — not implemented as dedicated `e2e/*.spec.ts` flows. | **Vitest** already covers API isolation (`server/src/tests/user-isolation.test.ts`) and claim conflicts (`pipeline-route-concurrency.test.ts`); see [e2e/README.md](../e2e/README.md). Add Playwright when stable credentials + API proxy for CI are agreed. | Scaling readiness backlog 2026-05 |
+| TD-029 | open | P2 | Tests / feature flags | **Uniform test pattern:** business tests should use `vi.mock('../config/feature-flags.js', importOriginal)` or `vi.spyOn` on [`feature-flags.ts`](../server/src/config/feature-flags.ts) — not scattered `process.env.FEATURE_*` (except the dedicated integration file). | Migrate any remaining stragglers; keep env-only checks in [`feature-flags-plan-delivery-rollout-env.integration.test.ts`](../server/src/tests/feature-flags-plan-delivery-rollout-env.integration.test.ts) as the single facade-wiring integration. | Header comment in integration test 2026-05 |
+| TD-030 | open | P3 | Frontend / Realtime | **`pipeline-realtime-schema`** — single SSOT for subscription builders (`buildPipelineRealtimeEventsInsertSubscribe`, etc.) + strict parsers (`event_seq` optional). Table identifiers stay string literals wrapped in **`PIPELINE_REALTIME_TABLE_*`** constants — acceptable compromise vs duplicating Supabase DDL in TS. Not a full column-level mirror of every Realtime payload field. | Extend typings/parsers when new UI fields are subscribed; keep migration + this module in sync per [ARCHITECTURE.md](./ARCHITECTURE.md). | Audit §2.4 2026-05 |
+| TD-031 | open | P3 | Server / observability | **One-off hygiene:** periodic grep for direct `.from('pipeline_events').insert` outside [`insert-pipeline-event.ts`](../server/src/services/pipeline/events/insert-pipeline-event.ts) / `insertPipelineEventRow`. | Run before major pipeline refactors; most paths already guarded. **Orphan manifest snapshot after compile:** operational signal `orchestration_compile_snapshot_rollback_delete_failed` + structured notification (see `post-orchestration-compile.controller.ts`). | Scaling checklist + compile rollback 2026-05 |
+| TD-032 | done | P3 | Notifications | **`emitStructuredNotification`** had no global dedup/throttle; nested failure paths could amplify Telegram/in-app noise during outages. | **Done:** in-memory cooldown keyed by `category` + `event` + `auditId` (and `userId` for `audience: user`), `SYSTEM_DEFAULTS.notifications.structuredNotificationDedupCooldownMs`, sync slot before IO; log `notifications.structured_notification_deduped`. | Landed 2026-05 |
+| TD-033 | open | P3 | Server / resilience | [`supabase-rest-transient.ts`](../server/src/lib/supabase-rest-transient.ts) uses **message substring** heuristics beyond stable error codes — fragile under localized messages or proxy wording changes. | Expand only with production evidence; prefer PostgREST/Postgres **codes** in `transientCodes`. | Audit §2.4 2026-05 |
+| TD-034 | open | P3 | Frontend / admin | **Question Bank Studio legacy admin tool** — entry points commented out (`src/app/routes.tsx` admin route + page import, `src/app/pages/settings/SettingsPage.tsx` Settings tab, `APP_FEATURE_FLAGS.questionBankStudioEnabled`); `isQuestionBankStudioEnabled()` now hard-coded to `false`. Underlying modules remain on disk and need staged removal: `src/app/pages/QuestionBankStudioPage.tsx`; `src/app/components/QuestionBankStudio.tsx` + `src/app/components/question-bank-studio/**` (containers/sections/panels/hooks/selectors/domain/config — ~17 files); `src/app/lib/question-bank-studio-*.ts` + `src/app/lib/question-bank-studio-graph/**` + matching `__tests__` (~10 files); `src/app/config/question-bank-studio-*.ts` (defaults, ui, copy.en) + `src/app/lib/question-bank-studio-flags.ts`; `src/app/pages/settings/hooks/useSettingsTabs.ts` + `useSettingsTabs.test.ts`, literal `'bank-studio'` in `domain/settings.types.ts`, hash in `settings-ui-policy.ts` / `settings-page-defaults.ts`; copy `questionBankStudioTab` in `settings-page-copy.en.ts`; segment `adminQuestionBankStudio` in `packages/intake-core/src/spa-routes.ts`; type import `StudioPolicyMode` in `src/app/lib/intake-trace-scenarios.ts` (relocate or inline before deleting `question-bank-studio-policy.ts`). | Delete the modules above in a single dedicated cleanup; mark mentions retired in `CLAUDE.md`, `docs/FRONTEND.md`, `docs/adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md`, `docs/adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md`. | Disabled 2026-05-08 |
+| TD-035 | open | P3 | Frontend / admin | **Intake Wording Workspace legacy admin tool** — sidebar link was already hidden; route + page import in `src/app/routes.tsx` now commented out, `INTAKE_TRACE_GRAPH_CONFIG.export.fallbackRoute` swapped to neutral `'unknown'`. Files for staged removal: `src/app/pages/IntakeWordingWorkspace.tsx`; `src/app/pages/intake-wording-workspace/**` (panels, hooks, model.test, config — ~7 files); `src/app/pages/__tests__/IntakeWordingWorkspace.smoke.test.tsx`; `src/app/config/intake-wording-workspace-copy.ts`; `intake-wording-*` styles in `src/styles/components/forms.css`; segment `adminIntakeWording` in `packages/intake-core/src/spa-routes.ts`. | Delete in the same cleanup pass as TD-034; mark mentions retired in `docs/QUESTION_BANK.md`, `docs/FRONTEND.md`, `docs/adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md`, `CLAUDE.md`. | Disabled 2026-05-08 |
+
+---
+
+## Flow stability reconciliation (2026-05)
+
+Snapshot of internal **§3 Flow stability** / **§4 State & data risks** versus the codebase after mitigations:
+
+| Topic | Mitigation |
+| --- | --- |
+| Distributed lease / parallel block cancel | UUID+hostname lease tokens; `assertNotCancelled` after parallel `allSettled`. |
+| Free snapshot upgrade domains | Ownership in TS; transactional reset via **`080_upgrade_snapshot_reset_domains_and_reviews_rpc.sql`** (`upgrade_snapshot_reset_audit_domains_and_reviews`). |
+| Review approve + `pipeline_events` | **`082_pipeline_approve_review_emit_event_atomic_rpc.sql`** (`pipeline_approve_review_emit_approved_event_atomic`) — single transaction for `review_points` approve + `review_approved` event. |
+| `pipeline_events` ordering | DB: migration **`084`** adds `event_seq` (monotonic); API lists order by `event_seq DESC`, `created_at DESC`, `id DESC`; indexes **081** + **084**. SPA: `comparePipelineEventsNewestFirst` in [`pipeline-event-sort.ts`](../src/app/lib/pipeline-event-sort.ts) prefers `event_seq` when present, else time/`id`. |
+| Snapshot → `audit_recon` | **`persistSnapshotCacheResult`** checks `audit_recon` update `error` (log + throw); UX row and `audit_domains` / `audits` paths already guarded. |
+| `usePipeline` pagination cursor | **`stateRef`** synced with **`useLayoutEffect`** so **`loadMoreEvents`** reads the latest committed `event_page.next_before` before the next paint. |
+| Alert worker window on `pipeline_events` | Failed time-window **select** logs `alerts.pipeline_events_window_query_failed`; that tick skips failure/latency/token/plan-board metrics (no silent partial use of rows). |
+
+Residual (by design or low priority): **`request_missing_data`** updates `review_points` only — no paired `pipeline_events` row.
 
 ---
 
@@ -104,6 +136,19 @@ Documented in project rules / audits; do not bulk-rewrite without a dedicated in
 
 ---
 
+## Gantt P3 backend prerequisites (Portal roadmap)
+
+Client-side Gantt P2 uses browser `localStorage` baseline snapshots, client-side CPM/slack, and client-built `.ics`. **Durable product behavior** needs server contracts:
+
+- **Drag-to-edit**: authenticated `PATCH` (or equivalent) for task plan windows with validation, optimistic concurrency, dependency checks; expose via feature flag (e.g. `roadmap_gantt_drag_edit`).
+- **Real percent complete**: persisted field on timeline tasks (optional `PATCH`); replace time-based “schedule elapsed” where authoritative completion exists.
+- **Server baseline history**: persist snapshots or versions + explicit baseline endpoints (`POST` / read on timeline or pack).
+- **iCal / export parity**: optional server-generated `.ics` aligned with sprint CSV and report truth.
+
+Until then, copy `roadmapGanttBaselineLocalNotice` documents the local-only baseline limitation.
+
+---
+
 ## Hardcode externalization implementation (2026-04-13)
 
 Completed in this pass (mapped to architecture ownership):
@@ -132,6 +177,21 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 | --- | --- |
 | 2026-04-13 | Initial register; doc quota raised to 20 in MASTER / README / CLAUDE; merged findings from hardcode-hardening work and code-design-standards review. |
 | 2026-04-13 | Implemented hardcode externalization pass: backend retry/copy/env enforcement, frontend settings constants + copy centralization, intake-core policy JSON extraction, and new Cursor no-hardcode guardrail rule. |
+| 2026-05-01 | **Strategy Lab + Roadmap + Timeline audit closure delta:** Journey strip + `PortalPlanChrome` (Roadmap \| Timeline + workbench); manifest signing unified via `manifest-change-signature.ts`; bucket helpers shared (`time-bucket-normalization.ts`); baseline snapshots versioned (`schemaVersion`); no `window.confirm` in app source; orchestrator tabs and Gantt deps sub-tabs use `aria-controls`; `useIsMobile` uses `matchMedia`; dependency SVG paths memoized (`canMove={false}` on timeline). Remaining backlog: iCal hardening, plan layout DRY, copy structure — see subsection below. |
+| 2026-05-01 | **TD-022:** Gantt primary toolbar tucks zoom/density into More; overview strip `grab`/`grabbing` cursors; Portal Roadmap page distinguishes timeline rows present but Gantt projection empty vs true empty timeline; RFC 5545-style folding for long iCal text; `StrategyPlanningChrome` dedupes Strategy Lab vs Plan sticky headers; manifest preview already uses `AbortController` via `useDebouncedOrchestratorManifestPreview`; governance errors use `coerceOrchestrationPlanGovernance`. |
+| 2026-05-08 | **TD-034 / TD-035:** legacy admin tools (Question Bank Studio, Intake Wording Workspace) disabled in the SPA — entry points commented out in `src/app/routes.tsx`, `SettingsPage.tsx`, `app-feature-flags.ts`, `app-shell-nav.ts`, `INTAKE_TRACE_GRAPH_CONFIG.export.fallbackRoute`, and `e2e/protected-routes.spec.ts`. Underlying modules registered for staged deletion. |
+
+## Strategy Lab + Roadmap + Timeline — audit closure delta (2026-05)
+
+External audit scores referenced a **prior** codebase snapshot. Against the current tree, treat these as **already addressed** unless regressed:
+
+- Сквозная IA: `src/app/pages/strategy-lab/StrategyJourneyHeader.tsx` (+ `StrategyJourneyStrip.tsx` совместимый реэкспорт), `src/app/pages/portal-plan/PortalPlanChrome.tsx`, `src/app/pages/strategy-lab/PlanViewSegmentedNav.tsx`.
+- Manifest signature: `src/app/lib/manifest-change-signature.ts` (wizard + orchestration panel).
+- Time buckets: `src/app/lib/time-bucket-normalization.ts` + orchestration buckets module.
+- Baseline persistence: `src/app/lib/roadmap-gantt-baseline-storage.ts` with schema pin + purge toast.
+- Gantt toolbar split: `src/app/components/roadmap-gantt/RoadmapGanttToolbar.tsx`.
+
+Remaining work stays as normal P1/P2 engineering (tablet summary visibility edge cases, heavy monolith splits beyond chrome + toolbar, optional row virtualization at very large task counts). **Plan URL:** canonical `/plan/:id` and `/portal/plan/:id` use nested routes (`PlanWorkspaceLayout` + `PlanWorkspaceSurfaces`): delivery surfaces **`/board` \| `/roadmap` \| `/table`**; Strategy Lab studio at **`/lab/:id?mode=`** (portal: **`/portal/lab/:id`**); legacy **`/plan/:id/studio`** redirects to **`/lab/:id`**. Index normalizes legacy `?view=` / `?mode=` via `PlanWorkspaceIndexRedirect`. `PortalPlanOrchestrationProvider` gates **`GET …/timeline`** with `planOrchestrationIncludeTimelineForUnifiedPlanView` (roadmap-only). E2E: legacy → path-first (`orchestration-plan-legacy-canonical.spec.ts`); `protected-routes` includes plan + legacy roadmap/timeline; nav uses `buildAppRoute.plan` / `portalPlan` / `planStudio`; legacy paths redirect via `LegacyPlanPathRedirect`.
 
 ## Для разработчиков
 
@@ -139,7 +199,7 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 
 - `server/src/routes/`
 - `server/src/services/`
-- `src/app/pages/StrategyLab.tsx`
+- `src/app/pages/strategy-lab/StrategyLabPage.tsx`
 - `server/src/config/feature-flags.ts`
 - `server/src/routes/profile.ts`
 - `src/design-system/tokens/colors.ts` (semantic UI + intake trace graph via `var(--*)`)
@@ -156,10 +216,6 @@ Remaining follow-ups stay in Register rows (especially SQL literals and broad co
 - `src/app/components/AuditNavigation.tsx:141`
 - `src/app/components/AuditNavigation.tsx:142`
 - `server/src/services/control-object-history.ts:67`
-- `src/app/pages/StrategyLab.tsx:20`
-- `src/app/pages/StrategyLab.tsx:21`
-- `src/app/pages/StrategyLab.tsx:22`
-- `src/app/pages/StrategyLab.tsx:54`
 - `src/app/components/ui/use-mobile.ts:3`
 - `server/src/lib/benchmark-recompute-secret.ts:3`
 - `server/src/config/integrations.ts:5`

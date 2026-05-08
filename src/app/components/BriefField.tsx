@@ -1,7 +1,7 @@
 import { Circle, Check, CheckCircle, Lightbulb, LockSimple, UserCircle } from '@phosphor-icons/react';
 import type { ProductMode } from '../data/auditTypes';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { choiceValueNeedsSpecify, INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL } from '@glc/intake-core';
 import { Input, Textarea } from '../../design-system/ui';
 import { cn } from './ui/utils';
 
@@ -22,7 +22,24 @@ const EXCLUSIVE_MULTI_CHOICE_OPTIONS = new Set([
 ]);
 
 function isExclusiveMultiChoiceOption(option: string): boolean {
+  if (option === INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL) return true;
   return EXCLUSIVE_MULTI_CHOICE_OPTIONS.has(option) || /^None(?:\b|\/|\s)/i.test(option);
+}
+
+const UNKNOWN_ESCAPE_CHIP = INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL;
+
+function normalizeChoiceComparable(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function choiceValuesEquivalent(left: string, right: string): boolean {
+  return normalizeChoiceComparable(left) === normalizeChoiceComparable(right);
 }
 
 function friendlyFreeTextPlaceholder(questionId: string): string {
@@ -46,6 +63,8 @@ export function BriefField({
   onOtherSpecifyChange,
   disabledOptions,
   productMode,
+  /** Same length as `q.options`; button text only; `onChange` still receives canonical option strings. */
+  optionDisplayLabels,
 }: {
   q: BriefQuestion;
   value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
@@ -63,6 +82,7 @@ export function BriefField({
   disabledOptions?: readonly string[];
   /** Optional product mode for contextual hints. */
   productMode?: ProductMode;
+  optionDisplayLabels?: string[];
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
     ? value.value
@@ -74,6 +94,11 @@ export function BriefField({
   const strVal = (typeof rawValue === 'number' ? String(rawValue) : (rawValue as string) ?? '');
   const arrVal = (Array.isArray(rawValue) ? rawValue : []) as string[];
   const markedUnknown = entrySource === 'unknown';
+  /** Universal defer is already a chip on choice questions; hide the duplicate footer control. */
+  const deferChipAlreadyInChoices =
+    (q.type === 'single_choice' || q.type === 'multi_choice') &&
+    Boolean(q.options?.includes(UNKNOWN_ESCAPE_CHIP));
+  const showUnknownEscapeFooter = markedUnknown || !deferChipAlreadyInChoices;
 
   return (
     <div className="space-y-1.5">
@@ -144,8 +169,15 @@ export function BriefField({
       {q.type === 'single_choice' && q.options && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {q.options.map(opt => {
-              const selected = strVal === opt;
+            {q.options.map((opt, optIdx) => {
+              const display =
+                optionDisplayLabels &&
+                optionDisplayLabels.length === q.options!.length &&
+                (optionDisplayLabels[optIdx] ?? '').trim()
+                  ? (optionDisplayLabels[optIdx] as string).trim()
+                  : opt;
+              const isUnknownOpt = opt === UNKNOWN_ESCAPE_CHIP;
+              const selected = isUnknownOpt ? markedUnknown : choiceValuesEquivalent(strVal, opt);
               const locked = disabledOptions?.includes(opt) ?? false;
               return (
                 <button
@@ -153,6 +185,14 @@ export function BriefField({
                   type="button"
                   onClick={() => {
                     if (locked) return;
+                    if (isUnknownOpt) {
+                      if (markedUnknown) {
+                        onChange(null);
+                      } else {
+                        onSetUnknown();
+                      }
+                      return;
+                    }
                     onChange(selected ? null : opt);
                   }}
                   disabled={locked}
@@ -163,7 +203,7 @@ export function BriefField({
                   )}
                 >
                   {locked && <LockSimple size={11} weight="bold" className="mr-0.5 inline" />}
-                  {opt}
+                  {display}
                 </button>
               );
             })}
@@ -184,8 +224,17 @@ export function BriefField({
       {q.type === 'multi_choice' && q.options && (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {q.options.map(opt => {
-              const selected = arrVal.includes(opt);
+            {q.options.map((opt, optIdx) => {
+              const display =
+                optionDisplayLabels &&
+                optionDisplayLabels.length === q.options!.length &&
+                (optionDisplayLabels[optIdx] ?? '').trim()
+                  ? (optionDisplayLabels[optIdx] as string).trim()
+                  : opt;
+              const isUnknownOpt = opt === UNKNOWN_ESCAPE_CHIP;
+              const selected = isUnknownOpt
+                ? markedUnknown
+                : arrVal.some(answer => choiceValuesEquivalent(answer, opt));
               const locked = disabledOptions?.includes(opt) ?? false;
               const clickedExclusive = isExclusiveMultiChoiceOption(opt);
               return (
@@ -194,9 +243,17 @@ export function BriefField({
                   type="button"
                   onClick={() => {
                     if (locked) return;
+                    if (isUnknownOpt) {
+                      if (markedUnknown) {
+                        onChange(null);
+                      } else {
+                        onSetUnknown();
+                      }
+                      return;
+                    }
                     let next: string[];
                     if (selected) {
-                      next = arrVal.filter(v => v !== opt);
+                      next = arrVal.filter(v => !choiceValuesEquivalent(v, opt));
                     } else if (clickedExclusive) {
                       // "None/Not really..." answers must be exclusive.
                       next = [opt];
@@ -218,7 +275,7 @@ export function BriefField({
                   ) : selected ? (
                     <Check size={11} weight="bold" className="mr-0.5 inline" />
                   ) : null}
-                  {opt}
+                  {display}
                 </button>
               );
             })}
@@ -236,39 +293,41 @@ export function BriefField({
         </div>
       )}
 
-      <div className="mt-2 space-y-1.5">
-        {markedUnknown ? (
-          <div
-            className="bg-success/10 border-success/40 text-muted-foreground flex flex-wrap items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-xs leading-snug"
-          >
-            <CheckCircle className="text-success mt-0.5 h-4 w-4 shrink-0" weight="fill" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <p className="text-foreground">
-                {interviewMode
-                  ? 'Client doesn\'t know — flagged for post-audit follow-up.'
-                  : 'Marked as "I don\'t know" — this counts toward progress. You can return and fill this later.'}
-              </p>
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                className="text-info cursor-pointer text-xs font-medium underline underline-offset-2"
-              >
-                {interviewMode ? 'Clear — enter answer instead' : 'I\'ll answer myself instead'}
-              </button>
+      {showUnknownEscapeFooter ? (
+        <div className="mt-2 space-y-1.5">
+          {markedUnknown ? (
+            <div
+              className="bg-success/10 border-success/40 text-muted-foreground flex flex-wrap items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-xs leading-snug"
+            >
+              <CheckCircle className="text-success mt-0.5 h-4 w-4 shrink-0" weight="fill" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="text-foreground">
+                  {interviewMode
+                    ? 'Client doesn\'t know — flagged for post-audit follow-up.'
+                    : 'Marked as "I don\'t know" — this counts toward progress. You can return and fill this later.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onChange(null)}
+                  className="text-info cursor-pointer text-xs font-medium underline underline-offset-2"
+                >
+                  {interviewMode ? 'Clear — enter answer instead' : 'I\'ll answer myself instead'}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onSetUnknown}
-            className="bg-card text-muted-foreground hover:text-foreground hover:border-info flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors"
-          >
-            {interviewMode
-              ? <><UserCircle size={13} className="flex-shrink-0" /> Client doesn&apos;t know — flag for follow-up</>
-              : <>I don&apos;t know for now</>}
-          </button>
-        )}
-      </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onSetUnknown}
+              className="bg-card text-muted-foreground hover:text-foreground hover:border-info flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors"
+            >
+              {interviewMode
+                ? <><UserCircle size={13} className="flex-shrink-0" /> Client doesn&apos;t know — flag for follow-up</>
+                : <>I don&apos;t know for now</>}
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

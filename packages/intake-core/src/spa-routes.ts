@@ -12,6 +12,21 @@ export const SPA_ROUTE_SEGMENTS = {
 } as const;
 
 /**
+ * Nested path segments under `plan/:id` and `portal/plan/:id` (delivery only: board / roadmap / table).
+ * Strategy Lab studio is canonical at `/lab/:id` and `/portal/lab/:id`; `studio` remains for legacy
+ * `/plan/:id/studio` redirects. Keep in sync with React Router children and `buildAppRoute.plan` / `plan-cross-nav`.
+ */
+export const PLAN_WORKSPACE_SURFACE_SEGMENTS = {
+  /** Legacy segment; router redirects to `/lab/:id` (consultant) or `/portal/lab/:id` (portal). */
+  studio: 'studio',
+  board: 'board',
+  roadmap: 'roadmap',
+  table: 'table',
+} as const;
+
+export type PlanWorkspaceSurfacePathSegment = keyof typeof PLAN_WORKSPACE_SURFACE_SEGMENTS;
+
+/**
  * Remaining React Router `path` strings (consultant, client, public).
  * Keeps deep links and nav in sync with the SPA root router.
  */
@@ -36,8 +51,14 @@ export const APP_ROUTE_SEGMENTS = {
   /** Consultant-only: internal design system index (not linked for clients). */
   adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
+  /** Legacy alias; router canonicalizes to nested `plan/:id/board` (or rollout fallback). */
   timelineById: 'timeline/:id',
+  /** Legacy; router redirects to `plan/:id`. */
   roadmapById: 'roadmap/:id',
+  /** Parent layout for nested plan workspace (`board` / `roadmap` / `table`; legacy `studio` redirects to `lab`). */
+  planById: 'plan/:id',
+  /** Strategy Lab studio (consultant); `?mode=define|shape`. */
+  labById: 'lab/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',
   /** Consultant-only orchestration cockpit (read model + governance). */
@@ -46,8 +67,14 @@ export const APP_ROUTE_SEGMENTS = {
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
+  /** Legacy alias; router canonicalizes to nested `portal/plan/:id/...` delivery paths. */
   portalTimelineById: 'portal/timeline/:id',
+  /** Legacy; redirects to nested `portal/plan/:id/...`. */
   portalRoadmapById: 'portal/roadmap/:id',
+  /** Client plan workspace parent (`board` / `roadmap` / `table`; legacy `studio` redirects to `portal/lab`). */
+  portalPlanById: 'portal/plan/:id',
+  /** Strategy Lab studio (client portal); `?mode=define|shape`. */
+  portalLabById: 'portal/lab/:id',
   portalStrategyById: 'portal/strategy/:id',
   /** Client manifest-first wizard (V2): guided roadmap inputs before pack build. */
   portalRoadmapManifestByAuditId: 'portal/audit/:id/roadmap-manifest',

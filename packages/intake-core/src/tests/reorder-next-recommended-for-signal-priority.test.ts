@@ -15,7 +15,6 @@ const confidenceBaseline = {
   primary_problem: 'high' as const,
   operations_bottleneck: 'low' as const,
   audit_focus: 'high' as const,
-  delivery_shape_baseline: 'low' as const,
 };
 
 describe('reorderNextRecommendedForSignalPriorityRespectingTiers', () => {

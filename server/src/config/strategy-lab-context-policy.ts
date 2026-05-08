@@ -26,6 +26,11 @@ export type StrategyLabContextPersisted = {
    * pipeline/UI runbook consumes it. Does not trigger automatic re-runs.
    */
   director_stage2_domains?: DomainKey[];
+  /**
+   * Product-level preference for Strategy Lab rename flows:
+   * when enabled, rename UX should preserve Board card identity via `board_identity_key`.
+   */
+  preserve_board_identity_on_rename?: boolean;
 };
 
 /** PATCH body: `null` clears an override (revert to brief); omit = leave unchanged. */
@@ -35,6 +40,7 @@ export const StrategyLabContextPatchSchema = z
     budget_band: z.union([budgetBandEnum, z.null()]).optional(),
     team_scale: z.union([teamScaleEnum, z.null()]).optional(),
     director_stage2_domains: z.union([z.array(domainKeyEnum).max(6), z.null()]).optional(),
+    preserve_board_identity_on_rename: z.union([z.boolean(), z.null()]).optional(),
   })
   .strict();
 
@@ -56,6 +62,9 @@ export function parseStoredStrategyLabContext(raw: unknown): StrategyLabContextP
   const d2 = z.array(domainKeyEnum).max(6).safeParse(r.director_stage2_domains);
   if (d2.success && d2.data.length > 0) {
     out.director_stage2_domains = [...new Set(d2.data)] as DomainKey[];
+  }
+  if (typeof r.preserve_board_identity_on_rename === 'boolean') {
+    out.preserve_board_identity_on_rename = r.preserve_board_identity_on_rename;
   }
   return out;
 }
@@ -82,6 +91,12 @@ export function mergeStrategyLabContextForStorage(
     if (patch.director_stage2_domains === null) delete next.director_stage2_domains;
     else if (patch.director_stage2_domains !== undefined) {
       next.director_stage2_domains = [...new Set(patch.director_stage2_domains)];
+    }
+  }
+  if ('preserve_board_identity_on_rename' in patch) {
+    if (patch.preserve_board_identity_on_rename === null) delete next.preserve_board_identity_on_rename;
+    else if (patch.preserve_board_identity_on_rename !== undefined) {
+      next.preserve_board_identity_on_rename = patch.preserve_board_identity_on_rename;
     }
   }
   return next;

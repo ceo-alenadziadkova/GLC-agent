@@ -19,9 +19,16 @@ import {
   REPORTS_GENERATE_FAILED_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { validatePdfReportInput } from '../services/pdf-generator/lib/pdf-input-guard.js';
+import { POSTGREST_NO_ROWS_CODE } from '../config/postgrest-codes.js';
+
+const REPORTS_DOMAIN_SELECT =
+  'domain_key, score, label, summary, strengths, weaknesses, issues, quick_wins, recommendations, status, phase_number, version' as const;
+const REPORTS_AUDIT_DOMAINS_FETCH_MAX = SYSTEM_DEFAULTS.routeQueries.reportsAuditDomainsFetchMaxRows;
 
 export const reportsRouter = Router();
+const REPORT_FORMATS = ['json', 'markdown', 'csv', 'pdf'] as const;
 
 reportsRouter.use(generalLimiter);
 reportsRouter.use(requireAuth);
@@ -30,6 +37,25 @@ function buildSafeExportFilename(prefix: string, candidate: string): string {
   const slug = candidate.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().replace(/-+/g, '-').replace(/^-|-$/g, '');
   const fallback = slug.length > 0 ? slug : 'audit';
   return `${prefix}-${fallback}`;
+}
+
+/** Supabase promises resolve even on PostgREST errors — treat `status==='fulfilled' && error` like failure. */
+function reportFanoutDataOrNull<T>(
+  res: PromiseSettledResult<{ data: T | null; error: { message?: string; code?: string } | null }>,
+  log: { audit_id: string; fetch: string },
+): T | null {
+  if (res.status !== 'fulfilled') return null;
+  const row = res.value;
+  if (row.error) {
+    logger.warn('route.reports_fanout_query_failed', {
+      component: 'reports',
+      ...log,
+      error: row.error.message,
+      code: row.error.code,
+    });
+    return null;
+  }
+  return row.data ?? null;
 }
 
 // ─── GET /api/audits/:id/report — Generate report ──────────
@@ -44,11 +70,34 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, reportPdf
       ? (rawProfile as ReportProfile)
       : 'full';
     const format = String(req.query.format ?? 'json');
+    if (!REPORT_FORMATS.includes(format as (typeof REPORT_FORMATS)[number])) {
+      res.status(400).json(
+        apiErrorJson(API_ERROR_CODES.REPORTS_GENERATE_FAILED, REPORTS_GENERATE_FAILED_MESSAGE, {
+          reason: 'unsupported_format',
+          allowed_formats: REPORT_FORMATS,
+        }),
+      );
+      return;
+    }
 
     // Pre-auth short-circuit: reject unauthorized/not-found before fan-out reads.
     const uid = req.userId!;
     const userFilter = safeOrUserFilter(uid);
     const auditData = await supabase.from('audits').select('*').eq('id', id).or(userFilter).single();
+    if (auditData.error) {
+      if (auditData.error.code === POSTGREST_NO_ROWS_CODE) {
+        res.status(404).json(apiErrorJson(API_ERROR_CODES.REPORTS_AUDIT_NOT_FOUND, REPORTS_AUDIT_NOT_FOUND_MESSAGE));
+        return;
+      }
+      logger.error('route.reports_audit_query_failed', {
+        component: 'reports',
+        audit_id: id,
+        error: auditData.error.message,
+        code: auditData.error.code,
+      });
+      res.status(500).json(apiErrorJson(API_ERROR_CODES.REPORTS_GENERATE_FAILED, REPORTS_GENERATE_FAILED_MESSAGE));
+      return;
+    }
     if (!auditData.data) {
       res.status(404).json(apiErrorJson(API_ERROR_CODES.REPORTS_AUDIT_NOT_FOUND, REPORTS_AUDIT_NOT_FOUND_MESSAGE));
       return;
@@ -58,17 +107,22 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, reportPdf
     // doesn't prevent the rest of the report from rendering.
     const [reconRes, domainsRes, strategyRes, briefRes] = await Promise.allSettled([
       supabase.from('audit_recon').select('*').eq('audit_id', id).single(),
-      supabase.from('audit_domains').select('*').eq('audit_id', id).order('phase_number'),
+      supabase
+        .from('audit_domains')
+        .select(REPORTS_DOMAIN_SELECT)
+        .eq('audit_id', id)
+        .order('version', { ascending: false })
+        .limit(REPORTS_AUDIT_DOMAINS_FETCH_MAX),
       supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
       supabase.from('intake_brief').select('responses').eq('audit_id', id).maybeSingle(),
     ]);
 
     const audit    = auditData.data;
-    const recon    = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
-    const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
+    const recon = reportFanoutDataOrNull(reconRes, { audit_id: id, fetch: 'audit_recon' });
+    const strategy = reportFanoutDataOrNull(strategyRes, { audit_id: id, fetch: 'audit_strategy' });
 
-    // Deduplicate domains by domain_key, keeping highest version
-    const domainsRaw = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+    // Deduplicate domains by domain_key, keeping highest version (single pass Map: O(domainsRaw.length)).
+    const domainsRaw = reportFanoutDataOrNull(domainsRes, { audit_id: id, fetch: 'audit_domains' }) ?? [];
     const latestByKey = new Map<string, (typeof domainsRaw)[0]>();
     for (const d of domainsRaw) {
       const prev = latestByKey.get(d.domain_key);
@@ -78,10 +132,16 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, reportPdf
       (a, b) => (a.phase_number ?? 0) - (b.phase_number ?? 0)
     );
 
-    const briefResponses =
-      briefRes && briefRes.status === 'fulfilled' && briefRes.value?.data?.responses
-        ? briefRes.value.data.responses
-        : null;
+    const briefRow = reportFanoutDataOrNull(briefRes, { audit_id: id, fetch: 'intake_brief' });
+    const briefResponses: Record<string, unknown> | null | undefined = (() => {
+      if (!briefRow || typeof briefRow !== 'object') return null;
+      if (!('responses' in briefRow)) return undefined;
+      const r = (briefRow as { responses: unknown }).responses;
+      if (r === undefined) return undefined;
+      if (r === null) return null;
+      if (typeof r === 'object' && !Array.isArray(r)) return r as Record<string, unknown>;
+      return null;
+    })();
     const input = { audit, recon, domains, strategy, brief_responses: briefResponses };
 
     // ── PDF export ───────────────────────────────────────

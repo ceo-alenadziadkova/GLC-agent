@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compareRoadmapManifestPreviews } from '../scenario-compare';
-import type { RoadmapManifestPreviewDto } from '../../data/api/audits-orchestration';
+import type { RoadmapManifestPreviewDto } from '../../data/api/orchestration-types';
 
 const prev = (): RoadmapManifestPreviewDto => ({
   lanes_included: ['product_change', 'tech_delivery'],

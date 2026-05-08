@@ -11,10 +11,13 @@ import {
   BreadcrumbSeparator,
 } from '../components/ui/breadcrumb';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import {
   PreBriefModal,
   Step0Basics,
+  Step0BasicsSiteCheck,
   Step1Brief,
+  Step1IntelligenceSnapshotConfirm,
   Step2Review,
   Step3Launch,
   StepIndicator,
@@ -28,7 +31,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const variant = props?.variant ?? 'consultant';
   const isClientSelfServe = variant === 'client_self_serve';
 
-  const clientDraftSaveSection = isClientSelfServe ? (
+  const clientDraftSaveSection = (
     <div className="mt-5 space-y-3 border-t pt-5">
       {wizard.draftError && (
         <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
@@ -59,11 +62,13 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
       </button>
       <p className="text-muted-foreground m-0 text-center text-xs leading-relaxed">
-        {WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote}
+        {isClientSelfServe
+          ? WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote
+          : WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNoteConsultant}
       </p>
     </div>
-  ) : null;
-  const clientDraftSaveInlineAction = isClientSelfServe ? (
+  );
+  const clientDraftSaveInlineAction = (
     <button
       type="button"
       disabled={wizard.draftSaving}
@@ -80,7 +85,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       )}
       {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
     </button>
-  ) : null;
+  );
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -101,7 +106,12 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
             'relative w-full max-w-full',
-            wizard.step === 1 ? 'ds-new-audit-wizard-shell--wide' : 'ds-new-audit-wizard-shell--narrow',
+            wizard.step === 1 ||
+            (wizard.step === 0 &&
+              wizard.useBasicsSiteScanSplit &&
+              wizard.basicsSubStep === 1)
+              ? 'ds-new-audit-wizard-shell--wide'
+              : 'ds-new-audit-wizard-shell--narrow',
           )}
         >
           {isClientSelfServe && (
@@ -127,15 +137,16 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             </Breadcrumb>
           )}
           <StepIndicator
-            current={wizard.step}
-            onStepClick={step => {
-              if (step < wizard.step) {
-                wizard.setStep(step);
+            variant={wizard.stepIndicatorVariant}
+            current={wizard.visualWizardIndex}
+            onStepClick={visual => {
+              if (visual < wizard.visualWizardIndex) {
+                wizard.handleWizardStepIndicatorClick(visual);
               }
             }}
           />
 
-          {isClientSelfServe && wizard.draftRestoredVisible && (
+          {wizard.draftRestoredVisible && (
             <div className="bg-info/10 border-info/40 mb-5 flex items-start gap-3 rounded-xl border px-4 py-3">
               <ClipboardText className="text-info mt-0.5 h-4 w-4 flex-shrink-0" />
               <div className="flex-1 min-w-0">
@@ -143,7 +154,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   {WORKSPACE_PAGE_COPY.newAudit.draftRestoredTitle}
                 </p>
                 <p className="text-muted-foreground m-0 mt-1 text-xs leading-relaxed">
-                  {WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody}
+                  {isClientSelfServe
+                    ? WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody
+                    : WORKSPACE_PAGE_COPY.newAudit.draftRestoredBodyConsultant}
                 </p>
               </div>
               <button
@@ -160,134 +173,217 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           <AnimatePresence mode="sync">
 
             {/* ── Step 0: Basics ───────────────────────── */}
-            {wizard.step === 0 && (
-              <>
-                <Step0Basics
-                  step0Valid={wizard.step0Valid}
-                  coverageValid={wizard.coverageValid}
-                  isClientSelfServe={wizard.isClientSelfServe}
-                  url={wizard.url}
-                  setUrl={wizard.setUrl}
-                  noPublicWebsite={wizard.noPublicWebsite}
-                  setNoPublicWebsite={wizard.setNoPublicWebsite}
-                  name={wizard.name}
-                  setName={wizard.setName}
-                  industry={wizard.industry}
-                  setIndustry={wizard.setIndustry}
-                  industrySpecify={wizard.industrySpecify}
-                  setIndustrySpecify={wizard.setIndustrySpecify}
-                  setResponses={wizard.setResponses}
-                  coveragePackage={wizard.coveragePackage}
-                  setCoveragePackage={wizard.setCoveragePackage}
-                  selectedDomains={wizard.selectedDomains}
-                  toggleDomainSelection={wizard.toggleDomainSelection}
-                  recommendedDomains={wizard.recommendedDomains}
-                  onContinue={() => wizard.setStep(1)}
-                  clientDraftSaveSection={clientDraftSaveSection}
-                  interviewMode={wizard.interviewMode}
-                  setInterviewMode={wizard.setInterviewMode}
-                  onOpenPreBrief={() => {
-                    wizard.setPreBriefOpen(true);
-                    wizard.setPreBriefLink(null);
-                    wizard.setPreBriefErr(null);
-                  }}
-                />
-                {!isClientSelfServe && (
-                  <PreBriefModal
-                    isOpen={wizard.preBriefOpen}
-                    onClose={wizard.closePreBriefModal}
-                    onCreate={wizard.handlePreBriefCreate}
-                    company={wizard.preBriefCompany}
-                    setCompany={wizard.setPreBriefCompany}
-                    website={wizard.preBriefWebsite}
-                    setWebsite={wizard.setPreBriefWebsite}
-                    industryField={wizard.preBriefIndustryField}
-                    setIndustryField={wizard.setPreBriefIndustryField}
-                    industrySpecify={wizard.preBriefIndustrySpecify}
-                    setIndustrySpecify={wizard.setPreBriefIndustrySpecify}
-                    message={wizard.preBriefMessage}
-                    setMessage={wizard.setPreBriefMessage}
-                    consultantName={wizard.preBriefConsultantName}
-                    setConsultantName={wizard.setPreBriefConsultantName}
-                    expectedContact={wizard.preBriefExpectedContact}
-                    setExpectedContact={wizard.setPreBriefExpectedContact}
-                    contactChannel={wizard.preBriefContactChannel}
-                    setContactChannel={wizard.setPreBriefContactChannel}
-                    email={wizard.preBriefEmail}
-                    setEmail={wizard.setPreBriefEmail}
-                    whatsapp={wizard.preBriefWhatsapp}
-                    setWhatsapp={wizard.setPreBriefWhatsapp}
-                    link={wizard.preBriefLink}
-                    err={wizard.preBriefErr}
-                    loading={wizard.preBriefLoading}
-                    consultantNamePlaceholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.consultantNameDefaultPlaceholder}
-                  />
-                )}
-              </>
-            )}
-
-            {/* ── Step 1: Brief ─────────────────────────── */}
-            {wizard.step === 1 && (
-              <Step1Brief
-                isClientSelfServe={isClientSelfServe}
-                interviewMode={wizard.interviewMode}
-                layoutSelected={wizard.layoutSelected}
-                answeredRequired={wizard.answeredRequired}
-                pipelineRequiredTotal={wizard.pipelineRequiredTotal}
-                briefLayoutChoice={wizard.briefLayoutChoice}
-                onChangeConsultantBriefLayout={wizard.handleChangeConsultantBriefLayout}
-                onSelectConsultantBriefLayout={wizard.handleSelectConsultantBriefLayout}
-                discoveryPrefilled={wizard.discoveryPrefilled}
-                intakePrefillActive={wizard.intakePrefillActive}
-                progressPct={wizard.progressPct}
-                readinessBadge={wizard.readinessBadge}
-                nextBestAction={wizard.nextBestAction}
-                bankMetrics={wizard.bankMetrics}
-                responses={wizard.responses}
-                briefProductMode={wizard.briefProductMode}
-                noPublicWebsite={wizard.noPublicWebsite}
+            {wizard.step === 0 &&
+              (!wizard.useBasicsSiteScanSplit || wizard.basicsSubStep === 0) && (
+              <Step0Basics
+                key="step0-basics"
+                step0Valid={wizard.step0Valid}
+                coverageValid={wizard.coverageValid}
+                isClientSelfServe={wizard.isClientSelfServe}
                 url={wizard.url}
+                setUrl={wizard.setUrl}
+                noPublicWebsite={wizard.noPublicWebsite}
+                setNoPublicWebsite={wizard.setNoPublicWebsite}
                 name={wizard.name}
+                setName={wizard.setName}
                 industry={wizard.industry}
+                setIndustry={wizard.setIndustry}
                 industrySpecify={wizard.industrySpecify}
-                step0PipelineAnswerSource={wizard.responseSource}
-                intakeAnalytics={wizard.briefWizardIntakeAnalytics}
-                onResponsesChange={next => wizard.setResponses(next)}
-                onResponseChange={wizard.handleResponseChange}
-                onSetUnknown={wizard.handleSetUnknown}
-                step2Complete={wizard.step2Complete}
-                onBackToStep0={() => wizard.setStep(0)}
-                onGoToStep2={() => wizard.setStep(2)}
+                setIndustrySpecify={wizard.setIndustrySpecify}
+                setResponses={wizard.setResponses}
+                coveragePackage={wizard.coveragePackage}
+                setCoveragePackage={wizard.setCoveragePackage}
+                selectedDomains={wizard.selectedDomains}
+                toggleDomainSelection={wizard.toggleDomainSelection}
+                recommendedDomains={wizard.recommendedDomains}
+                onContinue={() => void wizard.handleStep0ContinueFromBasics()}
+                continuePending={wizard.loading}
                 clientDraftSaveSection={clientDraftSaveSection}
-                clientDraftSaveInlineAction={clientDraftSaveInlineAction}
-                briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
-                briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
-                briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
-                serverVisibleQuestionIds={wizard.briefWizardServerVisibleQuestionIds}
+                interviewMode={wizard.interviewMode}
+                setInterviewMode={wizard.setInterviewMode}
+                onOpenPreBrief={() => {
+                  wizard.setPreBriefOpen(true);
+                  wizard.setPreBriefLink(null);
+                  wizard.setPreBriefErr(null);
+                }}
               />
             )}
+
+            {wizard.step === 0 && wizard.useBasicsSiteScanSplit && wizard.basicsSubStep === 1 && (
+              <Step0BasicsSiteCheck
+                key="step0-site-check"
+                draftAuditId={wizard.draftAuditId}
+                industry={wizard.industry}
+                industrySpecify={wizard.industrySpecify}
+                onBack={wizard.handleSiteCheckBackToBasicsForm}
+                onContinue={wizard.handleSiteCheckContinueToBrief}
+              />
+            )}
+
+            {wizard.step === 0 && !isClientSelfServe && (
+              <PreBriefModal
+                key="step0-prebrief-modal"
+                isOpen={wizard.preBriefOpen}
+                onClose={wizard.closePreBriefModal}
+                onCreate={wizard.handlePreBriefCreate}
+                company={wizard.preBriefCompany}
+                setCompany={wizard.setPreBriefCompany}
+                website={wizard.preBriefWebsite}
+                setWebsite={wizard.setPreBriefWebsite}
+                industryField={wizard.preBriefIndustryField}
+                setIndustryField={wizard.setPreBriefIndustryField}
+                industrySpecify={wizard.preBriefIndustrySpecify}
+                setIndustrySpecify={wizard.setPreBriefIndustrySpecify}
+                message={wizard.preBriefMessage}
+                setMessage={wizard.setPreBriefMessage}
+                consultantName={wizard.preBriefConsultantName}
+                setConsultantName={wizard.setPreBriefConsultantName}
+                expectedContact={wizard.preBriefExpectedContact}
+                setExpectedContact={wizard.setPreBriefExpectedContact}
+                contactChannel={wizard.preBriefContactChannel}
+                setContactChannel={wizard.setPreBriefContactChannel}
+                email={wizard.preBriefEmail}
+                setEmail={wizard.setPreBriefEmail}
+                whatsapp={wizard.preBriefWhatsapp}
+                setWhatsapp={wizard.setPreBriefWhatsapp}
+                link={wizard.preBriefLink}
+                err={wizard.preBriefErr}
+                loading={wizard.preBriefLoading}
+                consultantNamePlaceholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.consultantNameDefaultPlaceholder}
+              />
+            )}
+
+            {/* ── Step 1: Brief (or post-brief intelligence confirm) ─ */}
+            {wizard.step === 1 && wizard.briefIntelligenceSubStep === 'short_brief' && (
+              <div key="step1-short-brief">
+                {wizard.intelligenceSnapshotError && (
+                  <div className="ds-new-audit-intel-err border-destructive/40 bg-destructive/10 text-destructive mb-4 rounded-lg border px-3 py-2 text-sm">
+                    <p className="m-0">
+                      {wizard.intelligenceSnapshotError}{' '}
+                      <button
+                        type="button"
+                        className="font-medium underline underline-offset-2"
+                        onClick={() => {
+                          void wizard.retryBriefIntelligenceSnapshot();
+                        }}
+                      >
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.retry}
+                      </button>
+                      <span className="text-destructive/80"> · </span>
+                      <button
+                        type="button"
+                        className="font-medium underline underline-offset-2"
+                        onClick={wizard.handleIntelligenceSnapshotSkipToReview}
+                      >
+                        {WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.skipToReview}
+                      </button>
+                    </p>
+                  </div>
+                )}
+                <Step1Brief
+                  isClientSelfServe={isClientSelfServe}
+                  interviewMode={wizard.interviewMode}
+                  layoutSelected={wizard.layoutSelected}
+                  answeredRequired={wizard.answeredRequired}
+                  pipelineRequiredTotal={wizard.pipelineRequiredTotal}
+                  briefLayoutChoice={wizard.briefLayoutChoice}
+                  onChangeConsultantBriefLayout={wizard.handleChangeConsultantBriefLayout}
+                  onSelectConsultantBriefLayout={wizard.handleSelectConsultantBriefLayout}
+                  discoveryPrefilled={wizard.discoveryPrefilled}
+                  intakePrefillActive={wizard.intakePrefillActive}
+                  progressPct={wizard.progressPct}
+                  readinessBadge={wizard.readinessBadge}
+                  nextBestAction={wizard.nextBestAction}
+                  bankMetrics={wizard.bankMetrics}
+                  responses={wizard.responses}
+                  briefProductMode={wizard.briefProductMode}
+                  noPublicWebsite={wizard.noPublicWebsite}
+                  url={wizard.url}
+                  name={wizard.name}
+                  industry={wizard.industry}
+                  industrySpecify={wizard.industrySpecify}
+                  step0PipelineAnswerSource={wizard.responseSource}
+                  intakeAnalytics={wizard.briefWizardIntakeAnalytics}
+                  onResponsesChange={next => wizard.setResponses(next)}
+                  onResponseChange={wizard.handleResponseChange}
+                  onSetUnknown={wizard.handleSetUnknown}
+                  step2Complete={wizard.step2Complete}
+                  onBackToStep0={wizard.handleBackFromStep1ToStep0}
+                  onGoToStep2={wizard.handleStep1ContinueToReview}
+                  continueToReviewPending={wizard.intelligenceSnapshotLoading}
+                  clientDraftSaveSection={clientDraftSaveSection}
+                  clientDraftSaveInlineAction={clientDraftSaveInlineAction}
+                  briefExecutionDiagnostic={wizard.briefExecutionDiagnostic}
+                  briefExecutionDiagnosticLoading={wizard.briefExecutionDiagnosticLoading}
+                  briefExecutionDiagnosticError={wizard.briefExecutionDiagnosticError}
+                  serverVisibleQuestionIds={wizard.briefWizardServerVisibleQuestionIds}
+                  draftAuditId={wizard.draftAuditId}
+                  clientProjectContextSyncTick={wizard.clientProjectContextSyncTick}
+                  questionLabelOverrides={wizard.intelligenceWordingUi.label_overrides}
+                  questionHintOverrides={wizard.intelligenceWordingUi.hint_overrides}
+                  questionOptionDisplayOverrides={wizard.intelligenceWordingUi.option_display_overrides}
+                  intakeVersionTuple={wizard.draftIntakeVersions}
+                  briefTailoredFollowUpUnlocked={wizard.briefTailoredFollowUpUnlocked}
+                  forceWizardDuringShortBrief={
+                    !isClientSelfServe &&
+                    wizard.briefIntelligenceSubStep === 'short_brief' &&
+                    !wizard.briefTailoredFollowUpUnlocked &&
+                    APP_FEATURE_FLAGS.newAuditIntelligenceSnapshotStepEnabled
+                  }
+                  portfolioBriefTools={
+                    isClientSelfServe
+                      ? undefined
+                      : {
+                          draftAuditId: wizard.draftAuditId,
+                          earlyIntelEligible: wizard.earlyIntelligenceEligible,
+                          earlyIntelPending: wizard.intelligenceSnapshotLoading,
+                          onRunEarlyIntel: wizard.runEarlyBriefIntelligenceSnapshot,
+                          onCloneFromAudit: wizard.handleBriefCloneFromAudit,
+                          cloneFromAuditEnabled: APP_FEATURE_FLAGS.briefCloneFromAuditEnabled,
+                        }
+                  }
+                />
+              </div>
+            )}
+
+            {wizard.step === 1 &&
+              wizard.briefIntelligenceSubStep === 'snapshot_confirm' &&
+              wizard.intelligenceSnapshotResult && (
+                <Step1IntelligenceSnapshotConfirm
+                  key="step1-snapshot-confirm"
+                  payload={wizard.intelligenceSnapshotResult}
+                  onBackToQuestions={wizard.handleIntelligenceSnapshotBackToBriefForm}
+                  onContinue={wizard.handleIntelligenceSnapshotSaveApplyAndWording}
+                  continuePending={wizard.intelEarlyMergePending || wizard.intelligenceWordingLoading}
+                  confirmPhase={wizard.intelligenceSnapshotPhase}
+                />
+              )}
 
             {/* ── Step 2: Review ───────────────────────── */}
             {wizard.step === 2 && (
               <Step2Review
+                key="step2-review"
                 url={wizard.url}
                 name={wizard.name}
                 industry={wizard.industry}
+                industrySpecify={wizard.industrySpecify}
                 coveragePackage={wizard.coveragePackage!}
                 selectedDomains={wizard.selectedDomains}
                 answeredRequired={wizard.answeredRequired}
                 pipelineRequiredTotal={wizard.pipelineRequiredTotal}
                 answeredQuestionIds={wizard.answeredPipelineRequiredIds}
                 pipelineGateBriefResponses={wizard.pipelineGateBriefResponses}
-                onBackToStep1={() => wizard.setStep(1)}
+                onBackToStep1={wizard.handleBackFromStep2ToStep1}
                 onGoToStep3={() => wizard.setStep(3)}
                 clientDraftSaveSection={clientDraftSaveSection}
+                draftAuditId={wizard.draftAuditId}
               />
             )}
 
             {/* ── Step 3: Launch ───────────────────────── */}
             {wizard.step === 3 && (
               <Step3Launch
+                key="step3-launch"
                 error={wizard.error}
                 loading={wizard.loading}
                 isClientSelfServe={isClientSelfServe}

@@ -4,9 +4,15 @@ import {
 } from '../../config/context-builder-limits.js';
 import { CONTEXT_BUILDER_PROMPT } from '../../config/context-builder-prompt.js';
 import { formatClientBriefSection } from './format-client-brief.js';
+import {
+  formatAlignmentCorrectedPeerDraftsForPrompt,
+  formatPeerHypothesesForPrompt,
+} from './format-peer-hypotheses.js';
+import { escapePromptContent } from './lib/escape-prompt.js';
 import { formatCompanyUrlForPrompt } from './lib/format-company-url-for-prompt.js';
 import { trimJsonByTopLevelKeys } from './lib/trim-json-by-keys.js';
 import type { AgentContext } from './agent-context.types.js';
+import type { DomainKey } from '../../types/audit.js';
 
 /**
  * Formats context into two parts:
@@ -58,6 +64,61 @@ ${P.companyProfileIntakeDataQuality}${ctx.intake_data_quality_score}`;
   }
 
   sections.push(profileBlock);
+
+  if (
+    ctx.client_situation_snapshot
+    && Object.keys(ctx.client_situation_snapshot).length > 0
+  ) {
+    sections.push(
+      `${P.clientSituationHeading}
+${P.clientSituationSubheading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.client_situation_snapshot, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  const hypothesisRows =
+    ctx.coalition_context_stage === 'alignment'
+      ? formatPeerHypothesesForPrompt(ctx.coalition_hypothesis_drafts, ctx.slice_domain as DomainKey)
+      : ctx.coalition_context_stage === 'finalize'
+        ? formatAlignmentCorrectedPeerDraftsForPrompt(
+          ctx.coalition_hypothesis_drafts,
+          ctx.coalition_alignment_responses,
+        )
+      : (ctx.coalition_hypothesis_drafts ?? []);
+  if (
+    hypothesisRows.length > 0
+    && ctx.coalition_context_stage !== 'hypothesis'
+    && ctx.coalition_context_stage !== 'context_director'
+  ) {
+    sections.push(
+      `${P.peerHypothesesHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(hypothesisRows, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if (
+    (ctx.coalition_alignment_responses?.length ?? 0) > 0
+    && (
+      ctx.coalition_context_stage === undefined
+      || ctx.coalition_context_stage === 'conflict_resolver'
+      || ctx.coalition_context_stage === 'finalize'
+    )
+  ) {
+    sections.push(
+      `${P.peerAlignmentsHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_alignment_responses, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if (
+    ctx.coalition_conflict_resolution
+    && Object.keys(ctx.coalition_conflict_resolution).length > 0
+  ) {
+    sections.push(
+      `${P.coalitionResolutionHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_conflict_resolution, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
 
   if (
     ctx.intake_project_context_envelope
@@ -148,7 +209,7 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
         truncatedKeys.push(key);
       }
       sections.push(
-        `${P.collectedDataSubheadingPrefix}${key}\n${P.collectedDataJsonFenceOpen}${json}${P.collectedDataJsonFenceClose}`,
+        `${P.collectedDataSubheadingPrefix}${key}\n${P.collectedDataJsonFenceOpen}${escapePromptContent(json)}${P.collectedDataJsonFenceClose}`,
       );
       totalRawChars += json.length;
     }
@@ -196,6 +257,19 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
     }
     if (ctx.slice_domain === 'strategy') {
       sections.push(P.consultantNotesStrategyInitiativesReminder);
+    }
+  }
+
+  const retryNotes = ctx.retry_notes ?? [];
+  if (retryNotes.length > 0) {
+    sections.push(P.retryNotesHeading);
+    for (const retryNote of retryNotes) {
+      sections.push(
+        P.retryNotesLine
+          .replace('{{phase}}', String(retryNote.phase))
+          .replace('{{createdAt}}', retryNote.created_at)
+          .replace('{{comment}}', retryNote.retry_comment),
+      );
     }
   }
 

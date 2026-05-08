@@ -25,6 +25,10 @@ export const briefPutBodySchema = z.object({
   intake_versions: z.unknown().optional(),
 });
 
+export const briefCloneFromBodySchema = z.object({
+  source_audit_id: z.string().uuid(),
+});
+
 export const briefHelpRequestBodySchema = z.object({
   message: z.union([z.string(), z.null(), z.undefined()]).optional(),
 });

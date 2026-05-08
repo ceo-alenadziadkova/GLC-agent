@@ -61,6 +61,19 @@ describe('resolveNotificationRoute', () => {
       .toBe(buildAppRoute.pipeline(auditId));
     expect(resolveNotificationRoute({ item: reviewItem, isClient: false, isConsultant: true }))
       .toBe(buildAppRoute.pipeline(auditId));
+
+    expect(resolveNotificationRoute({ item: pipelineItem, isClient: true, isConsultant: false }))
+      .toBe(buildAppRoute.portalPipeline(auditId));
+    expect(resolveNotificationRoute({ item: reviewItem, isClient: true, isConsultant: false }))
+      .toBe(buildAppRoute.portalPipeline(auditId));
+  });
+
+  it('remaps explicit consultant pipeline URLs in notification payloads for portal clients', () => {
+    const auditId = 'f4f072f3-56d7-4fdf-a7c8-439f95fdc8da';
+    const item = makeNotification({ payload: { route: buildAppRoute.pipeline(auditId) } });
+    expect(resolveNotificationRoute({ item, isClient: true, isConsultant: false })).toBe(
+      buildAppRoute.portalPipeline(auditId),
+    );
   });
 
   it('routes other audit notifications to audit workspace', () => {
@@ -74,6 +87,10 @@ describe('resolveNotificationRoute', () => {
     });
 
     expect(route).toBe(buildAppRoute.audit(auditId));
+
+    expect(
+      resolveNotificationRoute({ item, isClient: true, isConsultant: false }),
+    ).toBe(buildAppRoute.portalAudit(auditId));
   });
 
   it('routes intake notifications to admin requests only for consultants', () => {

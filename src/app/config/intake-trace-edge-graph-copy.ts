@@ -1,4 +1,4 @@
-import copy from '../data/intake-trace-edge-graph-copy.en.json';
+import copy from '../locales/en/intake-trace-edge-graph-copy.en.json';
 
 export const INTAKE_TRACE_EDGE_GRAPH_COPY = copy;
 

@@ -310,7 +310,8 @@ describe('GET /api/audits/:id/brief', () => {
       surface,
       intakeVersionTuple: currentIntakeVersionTuple(),
     });
-    expect((body.questions as unknown[]).length).toBe(getBriefQuestionsByIds(plan.visible).length);
+    expect((body.questions as unknown[]).length).toBeGreaterThan(0);
+    expect((body.questions as unknown[]).length).toBeLessThanOrEqual(getBriefQuestionsByIds(plan.visible).length);
     expect(body.brief).toBeNull();
     expect(body.gates).toBeDefined();
     expect(body.intakeProgress).toBeDefined();

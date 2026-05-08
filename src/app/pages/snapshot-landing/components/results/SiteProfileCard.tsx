@@ -14,7 +14,7 @@ export function SiteProfileCard(props: {
   return (
     <Surface
       padding="none"
-      className="glc-card glc-snapshot-result-card mb-4 rounded-[var(--radius-xl)] p-5 text-left lg:p-6"
+      className="ds-card ds-snapshot-result-card mb-4 rounded-[var(--radius-xl)] p-5 text-left lg:p-6"
     >
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
         {SNAPSHOT_LANDING_HERO_COPY.siteReadAdvisoryTitle}

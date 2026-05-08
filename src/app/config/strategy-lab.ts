@@ -2,7 +2,32 @@ import { DOMAIN_KEYS } from '../data/auditTypes';
 
 export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
+/** Session TTL for negative cache of `GET /api/benchmarks` 404 (no snapshot) — avoids repeat network noise. */
+export const STRATEGY_LAB_BENCHMARK_NULL_RESULT_CACHE_MS = 60_000 as const;
+
+/** Initiative list buckets on Strategy Lab (aligned with `audit_strategy` shape). */
+export type StrategyInitiativeBucket = 'quick_wins' | 'medium_term' | 'strategic';
+
+/** In-page anchors for Strategy Lab sticky section navigation (`/strategy/:id`). */
+export const STRATEGY_LAB_PAGE_ANCHORS = {
+  /** IA phase 1: benchmarks + constraint overrides (consultant reference region). */
+  definePhase: 'strategy-lab-define-phase',
+  /** IA phase 2: orchestrator + initiatives + dependency map. */
+  shapePack: 'strategy-lab-shape-pack',
+  /** IA phase 3: manifest snapshot, build pack, previews. */
+  planSetup: 'strategy-lab-plan-setup',
+  /** Primary scroll container for the inspect column (legacy jump target). */
+  inspectPack: 'strategy-lab-inspect-pack',
+  /** Accordion anchor inside define phase (peer benchmarks disclosure). */
+  reference: 'strategy-lab-reference',
+} as const;
+
 export const STRATEGY_LAB_LAYOUT_POLICY = {
+  /**
+   * Below this width consultants use the Sheet plan summary instead of `ResizablePanel`.
+   * Keeps readable orchestrator + roadmap preview in roughly 650-1024 width range where split panes cram.
+   */
+  packSummarySheetMaxWidthPx: 1024,
   sidebarLayoutAutoSaveId: 'strategy-lab:summary-layout',
   summaryPanelDefaultSizePct: 28,
   summaryPanelMinSizePct: 20,
@@ -53,12 +78,6 @@ export const STRATEGY_LAB_ROI_SORT_WEIGHTS = {
 /** Must match `STRATEGY_EXECUTION_PACK_LIMITS.maxInitiativesPerRequest` on the server. */
 export const STRATEGY_LAB_EXECUTION_PACK_POLICY = {
   maxInitiativesPerRequest: 5,
-} as const;
-
-export const STRATEGY_LAB_TAB_DESCRIPTIONS = {
-  quick: 'Under 1 week · €0–500',
-  medium: '1–3 months · €1K–6K',
-  strategic: '3–6 months · €6K–20K',
 } as const;
 
 /** Horizons shown in Strategy Lab tabs and in roadmap export section order. */

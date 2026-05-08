@@ -89,9 +89,9 @@ Post-Sprint implementation order is fixed to avoid policy drift:
 ## Baseline Metrics (current)
 
 - total questions: 78
-- P0 questions: 17
+- P0 questions: 16
 - fully covered questions (`required_now`): 54 (~69.2%)
-- fully covered P0: 17 (100%)
+- fully covered P0: 16 (100%)
 - Sprint 2 gate: 47 ids with **full** contract including `expectedInfoGainBits` ≥ 0.3 (see [`ADR-INFO-GAIN-THRESHOLD-V1.md`](./ADR-INFO-GAIN-THRESHOLD-V1.md))
 
 ## Changelog
@@ -123,4 +123,4 @@ Expected invariants:
 - All P0 ids have `required_now` (`whyAsked`, `semanticDomain`, `decisionImpact`).
 - Lint emits hard errors for missing `required_now` and invalid `semanticDomain`.
 - Runtime keeps question flow operational and emits `intelligence_metadata_incomplete` trace on incomplete metadata.
-- Baseline summary: `78` total questions, `17` P0, **`58`** bank ids with `required_now` intelligence (`fullyCoveredQuestions`), **47** Sprint 2 gate ids with full contract (`getIntakeIntelligenceSprint2CoverageSummary`), `100%` P0 coverage for `required_now`.
+- Baseline summary: `78` total questions, `16` P0, **`58`** bank ids with `required_now` intelligence (`fullyCoveredQuestions`), **47** Sprint 2 gate ids with full contract (`getIntakeIntelligenceSprint2CoverageSummary`), `100%` P0 coverage for `required_now`.

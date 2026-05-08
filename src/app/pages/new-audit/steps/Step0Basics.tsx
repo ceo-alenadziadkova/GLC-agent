@@ -46,7 +46,9 @@ export type Step0BasicsProps = {
   recommendedDomains: DomainKey[];
 
   // Actions
-  onContinue: () => void;
+  onContinue: () => void | Promise<void>;
+  /** Disables the primary button while the parent runs create-audit / DPA. */
+  continuePending?: boolean;
   clientDraftSaveSection: ReactNode;
 
   // Interview mode + pre-brief
@@ -79,6 +81,7 @@ export function Step0Basics({
   recommendedDomains: _recommendedDomains,
 
   onContinue,
+  continuePending = false,
   clientDraftSaveSection,
 
   interviewMode,
@@ -124,7 +127,10 @@ export function Step0Basics({
       <form
         onSubmit={e => {
           e.preventDefault();
-          if (step0Valid) onContinue();
+          if (!step0Valid || !coverageValid || continuePending) {
+            return;
+          }
+          void Promise.resolve(onContinue());
         }}
         className="glc-card ds-new-audit-step0-form"
       >
@@ -363,12 +369,12 @@ export function Step0Basics({
 
         <motion.button
           type="submit"
-          disabled={!step0Valid}
-          whileHover={step0Valid ? { scale: 1.015 } : {}}
-          whileTap={step0Valid ? { scale: 0.985 } : {}}
+          disabled={!step0Valid || !coverageValid || continuePending}
+          whileHover={step0Valid && coverageValid && !continuePending ? { scale: 1.015 } : {}}
+          whileTap={step0Valid && coverageValid && !continuePending ? { scale: 0.985 } : {}}
           className={cn(
             'inline-flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold',
-            step0Valid
+            step0Valid && coverageValid && !continuePending
               ? 'bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--shadow-brand-cta)]'
               : 'bg-muted text-muted-foreground cursor-not-allowed border',
           )}

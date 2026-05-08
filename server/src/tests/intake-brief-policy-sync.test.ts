@@ -23,7 +23,7 @@ describe('intake-brief vs intake-policy', () => {
   it('PRE_BRIEF_REQUIRED_SUBMIT_IDS is express SLA intersected with pre_brief.bankIncluded', () => {
     const bank = new Set(INTAKE_POLICY_V1.modes.pre_brief.bankIncluded ?? []);
     const expected = [
-      ...INTAKE_POLICY_V1.modes.express.requiredAlways,
+      ...INTAKE_POLICY_V1.modes.express.requiredAlways.filter(id => bank.has(id)),
       ...INTAKE_POLICY_V1.modes.express.requiredIfVisible.filter(id => bank.has(id)),
     ];
     expect([...PRE_BRIEF_REQUIRED_SUBMIT_IDS]).toEqual(expected);

@@ -1,5 +1,14 @@
 import { LEGAL_DOCUMENT_SPA_ROUTES } from '@glc/api-paths';
-import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
+import {
+  APP_ROUTE_SEGMENTS as P,
+  PLAN_WORKSPACE_SURFACE_SEGMENTS as PLAN_WS,
+  SPA_ROUTE_SEGMENTS as R,
+} from '@glc/intake-core';
+
+import { defaultPortalPlanViewWhenQueryMissing, type PortalPlanViewParam } from './portal-plan';
+
+/** Query param for `/audit/new`: load wizard state from a `created` audit (consultant intake not launched). */
+export const NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY = 'draft_audit' as const;
 
 export const APP_ROUTE_PATHS = {
   home: '/',
@@ -42,6 +51,29 @@ export const buildAppRoute = {
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
   portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
   portalRoadmap: (auditId: string): string => `/${P.portalRoadmapById.replace(':id', auditId)}`,
+  /**
+   * Canonical delivery plan path (`/plan/:id/board` …). Legacy `/roadmap/:id` and `/timeline/:id` redirect here.
+   * Default surface follows {@link defaultPortalPlanViewWhenQueryMissing}.
+   */
+  plan: (auditId: string, view?: PortalPlanViewParam): string => {
+    const root = `/${P.planById.replace(':id', auditId)}`;
+    const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
+    if (resolved === 'roadmap') return `${root}/${PLAN_WS.roadmap}`;
+    if (resolved === 'board') return `${root}/${PLAN_WS.board}`;
+    if (resolved === 'table') return `${root}/${PLAN_WS.table}`;
+    return `${root}/${PLAN_WS.board}`;
+  },
+  portalPlan: (auditId: string, view?: PortalPlanViewParam): string => {
+    const root = `/${P.portalPlanById.replace(':id', auditId)}`;
+    const resolved = view ?? defaultPortalPlanViewWhenQueryMissing();
+    if (resolved === 'roadmap') return `${root}/${PLAN_WS.roadmap}`;
+    if (resolved === 'board') return `${root}/${PLAN_WS.board}`;
+    if (resolved === 'table') return `${root}/${PLAN_WS.table}`;
+    return `${root}/${PLAN_WS.board}`;
+  },
+  /** Strategy Lab studio (`/lab/:id`, `?mode=define|shape`). Legacy `/plan/:id/studio` redirects here. */
+  planStudio: (auditId: string): string => `/${P.labById.replace(':id', auditId)}`,
+  portalPlanStudio: (auditId: string): string => `/${P.portalLabById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   portalRoadmapManifest: (auditId: string): string =>
     `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
@@ -50,20 +82,22 @@ export const buildAppRoute = {
   /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
   auditNewWithIntakeToken: (token: string): string =>
     `${APP_ROUTE_PATHS.auditNew}?intake=${encodeURIComponent(token)}`,
+  auditNewResumeDraft: (auditId: string): string =>
+    `${APP_ROUTE_PATHS.auditNew}?${NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY}=${encodeURIComponent(auditId)}`,
   loginWithHashAndSearch: (search: string, hash: string): string => `${APP_ROUTE_PATHS.login}${search}${hash}`,
   loginWithNext: (nextPath: string): string =>
     `${APP_ROUTE_PATHS.login}?next=${encodeURIComponent(nextPath)}`,
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
-const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'strategy'].join('|');
+const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'timeline', 'roadmap', 'plan', 'lab', 'reports', 'strategy'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'roadmap', 'plan', 'lab', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
-  /** Includes optional `/roadmap-manifest` after portal audit scope (client wizard). */
+  /** Includes optional child segment (`plan` delivery surfaces or `/roadmap-manifest` on audit). */
   portalAuditScope: new RegExp(
-    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/roadmap-manifest)?/?$`,
+    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/(?:board|roadmap|table|studio|roadmap-manifest))?/?$`,
     'i',
   ),
   auditById: /^\/audit\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}/i,

@@ -48,7 +48,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-[var(--text-primary)]">{LC.recoveryHeading}</h2>
       <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-        {LC.recoveryIntroBeforeEmail}<span className="font-mono glc-auth-inline-mono">{userEmail}</span>
+        {LC.recoveryIntroBeforeEmail}<span className="font-mono ds-auth-inline-mono">{userEmail}</span>
         {LC.recoveryIntroAfterEmail}
       </p>
       <form onSubmit={onSubmit} className="space-y-3">
@@ -71,13 +71,13 @@ export function RecoveryForm(props: RecoveryFormProps) {
               aria-invalid={Boolean(fieldErrors.recoveryPassword)}
               aria-describedby={fieldErrors.recoveryPassword ? recoveryPasswordErrorId : undefined}
               voiceInput={false}
-              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
+              className="ds-auth-input ds-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
               onClick={onTogglePassword}
               aria-label={showPassword ? LC.ariaHidePassword : LC.ariaShowPassword}
-              className="glc-touch-target absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center border-none bg-transparent text-[var(--text-tertiary)]"
+              className="ds-touch-target absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center border-none bg-transparent text-[var(--text-tertiary)]"
             >
               {showPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -99,7 +99,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
             autoComplete="new-password"
             aria-invalid={Boolean(fieldErrors.recoveryConfirm)}
             aria-describedby={fieldErrors.recoveryConfirm ? recoveryConfirmErrorId : undefined}
-            className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
+            className="ds-auth-input ds-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
           />
         </FormField>
         <motion.button
@@ -108,7 +108,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
           whileHover={!loading ? { scale: buttonHoverScale } : {}}
           whileTap={!loading ? { scale: buttonTapScale } : {}}
           className={cn(
-            'glc-auth-primary-btn glc-auth-submit-btn glc-auth-submit-btn--ready flex w-full items-center justify-center gap-2 py-3 font-semibold',
+            'ds-auth-primary-btn ds-auth-submit-btn ds-auth-submit-btn--ready flex w-full items-center justify-center gap-2 py-3 font-semibold',
             loading ? 'cursor-not-allowed disabled:opacity-70' : 'cursor-pointer',
           )}
         >

@@ -17,7 +17,7 @@ export function MobileHeader({
 }: AppShellHeaderProps) {
   return (
     <header
-      className="sm:hidden flex min-h-[var(--glc-mobile-header-height)] shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] pb-[var(--space-2)] shadow-[var(--shadow-xs)] glc-safe-pad-x glc-safe-pad-t"
+      className="sm:hidden flex min-h-[var(--app-shell-mobile-header-height)] shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] pb-[var(--space-2)] shadow-[var(--shadow-xs)] ds-safe-pad-x ds-safe-pad-t"
       aria-hidden={title ? isSmUp : undefined}
     >
       <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label={shellCopy.aria.home}>
@@ -45,20 +45,20 @@ export function MobileHeader({
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         {actions ? (
-          <div className="flex items-center max-w-[40vw] overflow-hidden [&_a]:text-xs [&_a]:px-2 [&_a]:py-2 [&_a]:min-h-[var(--glc-touch-target-min)] [&_button]:min-h-[var(--glc-touch-target-min)]">
+          <div className="flex items-center max-w-[40vw] overflow-hidden [&_a]:text-xs [&_a]:px-2 [&_a]:py-2 [&_a]:min-h-[var(--app-touch-target-min)] [&_button]:min-h-[var(--app-touch-target-min)]">
             {actions}
           </div>
         ) : null}
         <button
           type="button"
-          className="relative inline-flex glc-touch-target items-center justify-center rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
+          className="relative inline-flex ds-touch-target items-center justify-center rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
           onClick={onOpenNotifications}
           aria-label={shellCopy.aria.openNotifications}
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 ? (
             <span
-              className="absolute right-1 top-1 flex h-[length:var(--space-4-5)] min-w-[length:var(--space-4-5)] items-center justify-center rounded-full bg-[var(--glc-blue)] px-1 text-[length:var(--text-2xs)] font-bold text-[var(--primary-foreground)]"
+              className="absolute right-1 top-1 flex h-[length:var(--space-4-5)] min-w-[length:var(--space-4-5)] items-center justify-center rounded-full bg-[var(--text-blue)] px-1 text-[length:var(--text-2xs)] font-bold text-[var(--primary-foreground)]"
             >
               {unreadCount > APP_SHELL_UI_POLICY.mobile.unreadBadgeCap
                 ? `${APP_SHELL_UI_POLICY.mobile.unreadBadgeCap}+`
@@ -66,12 +66,12 @@ export function MobileHeader({
             </span>
           ) : null}
         </button>
-        <div className="glc-touch-target flex items-center justify-center">
+        <div className="ds-touch-target flex items-center justify-center">
           <ThemeToggle />
         </div>
         <button
           type="button"
-          className="glc-touch-target rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
+          className="ds-touch-target rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
           onClick={onOpenMobileMenu}
           aria-label={shellCopy.aria.openMenu}
         >

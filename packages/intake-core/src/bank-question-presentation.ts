@@ -4,6 +4,7 @@
  */
 import type { BriefQuestion } from './audit-contract.js';
 import { getBankQuestionUiOverride } from './bank-question-ui-overrides.js';
+import { appendUniversalIntakeChoiceEscapes } from './intake-universal-choice-escapes.js';
 import {
   expandAnswerContractForApi,
   getQuestionBankAnswerContract,
@@ -34,10 +35,10 @@ export function buildBriefQuestionStemFromBankId(bankId: string): BriefQuestionS
   let options: string[] | undefined;
   if (briefType === 'single_choice' || briefType === 'multi_choice') {
     if (override?.options?.length) {
-      options = [...override.options];
+      options = appendUniversalIntakeChoiceEscapes(override.options);
     } else if (expanded?.type === 'single_select' || expanded?.type === 'multi_select') {
       const o = expanded.options;
-      if (o?.length) options = [...o];
+      if (o?.length) options = appendUniversalIntakeChoiceEscapes(o);
     }
   }
 

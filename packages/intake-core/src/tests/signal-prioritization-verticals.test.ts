@@ -19,7 +19,7 @@ describe('computeSignalPrioritization vertical expansion', () => {
     expect(result.bySignalKey.operations_bottleneck?.currentPriority).toBe('P0');
   });
 
-  it('elevates Retail operational delivery signals to P0', () => {
+  it('elevates Retail operations bottleneck to P0', () => {
     const result = computeSignalPrioritization({
       responses: {
         a2: 'Retail',
@@ -27,11 +27,9 @@ describe('computeSignalPrioritization vertical expansion', () => {
       },
       confidenceByKey: {
         operations_bottleneck: 'medium',
-        delivery_shape_baseline: 'medium',
       },
     });
 
     expect(result.bySignalKey.operations_bottleneck?.currentPriority).toBe('P0');
-    expect(result.bySignalKey.delivery_shape_baseline?.currentPriority).toBe('P0');
   });
 });

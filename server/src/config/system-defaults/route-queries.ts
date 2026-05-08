@@ -33,4 +33,9 @@ export const SYSTEM_DEFAULTS_ROUTE_QUERIES = {
     maxLimit: 50,
     minLimit: 1,
   },
+  /**
+   * GET /api/audits/:id/report — `audit_domains` versioned rows per retry.
+   * Fetch newest-first with a hard cap; downstream still dedupes by `domain_key`.
+   */
+  reportsAuditDomainsFetchMaxRows: 512,
 } as const;

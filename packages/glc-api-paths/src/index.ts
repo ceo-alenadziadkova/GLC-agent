@@ -6,6 +6,8 @@
 /** Top-level HTTP prefix for all API routes (matches server `API_PREFIX` and Vite dev proxy). */
 export const API_HTTP_ROOT_PREFIX = '/api' as const;
 const withApiRoot = (segment: string): string => `${API_HTTP_ROOT_PREFIX}${segment}`;
+/** Shared payload contract: max length for `POST /pipeline/retry` comment. */
+export const PIPELINE_RETRY_COMMENT_MAX_LENGTH = 1000;
 
 /** Express `app.use` mount prefixes (must match `API_ROUTE_MOUNT_ENTRIES`). */
 export const API_HTTP_PATH_PREFIX = {
@@ -79,6 +81,11 @@ export function idempotencyPostKey(path: string): string {
   return `POST:${path}`;
 }
 
+/** `PATCH:${path}` for idempotent mutations (Delivery Board card updates). */
+export function idempotencyPatchKey(path: string): string {
+  return `PATCH:${path}`;
+}
+
 export function idempotencyPostAuditsCreateKey(): string {
   return idempotencyPostKey(API_HTTP_PATH_PREFIX.audits);
 }
@@ -116,6 +123,15 @@ export function apiAuditsPipelineStatus(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/status`;
 }
 
+export function apiAuditsPipelinePhaseResult(auditId: string, phase: number): string {
+  return `${apiAuditsPath(auditId)}/pipeline/phases/${encodeURIComponent(String(phase))}/result`;
+}
+
+/** Platform admin only: PATCH per-audit token budget (top-up). */
+export function apiAuditsTokenBudget(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/token-budget`;
+}
+
 export function apiAuditsStrategyExecutionPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/strategy/execution-pack`;
 }
@@ -151,8 +167,69 @@ export function idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId: string
   return idempotencyPostKey(apiAuditsRoadmapManifestSnapshots(auditId));
 }
 
+export function apiAuditsRoadmapManifestDraftRevisions(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/roadmap/manifest/draft-revisions`;
+}
+
+export function idempotencyPostAuditsRoadmapManifestDraftRevisionsKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsRoadmapManifestDraftRevisions(auditId));
+}
+
 export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
+}
+
+/** `POST` — atomically persist manifest snapshot then build/persist orchestration pack (preferred over split snapshot + run). */
+export function apiAuditsOrchestrationCompile(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestration/compile`;
+}
+
+export function idempotencyPostAuditsOrchestrationCompileKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestrationCompile(auditId));
+}
+
+export function apiAuditsPlanBoard(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/plan/board`;
+}
+
+export function apiAuditsPlanBoardColumnPolicy(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/column-policy`;
+}
+
+export function apiAuditsPlanBoardCard(auditId: string, cardId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/cards/${cardId}`;
+}
+
+export function apiAuditsPlanBoardCardsBatch(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/cards:batch`;
+}
+
+export function apiAuditsPlanBoardCardEvents(auditId: string, cardId: string, query?: { limit?: number }): string {
+  const base = `${apiAuditsPlanBoardCard(auditId, cardId)}/events`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsPlanBoardCardComments(auditId: string, cardId: string, query?: { limit?: number }): string {
+  const base = `${apiAuditsPlanBoardCard(auditId, cardId)}/comments`;
+  if (query?.limit != null) {
+    return `${base}?limit=${encodeURIComponent(String(query.limit))}`;
+  }
+  return base;
+}
+
+export function apiAuditsPlanBoardTelemetryViewOpened(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/telemetry/view-opened`;
+}
+
+export function apiAuditsPlanBoardReconcilePreview(auditId: string): string {
+  return `${apiAuditsPlanBoard(auditId)}/reconcile/preview`;
+}
+
+export function idempotencyPatchAuditsPlanBoardCardKey(auditId: string, cardId: string): string {
+  return idempotencyPatchKey(apiAuditsPlanBoardCard(auditId, cardId));
 }
 
 export function apiAuditsOrchestrationSelectedInitiative(auditId: string): string {
@@ -255,8 +332,38 @@ export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string
   return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;
 }
 
+/** Platform admin: finalize phase 7 from a repaired Claude tool-shaped JSON payload (no LLM). */
+export function apiPlatformAuditStrategyRepairedJsonApply(auditId: string): string {
+  return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/strategy/repaired-json-apply`;
+}
+
 export function apiAuditsBriefHelpRequest(auditId: string): string {
   return `${apiAuditsPath(auditId)}/brief/help-request`;
+}
+
+/** GET — composed `ClientProjectContextV1` from `intake_brief` (+ optional future enrichments). */
+export function apiAuditsClientProjectContext(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/client-project-context`;
+}
+
+/** GET — deterministic `nextRecommended` tail (non-baseline bank ids) + questions for the audit brief. */
+export function apiAuditsIntakeFollowupSuggestions(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/intake-followup-suggestions`;
+}
+
+/** POST — same contract as `apiIntakeIntelligenceSnapshot` but for an authenticated audit brief (consultant/portal). */
+export function apiAuditsBriefIntelligenceSnapshot(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/intelligence-snapshot`;
+}
+
+/** POST — second LLM pass: B1 `label_overrides` only (after `PUT /brief` + confirm). */
+export function apiAuditsBriefIntelligenceWording(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/intelligence-wording`;
+}
+
+/** POST — merge another audit’s bank `responses` into this brief (Basics/identity cells preserved on target). */
+export function apiAuditsBriefCloneFrom(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/clone-from`;
 }
 
 export function apiAuditsReview(auditId: string, phase: number): string {
@@ -294,6 +401,15 @@ export function apiIntakeIntelligenceKpi(token: string): string {
 
 export function apiIntakeNextQuestion(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/next-question`;
+}
+
+export function apiIntakeTailoredQuestions(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/tailored-questions`;
+}
+
+/** POST — LLM (optional) + F2-ordered follow-ups after pre-brief; see ADR-INTAKE-POST-PREBRIEF-INTELLIGENCE-SNAPSHOT. */
+export function apiIntakeIntelligenceSnapshot(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/intelligence-snapshot`;
 }
 
 export function apiBriefPublicSession(token: string): string {

@@ -8,7 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import { DISCOVERY_RESULTS_TEASER } from '@glc/intake-core';
 import { DISCOVERY_INDUSTRY_TEASER_ICONS } from '../../../lib/discovery-industry-teaser-icons';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 
 export function AuditTeaser({ industry }: { industry: string | null }) {
   const industryCopy = DISCOVERY_RESULTS_TEASER.industryTeaser;

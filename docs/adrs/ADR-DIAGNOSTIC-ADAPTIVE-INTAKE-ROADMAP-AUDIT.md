@@ -133,5 +133,6 @@ Use these to score “adaptive depth” and dictation-first **without** inventin
 ## References
 
 - Next-question **F1** (deterministic): [ADR-INTAKE-NEXT-QUESTION-V1.md](./ADR-INTAKE-NEXT-QUESTION-V1.md)
+- **Personalization product scope, two-phase UX map, Sprint C priorities:** [ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md](./ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md)
 - Orchestration product sync (sibling doc): [ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md](./ADR-ORCHESTRATION-PRODUCT-MVP-ROADMAP-SYNC-2026-04-23.md)
 - Intake question bank: [QUESTION_BANK.md](../QUESTION_BANK.md)

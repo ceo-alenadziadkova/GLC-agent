@@ -23,7 +23,7 @@ export function MirrorStatusHeaderSection({
         {access.showCallout ? (
           access.robotsBlocked ? (
             <>
-              <SealCheck className="h-3 w-3 shrink-0 text-[var(--glc-green)]" weight="fill" />
+              <SealCheck className="h-3 w-3 shrink-0 text-[var(--score-5)]" weight="fill" />
               {access.robotsLimitedSample
                 ? PORTAL_SNAPSHOT_MIRROR_COPY.status.sampledLimited
                 : PORTAL_SNAPSHOT_MIRROR_COPY.status.robotsLimited}
@@ -36,7 +36,7 @@ export function MirrorStatusHeaderSection({
           )
         ) : (
           <>
-            <CheckCircle className="h-3 w-3 text-[var(--glc-green)]" />
+            <CheckCircle className="h-3 w-3 text-[var(--score-5)]" />
             {PORTAL_SNAPSHOT_MIRROR_COPY.status.ready}
           </>
         )}

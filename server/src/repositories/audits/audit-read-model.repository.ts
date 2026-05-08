@@ -69,5 +69,9 @@ export async function fetchAuditRelatedReadModel(id: string) {
     supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
     supabase.from('review_points').select('*').eq('audit_id', id).order('after_phase'),
     supabase.from('intake_brief').select('*').eq('audit_id', id).single(),
+    supabase.from('audit_client_situation').select('snapshot').eq('audit_id', id).single(),
+    supabase.from('audit_domain_hypotheses').select('domain_key, draft').eq('audit_id', id).order('domain_key'),
+    supabase.from('audit_domain_alignments').select('domain_key, alignment').eq('audit_id', id).order('domain_key'),
+    supabase.from('audit_conflict_resolutions').select('resolution').eq('audit_id', id).single(),
   ]);
 }

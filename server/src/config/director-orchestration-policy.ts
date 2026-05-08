@@ -55,6 +55,7 @@ export function directorOrchestrationPersistenceModeForPhase(phase: number): Dir
 
 /** Cap actions per wave bundle before graph merge (safety). */
 export const DIRECTOR_ORCHESTRATION_MAX_ACTIONS_PER_WAVE = 32;
+export const DIRECTOR_ORCHESTRATION_MAX_CROSS_DOMAIN_REFS_PER_ACTION = 12;
 
 /** Stable id segment for orchestration graph nodes sourced from strategy initiatives. */
 export const ORCHESTRATION_NODE_SOURCE_STRATEGY = 'strategy' as const;

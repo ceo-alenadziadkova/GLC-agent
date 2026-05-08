@@ -89,6 +89,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         isConsultant={isConsultant}
         isAuthenticated={isAuthenticated}
         pathname={location.pathname}
+        locationSearch={location.search}
         unreadCount={unreadCount}
         user={user}
         profile={profile}
@@ -126,11 +127,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
         <DesktopHeader title={title} subtitle={subtitle} actions={actions} />
 
-        <main className="flex-1 overflow-y-auto min-h-0 glc-main-mobile-nav-pad">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto ds-main-mobile-nav-pad">{children}</div>
+        </main>
 
         <MobileBottomNav
           items={mobileBottomNav}
           pathname={location.pathname}
+          locationSearch={location.search}
           navAriaLabel={APP_SHELL_COPY.aria.primaryNav}
         />
       </div>
@@ -144,6 +148,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         isClient={isClient}
         isAuthenticated={isAuthenticated}
         pathname={location.pathname}
+        locationSearch={location.search}
         onClose={() => setMobileMenuOpen(false)}
         onSignOut={() => {
           setMobileMenuOpen(false);

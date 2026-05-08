@@ -1,11 +1,13 @@
 import type { AuditExecutionPlan } from '../../../types/audit.js';
 import { safeOrUserFilter } from '../../../lib/postgrest-filter.js';
+import { POSTGREST_NO_ROWS_CODE } from '../../../config/postgrest-codes.js';
 import { PIPELINE_RETRY_CLAIM_OWNERSHIP } from '../../../config/pipeline-retry-claim.js';
 import {
   PIPELINE_AUDIT_ORCHESTRATOR_STATUS,
   PIPELINE_CLAIMABLE_STATUSES,
   PIPELINE_STOP_CLAIMABLE_STATUSES,
 } from '../../../config/pipeline-status.js';
+import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
 
 export type AuditForStart = {
@@ -63,12 +65,65 @@ export type AuditForStatus = {
   execution_plan: unknown;
 };
 
+type ClaimMutationResult = {
+  data: unknown[] | null;
+  error?: { message: string; code?: string | null } | null;
+};
+
+type AuditReadError = {
+  message: string;
+  code?: string | null;
+};
+
+function handleAuditReadResult<T>(context: {
+  operation: string;
+  auditId: string;
+  error: AuditReadError | null;
+  data: unknown;
+}): T | null {
+  const { operation, auditId, error, data } = context;
+  if (error) {
+    if (error.code === POSTGREST_NO_ROWS_CODE) return null;
+    logger.error('pipeline.audit_read_failed', {
+      component: 'pipeline_routes',
+      operation,
+      audit_id: auditId,
+      error: error.message,
+      code: error.code,
+    });
+    throw new Error(`[pipeline_audit_read] ${operation} failed: ${error.message}`);
+  }
+  return data ? (data as T) : null;
+}
+
+function throwClaimMutationError(context: {
+  operation: string;
+  auditId: string;
+  scope?: 'user_id' | 'client_id';
+  error: { message: string; code?: string | null };
+}): never {
+  const { operation, auditId, scope, error } = context;
+  logger.error('pipeline.claim_mutation_failed', {
+    component: 'pipeline_routes',
+    operation,
+    audit_id: auditId,
+    scope,
+    error: error.message,
+    code: error.code,
+  });
+  throw new Error(`[pipeline_claim] ${operation} failed: ${error.message}`);
+}
+
 async function claimByOwnerOrClient(
-  claim: (scope: 'user_id' | 'client_id') => Promise<{ data: unknown[] | null }>,
+  operation: string,
+  auditId: string,
+  claim: (scope: 'user_id' | 'client_id') => Promise<ClaimMutationResult>,
 ): Promise<boolean> {
   const byOwner = await claim('user_id');
+  if (byOwner.error) throwClaimMutationError({ operation, auditId, scope: 'user_id', error: byOwner.error });
   if (Array.isArray(byOwner.data) && byOwner.data.length > 0) return true;
   const byClient = await claim('client_id');
+  if (byClient.error) throwClaimMutationError({ operation, auditId, scope: 'client_id', error: byClient.error });
   return Array.isArray(byClient.data) && byClient.data.length > 0;
 }
 
@@ -81,7 +136,7 @@ export async function fetchAuditForStart(auditId: string, userId: string): Promi
     .eq('id', auditId)
     .or(safeOrUserFilter(userId))
     .single();
-  return error || !data ? null : (data as AuditForStart);
+  return handleAuditReadResult<AuditForStart>({ operation: 'fetchAuditForStart', auditId, data, error });
 }
 
 export async function fetchAuditForNext(auditId: string, userId: string): Promise<AuditForNext | null> {
@@ -93,7 +148,7 @@ export async function fetchAuditForNext(auditId: string, userId: string): Promis
     .eq('id', auditId)
     .or(safeOrUserFilter(userId))
     .single();
-  return error || !data ? null : (data as AuditForNext);
+  return handleAuditReadResult<AuditForNext>({ operation: 'fetchAuditForNext', auditId, data, error });
 }
 
 /** Load audit row for retry eligibility (no ownership filter — caller enforces access). */
@@ -103,7 +158,7 @@ export async function fetchAuditForRetryById(auditId: string): Promise<AuditForR
     .select('id, user_id, status, current_phase, tokens_used, token_budget, product_mode, execution_plan, updated_at')
     .eq('id', auditId)
     .single();
-  return error || !data ? null : (data as AuditForRetry);
+  return handleAuditReadResult<AuditForRetry>({ operation: 'fetchAuditForRetryById', auditId, data, error });
 }
 
 export async function fetchAuditForStop(auditId: string, userId: string): Promise<AuditForStop | null> {
@@ -113,7 +168,7 @@ export async function fetchAuditForStop(auditId: string, userId: string): Promis
     .eq('id', auditId)
     .or(safeOrUserFilter(userId))
     .single();
-  return error || !data ? null : (data as AuditForStop);
+  return handleAuditReadResult<AuditForStop>({ operation: 'fetchAuditForStop', auditId, data, error });
 }
 
 export async function fetchAuditForStatus(auditId: string, userId: string): Promise<AuditForStatus | null> {
@@ -123,22 +178,22 @@ export async function fetchAuditForStatus(auditId: string, userId: string): Prom
     .eq('id', auditId)
     .or(safeOrUserFilter(userId))
     .single();
-  return error || !data ? null : (data as AuditForStatus);
+  return handleAuditReadResult<AuditForStatus>({ operation: 'fetchAuditForStatus', auditId, data, error });
 }
 
 export async function fetchAuditForAnyAccess(auditId: string, userId: string): Promise<{ id: string } | null> {
-  const { data } = await supabase.from('audits').select('id').eq('id', auditId).or(safeOrUserFilter(userId)).single();
-  return data ? ({ id: (data as { id: string }).id } as { id: string }) : null;
+  const { data, error } = await supabase.from('audits').select('id').eq('id', auditId).or(safeOrUserFilter(userId)).single();
+  return handleAuditReadResult<{ id: string }>({ operation: 'fetchAuditForAnyAccess', auditId, data, error });
 }
 
 export async function fetchConsultantOwnedAudit(auditId: string, userId: string): Promise<{ id: string } | null> {
-  const { data } = await supabase.from('audits').select('id').eq('id', auditId).eq('user_id', userId).single();
-  return data ? ({ id: (data as { id: string }).id } as { id: string }) : null;
+  const { data, error } = await supabase.from('audits').select('id').eq('id', auditId).eq('user_id', userId).single();
+  return handleAuditReadResult<{ id: string }>({ operation: 'fetchConsultantOwnedAudit', auditId, data, error });
 }
 
 export async function claimPipelineStart(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(async (scope) => {
-    const { data } = await supabase
+  return claimByOwnerOrClient('claimPipelineStart', auditId, async (scope) => {
+    const { data, error } = await supabase
       .from('audits')
       .update({ status: 'recon', current_phase: 0 })
       .eq('id', auditId)
@@ -146,7 +201,7 @@ export async function claimPipelineStart(auditId: string, userId: string, update
       .eq('status', 'created')
       .eq('updated_at', updatedAt)
       .select('id');
-    return { data };
+    return { data, error };
   });
 }
 
@@ -156,8 +211,8 @@ export async function claimPipelineNext(
   updatedAt: string,
   lockStatus: string,
 ): Promise<boolean> {
-  return claimByOwnerOrClient(async (scope) => {
-    const { data } = await supabase
+  return claimByOwnerOrClient('claimPipelineNext', auditId, async (scope) => {
+    const { data, error } = await supabase
       .from('audits')
       .update({ status: lockStatus })
       .eq('id', auditId)
@@ -165,7 +220,7 @@ export async function claimPipelineNext(
       .eq('updated_at', updatedAt)
       .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
       .select('id');
-    return { data };
+    return { data, error };
   });
 }
 
@@ -178,8 +233,8 @@ export type PipelineRetryOwnershipFilter =
  * Moves `audits.status` from `review` to `completed` (idempotent if already completed via refetch).
  */
 export async function claimPipelineFinalizeAfterLastGate(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(async (scope) => {
-    const { data } = await supabase
+  return claimByOwnerOrClient('claimPipelineFinalizeAfterLastGate', auditId, async (scope) => {
+    const { data, error } = await supabase
       .from('audits')
       .update({ status: 'completed' })
       .eq('id', auditId)
@@ -187,7 +242,7 @@ export async function claimPipelineFinalizeAfterLastGate(auditId: string, userId
       .eq('updated_at', updatedAt)
       .eq('status', 'review')
       .select('id');
-    return { data };
+    return { data, error };
   });
 }
 
@@ -206,13 +261,14 @@ export async function claimPipelineRetry(
   if (ownership.kind === PIPELINE_RETRY_CLAIM_OWNERSHIP.owner) {
     q = q.eq('user_id', ownership.actorUserId);
   }
-  const { data } = await q.select('id');
+  const { data, error } = await q.select('id');
+  if (error) throwClaimMutationError({ operation: 'claimPipelineRetry', auditId, error });
   return Boolean(data && data.length > 0);
 }
 
 export async function claimPipelineStop(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  return claimByOwnerOrClient(async (scope) => {
-    const { data } = await supabase
+  return claimByOwnerOrClient('claimPipelineStop', auditId, async (scope) => {
+    const { data, error } = await supabase
       .from('audits')
       .update({ status: 'cancelled' })
       .eq('id', auditId)
@@ -220,7 +276,7 @@ export async function claimPipelineStop(auditId: string, userId: string, updated
       .eq('updated_at', updatedAt)
       .in('status', PIPELINE_STOP_CLAIMABLE_STATUSES as unknown as string[])
       .select('id');
-    return { data };
+    return { data, error };
   });
 }
 
@@ -229,12 +285,13 @@ export async function claimPipelineStop(auditId: string, userId: string, updated
  * Sets `review` (idle, claimable) — same pause state used after review gates.
  */
 export async function claimPipelineResumeFromCancelled(auditId: string, updatedAt: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('audits')
     .update({ status: PIPELINE_AUDIT_ORCHESTRATOR_STATUS.review })
     .eq('id', auditId)
     .eq('status', 'cancelled')
     .eq('updated_at', updatedAt)
     .select('id');
+  if (error) throwClaimMutationError({ operation: 'claimPipelineResumeFromCancelled', auditId, error });
   return Boolean(data && data.length > 0);
 }

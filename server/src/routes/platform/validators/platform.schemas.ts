@@ -53,6 +53,17 @@ export const consultantAllowlistDeleteQuerySchema = z.object({
   email: z.string().optional(),
 });
 
+export const strategyRepairedJsonApplyBodySchema = z
+  .object({
+    strategy_tool_input: z.unknown(),
+    force_replace_completed_audit: z.boolean().optional(),
+  })
+  .strict();
+
+export function safeParseStrategyRepairedJsonApplyBody(body: unknown) {
+  return strategyRepairedJsonApplyBodySchema.safeParse(body);
+}
+
 export const banditRecomputeBodySchema = z
   .object({
     phase_id: z.enum(DOMAIN_KEYS).optional(),

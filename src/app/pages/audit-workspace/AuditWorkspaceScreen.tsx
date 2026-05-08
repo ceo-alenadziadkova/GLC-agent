@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ArrowsClockwise, CaretDoubleRight } from '@phosphor-icons/react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { AnimatePresence, motion } from 'motion/react';
-import { Link } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { AppShell } from '../../components/AppShell';
 import { StatusPill } from '../../components/glc/StatusPill';
 import { useAudit } from '../../hooks/useAudit';
@@ -31,6 +31,11 @@ import { EnrichmentSection } from './sections/EnrichmentSection';
 import { Button } from '../../components/ui/button';
 import { ExecutionLogPanel } from '../../components/pipeline/ExecutionLogPanel';
 import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
+import { buildAppRoute } from '../../config/route-paths';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
+import { CoalitionChainView } from '../../components/CoalitionChainView';
+import { ConflictMatrix } from '../../components/ConflictMatrix';
+import { ClientSituationCard } from '../../components/ClientSituationCard';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
@@ -84,6 +89,10 @@ export function AuditWorkspaceScreen() {
         </div>
       </AppShell>
     );
+  }
+
+  if (audit.meta.status === 'created' && id) {
+    return <Navigate to={buildAppRoute.auditNewResumeDraft(id)} replace />;
   }
 
   const domainEntries = visibleDomainKeys
@@ -169,6 +178,13 @@ export function AuditWorkspaceScreen() {
             className={`${AUDIT_WORKSPACE_UI.layout.contentMaxWidthClass} mx-auto ds-pattern-page-shell-body space-y-6`}
           >
             <DomainHeaderCard activeDomain={state.activeDomain} domainData={domainData} />
+            {APP_FEATURE_FLAGS.coalitionProtocolEnabled ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ClientSituationCard snapshot={audit.coalition?.client_situation_snapshot} />
+                <CoalitionChainView coalition={audit.coalition} />
+                <ConflictMatrix resolution={audit.coalition?.conflict_resolution} />
+              </div>
+            ) : null}
             <StrengthsSection domainData={domainData} />
             <IssuesSection domainData={domainData} />
             <EnrichmentSection

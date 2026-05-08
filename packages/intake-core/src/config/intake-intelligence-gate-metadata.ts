@@ -137,7 +137,7 @@ export const INTAKE_INTELLIGENCE_GATE_METADATA: Record<string, IntakeIntelligenc
       },
     ],
     
-    ...s2("delivery_shape_baseline", 0.47, "strategy", "2026-05-22"),
+    ...s2("operations_bottleneck", 0.47, "strategy", "2026-05-22"),
   },
   a7: {
     whyAsked: 'Business stage calibrates risk appetite, time horizon, and the balance of quick wins vs foundation work.',
@@ -188,19 +188,19 @@ export const INTAKE_INTELLIGENCE_GATE_METADATA: Record<string, IntakeIntelligenc
     whyAsked: "Online appointment behavior drives trust, compliance-sensitive UX, and operational load.",
     semanticDomain: "resources" as DiagnosticSpineCategory,
     decisionImpact: [{ target: 'ux_conversion.trust_ladder', weight: 'high', effectDescription: 'Determines how aggressively self-serve booking can be recommended.' }] as DecisionImpact[],
-    ...s2("delivery_shape_baseline", 0.37, "automation_processes", "2026-06-26"),
+    ...s2("operations_bottleneck", 0.37, "automation_processes", "2026-06-26"),
   },
   b_hotel_1: {
     whyAsked: "Booking channel mix sets whether acquisition work should prioritize direct conversion vs OTA dependency.",
     semanticDomain: "market" as DiagnosticSpineCategory,
     decisionImpact: [{ target: 'ux_conversion.funnel_interventions', weight: 'high', effectDescription: 'Routes recommendations toward direct booking surfaces or distribution partnerships.' }] as DecisionImpact[],
-    ...s2("delivery_shape_baseline", 0.38, "seo_digital", "2026-05-15"),
+    ...s2("operations_bottleneck", 0.38, "seo_digital", "2026-05-15"),
   },
   b_hotel_2: {
     whyAsked: "Direct vs OTA balance affects margin, CRM ownership, and which experiments can move the needle.",
     semanticDomain: "economics" as DiagnosticSpineCategory,
     decisionImpact: [{ target: 'strategy.unit_economics', weight: 'high', effectDescription: 'Calibrates acceptable acquisition spend against net contribution after commissions.' }] as DecisionImpact[],
-    ...s2("delivery_shape_baseline", 0.39, "security_compliance", "2026-05-22"),
+    ...s2("operations_bottleneck", 0.39, "security_compliance", "2026-05-22"),
   },
   b_marine_1: {
     whyAsked: "Charter platform mix affects lead quality, seasonality handling, and partner-channel strategy.",
@@ -218,13 +218,13 @@ export const INTAKE_INTELLIGENCE_GATE_METADATA: Record<string, IntakeIntelligenc
     whyAsked: "Reservation tooling affects no-show risk, staffing forecasts, and conversion from discovery to visit.",
     semanticDomain: "operations" as DiagnosticSpineCategory,
     decisionImpact: [{ target: 'ux_conversion.funnel_interventions', weight: 'high', effectDescription: 'Prioritizes booking UX, deposits, and reminder automations where appropriate.' }] as DecisionImpact[],
-    ...s2("delivery_shape_baseline", 0.44, "ux_conversion", "2026-06-12"),
+    ...s2("operations_bottleneck", 0.44, "ux_conversion", "2026-06-12"),
   },
   b_services_1: {
     whyAsked: "Service booking flow is often the primary conversion surface for professional services firms.",
     semanticDomain: "operations" as DiagnosticSpineCategory,
     decisionImpact: [{ target: 'ux_conversion.funnel_interventions', weight: 'high', effectDescription: 'Focuses recommendations on scheduling friction and qualification steps.' }] as DecisionImpact[],
-    ...s2("delivery_shape_baseline", 0.45, "recon", "2026-06-19"),
+    ...s2("operations_bottleneck", 0.45, "recon", "2026-06-19"),
   },
   b1: {
     whyAsked: 'Ideal customer definition narrows ICP, channel choice, and pricing tolerance before tactical plans.',
@@ -385,7 +385,7 @@ export const INTAKE_INTELLIGENCE_GATE_METADATA: Record<string, IntakeIntelligenc
         effectDescription: 'Defines whether recommendations should remove, simplify, or automate pre-payment steps.',
       },
     ],
-    ...s2("delivery_shape_baseline", 0.47, "strategy", "2026-06-12"),
+    ...s2("operations_bottleneck", 0.47, "strategy", "2026-06-12"),
   },
   d2: {
     whyAsked: 'Primary bottleneck identifies where process change can produce the largest near-term operational impact.',

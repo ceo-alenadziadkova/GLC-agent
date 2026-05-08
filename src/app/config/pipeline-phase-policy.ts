@@ -19,10 +19,3 @@ export const PIPELINE_STRATEGY_PHASE_INDEX = lastReviewGatePhase;
 export function isPipelineStrategyReviewGateAfterPhase(afterPhase: number): boolean {
   return afterPhase === PIPELINE_STRATEGY_PHASE_INDEX;
 }
-
-export function hasNonEmptyReviewNotesForRerun(
-  consultantNotes: string | undefined,
-  interviewNotes: string | undefined,
-): boolean {
-  return Boolean(consultantNotes?.trim()) || Boolean(interviewNotes?.trim());
-}

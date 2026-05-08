@@ -13,14 +13,18 @@ import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
 import { PipelineMonitor }  from './pages/PipelineMonitor';
 import { ReportViewer }     from './pages/ReportViewer';
-import { StrategyLab }      from './pages/strategy-lab/StrategyLabPage';
 import { Login }            from './pages/Login';
 import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
-import { PortalTimelinePage } from './pages/PortalTimelinePage';
-import { PortalRoadmapGanttPage } from './pages/PortalRoadmapGanttPage';
 import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
+import { LegacyPlanPathRedirect } from './pages/portal-plan/LegacyPlanPathRedirect';
+import { LegacyStrategyPathRedirect } from './pages/portal-plan/LegacyStrategyPathRedirect';
+import { PlanWorkspaceLayout } from './pages/portal-plan/PlanWorkspaceLayout';
+import {
+  LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+  PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+} from './pages/portal-plan/plan-workspace-nested-routes';
 import { ConsultantOrchestrationCockpitPage } from './pages/ConsultantOrchestrationCockpitPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
@@ -40,8 +44,9 @@ import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { AdminAllAudits } from './pages/AdminAllAudits';
 import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
-import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
-import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
+// LEGACY (TD-034 / TD-035 in docs/TECH_DEBT.md): admin tools disabled, scheduled for full deletion.
+// import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
+// import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
 import { AdminDesignSystemPage } from './pages/AdminDesignSystemPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
@@ -140,14 +145,33 @@ export const router = createBrowserRouter([
       { path: P.adminAudits, element: <Consultant><AdminAllAudits /></Consultant> },
       { path: P.adminSnapshots, element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
-      { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
-      { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
+      // LEGACY (TD-034 / TD-035 in docs/TECH_DEBT.md): admin tools disabled, scheduled for full deletion.
+      // { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
+      // { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
       { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
-      { path: P.timelineById, element: <Consultant><PortalTimelinePage /></Consultant> },
-      { path: P.roadmapById, element: <Consultant><PortalRoadmapGanttPage /></Consultant> },
+      { path: P.timelineById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="timeline" /></Consultant> },
+      { path: P.roadmapById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="roadmap" /></Consultant> },
+      {
+        path: P.planById,
+        element: (
+          <Consultant>
+            <PlanWorkspaceLayout />
+          </Consultant>
+        ),
+        children: PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
+      {
+        path: P.labById,
+        element: (
+          <Consultant>
+            <PlanWorkspaceLayout />
+          </Consultant>
+        ),
+        children: LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
-      { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
+      { path: P.strategyById, element: <Consultant><LegacyStrategyPathRedirect variant="consultant" /></Consultant> },
       { path: P.auditOrchestrationById, element: <Consultant><ConsultantOrchestrationCockpitPage /></Consultant> },
       { path: P.settings, element: <PNoGuest><SettingsPage /></PNoGuest> },
 
@@ -155,9 +179,27 @@ export const router = createBrowserRouter([
       { path: P.portalAuditNew, element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
       { path: P.portalPipelineById, element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
-      { path: P.portalTimelineById, element: <ClientPortalShell><PortalTimelinePage /></ClientPortalShell> },
-      { path: P.portalRoadmapById, element: <ClientPortalShell><PortalRoadmapGanttPage /></ClientPortalShell> },
-      { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
+      { path: P.portalTimelineById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="timeline" /></ClientPortalShell> },
+      { path: P.portalRoadmapById, element: <ClientPortalShell><LegacyPlanPathRedirect variant="portal" surface="roadmap" /></ClientPortalShell> },
+      {
+        path: P.portalPlanById,
+        element: (
+          <ClientPortalShell>
+            <PlanWorkspaceLayout />
+          </ClientPortalShell>
+        ),
+        children: PLAN_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
+      {
+        path: P.portalLabById,
+        element: (
+          <ClientPortalShell>
+            <PlanWorkspaceLayout />
+          </ClientPortalShell>
+        ),
+        children: LAB_WORKSPACE_NESTED_ROUTE_OBJECTS,
+      },
+      { path: P.portalStrategyById, element: <ClientPortalShell><LegacyStrategyPathRedirect variant="portal" /></ClientPortalShell> },
       { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
       { path: P.portal, element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },

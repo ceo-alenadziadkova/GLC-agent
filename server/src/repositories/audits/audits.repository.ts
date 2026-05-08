@@ -12,6 +12,11 @@ export async function fetchAuditForBriefById(id: string) {
     .single();
 }
 
+/** Ownership row for brief clone-from (access + client_id guard). */
+export async function fetchAuditBriefClonePartiesByIds(ids: readonly string[]) {
+  return supabase.from('audits').select('id, user_id, client_id').in('id', [...ids]);
+}
+
 export async function fetchAuditForHelpRequestById(id: string) {
   return supabase.from('audits').select('id, user_id, client_id, company_url, status').eq('id', id).single();
 }

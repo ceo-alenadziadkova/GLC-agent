@@ -55,6 +55,12 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   directorOrchestrationAgentOutputEnabled: true,
   /**
+   * Deterministic coercion of Coalition domain Claude `tool_use` before Zod (`cross_domain_refs`, severity/status,
+   * recommendation impact benchmark hint, stripping inconsistent optional status fields).
+   * Env: FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE=false to disable.
+   */
+  domainOutputCoalitionNormalizeEnabled: true,
+  /**
    * When true, timeline-first UX rollout hooks may emit extra structured logs / gates.
    * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
    */
@@ -134,6 +140,16 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   nlIngressLlmEnabled: false,
   /**
+   * Optional second LLM pass for `POST /api/intake/:token/intelligence-snapshot` (F2 + narrative).
+   * When false, the route returns deterministic follow-up order only.
+   * Env: FEATURE_INTAKE_INTELLIGENCE_SNAPSHOT_LLM
+   */
+  intakeIntelligenceSnapshotLlmEnabled: false,
+  /**
+   * Second pass: B1 display phrasing for bank question ids (POST …/intelligence-wording). Env: FEATURE_INTAKE_INTELLIGENCE_WORDING_LLM
+   */
+  intakeIntelligenceWordingLlmEnabled: false,
+  /**
    * Rollout mode for NL ingress LLM mapper.
    * Allowed: shadow | internal | pilot | ga.
    * Env: FEATURE_NL_INGRESS_LLM_ROLLOUT_MODE
@@ -174,4 +190,88 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Anthropic prompt cache on stable system/tool prefixes. Env: FEATURE_LLM_PROMPT_CACHE
    */
   llmPromptCacheEnabled: true,
+  /**
+   * On POST /api/audits with a public site URL, run Lighthouse immediately and persist `lighthouse_bootstrap` + prefill hints.
+   * Env: FEATURE_NEW_AUDIT_LIGHTHOUSE_BOOTSTRAP
+   */
+  newAuditLighthouseBootstrapEnabled: true,
+  /**
+   * On POST /api/audits with a public site URL, run deterministic site scan (snapshot-class) and persist `new_audit_site_recon`.
+   * Env: FEATURE_NEW_AUDIT_SITE_SCRAPE
+   */
+  newAuditSiteScrapeEnabled: true,
+  /**
+   * Allows `POST /api/audits/:id/brief/intelligence-snapshot` with `{ early_capture: true }` after identity-only slots
+   * (consultant audits with `client_id` null).
+   * Env: FEATURE_BRIEF_EARLY_INTELLIGENCE_SNAPSHOT
+   */
+  briefEarlyIntelligenceSnapshotEnabled: true,
+  /**
+   * `POST /api/audits/:id/brief/clone-from` — copy bank responses from another audit (same consultant access + client_id match).
+   * Env: FEATURE_BRIEF_CLONE_FROM_AUDIT
+   */
+  briefCloneFromAuditEnabled: true,
+  /**
+   * Delivery Board (`/plan` `view=board`) rollout — `shadow` hides UI gates; consult ADR Delivery Board.
+   * Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE
+   */
+  planDeliveryBoardRolloutMode: 'ga',
+  /**
+   * Blocks **manual** `plan_task_delivery` rows from entering the **in_progress** column (PATCH + POST manual-card).
+   * Strict appendix §2.3 enforcement (product-approved default on).
+   * Env: `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS`
+   */
+  planBoardStrictManualInProgressBlocked: true,
+  /**
+   * When true, consultants may call `POST …/plan/board/reconcile/preview` for a dry-run diff before reconcile.
+   * Env: `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW`
+   */
+  planBoardReconcileDiffPreviewEnabled: false,
+  /**
+   * When true, pack-persist reconcile applies updates/inserts + pipeline event via `plan_board_apply_reconcile_batch` (single transaction + advisory lock).
+   * Env: `FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`
+   */
+  planBoardReconcileTransactionalApplyEnabled: true,
+  /**
+   * Board lane/owner hints queue into roadmap manifest drafts (Epic 2.1-C) instead of PATCH `lane`
+   * writing `plan_task_delivery.pack_lane_snapshot` directly for consultants.
+   * Env: `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD`
+   */
+  manifestDraftRevisionsFromBoardEnabled: true,
+  /**
+   * Per-audit custom Delivery Board column ids (Epic 3). Requires owner `profiles.plan_board_custom_columns_entitled`.
+   * Env: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`
+   */
+  planBoardCustomColumnsEnabled: false,
+  /**
+   * Master switch for the Collaborative Director Protocol (concept ADR
+   * `ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md`). When `false`, pipeline
+   * is byte-equivalent to legacy. Env: `FEATURE_COALITION_PROTOCOL_ENABLED`
+   */
+  coalitionProtocolEnabled: false,
+  /**
+   * Rollout mode for the Collaborative Director Protocol (`shadow | internal | pilot | ga`).
+   * Defines whether coalition-phase results feed Phase 4 finalize.
+   * Env: `FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE`
+   */
+  coalitionProtocolRolloutMode: 'shadow',
+  /**
+   * Internal/pilot staged rollout allowlists for coalition protocol.
+   * Env: `FEATURE_COALITION_PROTOCOL_ALLOWLIST_USER_IDS`,
+   * `FEATURE_COALITION_PROTOCOL_ALLOWLIST_CLIENT_IDS`
+   */
+  coalitionProtocolAllowlistUserIds: [] as string[],
+  coalitionProtocolAllowlistClientIds: [] as string[],
+  /**
+   * V2+ only: enables iterative multi-turn between directors during Phase 3.
+   * V1 stays single-call. Env: `FEATURE_COALITION_PHASE3_ITERATIVE`
+   */
+  coalitionPhase3IterativeEnabled: false,
+  /**
+   * Allows auto-loop to retrigger Phase 0.5 (Context Director) when the
+   * resolver returns critical-confidence assumptions or unresolved
+   * `recommended_action='escalate'` entries. Capped per audit by policy.
+   * Env: `FEATURE_COALITION_AUTO_LOOP_ENABLED`
+   */
+  coalitionAutoLoopEnabled: false,
 } as const;

@@ -8,6 +8,8 @@ export const UI_POLICY = {
   },
   pipeline: {
     maxEventsInMemory: 100,
+    /** Above this row count the pipeline execution log uses a scroll-region virtualizer (aligned with hook memory cap intent). */
+    executionLogVirtualizeRowThreshold: 28,
     defaultEventDetailLevel: 'default',
     debugEventDetailLevel: 'debug',
     defaultEventPageSize: 100,

@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
+
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
-import { PackGraphConsultantCanvas } from '../../features/strategy-lab/PackGraphConsultantCanvas';
+import { Button } from '../../components/ui/button';
+import { PackGraphConsultantCanvas } from './PackGraphConsultantCanvas';
 import { PortalTimelinePackGraphPanel } from '../../components/glc/PortalTimelinePackGraphPanel';
 import { cn } from '../../components/ui/utils';
 import {
@@ -29,6 +32,10 @@ export function StrategyLabOrchestratorListBody({
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
 }) {
+  const [risksExpanded, setRisksExpanded] = useState(false);
+  useEffect(() => {
+    if (tab !== 'risks') setRisksExpanded(false);
+  }, [tab]);
   const titleById = orchestrationNodeTitleMap(pack);
   const { near, mid, far } = partitionCriticalPathNodeIds(pack);
 
@@ -109,13 +116,17 @@ export function StrategyLabOrchestratorListBody({
               onConsultantSelectNode={onSelectNode}
             />
           ) : (
-            <PortalTimelinePackGraphPanel
-              pack={pack}
-              graphPresentation="default"
-              headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
-              headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
-              onConsultantSelectNode={onSelectNode}
-            />
+            <div className="space-y-2" role="status" aria-live="polite">
+              <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.packDependencyMap.graphCanvasFallbackNote}</p>
+              <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed">{STRATEGY_LAB_COPY.packDependencyMap.graphCanvasFallbackAriaDetail}</p>
+              <PortalTimelinePackGraphPanel
+                pack={pack}
+                graphPresentation="default"
+                headingTitle={STRATEGY_LAB_COPY.packDependencyMap.sectionTitle}
+                headingHint={STRATEGY_LAB_COPY.packDependencyMap.sectionHint}
+                onConsultantSelectNode={onSelectNode}
+              />
+            </div>
           )
         ) : null}
         {allEdges.length === 0 ? (
@@ -165,15 +176,26 @@ export function StrategyLabOrchestratorListBody({
     );
   }
 
-  const risks = pack.conflicts_resolved.slice(0, ORCHESTRATION_UI_LIMITS.orchestratorRisksMaxItems);
-  if (risks.length === 0) {
+  const allRisks = pack.conflicts_resolved;
+  if (allRisks.length === 0) {
     return (
       <div className="text-muted-foreground py-10 text-center text-sm">{STRATEGY_LAB_COPY.orchestratorTabs.emptyRisks}</div>
     );
   }
+  const max = ORCHESTRATION_UI_LIMITS.orchestratorRisksMaxItems;
+  const isTruncated = allRisks.length > max && !risksExpanded;
+  const risks = risksExpanded ? allRisks : allRisks.slice(0, max);
+  const shownCount = risks.length;
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground text-xs leading-relaxed">{ORCHESTRATION_UI_COPY.conflictSynthesisNote}</p>
+      {isTruncated ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {STRATEGY_LAB_COPY.orchestratorTabs.risksShownOfTotal
+            .replace('{shown}', String(shownCount))
+            .replace('{total}', String(allRisks.length))}
+        </p>
+      ) : null}
       <ul className="space-y-3">
         {risks.map(c => (
           <li key={c.id} className="rounded-lg border border-border bg-card px-3 py-2 text-xs">
@@ -182,6 +204,18 @@ export function StrategyLabOrchestratorListBody({
           </li>
         ))}
       </ul>
+      {allRisks.length > max ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="text-xs"
+          aria-expanded={risksExpanded}
+          onClick={() => setRisksExpanded(e => !e)}
+        >
+          {risksExpanded ? STRATEGY_LAB_COPY.orchestratorTabs.risksShowFewer : STRATEGY_LAB_COPY.orchestratorTabs.risksShowAll}
+        </Button>
+      ) : null}
     </div>
   );
 }

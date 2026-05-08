@@ -1,17 +1,19 @@
 import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
 import { Callout } from '../../../components/ui/callout';
+import { ClientProjectContextPanel } from '../../../components/ClientProjectContextPanel';
 import type { BriefResponses } from '../../../data/briefQuestions';
 
 export type Step2ReviewProps = {
   url: string;
   name: string;
   industry: string;
+  industrySpecify: string;
   coveragePackage: AuditCoveragePackage;
   selectedDomains: DomainKey[];
   answeredRequired: number;
@@ -21,12 +23,14 @@ export type Step2ReviewProps = {
   onBackToStep1: () => void;
   onGoToStep3: () => void;
   clientDraftSaveSection: ReactNode;
+  draftAuditId: string | null;
 };
 
 export function Step2Review({
   url,
   name,
   industry,
+  industrySpecify,
   coveragePackage,
   selectedDomains,
   answeredRequired,
@@ -36,7 +40,13 @@ export function Step2Review({
   onBackToStep1,
   onGoToStep3,
   clientDraftSaveSection,
+  draftAuditId,
 }: Step2ReviewProps) {
+  const clientProjectContextSyncKey = useMemo(
+    () => JSON.stringify(pipelineGateBriefResponses),
+    [pipelineGateBriefResponses],
+  );
+
   return (
     <motion.div
       key="step2-review"
@@ -98,6 +108,12 @@ export function Step2Review({
           </div>
         </div>
       </Callout>
+
+      <ClientProjectContextPanel
+        auditId={draftAuditId}
+        briefSyncKey={clientProjectContextSyncKey}
+        clientStep0Basics={{ industry, industrySpecify }}
+      />
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
         <button

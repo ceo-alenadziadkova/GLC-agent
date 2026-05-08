@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS } from '@glc/intake-core';
+
+import { MANIFEST_DRAFT_REVISION_OWNER_HINT_MAX_CHARS } from '../config/orchestration-manifest-draft-policy.js';
 import {
   ORCHESTRATION_CONSTRAINT_KEYS,
   GLC_ORCHESTRATION_PACK_SCHEMA_VERSION,
@@ -80,6 +83,10 @@ const OrchestrationGraphNodeSchema = z.object({
   evidence_taxonomy: OrchestrationEvidenceTaxonomySchema.optional(),
   /** Optional typed evidence handles (intake, url, collector, artifact) — may be empty when only counts exist. */
   evidence_refs: z.array(z.string().min(1)).optional(),
+  /** Optional Delivery Board identity hint (from Strategy initiative when present). */
+  board_identity_key: z.string().min(1).max(CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS).optional(),
+  /** Optional consultant execution hint surfaced on Delivery Board (from signed manifest v3). */
+  owner_hint: z.string().min(1).max(MANIFEST_DRAFT_REVISION_OWNER_HINT_MAX_CHARS).optional(),
 });
 
 const OrchestrationGraphPayloadSchema = z.object({

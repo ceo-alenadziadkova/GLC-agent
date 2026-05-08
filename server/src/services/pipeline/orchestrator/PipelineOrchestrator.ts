@@ -26,8 +26,13 @@ import { getPhaseAgentClass } from './phase-agent-registry.js';
 import { loadNormalizedExecutionPlanForAudit } from './execution-plan-loader.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import { runParallelBlockForAudit } from './parallel-block.js';
+import { runCoalitionShadowBlock } from './coalition-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
 import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
+import {
+  runStrategyRepairedJsonApplyOrchestrated,
+  type StrategyRepairedApplyWorkflowResult,
+} from '../../strategy/strategy-repaired-json-apply.service.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
@@ -195,18 +200,39 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Retry a domain phase (1–6) using the same isolated execution path as parallel wings.
-   * If the latest `audit_domains` row for that domain is already `completed`, collectors and
-   * LLM are skipped (idempotent retry). Does not mutate `audits.status` / `current_phase`
-   * at phase start (same as parallel isolated runs).
+   * Retry a domain phase (1–6) using the isolated execution path.
    *
+   * Unlike incidental parallel-wing replays, an explicit consultant `POST …/pipeline/retry` **must**
+   * re-run collectors/LLM even when the latest `audit_domains` row is already `completed`, so scores
+   * and narratives can be revised (typically after review notes).
+   *
+   * Does not mutate `audits.status` / `current_phase` at phase start (same as parallel isolated runs).
    * Phase 0 and 7 must use {@link startPhase} (sequential lifecycle, gates).
    */
   async retryDomainPhase(phase: number): Promise<void> {
     if (!Number.isInteger(phase) || phase < 1 || phase > 6) {
       throw new Error(`retryDomainPhase expects integer phase 1–6, got ${phase}`);
     }
-    await this.startPhaseIsolated(phase);
+    await this.startPhaseIsolated(phase, { consultantRetryBypassAlreadyCompletedIsolation: true });
+  }
+
+  /**
+   * Platform-only: finalize phase 7 without calling Claude — operators POST a repaired `tool_use`-shaped payload.
+   * Mirrors governance + DB finalize ordering used after a successful {@link StrategyAgent} run.
+   */
+  async applyRepairedStrategyToolJson(
+    rawToolInput: unknown,
+    opts: { forceReplaceCompletedAudit: boolean },
+  ): Promise<StrategyRepairedApplyWorkflowResult> {
+    return runStrategyRepairedJsonApplyOrchestrated({
+      auditId: this.auditId,
+      rawToolInput,
+      forceReplaceCompletedAudit: opts.forceReplaceCompletedAudit,
+      deps: {
+        publishControlObjectGovernance: (phaseNum, controlObject, evaluationCapture) =>
+          this.publishControlObjectGovernance(phaseNum, controlObject, evaluationCapture),
+      },
+    });
   }
 
   /**
@@ -214,7 +240,10 @@ export class PipelineOrchestrator {
    * Handles audit-level status updates, review gates, and full error propagation.
    * Used for Phase 0 (Recon), Phase 7 (Strategy), and pipeline/start-style entry.
    */
-  async startPhase(phase: number): Promise<SequentialPhaseOutcome> {
+  async startPhase(
+    phase: number,
+    opts?: { beforeReviewGate?: (phase: number) => Promise<void> },
+  ): Promise<SequentialPhaseOutcome> {
     const agentClass = agentClassForPhaseOrThrow(phase);
     const outcome = await runSinglePhaseWithLifecycle({
       mode: 'sequential',
@@ -227,6 +256,7 @@ export class PipelineOrchestrator {
       attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
       publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
       getExecutionPlan: () => this.getExecutionPlan(),
+      beforeSequentialReviewGate: opts?.beforeReviewGate,
     });
     if (outcome === undefined) {
       throw new Error('Invariant: sequential phase returned no outcome');
@@ -234,7 +264,10 @@ export class PipelineOrchestrator {
     return outcome;
   }
 
-  private async startPhaseIsolated(phase: number): Promise<void> {
+  private async startPhaseIsolated(
+    phase: number,
+    opts?: { consultantRetryBypassAlreadyCompletedIsolation?: boolean },
+  ): Promise<void> {
     const agentClass = agentClassForPhaseOrThrow(phase);
     await runSinglePhaseWithLifecycle({
       mode: 'isolated',
@@ -246,6 +279,8 @@ export class PipelineOrchestrator {
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
       attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
       publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
+      isolationConsultantRetryBypassAlreadyCompleted:
+        opts?.consultantRetryBypassAlreadyCompletedIsolation === true,
     });
   }
 
@@ -255,6 +290,7 @@ export class PipelineOrchestrator {
       parallelFailureThreshold: PARALLEL_FAILURE_THRESHOLD,
       emitEvent: this.emitEvent.bind(this),
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
+      assertNotCancelled: () => this.assertNotCancelled(),
       runIsolatedPhase: (p) => this.startPhaseIsolated(p),
     });
   }
@@ -270,7 +306,11 @@ export class PipelineOrchestrator {
       loadExecutionPlan: () => this.getExecutionPlan(),
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
       runParallelBlock: (phases) => this.runParallelBlock(phases),
-      startPhaseSequential: (p) => this.startPhase(p),
+      runCoalitionBlock: () => runCoalitionShadowBlock({
+        auditId: this.auditId,
+        emitEvent: this.emitEvent.bind(this),
+      }),
+      startPhaseSequential: (p, opts) => this.startPhase(p, opts),
       emitEvent: this.emitEvent.bind(this),
       cancelledErrorFactory: () => new PipelineCancelledError(),
     });

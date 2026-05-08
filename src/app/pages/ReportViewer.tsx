@@ -1,61 +1,47 @@
-import { useState, type ElementType } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import {
-  ArrowUpRight, FileText, ArrowsClockwise,
-  DownloadSimple, User, Code, Megaphone, Article, ChartBar,
+  FileText, ArrowsClockwise,
+  DownloadSimple,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { StatusPill } from '../components/glc/StatusPill';
 import { useAudit } from '../hooks/useAudit';
-import { type ReportProfile } from '@glc/intake-core';
-import { ProfileTabs } from '../features/report-viewer/components/ProfileTabs';
 import { ReportHeroCard } from '../features/report-viewer/components/ReportHeroCard';
-import { CoverageCard } from '../features/report-viewer/components/CoverageCard';
 import { DomainScorecard } from '../features/report-viewer/components/DomainScorecard';
 import { ReportFindings } from '../features/report-viewer/components/ReportFindings';
-import { FollowUpCard } from '../features/report-viewer/components/FollowUpCard';
-import { ReportOrchestrationRoadmapSection } from '../features/report-viewer/components/ReportOrchestrationRoadmapSection';
-import { ReportRoadmapCockpitSection } from '../features/report-viewer/components/ReportRoadmapCockpitSection';
 import { Button } from '../components/ui/button';
-import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
-import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { REPORT_VIEWER_COPY } from '../features/report-viewer/config/report-viewer.copy.en';
 import { REPORT_VIEWER_CONSTANTS } from '../features/report-viewer/config/report-viewer.constants';
-import { ORCHESTRATION_MANIFEST_SETUP_DOM_ID, ORCHESTRATION_PANEL_DOM_ID } from '../config/orchestration-ui-limits';
-import { buildAppRoute } from '../config/route-paths';
-import { PIPELINE_UI_COPY } from '../config/pipeline-ui-copy.en';
+import { APP_ROUTE_PATHS } from '../config/route-paths';
 import {
   getReportPageViewModel,
-  getReportProfileOptions,
 } from '../features/report-viewer/domain/selectors';
 import { downloadReportCsv, downloadReportPdf } from '../features/report-viewer/services/report-export.client';
-import { ExecutionLogPanel } from '../components/pipeline/ExecutionLogPanel';
-
-const PROFILE_ICONS: Record<ReportProfile, ElementType> = {
-  full: ChartBar,
-  owner: User,
-  tech: Code,
-  marketing: Megaphone,
-  onepager: Article,
-};
-
-const PROFILES = getReportProfileOptions(PROFILE_ICONS);
+import { CollapsibleSection } from '../components/CollapsibleSection';
+import { toast } from 'sonner';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
 
 export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
   const { pathname } = useLocation();
-  const { audit, loading, error } = useAudit(id);
-  const [profile, setProfile] = useState<ReportProfile>('full');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { audit, loading, error, reload } = useAudit(id);
+  const profile = 'full' as const;
   const [csvLoading, setCsvLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [sectionOpenState, setSectionOpenState] = useState({
+    scorecard: true,
+    findings: true,
+  });
 
   async function handleExportPdf() {
     if (!id) return;
     setPdfLoading(true);
     try {
       await downloadReportPdf(id, profile);
-    } catch {
-      // Error already logged in report export client.
+    } catch (error) {
+      toast.error(toUiApiErrorMessage(error, REPORT_VIEWER_COPY.errors.exportPdfFailed));
     } finally {
       setPdfLoading(false);
     }
@@ -66,28 +52,49 @@ export function ReportViewer() {
     setCsvLoading(true);
     try {
       await downloadReportCsv(id, profile);
-    } catch {
-      // Error already logged in report export client.
+    } catch (error) {
+      toast.error(toUiApiErrorMessage(error, REPORT_VIEWER_COPY.errors.exportCsvFailed));
     } finally {
       setCsvLoading(false);
     }
   }
 
+  useEffect(() => {
+    if (!searchParams.has('profile')) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('profile');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   if (loading && !audit) {
     return (
       <AppShell title={REPORT_VIEWER_COPY.pageTitle} subtitle={REPORT_VIEWER_COPY.loadingSubtitle}>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex h-64 items-center justify-center" role="status" aria-live="polite">
           <ArrowsClockwise className="w-6 h-6 animate-spin ds-text-brand"  />
+          <span className="sr-only">{REPORT_VIEWER_COPY.loadingSubtitle}</span>
         </div>
       </AppShell>
     );
   }
 
   if (error || !audit) {
+    const isPortalReport = pathname.startsWith('/portal/reports/');
+    const safeFallbackPath = isPortalReport ? APP_ROUTE_PATHS.portal : APP_ROUTE_PATHS.dashboard;
     return (
       <AppShell title={REPORT_VIEWER_COPY.pageTitle} subtitle={REPORT_VIEWER_COPY.errorSubtitle}>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex h-64 flex-col items-center justify-center gap-3">
           <p className="ds-text-score-1">{error || REPORT_VIEWER_COPY.reportNotFound}</p>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={reload}>
+              <ArrowsClockwise className="w-4 h-4" />
+              {REPORT_VIEWER_COPY.buttons.retry}
+            </Button>
+            <Button asChild variant="ghost">
+              <Link to={safeFallbackPath}>{REPORT_VIEWER_COPY.buttons.backToWorkspace}</Link>
+            </Button>
+          </div>
         </div>
       </AppShell>
     );
@@ -96,11 +103,20 @@ export function ReportViewer() {
   const reportVm = getReportPageViewModel(audit, profile);
   const maxItems = REPORT_VIEWER_CONSTANTS.profileMaxItems[profile];
   const isPortalReport = pathname.startsWith('/portal/reports/');
-  const strategyPath = isPortalReport ? buildAppRoute.portalStrategy(id ?? '') : buildAppRoute.strategy(id ?? '');
-  const timelinePath = isPortalReport ? buildAppRoute.portalTimeline(id ?? '') : buildAppRoute.timeline(id ?? '');
-  const timelineManifestPath = `${timelinePath}#${ORCHESTRATION_MANIFEST_SETUP_DOM_ID}`;
-  const timelineComparePath = `${timelinePath}#${ORCHESTRATION_PANEL_DOM_ID}`;
-  const hasOrchestrationPack = isGlcOrchestrationPackView(audit.strategy?.glc_orchestration_pack);
+
+  function updateSectionOpenState(
+    key: keyof typeof sectionOpenState,
+    isOpen: boolean,
+  ) {
+    setSectionOpenState((previous) => ({ ...previous, [key]: isOpen }));
+  }
+
+  function buildDomainHref(auditId: string, domainKey: string): string {
+    if (isPortalReport) {
+      return buildAppRoute.portalAudit(auditId);
+    }
+    return `/audit/${auditId}/${domainKey}`;
+  }
 
   return (
     <AppShell
@@ -117,89 +133,100 @@ export function ReportViewer() {
                   : 'running'
             }
           />
-          <Button type="button" variant="outline" onClick={handleDownloadCsv} disabled={csvLoading} title={REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDownloadCsv}
+            disabled={csvLoading}
+            title={REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle}
+            aria-label={REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle}
+            aria-busy={csvLoading}
+          >
+            <span className="sr-only" aria-live="polite">
+              {csvLoading ? REPORT_VIEWER_COPY.status.generating : ''}
+            </span>
             <DownloadSimple className="w-4 h-4" />
-            {csvLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.actionPlanCsv}
+            <span className="hidden sm:inline">
+              {csvLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.actionPlanCsv}
+            </span>
           </Button>
-          <Button type="button" variant="outline" onClick={handleExportPdf} disabled={pdfLoading} title={REPORT_VIEWER_COPY.buttons.exportPdfTitle}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExportPdf}
+            disabled={pdfLoading}
+            title={REPORT_VIEWER_COPY.buttons.exportPdfTitle}
+            aria-label={REPORT_VIEWER_COPY.buttons.exportPdfTitle}
+            aria-busy={pdfLoading}
+          >
             <FileText className="w-4 h-4" />
-            {pdfLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.exportPdf}
+            <span className="hidden sm:inline">
+              {pdfLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.exportPdf}
+            </span>
           </Button>
         </div>
       }
     >
-      <div className="max-w-3xl mx-auto ds-pattern-page-shell-body space-y-6">
-        <ProfileTabs options={PROFILES} profile={profile} onSelect={setProfile} />
-
-        <ReportHeroCard
-          companyName={reportVm.companyName}
-          industry={audit.meta.industry}
-          createdAt={audit.meta.created_at}
-          executiveSummary={reportVm.executiveSummary}
-          averageScore={reportVm.averageScore}
-          criticalIssueCount={reportVm.criticalIssues.length}
-          quickWinsCount={reportVm.allQuickWins.length}
-        />
-
-        <CoverageCard
-          coveredDomains={reportVm.coverage.coveredDomains}
-          missingDomains={reportVm.coverage.missingDomains}
-          coverageRatio={reportVm.coverage.coverageRatio}
-          coverageAdjustedScore={reportVm.coverage.coverageAdjustedScore}
-        />
-
-        {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && (
-          <ReportRoadmapCockpitSection
-            audit={audit}
-            reportVm={reportVm}
-            timelineHref={timelinePath}
-            manifestHref={timelineManifestPath}
-            compareHref={timelineComparePath}
-            hasOrchestrationPack={hasOrchestrationPack}
-          />
-        )}
-
-        {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && (
-          <ReportOrchestrationRoadmapSection
-            strategy={audit.strategy}
-            strategyLabHref={strategyPath}
-            laneDisplayPreset={isPortalReport ? 'client_mvp' : 'full'}
-            selectedDomains={audit.meta.execution_plan?.selected_domains ?? null}
-          />
-        )}
-
-        <DomainScorecard
-          auditId={id}
-          domains={reportVm.profileDomains}
-          domainEntriesCount={reportVm.visibleDomainEntries.length}
-          isFilteredProfile={profile !== 'full'}
-          averageScore={reportVm.averageScore}
-        />
-
-        <ReportFindings
-          strengths={reportVm.allStrengths}
-          criticalIssues={reportVm.criticalIssues}
-          quickWins={reportVm.allQuickWins}
-          maxItems={maxItems}
-        />
-
-        <FollowUpCard
-          followUpQuestionsCount={reportVm.followUpQuestions.length}
-          answeredFollowUps={reportVm.answeredFollowUps}
-        />
-        <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.reportViewer} compact />
-
-        {/* Timeline-first link */}
-        {audit.strategy && (
-          <div className="text-center">
-            <Button asChild variant="outline" className="inline-flex no-underline">
-              <Link to={timelinePath}>
-                {REPORT_VIEWER_COPY.buttons.viewTimeline}{' '}
-                <ArrowUpRight className="w-4 h-4" />
-              </Link>
-            </Button>
+      <div className="max-w-3xl mx-auto ds-pattern-page-shell-body space-y-5">
+        <div className="space-y-5">
+          <div id={REPORT_VIEWER_CONSTANTS.sectionAnchors.hero}>
+            <ReportHeroCard
+              companyName={reportVm.companyName}
+              industry={audit.meta.industry}
+              createdAt={audit.meta.created_at}
+              executiveSummary={reportVm.executiveSummary}
+              averageScore={reportVm.averageScore}
+              criticalIssueCount={reportVm.criticalIssues.length}
+              quickWinsCount={reportVm.allQuickWins.length}
+            />
           </div>
-        )}
+
+          <CollapsibleSection
+            id={REPORT_VIEWER_CONSTANTS.sectionAnchors.scorecard}
+            title={REPORT_VIEWER_COPY.sections.scorecard}
+            defaultOpen
+            isOpen={sectionOpenState.scorecard}
+            onToggle={(isOpen) => updateSectionOpenState('scorecard', isOpen)}
+            summary={`${reportVm.visibleDomainEntries.length}/${REPORT_VIEWER_CONSTANTS.totalDomainCount} domains`}
+            headerExtra={
+              <span className="text-sm ds-text-tertiary">
+                {sectionOpenState.scorecard ? REPORT_VIEWER_COPY.collapsible.collapseLabel : REPORT_VIEWER_COPY.collapsible.expandLabel}
+              </span>
+            }
+            className="mb-0"
+          >
+            <DomainScorecard
+              auditId={id}
+              domains={reportVm.profileDomains}
+              domainEntriesCount={reportVm.visibleDomainEntries.length}
+              isFilteredProfile={profile !== 'full'}
+              averageScore={reportVm.averageScore}
+              buildDomainHref={buildDomainHref}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id={REPORT_VIEWER_CONSTANTS.sectionAnchors.findings}
+            title={REPORT_VIEWER_COPY.sections.criticalIssues}
+            defaultOpen
+            isOpen={sectionOpenState.findings}
+            onToggle={(isOpen) => updateSectionOpenState('findings', isOpen)}
+            summary={`${reportVm.criticalIssues.length} critical · ${reportVm.allQuickWins.length} quick wins`}
+            headerExtra={
+              <span className="text-sm ds-text-tertiary">
+                {sectionOpenState.findings ? REPORT_VIEWER_COPY.collapsible.collapseLabel : REPORT_VIEWER_COPY.collapsible.expandLabel}
+              </span>
+            }
+            className="mb-0"
+          >
+            <ReportFindings
+              strengths={reportVm.allStrengths}
+              criticalIssues={reportVm.criticalIssues}
+              quickWins={reportVm.allQuickWins}
+              maxItems={maxItems}
+            />
+          </CollapsibleSection>
+        </div>
       </div>
     </AppShell>
   );

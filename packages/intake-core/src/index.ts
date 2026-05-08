@@ -19,6 +19,9 @@ export {
 } from './branch-rules.js';
 export { isSoloTeamRaw } from './branch-response-normalizers.js';
 export {
+  areEarlyBriefCaptureSlotsSatisfied,
+  arePreBriefSubmitSlotsSatisfied,
+  getEarlyBriefCaptureSubmitSlotIds,
   getPreBriefSubmitSlotIds,
   getVisibleBankStubs,
   isPreBriefSubmitSlotSatisfied,
@@ -77,6 +80,7 @@ export {
   getResponseString,
   getResponseStringLower,
   isIntakeAnswered,
+  isIntakeAnsweredIncludingChoiceSpecify,
   unwrapIntakeValue,
 } from './unwrap.js';
 export {
@@ -147,6 +151,12 @@ export {
   choiceValueNeedsSpecify,
 } from './choice-specify-triggers.js';
 export {
+  appendUniversalIntakeChoiceEscapes,
+  INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL,
+  INTAKE_UNIVERSAL_CHOICE_OTHER_LABEL,
+  isUniversalIntakeDeferChoiceLabel,
+} from './intake-universal-choice-escapes.js';
+export {
   freeTextImpliesCrmTool,
   includesCrmTool,
   isA8KnownScale,
@@ -215,6 +225,10 @@ export {
   type DirectorDeepDiveBriefContext,
 } from './core/extract-director-deep-dive-context-from-brief.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
+export {
+  INTAKE_MINIMUM_CONTEXT_BANK_IDS,
+  isIntakeMinimumContextBankId,
+} from './intake-base-context-ids.js';
 export type {
   AuditReadinessStatus,
   BriefPriority,
@@ -247,6 +261,10 @@ export {
   DOMAIN_KEYS,
   INTAKE_READINESS_PROGRESSIVE_CERTAINTY_TRACE_CODES,
 } from './audit-contract.js';
+export {
+  operatorTriageReadinessTraceCodes,
+  READINESS_TRACE_CODES_EXCLUDED_FROM_OPERATOR_TRIAGE,
+} from './core/readiness-trace-triage.js';
 export {
   INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
   INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,
@@ -292,8 +310,10 @@ export {
 } from './marketing-brief-routing.js';
 export {
   APP_ROUTE_SEGMENTS,
+  PLAN_WORKSPACE_SURFACE_SEGMENTS,
   SPA_MARKETING_BRIEF_PATHS,
   SPA_ROUTE_SEGMENTS,
+  type PlanWorkspaceSurfacePathSegment,
   type SpaMarketingBriefSegmentKey,
 } from './spa-routes.js';
 export { DISCOVERY_SOCIAL_PLATFORM_OPTIONS } from './discovery-social-platform-options.js';
@@ -325,3 +345,32 @@ export {
   type DiscoveryUsesCrmInference,
   type NormalizedUsesCrmBrief,
 } from './discovery-brief-mapping.js';
+export {
+  ORCHESTRATION_CHANGE_SCENARIOS,
+  ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
+  ORCHESTRATION_PLAN_HORIZON_ISO,
+  ORCHESTRATION_PREVIEW_COMPRESSION_HINTS,
+  ORCHESTRATION_PREVIEW_LANE_DENSITY_BANDS,
+  ORCHESTRATION_RISK_TOLERANCE_PRESETS,
+  ORCHESTRATION_SEASON_PRESETS,
+  encodeManifestChangeSignature,
+  manifestPlanHorizonKey,
+  manifestSignatureArgsFromDraft,
+  parseOptionalOrchestrationPlanHorizon,
+  type OrchestrationChangeScenario,
+  type OrchestrationManifestSchemaVersion,
+  type OrchestrationPlanHorizon,
+  type OrchestrationPreviewCompressionHint,
+  type OrchestrationPreviewLaneDensityBand,
+  type OrchestrationRiskTolerancePreset,
+  type OrchestrationSeasonPreset,
+} from './orchestration-roadmap-manifest.js';
+export {
+  CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS,
+  CANONICAL_NODE_KEY_TITLE_MAX_CHARS,
+  canonicalNodeKeyFromManifestAndNode,
+  canonicalNodeKeyFromParts,
+  normalizeBoardIdentityKeyForCanonicalNodeKey,
+  normalizeLaneKeyForCanonicalNodeKey,
+  normalizeTitleForCanonicalNodeKey,
+} from './canonical-node-key.js';

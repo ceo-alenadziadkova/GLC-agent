@@ -6,6 +6,7 @@ import { PIPELINE_EVENT_ERROR_CODES } from '../../../config/pipeline-event-error
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import { PIPELINE_AUDIT_ORCHESTRATOR_STATUS } from '../../../config/pipeline-status.js';
 import { PHASE_DOMAIN_MAP } from '../../../types/audit.js';
+import { logger } from '../../logger.js';
 import type { EmitPipelineEventFn } from './run-single-phase.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 
@@ -14,11 +15,20 @@ export type RunParallelBlockParams = {
   parallelFailureThreshold: number;
   emitEvent: EmitPipelineEventFn;
   updateAuditIfNotCancelled: (patch: Record<string, unknown>) => Promise<boolean>;
+  /** Fresh DB cancel check after parallel work; must run before orchestration persist / summary events. */
+  assertNotCancelled: () => Promise<void>;
   runIsolatedPhase: (phase: number) => Promise<void>;
 };
 
 export async function runParallelBlockForAudit(params: RunParallelBlockParams): Promise<string[]> {
-  const { phases, parallelFailureThreshold, emitEvent, updateAuditIfNotCancelled, runIsolatedPhase } = params;
+  const {
+    phases,
+    parallelFailureThreshold,
+    emitEvent,
+    updateAuditIfNotCancelled,
+    assertNotCancelled,
+    runIsolatedPhase,
+  } = params;
 
   const ocPar = pipelineOrchestratorCopy();
   await emitEvent(
@@ -28,6 +38,8 @@ export async function runParallelBlockForAudit(params: RunParallelBlockParams): 
   );
 
   const results = await Promise.allSettled(phases.map((p) => runIsolatedPhase(p)));
+
+  await assertNotCancelled();
 
   const failedDomains: string[] = [];
   const cancelledErrors: Error[] = [];
@@ -43,6 +55,15 @@ export async function runParallelBlockForAudit(params: RunParallelBlockParams): 
   });
 
   if (cancelledErrors.length > 0) {
+    if (cancelledErrors.length > 1) {
+      logger.warn('pipeline.parallel_block_multiple_parallel_cancels', {
+        component: 'pipeline_parallel_block',
+        phases: phases.join(','),
+        parallel_cancel_error_count: cancelledErrors.length,
+        first_cancel_message: cancelledErrors[0]?.message ?? '',
+        additional_cancel_messages_preview: cancelledErrors.slice(1, 9).map((e) => e.message),
+      });
+    }
     throw cancelledErrors[0];
   }
 

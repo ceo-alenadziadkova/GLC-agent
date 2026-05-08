@@ -14,7 +14,7 @@ type LoginBrandSectionProps = {
 
 export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrandSectionProps) {
   return (
-    <div className="glc-login-brand mb-8 w-full text-center lg:text-left">
+    <div className="ds-login-brand mb-8 w-full text-center lg:text-left">
       <motion.div
         initial={{ scale: 0.75, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -42,7 +42,7 @@ export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrand
           </h1>
         </Link>
       </motion.div>
-      <p className="glc-login-brand-tagline mt-2 text-[length:var(--text-sm)] text-[var(--text-secondary)]">
+      <p className="ds-login-brand-tagline mt-2 text-[length:var(--text-sm)] text-[var(--text-secondary)]">
         {loginTagline}
       </p>
     </div>

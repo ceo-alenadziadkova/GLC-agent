@@ -1,10 +1,12 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { acquireRedisTokenLock, releaseRedisTokenLock } from '../lib/redis-token-lock.js';
 import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
 import { cleanupExpiredEvaluationDatasets } from '../lib/evaluation-datasets-retention.js';
 import { getSharedRedisClient } from './redis.js';
 import { emitStructuredNotification } from './notifications.js';
 import {
+  ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
   ALERT_CHECK_INTERVAL_MS,
   ALERT_CHECK_WINDOW_MINUTES,
   ALERT_COOLDOWN_MS,
@@ -20,6 +22,7 @@ import {
   formatPipelineFailureRateMessageEn,
   formatPipelineLatencyP95MessageEn,
   formatPipelineTokenBurnMessageEn,
+  formatPlanBoardConflictBurstMessageEn,
   pipelineAlertTitlesEn,
 } from '../config/alert-messages.en.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
@@ -64,14 +67,24 @@ function firstTraceId(events: Array<{ data?: unknown }>): string | undefined {
 export async function runAlertChecks(): Promise<void> {
   const since = new Date(Date.now() - WINDOW_MIN * 60 * 1000).toISOString();
 
-  const { data: events } = await supabase
+  const { data: events, error: windowEventsErr } = await supabase
     .from('pipeline_events')
     .select('audit_id,phase,event_type,created_at,data')
     .gte('created_at', since);
 
-  const started = (events ?? []).filter(e => e.event_type === PIPELINE_EVENT_TYPES.started).length;
-  const failed = (events ?? []).filter(e => e.event_type === PIPELINE_EVENT_TYPES.error).length;
-  const traceId = firstTraceId(events ?? []);
+  if (windowEventsErr) {
+    logger.warn('alerts.pipeline_events_window_query_failed', {
+      component: 'alerts',
+      error: windowEventsErr.message,
+      code: windowEventsErr.code,
+      window_minutes: WINDOW_MIN,
+    });
+  }
+
+  const eventRows = windowEventsErr ? [] : (events ?? []);
+  const started = eventRows.filter(e => e.event_type === PIPELINE_EVENT_TYPES.started).length;
+  const failed = eventRows.filter(e => e.event_type === PIPELINE_EVENT_TYPES.error).length;
+  const traceId = firstTraceId(eventRows);
   const failureRate = started > 0 ? failed / started : 0;
 
   if (failureRate >= FAILURE_RATE_THRESHOLD && shouldNotify('failure_rate')) {
@@ -96,7 +109,7 @@ export async function runAlertChecks(): Promise<void> {
 
   const starts = new Map<string, number>();
   const latencies: number[] = [];
-  for (const event of events ?? []) {
+  for (const event of eventRows) {
     const key = `${event.audit_id}:${event.phase}`;
     if (event.event_type === PIPELINE_EVENT_TYPES.started) {
       starts.set(key, new Date(event.created_at as string).getTime());
@@ -130,7 +143,7 @@ export async function runAlertChecks(): Promise<void> {
   }
 
   let tokenBurn = 0;
-  for (const event of events ?? []) {
+  for (const event of eventRows) {
     if (event.event_type !== PIPELINE_EVENT_TYPES.tokenUsage) continue;
     const total = (event.data as { total_tokens?: number } | null)?.total_tokens ?? 0;
     tokenBurn += total;
@@ -154,6 +167,59 @@ export async function runAlertChecks(): Promise<void> {
       sendTelegram: true,
     });
   }
+
+  const planBoardBurstTypes = new Set<string>([
+    PIPELINE_EVENT_TYPES.planBoardReconciled,
+    PIPELINE_EVENT_TYPES.planBoardConflict409,
+  ]);
+  const planBoardRowsByAudit = new Map<string, Array<{ created_at: string; event_type: string; data?: unknown }>>();
+  for (const event of eventRows) {
+    const et = String(event.event_type);
+    if (!planBoardBurstTypes.has(et)) continue;
+    const aid = String(event.audit_id ?? '');
+    if (!aid) continue;
+    const list = planBoardRowsByAudit.get(aid) ?? [];
+    list.push({ created_at: String(event.created_at), event_type: et, data: event.data });
+    planBoardRowsByAudit.set(aid, list);
+  }
+
+  for (const [auditKey, planRows] of planBoardRowsByAudit) {
+    const sorted = [...planRows].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const firstReconcile = sorted.find(r => r.event_type === PIPELINE_EVENT_TYPES.planBoardReconciled);
+    if (!firstReconcile) continue;
+    const conflictsAfter = sorted.filter(
+      r => r.event_type === PIPELINE_EVENT_TYPES.planBoardConflict409 && r.created_at > firstReconcile.created_at,
+    );
+    if (conflictsAfter.length < ALERT_BOARD_CONFLICT_BURST_THRESHOLD) continue;
+    if (!shouldNotify(`board_conflict_burst:${auditKey}`)) continue;
+    const burstTrace =
+      conflictsAfter.map(r => (r.data as { trace_id?: string } | null)?.trace_id).find(Boolean) ??
+      firstTraceId(eventRows);
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_plan_board_conflict_burst_post_reconcile',
+      priority: 'medium',
+      audience: 'consultants',
+      title: pipelineAlertTitlesEn.planBoardConflictBurstPostReconcile,
+      message: formatPlanBoardConflictBurstMessageEn({
+        auditId: auditKey,
+        conflictCount: conflictsAfter.length,
+        threshold: ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
+        windowMin: WINDOW_MIN,
+        traceSuffix: formatObservabilityTraceSuffixForAlerts(burstTrace),
+      }),
+      auditId: auditKey,
+      payload: {
+        audit_id: auditKey,
+        conflict_count: conflictsAfter.length,
+        threshold: ALERT_BOARD_CONFLICT_BURST_THRESHOLD,
+        window_minutes: WINDOW_MIN,
+        trace_id: burstTrace,
+      },
+      sendInApp: true,
+      sendTelegram: true,
+    });
+  }
 }
 
 export function startAlertsWorker(): void {
@@ -164,10 +230,10 @@ export function startAlertsWorker(): void {
       return;
     }
     const redis = getSharedRedisClient();
-    const lockToken = `${process.pid}:${Date.now()}`;
+    let lock = null as Awaited<ReturnType<typeof acquireRedisTokenLock>>;
     if (redis) {
-      const lock = await redis.set(ALERT_LOCK_KEY, lockToken, { NX: true, PX: ALERT_LOCK_TTL_MS });
-      if (lock !== 'OK') {
+      lock = await acquireRedisTokenLock(redis, ALERT_LOCK_KEY, ALERT_LOCK_TTL_MS);
+      if (!lock) {
         logger.debug('Alert worker tick skipped: distributed lock held');
         return;
       }
@@ -176,12 +242,9 @@ export function startAlertsWorker(): void {
     runAlertChecks().catch((err: Error) => logger.error('Alert worker failed', { error: err.message }))
       .finally(() => {
         alertChecksRunning = false;
-        if (redis) {
-          void redis.get(ALERT_LOCK_KEY).then((value) => {
-            if (value === lockToken) {
-              return redis.del(ALERT_LOCK_KEY);
-            }
-            return 0;
+        if (lock) {
+          void releaseRedisTokenLock(lock).catch((releaseErr: Error) => {
+            logger.warn('Alert worker lock release failed', { error: releaseErr.message });
           });
         }
       });

@@ -12,6 +12,11 @@ export const SYSTEM_DEFAULTS_ALERTS = {
   lockTtlMs: 55_000,
   /** Min interval between Telegram notifications for the same user + support ref (`spa_ui_incident`). */
   spaUiIncidentTelegramCooldownMs: 300_000,
+  /**
+   * Delivery Board: min count of `plan_board_conflict_409` events after the first `plan_board_reconciled`
+   * in the rolling alert window (same minutes as `windowMinutes`) before emitting `alert_plan_board_conflict_burst`.
+   */
+  boardConflictBurstMinCount: 3,
 } as const;
 
 export const SYSTEM_DEFAULTS_OBSERVABILITY = {

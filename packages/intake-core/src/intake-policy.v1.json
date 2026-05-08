@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "intelligence": {
     "casePatternsEnabled": true,
     "caseStopPrunesOptionalOverlay": true,
@@ -140,13 +140,13 @@
       "identitySpecifyWhenIndustryEquals": "Other",
       "inheritExpressRequired": true,
       "bankIncluded": [
-        "f1",
-        "f2",
-        "f8",
+        "a1",
+        "a3",
         "a7",
+        "f1",
         "b1",
-        "a10",
-        "a6"
+        "d2",
+        "a10"
       ]
     },
     "free_snapshot": {

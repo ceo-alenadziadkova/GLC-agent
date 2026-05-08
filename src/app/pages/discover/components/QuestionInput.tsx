@@ -1,9 +1,11 @@
 import { Check } from '@phosphor-icons/react';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { choiceValueNeedsSpecify, INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL } from '@glc/intake-core';
 import { getQuestion, type DiscoveryAnswers } from '../../../lib/discovery-flow';
-import discoveryUiCopy from '../../../data/discovery-ui-copy.en.json';
-import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
+import discoveryUiCopy from '../../../locales/en/discovery-ui-copy.en.json';
+import discoverResultsUi from '../../../locales/en/discover-page-results-ui.en.json';
 import { Input, Textarea } from '../../../../design-system/ui';
+
+const DEFER_CHIP = INTAKE_UNIVERSAL_CHOICE_DONT_KNOW_FOR_NOW_LABEL;
 
 type QuestionInputProps = {
   qId: string;
@@ -51,12 +53,19 @@ export function QuestionInput({
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
           {question.options.map(option => {
-            const selected = strVal === option;
+            const isDefer = option === DEFER_CHIP;
+            const selected = isDefer ? strVal === DEFER_CHIP : strVal === option;
             return (
               <button
                 key={option}
                 type="button"
-                onClick={() => onChange(selected ? null : option)}
+                onClick={() => {
+                  if (isDefer) {
+                    onChange(selected ? null : DEFER_CHIP);
+                    return;
+                  }
+                  onChange(selected ? null : option);
+                }}
                 data-discover-choice-selected={selected ? 'true' : 'false'}
                 className="ds-discover-choice-chip rounded-lg px-3 py-2 text-sm transition-all"
               >
@@ -84,13 +93,26 @@ export function QuestionInput({
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
           {question.options.map(option => {
+            const isDefer = option === DEFER_CHIP;
             const selected = arrVal.includes(option);
             return (
               <button
                 key={option}
                 type="button"
                 onClick={() => {
-                  const next = selected ? arrVal.filter(valueItem => valueItem !== option) : [...arrVal, option];
+                  if (isDefer) {
+                    if (selected) {
+                      const next = arrVal.filter(valueItem => valueItem !== DEFER_CHIP);
+                      onChange(next.length ? next : null);
+                    } else {
+                      onChange([DEFER_CHIP]);
+                    }
+                    return;
+                  }
+                  const base = arrVal.filter(v => v !== DEFER_CHIP);
+                  const next = selected
+                    ? base.filter(valueItem => valueItem !== option)
+                    : [...base, option];
                   onChange(next.length ? next : null);
                 }}
                 data-discover-choice-selected={selected ? 'true' : 'false'}

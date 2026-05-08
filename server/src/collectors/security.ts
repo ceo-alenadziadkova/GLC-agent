@@ -5,6 +5,7 @@ import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } 
 import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import { SECURITY_COLLECTOR_COPY } from '../config/collector-copy-security.en.js';
 import type { CollectorCollectContext } from './base.js';
+import { auditDeepScanEnabled } from '../lib/audit-deep-scan-env.js';
 
 interface SecurityHeaders {
   name: string;
@@ -20,7 +21,14 @@ export class SecurityCollector extends BaseCollector {
   async collect(_auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
     if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       return {
-        ssl: { valid: false, redirects_to_https: false, status: 0 },
+        ssl: {
+          valid: false,
+          redirects_to_https: false,
+          status: 0,
+          verification_status: 'not_assessed',
+          tls_library_check: { ok: false, status: 0 },
+          browser_warning_check: { checked: false, warning_present: null },
+        },
         headers: [],
         cookies: [],
         mixed_content_hints: [SECURITY_COLLECTOR_COPY.mixedContentNoPublicWebsite],
@@ -33,7 +41,14 @@ export class SecurityCollector extends BaseCollector {
     } catch (e) {
       if (e instanceof PublicUrlNotAllowedError) {
         return {
-          ssl: { valid: false, redirects_to_https: false, status: 0 },
+          ssl: {
+            valid: false,
+            redirects_to_https: false,
+            status: 0,
+            verification_status: 'not_assessed',
+            tls_library_check: { ok: false, status: 0 },
+            browser_warning_check: { checked: false, warning_present: null },
+          },
           headers: [],
           cookies: [],
           mixed_content_hints: [SECURITY_COLLECTOR_COPY.mixedContentUrlNotAllowed],
@@ -55,20 +70,99 @@ export class SecurityCollector extends BaseCollector {
   }
 
   private async checkSSL(url: string) {
+    const httpsUrl = url.replace(/^http:/, 'https:');
+    const httpUrl = url.replace(/^https:/, 'http:');
+
+    let httpsHeadOk = false;
+    let httpRedirectsToHttps = false;
+    let httpsStatus = 0;
+    let httpStatus = 0;
+
     try {
-      const httpsUrl = url.replace(/^http:/, 'https:');
       const response = await fetchPublicHttpUrl(httpsUrl, {
         method: 'HEAD',
         signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
       }, 0);
-
-      return {
-        valid: response.ok || response.status === 301 || response.status === 302,
-        redirects_to_https: response.headers.get('location')?.startsWith('https://') ?? false,
-        status: response.status,
-      };
+      httpsHeadOk = response.ok || response.status === 301 || response.status === 302;
+      httpsStatus = response.status;
     } catch {
-      return { valid: false, redirects_to_https: false, status: 0 };
+      httpsHeadOk = false;
+    }
+
+    try {
+      const response = await fetchPublicHttpUrl(httpUrl, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
+      }, 0);
+      httpStatus = response.status;
+      const location = response.headers.get('location') ?? '';
+      httpRedirectsToHttps = location.startsWith('https://');
+    } catch {
+      httpRedirectsToHttps = false;
+    }
+
+    const browserHttpsWarning = await this.checkHttpsBrowserWarning(httpsUrl);
+    const browserCheckCompleted = browserHttpsWarning !== null;
+    const verificationStatus: 'confirmed' | 'unverified' | 'not_assessed' =
+      httpsHeadOk && browserHttpsWarning === false
+        ? 'confirmed'
+        : browserHttpsWarning === null
+          ? 'unverified'
+          : 'confirmed';
+    const isValid = browserCheckCompleted ? httpsHeadOk && browserHttpsWarning === false : httpsHeadOk;
+
+    return {
+      valid: isValid,
+      redirects_to_https: httpRedirectsToHttps,
+      status: httpsStatus || httpStatus,
+      method: 'multi_source',
+      verification_status: verificationStatus,
+      tls_library_check: {
+        ok: httpsHeadOk,
+        status: httpsStatus,
+      },
+      browser_warning_check: {
+        checked: browserCheckCompleted,
+        warning_present: browserHttpsWarning,
+      },
+      sources: {
+        https_head_ok: httpsHeadOk,
+        http_redirect_to_https: httpRedirectsToHttps,
+        browser_https_warning_absent: browserHttpsWarning === false,
+      },
+    };
+  }
+
+  private async checkHttpsBrowserWarning(httpsUrl: string): Promise<boolean | null> {
+    if (!auditDeepScanEnabled()) {
+      return null;
+    }
+    let browser;
+    try {
+      const { chromium } = await import('playwright');
+      browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      });
+      const page = await browser.newPage();
+      await page.goto(httpsUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: COLLECTOR_FETCH_TIMEOUT_MS,
+      });
+      await page.close();
+      await browser.close();
+      return false;
+    } catch (error) {
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      const isCertificateError =
+        message.includes('cert') ||
+        message.includes('certificate') ||
+        message.includes('net::err_cert') ||
+        message.includes('ssl');
+      return isCertificateError ? true : null;
     }
   }
 

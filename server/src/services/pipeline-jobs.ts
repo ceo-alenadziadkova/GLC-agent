@@ -1,7 +1,14 @@
 import { Queue, Worker } from 'bullmq';
+import { generateLockToken } from '../lib/generate-lock-token.js';
 import { logger } from './logger.js';
 import { PipelineOrchestrator } from './pipeline.js';
 import { emitPhaseErrorDurable } from './pipeline-error.js';
+import {
+  registerPipelineJobLease,
+  resolvePhaseRunLeaseForWrite,
+  runWithPhaseRunLease,
+  unregisterPipelineJobLease,
+} from './pipeline/phase-run-lease-context.js';
 import { getRedisUrl } from './redis.js';
 import { supabase } from './supabase.js';
 import {
@@ -18,6 +25,8 @@ type PipelineJobPayload = {
   phase?: number;
   /** When true, skip Phase 9 auto-remediation for this job. */
   disable_auto_remediate?: boolean;
+  /** Optional operator note captured when consultant triggers retry from UI. */
+  retry_comment?: string;
 };
 
 const QUEUE_NAME = 'pipeline_execution';
@@ -54,7 +63,7 @@ export async function enqueuePipelineJob(payload: PipelineJobPayload): Promise<b
       jobId: queueJobId,
     },
   );
-  await supabase.from('job_runs').upsert(
+  const { error: enqueueJobRunErr } = await supabase.from('job_runs').upsert(
     {
       queue_job_id: queueJobId,
       queue_name: QUEUE_NAME,
@@ -67,13 +76,45 @@ export async function enqueuePipelineJob(payload: PipelineJobPayload): Promise<b
     },
     { onConflict: 'queue_job_id' },
   );
+  if (enqueueJobRunErr) {
+    logger.error('pipeline.job_runs_enqueue_upsert_failed', {
+      component: 'pipeline',
+      audit_id: payload.auditId,
+      queue_job_id: queueJobId,
+      action: payload.action,
+      phase: payload.phase ?? null,
+      error: enqueueJobRunErr.message,
+    });
+    throw enqueueJobRunErr;
+  }
   return true;
 }
 
-async function touchLease(queueJobId: string, payload: PipelineJobPayload, attempt: number, status: 'running' | 'completed' | 'failed' | 'dead_letter'): Promise<void> {
+type TouchLeaseOnDbError = 'throw' | 'log';
+
+type LeaseHeartbeat = {
+  stop: () => Promise<void>;
+};
+
+async function touchLease(
+  queueJobId: string,
+  payload: PipelineJobPayload,
+  attempt: number,
+  status: 'running' | 'completed' | 'failed' | 'dead_letter',
+  onDbError: TouchLeaseOnDbError = 'throw',
+): Promise<void> {
+  const { leaseOwner } = resolvePhaseRunLeaseForWrite(queueJobId);
   const now = new Date();
   const leaseExpires = new Date(now.getTime() + PIPELINE_LEASE_TTL_SECONDS * 1000).toISOString();
-  await supabase.from('job_runs').upsert(
+  const baseFields = {
+    audit_id: payload.auditId,
+    queue_job_id: queueJobId,
+    phase: payload.phase ?? null,
+    attempt,
+    action: payload.action,
+  };
+
+  const { error: jobRunErr } = await supabase.from('job_runs').upsert(
     {
       queue_job_id: queueJobId,
       queue_name: QUEUE_NAME,
@@ -82,26 +123,88 @@ async function touchLease(queueJobId: string, payload: PipelineJobPayload, attem
       phase: payload.phase ?? null,
       attempt,
       status,
-      lease_owner: `pid:${process.pid}`,
+      lease_owner: leaseOwner,
       lease_expires_at: leaseExpires,
       heartbeat_at: now.toISOString(),
     },
     { onConflict: 'queue_job_id' },
   );
+  if (jobRunErr) {
+    logger.error('pipeline.job_runs_lease_upsert_failed', {
+      component: 'pipeline',
+      ...baseFields,
+      status,
+      error: jobRunErr.message,
+    });
+    if (onDbError === 'throw') throw jobRunErr;
+    return;
+  }
+
   if (typeof payload.phase === 'number') {
-    await supabase.from('phase_runs').upsert(
+    const { error: phaseRunErr } = await supabase.from('phase_runs').upsert(
       {
         audit_id: payload.auditId,
         phase: payload.phase,
         attempt,
         status,
-        lease_owner: `pid:${process.pid}`,
+        lease_owner: leaseOwner,
         lease_expires_at: leaseExpires,
         heartbeat_at: now.toISOString(),
       },
       { onConflict: 'audit_id,phase,attempt' },
     );
+    if (phaseRunErr) {
+      logger.error('pipeline.phase_runs_lease_upsert_failed', {
+        component: 'pipeline',
+        ...baseFields,
+        status,
+        error: phaseRunErr.message,
+      });
+      if (onDbError === 'throw') throw phaseRunErr;
+    }
   }
+}
+
+function startLeaseHeartbeat(queueJobId: string, payload: PipelineJobPayload, attempt: number): LeaseHeartbeat {
+  let alive = true;
+  let wakeStop: (() => void) | null = null;
+
+  const waitForNextTick = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, PIPELINE_HEARTBEAT_MS);
+      wakeStop = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+    wakeStop = null;
+  };
+
+  const done = (async () => {
+    while (alive) {
+      await waitForNextTick();
+      if (!alive) return;
+      await touchLease(queueJobId, payload, attempt, 'running', 'log');
+    }
+  })().catch((err) => {
+    const error = err as Error;
+    logger.error('pipeline.heartbeat_loop_failed', {
+      component: 'pipeline',
+      audit_id: payload.auditId,
+      queue_job_id: queueJobId,
+      phase: payload.phase ?? null,
+      attempt,
+      error: error.message,
+    });
+  });
+
+  return {
+    stop: async () => {
+      alive = false;
+      wakeStop?.();
+      await done;
+    },
+  };
 }
 
 export function startPipelineWorker(): void {
@@ -115,53 +218,83 @@ export function startPipelineWorker(): void {
   worker = new Worker<PipelineJobPayload>(
     QUEUE_NAME,
     async (job) => {
+      const queueJobId = job.id!;
       const { auditId, action, phase, disable_auto_remediate: disableAutoRemediateRaw } = job.data;
       const attempt = job.attemptsMade + 1;
-      const orchestrator = new PipelineOrchestrator(auditId, {
-        disableAutoRemediate: disableAutoRemediateRaw === true,
-      });
-      await touchLease(job.id!, job.data, attempt, 'running');
-      const heartbeatTimer = setInterval(() => {
-        void touchLease(job.id!, job.data, attempt, 'running');
-      }, PIPELINE_HEARTBEAT_MS);
-      try {
-        if (action === 'start') {
-          await orchestrator.startPhase(phase ?? 0);
-          clearInterval(heartbeatTimer);
-          await touchLease(job.id!, job.data, attempt, 'completed');
-          return;
-        }
-        if (action === 'retry') {
-          const p = phase ?? 0;
-          if (Number.isInteger(p) && p >= 1 && p <= 6) {
-            await orchestrator.retryDomainPhase(p);
-          } else {
-            await orchestrator.startPhase(p);
+      const leaseOwner = generateLockToken();
+      const leaseCtx = { leaseOwner, attempt };
+      registerPipelineJobLease(queueJobId, leaseCtx);
+
+      // Map entry stays registered until `worker.on('failed')` writes dead_letter; Bull retries
+      // overwrite the entry on the next attempt, so we let exceptions propagate untouched here.
+      await runWithPhaseRunLease(leaseCtx, async () => {
+        const orchestrator = new PipelineOrchestrator(auditId, {
+          disableAutoRemediate: disableAutoRemediateRaw === true,
+        });
+        await touchLease(queueJobId, job.data, attempt, 'running');
+        const heartbeat = startLeaseHeartbeat(queueJobId, job.data, attempt);
+        try {
+          if (action === 'start') {
+            await orchestrator.startPhase(phase ?? 0);
+            await heartbeat.stop();
+            await touchLease(queueJobId, job.data, attempt, 'completed');
+            return;
           }
-          clearInterval(heartbeatTimer);
-          await touchLease(job.id!, job.data, attempt, 'completed');
-          return;
-        }
-        await orchestrator.runBlock();
-        clearInterval(heartbeatTimer);
-        await touchLease(job.id!, job.data, attempt, 'completed');
-      } catch (err) {
-        clearInterval(heartbeatTimer);
-        const e = err as Error;
-        await touchLease(job.id!, job.data, attempt, 'failed');
-        await supabase.from('job_runs')
-          .update({ error_message: e.message })
-          .eq('queue_job_id', job.id!);
-        if (typeof phase === 'number') {
-          await supabase.from('phase_runs')
+          if (action === 'retry') {
+            const p = phase ?? 0;
+            if (Number.isInteger(p) && p >= 1 && p <= 6) {
+              await orchestrator.retryDomainPhase(p);
+            } else {
+              await orchestrator.startPhase(p);
+            }
+            await heartbeat.stop();
+            await touchLease(queueJobId, job.data, attempt, 'completed');
+            return;
+          }
+          await orchestrator.runBlock();
+          await heartbeat.stop();
+          await touchLease(queueJobId, job.data, attempt, 'completed');
+        } catch (err) {
+          await heartbeat.stop();
+          const e = err as Error;
+          await touchLease(queueJobId, job.data, attempt, 'failed');
+          const { error: jobFailErr } = await supabase
+            .from('job_runs')
             .update({ error_message: e.message })
-            .eq('audit_id', auditId)
-            .eq('phase', phase)
-            .eq('attempt', attempt);
+            .eq('queue_job_id', queueJobId);
+          if (jobFailErr) {
+            logger.error('pipeline.job_runs_phase_error_update_failed', {
+              component: 'pipeline',
+              audit_id: auditId,
+              queue_job_id: queueJobId,
+              phase,
+              attempt,
+              error: jobFailErr.message,
+            });
+          }
+          if (typeof phase === 'number') {
+            const { error: phaseFailErr } = await supabase
+              .from('phase_runs')
+              .update({ error_message: e.message })
+              .eq('audit_id', auditId)
+              .eq('phase', phase)
+              .eq('attempt', attempt);
+            if (phaseFailErr) {
+              logger.error('pipeline.phase_runs_phase_error_update_failed', {
+                component: 'pipeline',
+                audit_id: auditId,
+                queue_job_id: queueJobId,
+                phase,
+                attempt,
+                error: phaseFailErr.message,
+              });
+            }
+          }
+          await emitPhaseErrorDurable(auditId, typeof phase === 'number' ? phase : -1, e);
+          throw err;
         }
-        await emitPhaseErrorDurable(auditId, typeof phase === 'number' ? phase : -1, e);
-        throw err;
-      }
+      });
+      unregisterPipelineJobLease(queueJobId);
     },
     {
       connection: { url },
@@ -177,7 +310,10 @@ export function startPipelineWorker(): void {
     });
     if (job) {
       const attempt = job.attemptsMade + 1;
-      void touchLease(job.id!, job.data, attempt, 'dead_letter');
+      const qid = job.id!;
+      void touchLease(qid, job.data, attempt, 'dead_letter', 'log').finally(() => {
+        unregisterPipelineJobLease(qid);
+      });
     }
   });
 

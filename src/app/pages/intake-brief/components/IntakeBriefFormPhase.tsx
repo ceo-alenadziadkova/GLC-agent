@@ -121,6 +121,11 @@ export function IntakeBriefFormPhase(props: {
   onToggleQuestionMode: (mode: 'progressive' | 'all_questions') => void;
   onDismissResumeBanner: () => void;
   onGoReview: () => void;
+  /** Public two-phase intake: after pre-brief, planner-driven follow-ups. */
+  hideGuidedAllToggle?: boolean;
+  tailoredPhaseBanner?: { title: string; body: string } | null;
+  modeSubtitleOverride?: string | null;
+  progressiveContinueBusy?: boolean;
 }) {
   const {
     intakeToken,
@@ -160,6 +165,10 @@ export function IntakeBriefFormPhase(props: {
     onToggleQuestionMode,
     onDismissResumeBanner,
     onGoReview,
+    hideGuidedAllToggle = false,
+    tailoredPhaseBanner = null,
+    modeSubtitleOverride = null,
+    progressiveContinueBusy = false,
   } = props;
 
   const [prefillNoticeDismissed, setPrefillNoticeDismissed] = useState(() =>
@@ -201,7 +210,8 @@ export function IntakeBriefFormPhase(props: {
         ? copy.progressValueMid
         : copy.progressValueLate;
   const modeSubtitle =
-    journeyStage === 'fast_pass' ? copy.modeSubtitleFast : copy.modeSubtitlePrecision;
+    modeSubtitleOverride ??
+    (journeyStage === 'fast_pass' ? copy.modeSubtitleFast : copy.modeSubtitlePrecision);
 
   return (
     <motion.div
@@ -374,6 +384,15 @@ export function IntakeBriefFormPhase(props: {
           {copy.fastPassDoneBanner}
         </p>
       ) : null}
+      {tailoredPhaseBanner ? (
+        <div
+          className="w-full max-w-2xl mx-auto rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-raised)] p-4 text-left space-y-1"
+          role="status"
+        >
+          <p className="text-sm font-semibold m-0 ds-text-primary">{tailoredPhaseBanner.title}</p>
+          <p className="text-xs m-0 ds-text-secondary leading-relaxed">{tailoredPhaseBanner.body}</p>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ds-border-subtle)] p-3">
         {questionMode === 'progressive' ? (
@@ -393,13 +412,15 @@ export function IntakeBriefFormPhase(props: {
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="ds-btn ds-btn--secondary text-xs"
-            onClick={() => onToggleQuestionMode(questionMode === 'progressive' ? 'all_questions' : 'progressive')}
-          >
-            {questionMode === 'progressive' ? copy.showAllQuestions : copy.backToGuidedMode}
-          </button>
+          {!hideGuidedAllToggle ? (
+            <button
+              type="button"
+              className="ds-btn ds-btn--secondary text-xs"
+              onClick={() => onToggleQuestionMode(questionMode === 'progressive' ? 'all_questions' : 'progressive')}
+            >
+              {questionMode === 'progressive' ? copy.showAllQuestions : copy.backToGuidedMode}
+            </button>
+          ) : null}
           <button type="button" className="ds-btn ds-btn--secondary text-xs" onClick={onSaveAndContinueLater}>
             {copy.saveAndContinueLater}
           </button>
@@ -547,17 +568,27 @@ export function IntakeBriefFormPhase(props: {
         <button
           type="button"
           className="ds-btn ds-btn--secondary flex-1 py-3 text-sm"
+          disabled={progressiveContinueBusy}
           onClick={onBackProgressive}
         >
           {copy.backButton}
         </button>
         <button
           type="button"
-          disabled={questionMode === 'progressive' ? !isCurrentStepSatisfied : !formComplete}
+          disabled={
+            progressiveContinueBusy ||
+            (questionMode === 'progressive' ? !isCurrentStepSatisfied : !formComplete)
+          }
+          aria-busy={progressiveContinueBusy}
           className="ds-intake-brief-review-cta flex-[2] flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
           onClick={questionMode === 'progressive' ? onAdvanceProgressive : onGoReview}
         >
-          {questionMode === 'progressive' ? copy.continueButton : copy.reviewAnswers} <ArrowRight className="w-4 h-4" />
+          {progressiveContinueBusy
+            ? copy.tailoredLoading
+            : questionMode === 'progressive'
+              ? copy.continueButton
+              : copy.reviewAnswers}{' '}
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </motion.div>

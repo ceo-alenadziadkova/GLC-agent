@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { useParams, Link, Navigate } from 'react-router';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -10,26 +10,36 @@ import { Button } from '../components/ui/button';
 import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { buildAppRoute } from '../config/route-paths';
+import { buildPlanWorkspaceHref } from '../lib/plan-cross-nav';
+import { primaryPlanWorkbenchViewForStrategyLinks } from '../config/plan-delivery-board-ui';
 import { api } from '../data/apiService';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
+import { useAudit } from '../hooks/useAudit';
+import { useStrategyJourneyStepStatuses } from '../hooks/useStrategyJourneyStepStatuses';
+import { useCompilePlanMutation } from '../hooks/useCompilePlanMutation';
 import { glcKeys } from '../lib/glc-keys';
+import { invalidatePlanWorkspaceQueries } from '../lib/plan-workspace-queries';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { orchestrationNodeTitleMap } from '../lib/orchestration-timeline-projection';
 import { ApiError } from '../data/api-error';
+import { StrategyPlanningChrome } from './strategy-lab/StrategyPlanningChrome';
 
 export function ConsultantOrchestrationCockpitPage() {
   const { id: auditId } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { audit } = useAudit(auditId);
+  const journeySteps = useStrategyJourneyStepStatuses(audit);
   const { packQuery, isLoading, isError } = useOrchestrationReadModel(auditId, { includeTimeline: false });
   const [rebuildPending, setRebuildPending] = useState(false);
   const [governPending, setGovernPending] = useState(false);
   const [stalePack, setStalePack] = useState(false);
 
   const latestManifestQuery = useQuery({
-    queryKey: ['glc', 'roadmap-manifest-snapshot', 'latest', auditId ?? ''] as const,
+    queryKey: glcKeys.orchestrationManifestSnapshot.latest(auditId ?? ''),
     queryFn: () => api.getRoadmapManifestSnapshotLatest(auditId as string),
     enabled: Boolean(auditId) && APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled,
   });
+  const compileMutation = useCompilePlanMutation({ auditId: auditId ?? '' });
 
   if (!APP_FEATURE_FLAGS.consultantOrchestrationCockpitEnabled) {
     return <Navigate to="/dashboard" replace />;
@@ -43,21 +53,18 @@ export function ConsultantOrchestrationCockpitPage() {
   const governance = packQuery.data?.plan_governance;
   const view = isGlcOrchestrationPackView(pack) ? pack : null;
   const titles = view ? orchestrationNodeTitleMap(view) : new Map<string, string>();
-  const manifestSnapshotId = latestManifestQuery.data?.snapshot?.id ?? null;
+  const latestManifestPayload = latestManifestQuery.data?.snapshot?.payload ?? null;
   const decisionHint = governance?.decision_hint;
-
   const onRebuild = async () => {
-    if (!manifestSnapshotId) {
+    if (!latestManifestPayload) {
       toast.error(ORCHESTRATION_UI_COPY.consultantCockpitNoManifest);
       return;
     }
     setRebuildPending(true);
     setStalePack(false);
     try {
-      await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(auditId) });
+      await compileMutation.mutateAsync(latestManifestPayload);
+      await invalidatePlanWorkspaceQueries(queryClient, auditId);
       toast.success(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackSuccess);
     } catch {
       toast.error(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackError);
@@ -76,14 +83,13 @@ export function ConsultantOrchestrationCockpitPage() {
     setStalePack(false);
     try {
       await api.postOrchestrationPack(auditId, { govern_action, expected_orchestration_pack_version: v });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
-      await queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
-      toast.success('Governance action recorded');
+      await invalidatePlanWorkspaceQueries(queryClient, auditId);
+      toast.success(ORCHESTRATION_UI_COPY.consultantCockpitGovernanceRecordedToast);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'AUDITS_ORCHESTRATION_PACK_STALE_VERSION') {
         setStalePack(true);
         toast.error(ORCHESTRATION_UI_COPY.consultantCockpitStaleBanner);
-        await queryClient.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) });
+        await invalidatePlanWorkspaceQueries(queryClient, auditId);
       } else {
         toast.error(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackError);
       }
@@ -94,20 +100,29 @@ export function ConsultantOrchestrationCockpitPage() {
 
   return (
     <AppShell
-      title="Orchestration cockpit"
-      subtitle="Read-only pack, governance, and critical path (same API as the client portal)."
+      title={ORCHESTRATION_UI_COPY.consultantCockpitAppShellTitle}
+      subtitle={ORCHESTRATION_UI_COPY.consultantCockpitAppShellSubtitle}
     >
+      {APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled && auditId ? (
+        <StrategyPlanningChrome
+          auditId={auditId}
+          isClient={false}
+          audit={audit}
+          variant={{ kind: 'strategy-lab' }}
+          steps={journeySteps}
+        />
+      ) : null}
       {isLoading ? (
-        <p className="text-sm ds-text-tertiary">Loading…</p>
+        <p className="text-sm ds-text-tertiary">{ORCHESTRATION_UI_COPY.consultantCockpitLoadingLabel}</p>
       ) : isError ? (
-        <p className="text-sm ds-text-secondary">Could not load orchestration data.</p>
+        <p className="text-sm ds-text-secondary">{ORCHESTRATION_UI_COPY.consultantCockpitLoadError}</p>
       ) : !view ? (
-        <p className="text-sm ds-text-secondary">No pack persisted for this audit yet.</p>
+        <p className="text-sm ds-text-secondary">{ORCHESTRATION_UI_COPY.consultantCockpitNoPackBody}</p>
       ) : (
         <div className="space-y-6">
           {stalePack ? (
             <p
-              className="rounded-md border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm ds-text-secondary"
+              className="border-border bg-card rounded-md border px-3 py-2 text-sm ds-text-secondary"
               data-testid="orchestration-stale-pack-banner"
             >
               {ORCHESTRATION_UI_COPY.consultantCockpitStaleBanner}
@@ -115,22 +130,35 @@ export function ConsultantOrchestrationCockpitPage() {
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.strategy(auditId)}>{ORCHESTRATION_UI_COPY.consultantCockpitRefineCta}</Link>
+              <Link to={buildPlanWorkspaceHref({ auditId, isClient: false, mode: 'shape' })}>
+                {ORCHESTRATION_UI_COPY.consultantCockpitRefineCta}
+              </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.timeline(auditId)}>Timeline</Link>
+              <Link
+                to={buildPlanWorkspaceHref({
+                  auditId,
+                  isClient: false,
+                  mode: 'execute',
+                  view: primaryPlanWorkbenchViewForStrategyLinks(),
+                })}
+              >
+                {ORCHESTRATION_UI_COPY.consultantCockpitPlanLinkLabel}
+              </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="no-underline">
-              <Link to={buildAppRoute.portalRoadmapManifest(auditId)}>Manifest wizard</Link>
+              <Link to={buildAppRoute.portalRoadmapManifest(auditId)}>
+                {ORCHESTRATION_UI_COPY.consultantCockpitManifestWizardLinkLabel}
+              </Link>
             </Button>
             <Button
               type="button"
               size="sm"
               variant="secondary"
-              disabled={rebuildPending || latestManifestQuery.isLoading || !manifestSnapshotId}
+              disabled={rebuildPending || compileMutation.isPending || latestManifestQuery.isLoading || !latestManifestPayload}
               onClick={() => void onRebuild()}
             >
-              {rebuildPending
+              {rebuildPending || compileMutation.isPending
                 ? ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackBusy
                 : ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackCta}
             </Button>
@@ -173,7 +201,7 @@ export function ConsultantOrchestrationCockpitPage() {
           )}
           <p className="text-xs ds-text-tertiary">{ORCHESTRATION_UI_COPY.consultantCockpitGovernanceHint}</p>
           {governance ? (
-            <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
+            <div className="border-border bg-card rounded-lg border p-4">
               <h2 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.governanceTitle}</h2>
               <dl className="mt-2 grid gap-2 text-sm ds-text-secondary sm:grid-cols-2">
                 <div>
@@ -183,7 +211,9 @@ export function ConsultantOrchestrationCockpitPage() {
                   <dd className="font-mono text-sm ds-text-primary">{governance.decision_hint}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs uppercase ds-text-tertiary">status</dt>
+                  <dt className="text-xs uppercase ds-text-tertiary">
+                    {ORCHESTRATION_UI_COPY.consultantCockpitGovernanceStatusLabel}
+                  </dt>
                   <dd className="ds-text-primary">{governance.status}</dd>
                 </div>
                 <div>
@@ -196,9 +226,7 @@ export function ConsultantOrchestrationCockpitPage() {
                 </div>
                 {decisionHint === 'refine_plan' ? (
                   <div className="sm:col-span-2">
-                    <p className="text-sm ds-text-secondary">
-                      Plan gate suggests refinement — use Manifest wizard or Strategy Lab, then rebuild.
-                    </p>
+                    <p className="text-sm ds-text-secondary">{ORCHESTRATION_UI_COPY.consultantCockpitGovernanceRefineBanner}</p>
                   </div>
                 ) : null}
               </dl>
@@ -206,8 +234,8 @@ export function ConsultantOrchestrationCockpitPage() {
           ) : null}
           {APP_FEATURE_FLAGS.orchestrationSetAggregatorEnabled ? <SetAggregatorPanel pack={view} /> : null}
           {APP_FEATURE_FLAGS.planControlObjectUiEnabled ? <PlanControlObjectPanel pack={view} /> : null}
-          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
-            <h2 className="text-sm font-semibold ds-text-primary">Critical path</h2>
+          <div className="border-border bg-card rounded-lg border p-4">
+            <h2 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.consultantCockpitCriticalPathHeading}</h2>
             <ol className="mt-2 list-inside list-decimal space-y-1 text-sm ds-text-secondary">
               {view.critical_path.length === 0 ? (
                 <li>{ORCHESTRATION_UI_COPY.timelineEmptyListMarker}</li>
@@ -218,20 +246,20 @@ export function ConsultantOrchestrationCockpitPage() {
               )}
             </ol>
           </div>
-          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-4">
-            <h2 className="text-sm font-semibold ds-text-primary">Initiatives</h2>
+          <div className="border-border bg-card rounded-lg border p-4">
+            <h2 className="text-sm font-semibold ds-text-primary">{ORCHESTRATION_UI_COPY.consultantCockpitInitiativesHeading}</h2>
             <div className="mt-2 overflow-x-auto">
               <table className="w-full min-w-[length:var(--consultant-orchestration-initiatives-table-min-width)] text-left text-sm">
                 <thead className="text-xs uppercase ds-text-tertiary">
                   <tr>
-                    <th className="py-1 pr-3">Title</th>
-                    <th className="py-1 pr-3">Lane</th>
-                    <th className="py-1 pr-3">Domain</th>
+                    <th className="py-1 pr-3">{ORCHESTRATION_UI_COPY.consultantCockpitTableColTitle}</th>
+                    <th className="py-1 pr-3">{ORCHESTRATION_UI_COPY.consultantCockpitTableColLane}</th>
+                    <th className="py-1 pr-3">{ORCHESTRATION_UI_COPY.consultantCockpitTableColDomain}</th>
                   </tr>
                 </thead>
                 <tbody className="ds-text-secondary">
                   {view.graph.nodes.map((n) => (
-                    <tr key={n.id} className="border-t border-[var(--border-default)]">
+                    <tr key={n.id} className="border-border border-t">
                       <td className="py-2 pr-3 align-top font-medium ds-text-primary">{n.title}</td>
                       <td className="py-2 pr-3 align-top">{n.lane}</td>
                       <td className="py-2 pr-3 align-top">{n.domain}</td>

@@ -9,7 +9,7 @@ import type {
 } from '../audit-contract.js';
 import { INTAKE_PRE_BRIEF_SNAPSHOT_MIN_ANSWERED_RATIO } from '../config/intake-readiness-policy.js';
 import { getPreBriefSubmitSlotIds, isPreBriefSubmitSlotSatisfied } from '../brief-gates.js';
-import { isIntakeAnswered } from '../unwrap.js';
+import { isIntakeAnsweredIncludingChoiceSpecify } from '../unwrap.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
 import type { IntakeSurface } from './types.js';
@@ -28,7 +28,7 @@ export function missingRequiredForMode(
     surface,
     intakeVersionTuple,
   });
-  return plan.required.filter(id => !isIntakeAnswered(responses[id]));
+  return plan.required.filter(id => !isIntakeAnsweredIncludingChoiceSpecify(responses, id));
 }
 
 /**

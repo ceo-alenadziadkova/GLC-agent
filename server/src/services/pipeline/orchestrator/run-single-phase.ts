@@ -16,6 +16,8 @@ import {
   type DomainKey,
 } from '../../../types/audit.js';
 import { assertBriefReady } from '../../brief-validator.js';
+import { SYSTEM_DEFAULTS } from '../../../config/system-defaults.js';
+import { isLikelyTransientSupabaseError, sleepMs } from '../../../lib/supabase-rest-transient.js';
 import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
 import { reopenHumanReviewPointForPhase } from '../reviewGateCoordinator.js';
@@ -49,6 +51,13 @@ export type RunSinglePhaseLifecycleParams = {
   publishControlObjectGovernance: PhaseDomainExecutionDeps['publishControlObjectGovernance'];
   /** Required when mode is `sequential` (plan gates + review). */
   getExecutionPlan?: () => Promise<AuditExecutionPlan>;
+  /**
+   * Consultant `POST .../pipeline/retry` for phases 1–6 only. Parallel wing runs keep the default
+   * `false` so idempotent replays skip domains that already saved `completed`.
+   */
+  isolationConsultantRetryBypassAlreadyCompleted?: boolean;
+  /** Optional hook for phase-specific gate persistence that must happen before `reviewNeeded`. */
+  beforeSequentialReviewGate?: (phase: number) => Promise<void>;
 };
 
 async function markAuditDomainFailed(auditId: string, domainKey: DomainKey): Promise<void> {
@@ -60,15 +69,54 @@ async function markAuditDomainFailed(auditId: string, domainKey: DomainKey): Pro
 }
 
 async function isDomainPhaseAlreadyCompleted(auditId: string, domainKey: DomainKey): Promise<boolean> {
-  const { data: latest } = await supabase
-    .from('audit_domains')
-    .select('status')
-    .eq('audit_id', auditId)
-    .eq('domain_key', domainKey)
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return latest?.status === 'completed';
+  const policy = SYSTEM_DEFAULTS.pipelineOrchestrator;
+  const maxAttempts = policy.completedDomainReadRetryMaxAttempts;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data: latest, error } = await supabase
+      .from('audit_domains')
+      .select('status')
+      .eq('audit_id', auditId)
+      .eq('domain_key', domainKey)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error) {
+      return latest?.status === 'completed';
+    }
+
+    const retryable = isLikelyTransientSupabaseError(error) && attempt < maxAttempts;
+    if (retryable) {
+      const backoffMs =
+        policy.completedDomainReadRetryBaseDelayMs * 2 ** (attempt - 1) +
+        Math.floor(Math.random() * (policy.completedDomainReadRetryJitterMs + 1));
+      logger.warn('pipeline.completed_domain_read_retry', {
+        component: 'pipeline_orchestrator',
+        audit_id: auditId,
+        domain_key: domainKey,
+        attempt,
+        max_attempts: maxAttempts,
+        error: error.message,
+        code: error.code,
+      });
+      await sleepMs(backoffMs);
+      continue;
+    }
+
+    logger.error('pipeline.completed_domain_read_failed', {
+      component: 'pipeline_orchestrator',
+      audit_id: auditId,
+      domain_key: domainKey,
+      attempt,
+      max_attempts: maxAttempts,
+      error: error.message,
+      code: error.code,
+    });
+    throw new Error(`Failed to read latest domain status for ${domainKey}: ${error.message}`);
+  }
+
+  return false;
 }
 
 export async function runSinglePhaseWithLifecycle(
@@ -85,13 +133,19 @@ export async function runSinglePhaseWithLifecycle(
     attachPriorControlObjects,
     publishControlObjectGovernance,
     getExecutionPlan,
+    isolationConsultantRetryBypassAlreadyCompleted = false,
+    beforeSequentialReviewGate,
   } = params;
 
   const domainKey = PHASE_DOMAIN_MAP[phase];
 
   try {
     await assertNotCancelled();
-    if (mode === 'isolated' && auditDomainRowShouldTrackFailure(domainKey)) {
+    if (
+      mode === 'isolated' &&
+      auditDomainRowShouldTrackFailure(domainKey) &&
+      !isolationConsultantRetryBypassAlreadyCompleted
+    ) {
       const alreadyCompleted = await isDomainPhaseAlreadyCompleted(auditId, domainKey);
       if (alreadyCompleted) {
         await emitEvent(
@@ -147,6 +201,7 @@ export async function runSinglePhaseWithLifecycle(
     if (mode === 'sequential' && executionPlan) {
       const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
       if ((reviewPhases as readonly number[]).includes(phase)) {
+        await beforeSequentialReviewGate?.(phase);
         await reopenHumanReviewPointForPhase(auditId, phase);
         await emitEvent(phase, PIPELINE_EVENT_TYPES.reviewNeeded, oc.phase.reviewNeeded);
         const reviewSet = await updateAuditIfNotCancelled({

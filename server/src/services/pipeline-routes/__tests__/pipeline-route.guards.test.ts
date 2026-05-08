@@ -27,6 +27,15 @@ describe('pipeline-route.guards', () => {
     expect(assertTokenBudgetAvailable({ status: 'created', tokens_used: 10, token_budget: 10 })?.status).toBe(400);
   });
 
+  it('passes the token-budget guard after a top-up raises token_budget above tokens_used', () => {
+    const exhausted = { status: 'created', tokens_used: 200_000, token_budget: 200_000 };
+    expect(assertTokenBudgetAvailable(exhausted)?.status).toBe(400);
+
+    // Simulating a successful platform-admin top-up via apply_audit_token_budget_topup RPC.
+    const afterTopup = { ...exhausted, token_budget: exhausted.token_budget + 50_000 };
+    expect(assertTokenBudgetAvailable(afterTopup)).toBeNull();
+  });
+
   it('identifies active and terminal statuses', () => {
     expect(isPipelinePhaseActive('recon')).toBe(true);
     expect(isPipelineTerminal('completed')).toBe(true);

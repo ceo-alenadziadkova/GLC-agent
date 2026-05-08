@@ -5,10 +5,13 @@ import {
   apiIntakeNlDescribe,
   apiIntakePrefill,
   apiIntakeRespond,
+  apiIntakeTailoredQuestions,
+  apiIntakeIntelligenceSnapshot,
   apiIntakeToken,
 } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { BriefQuestion, BriefResponses } from '../briefQuestions';
+import type { AuditBriefIntelligenceSnapshotResponse } from './brief-profile-platform';
 import {
   currentIntakeVersionTuple,
   type IntakeBriefCollectionMode,
@@ -67,6 +70,33 @@ export const intakeTokensApi = {
       submitted_at: string | null;
       expires_at: string;
     }>(apiIntakeToken(token));
+  },
+
+  /**
+   * After pre-brief slots are satisfied, full-plan `nextRecommended` minus baseline ids (for phase-2 public intake).
+   * 400 when pre-brief incomplete; 404/410 for token issues.
+   */
+  async getIntakeTailoredQuestions(token: string) {
+    return publicApiFetch<{
+      questions: BriefQuestion[];
+      question_ids: string[];
+      case_keys: string[];
+      next_recommended: string[];
+    }>(apiIntakeTailoredQuestions(token));
+  },
+
+  /**
+   * After pre-brief: optional LLM (server flag) reorders F2 follow-ups, narrative, inferred preview, label overrides.
+   * 400 if pre-brief incomplete. Same preconditions as `GET .../tailored-questions`.
+   */
+  async postIntakeIntelligenceSnapshot(
+    token: string,
+    body?: { skip_llm?: boolean },
+  ): Promise<AuditBriefIntelligenceSnapshotResponse> {
+    return publicApiFetch<AuditBriefIntelligenceSnapshotResponse>(apiIntakeIntelligenceSnapshot(token), {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    });
   },
 
   async submitIntakeResponses(token: string, responses: BriefResponses) {

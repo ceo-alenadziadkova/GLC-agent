@@ -16,7 +16,10 @@ import { getGlcQueryClient } from '../../lib/glc-query-client';
 import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../../lib/glc-invalidate-queries';
 import {
   clearClientPortalNewAuditDraft,
+  clearConsultantNewAuditDraft,
+  type NewAuditDraftV1,
   writeClientPortalNewAuditDraft,
+  writeConsultantNewAuditDraft,
 } from '../../lib/client-portal-new-audit-draft';
 
 export type NewAuditExecutionPlan = {
@@ -29,6 +32,90 @@ export type NewAuditExecutionPlan = {
 };
 
 export type NewAuditBriefLayoutChoice = 'unset' | 'classic' | 'wizard';
+
+export type SaveNewAuditBriefToServerParams = {
+  auditId: string;
+  isClientSelfServe: boolean;
+  url: string;
+  noPublicWebsite: boolean;
+  name: string;
+  industry: string;
+  industrySpecify: string;
+  responses: BriefResponses;
+  briefLayoutChoice: NewAuditBriefLayoutChoice;
+  preBriefToken: string | null;
+  intakeTokenFromUrl: string;
+  /** When the token merge path does not run, use wizard draft versions. */
+  draftIntakeVersions: IntakeVersionTuple | null;
+};
+
+/**
+ * Persists merged step-0 + bank responses for New Audit (consultant and portal), including optional token link merge.
+ * Call before `POST /brief/intelligence-snapshot` so the server reads a fresh `intake_brief` row.
+ */
+export async function saveNewAuditBriefToServer(
+  params: SaveNewAuditBriefToServerParams,
+): Promise<IntakeVersionTuple | null> {
+  const basicsSource: BriefResponseSource = params.isClientSelfServe ? 'client' : 'consultant';
+  const localWithBasics: BriefResponses = {
+    ...params.responses,
+    ...buildStep0IntakePatch(
+      params.name,
+      params.industry,
+      params.industrySpecify,
+      params.url,
+      params.noPublicWebsite,
+      basicsSource,
+    ),
+  };
+  if (params.industry !== 'Other') {
+    delete localWithBasics.intake_industry_specify;
+  }
+  const tokenCandidates = params.isClientSelfServe
+    ? ([] as string[])
+    : ([...new Set([params.preBriefToken, params.intakeTokenFromUrl].filter(Boolean))] as string[]);
+
+  for (const t of tokenCandidates) {
+    try {
+      await api.linkIntakeTokenToAudit(t, params.auditId);
+    } catch (linkErr) {
+      logger.warn('[NewAudit] linkIntakeTokenToAudit failed (non-fatal)', {
+        error: linkErr instanceof Error ? linkErr.message : String(linkErr),
+      });
+    }
+  }
+
+  let mergedForSave = localWithBasics;
+  let intakeVersionsForSave: IntakeVersionTuple | undefined = params.draftIntakeVersions ?? undefined;
+  if (tokenCandidates.length > 0) {
+    try {
+      const { brief } = await api.getBrief(params.auditId);
+      const fromServer = normalizeIntakeToResponses(
+        (brief?.responses as Record<string, unknown>) ?? {},
+      );
+      mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
+      intakeVersionsForSave = brief?.intake_versions ?? undefined;
+    } catch (mergeErr) {
+      logger.warn('[NewAudit] getBrief merge failed (non-fatal)', {
+        error: mergeErr instanceof Error ? mergeErr.message : String(mergeErr),
+      });
+    }
+  }
+
+  try {
+    const savePayload = await api.saveBrief(params.auditId, mergedForSave, {
+      collection_mode:
+        params.noPublicWebsite && params.briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
+      intake_versions: intakeVersionsForSave,
+    });
+    return savePayload.brief.intake_versions ?? null;
+  } catch (briefErr) {
+    logger.warn('[NewAudit] Brief save failed (non-fatal)', {
+      error: briefErr instanceof Error ? briefErr.message : String(briefErr),
+    });
+  }
+  return null;
+}
 
 export type SaveClientDraftParams = {
   isClientSelfServe: boolean;
@@ -58,34 +145,62 @@ export type SaveClientDraftParams = {
   setDraftSaving: (v: boolean) => void;
 };
 
-export async function saveClientDraft(params: SaveClientDraftParams): Promise<void> {
-  if (!params.isClientSelfServe) return;
+function newAuditDraftPayloadFromSaveParams(
+  params: Pick<
+    SaveClientDraftParams,
+    | 'step'
+    | 'url'
+    | 'noPublicWebsite'
+    | 'name'
+    | 'industry'
+    | 'industrySpecify'
+    | 'productMode'
+    | 'responses'
+    | 'briefLayoutChoice'
+    | 'draftAuditId'
+    | 'draftIntakeVersions'
+    | 'coveragePackage'
+    | 'selectedDomains'
+  >,
+): NewAuditDraftV1 {
+  return {
+    v: 1,
+    step: params.step,
+    url: params.url,
+    noPublicWebsite: params.noPublicWebsite,
+    name: params.name,
+    industry: params.industry,
+    industrySpecify: params.industrySpecify,
+    productMode: params.productMode,
+    responses: params.responses,
+    briefLayoutChoice: params.briefLayoutChoice,
+    draftAuditId: params.draftAuditId,
+    draftIntakeVersions: params.draftIntakeVersions,
+    ...(params.coveragePackage != null
+      ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
+      : {}),
+  };
+}
 
+export async function saveClientDraft(params: SaveClientDraftParams): Promise<void> {
   params.setDraftError(null);
   params.setDraftNotice(null);
   params.setDraftSaving(true);
 
   try {
-    writeClientPortalNewAuditDraft({
-      v: 1,
-      step: params.step,
-      url: params.url,
-      noPublicWebsite: params.noPublicWebsite,
-      name: params.name,
-      industry: params.industry,
-      industrySpecify: params.industrySpecify,
-      productMode: params.productMode,
-      responses: params.responses,
-      briefLayoutChoice: params.briefLayoutChoice,
-      draftAuditId: params.draftAuditId,
-      draftIntakeVersions: params.draftIntakeVersions,
-      ...(params.coveragePackage != null
-        ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
-        : {}),
-    });
+    const persistLocalDraft = newAuditDraftPayloadFromSaveParams(params);
+    if (params.isClientSelfServe) {
+      writeClientPortalNewAuditDraft(persistLocalDraft);
+    } else {
+      writeConsultantNewAuditDraft(persistLocalDraft);
+    }
 
     if (!params.step0Valid) {
-      params.setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftNoticeIncomplete);
+      params.setDraftNotice(
+        params.isClientSelfServe
+          ? WORKSPACE_PAGE_COPY.newAudit.draftNoticeIncomplete
+          : WORKSPACE_PAGE_COPY.newAudit.draftNoticeIncompleteConsultant,
+      );
       return;
     }
 
@@ -110,7 +225,7 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
       params.setDraftAuditId(auditId);
     }
 
-    const basicsSource: BriefResponseSource = 'client';
+    const basicsSource: BriefResponseSource = params.isClientSelfServe ? 'client' : 'consultant';
     const localWithBasics: BriefResponses = {
       ...params.responses,
       ...buildStep0IntakePatch(
@@ -134,25 +249,22 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
 
     params.setDraftIntakeVersions(savePayload.brief.intake_versions ?? null);
 
-    writeClientPortalNewAuditDraft({
-      v: 1,
-      step: params.step,
-      url: params.url,
-      noPublicWebsite: params.noPublicWebsite,
-      name: params.name,
-      industry: params.industry,
-      industrySpecify: params.industrySpecify,
-      productMode: params.productMode,
-      responses: params.responses,
-      briefLayoutChoice: params.briefLayoutChoice,
+    const afterServerPayload = newAuditDraftPayloadFromSaveParams({
+      ...params,
       draftAuditId: auditId,
       draftIntakeVersions: savePayload.brief.intake_versions ?? null,
-      ...(params.coveragePackage != null
-        ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
-        : {}),
     });
+    if (params.isClientSelfServe) {
+      writeClientPortalNewAuditDraft(afterServerPayload);
+    } else {
+      writeConsultantNewAuditDraft(afterServerPayload);
+    }
 
-    params.setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowser);
+    params.setDraftNotice(
+      params.isClientSelfServe
+        ? WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowser
+        : WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowserConsultant,
+    );
   } catch (err) {
     if (isSelfServeOwnerConfigApiError(err)) {
       params.setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftSavedLocalSyncFailed);
@@ -195,26 +307,9 @@ export async function launchNewAudit(e: FormEvent, params: LaunchNewAuditParams)
   params.setLoading(true);
 
   try {
-    const basicsSource: BriefResponseSource = params.isClientSelfServe ? 'client' : 'consultant';
-    const localWithBasics: BriefResponses = {
-      ...params.responses,
-      ...buildStep0IntakePatch(
-        params.name,
-        params.industry,
-        params.industrySpecify,
-        params.url,
-        params.noPublicWebsite,
-        basicsSource,
-      ),
-    };
-
-    if (params.industry !== 'Other') {
-      delete localWithBasics.intake_industry_specify;
-    }
-
-    // 1. Create audit (or reuse client draft saved earlier)
+    // 1. Create audit (or reuse draft from New Audit step 0 / client portal)
     let auditId: string;
-    if (params.isClientSelfServe && params.draftAuditId) {
+    if (params.draftAuditId) {
       auditId = params.draftAuditId;
     } else {
       const audit = await api.createAudit(
@@ -230,50 +325,20 @@ export async function launchNewAudit(e: FormEvent, params: LaunchNewAuditParams)
       auditId = audit.id;
     }
 
-    // 2. Link any pre-brief tokens (modal link or ?intake= URL) so client answers merge into intake_brief
-    const tokenCandidates = params.isClientSelfServe
-      ? ([] as string[])
-      : ([...new Set([params.preBriefToken, params.intakeTokenFromUrl].filter(Boolean))] as string[]);
-
-    for (const t of tokenCandidates) {
-      try {
-        await api.linkIntakeTokenToAudit(t, auditId);
-      } catch (linkErr) {
-        logger.warn('[NewAudit] linkIntakeTokenToAudit failed (non-fatal)', {
-          error: linkErr instanceof Error ? linkErr.message : String(linkErr),
-        });
-      }
-    }
-
-    let mergedForSave = localWithBasics;
-    let intakeVersionsForSave: IntakeVersionTuple | undefined;
-
-    if (tokenCandidates.length > 0) {
-      try {
-        const { brief } = await api.getBrief(auditId);
-        const fromServer = normalizeIntakeToResponses(
-          (brief?.responses as Record<string, unknown>) ?? {},
-        );
-        mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
-        intakeVersionsForSave = brief?.intake_versions ?? undefined;
-      } catch (mergeErr) {
-        logger.warn('[NewAudit] getBrief merge failed (non-fatal)', {
-          error: mergeErr instanceof Error ? mergeErr.message : String(mergeErr),
-        });
-      }
-    }
-
-    try {
-      await api.saveBrief(auditId, mergedForSave, {
-        collection_mode:
-          params.noPublicWebsite && params.briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
-        intake_versions: intakeVersionsForSave,
-      });
-    } catch (briefErr) {
-      logger.warn('[NewAudit] Brief save failed (non-fatal)', {
-        error: briefErr instanceof Error ? briefErr.message : String(briefErr),
-      });
-    }
+    await saveNewAuditBriefToServer({
+      auditId,
+      isClientSelfServe: params.isClientSelfServe,
+      url: params.url,
+      noPublicWebsite: params.noPublicWebsite,
+      name: params.name,
+      industry: params.industry,
+      industrySpecify: params.industrySpecify,
+      responses: params.responses,
+      briefLayoutChoice: params.briefLayoutChoice,
+      preBriefToken: params.preBriefToken,
+      intakeTokenFromUrl: params.intakeTokenFromUrl,
+      draftIntakeVersions: null,
+    });
 
     await api.startPipeline(auditId);
 
@@ -284,8 +349,10 @@ export async function launchNewAudit(e: FormEvent, params: LaunchNewAuditParams)
 
     if (params.isClientSelfServe) {
       clearClientPortalNewAuditDraft();
-      params.setDraftIntakeVersions(null);
+    } else {
+      clearConsultantNewAuditDraft();
     }
+    params.setDraftIntakeVersions(null);
 
     params.navigate(params.isClientSelfServe ? `/portal/pipeline/${auditId}` : `/pipeline/${auditId}`);
   } catch (err) {

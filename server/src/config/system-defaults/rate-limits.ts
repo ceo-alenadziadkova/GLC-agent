@@ -28,6 +28,15 @@ export const SYSTEM_DEFAULTS_PUBLIC_ROUTE_RATE_LIMITS = {
   briefPublicReadMaxPerHour: 80,
   briefPublicWriteMaxPerHour: 40,
   intakeReadMaxPerHour: 60,
-  intakeWriteMaxPerHour: 30,
+  /**
+   * POST /api/intake/:token/* (respond, next-question, etc.) per (token, client IP) per hour.
+   * Set high enough for a long adaptive flow plus extra intelligence/NL calls.
+   */
+  intakeWriteMaxPerHour: 300,
+  /**
+   * When `NODE_ENV` is not `production` (local dev, tests): avoid blocking a single `localhost` IP
+   * while still applying a finite guardrail in non-prod.
+   */
+  intakeWriteMaxPerHourNonProduction: 5000,
   marketingBriefMaxPerHour: 24,
 } as const;

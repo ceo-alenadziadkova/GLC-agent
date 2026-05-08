@@ -17,7 +17,7 @@ function statusClass(status: 'required' | 'visible' | 'deferred' | 'hidden' | 'o
     case 'hidden':
       return 'border-zinc-500/40 bg-zinc-500/15';
     default:
-      return 'border-[var(--glc-border)] bg-[var(--glc-surface)]';
+      return 'border-[var(--border-subtle)] bg-[var(--bg-surface)]';
   }
 }
 
@@ -62,7 +62,7 @@ export function IntakeTraceBranchMap({
   }, [ids]);
 
   if (ids.length === 0) {
-    return <p className="text-sm text-[var(--glc-muted)]">No questions to map in this plan.</p>;
+    return <p className="text-sm text-[var(--text-tertiary)]">No questions to map in this plan.</p>;
   }
 
   return (
@@ -94,41 +94,41 @@ export function IntakeTraceBranchMap({
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Upstream (reads)</div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Upstream (reads)</div>
           <ul className="space-y-1 text-xs">
             {upstream.length === 0 ? (
-              <li className="text-[var(--glc-muted)]">No upstream dependency</li>
+              <li className="text-[var(--text-tertiary)]">No upstream dependency</li>
             ) : (
               upstream.map(id => (
                 <li key={id} className={`rounded border px-2 py-1 ${statusClass(tracePlanNodeStatusFor(id, plan))}`}>
                   <span className="font-mono">{id}</span>
-                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                  <span className="text-[var(--text-tertiary)]"> — {resolveLabel(id)}</span>
                 </li>
               ))
             )}
           </ul>
         </div>
         <div className={`rounded-lg border p-3 ${statusClass(tracePlanNodeStatusFor(focusId, plan))}`}>
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Current node</div>
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Current node</div>
           <div className="text-xs">
             <div className="font-mono">{focusId}</div>
-            <div className="text-[var(--glc-muted)]">{resolveLabel(focusId)}</div>
-            <div className="mt-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)]">
+            <div className="text-[var(--text-tertiary)]">{resolveLabel(focusId)}</div>
+            <div className="mt-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">
               status: {tracePlanNodeStatusFor(focusId, plan)}
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Downstream (dependents)</div>
+        <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
+          <div className="mb-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--text-tertiary)]">Downstream (dependents)</div>
           <ul className="space-y-1 text-xs">
             {downstream.length === 0 ? (
-              <li className="text-[var(--glc-muted)]">No downstream dependency</li>
+              <li className="text-[var(--text-tertiary)]">No downstream dependency</li>
             ) : (
               downstream.map(id => (
                 <li key={id} className={`rounded border px-2 py-1 ${statusClass(tracePlanNodeStatusFor(id, plan))}`}>
                   <span className="font-mono">{id}</span>
-                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                  <span className="text-[var(--text-tertiary)]"> — {resolveLabel(id)}</span>
                 </li>
               ))
             )}
@@ -136,16 +136,16 @@ export function IntakeTraceBranchMap({
         </div>
       </div>
 
-      <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+      <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-3">
         <summary className="cursor-pointer text-sm font-medium">All branch edges ({allEdges.length})</summary>
         <ul className="mt-3 max-h-56 overflow-y-auto space-y-1 text-xs font-mono">
           {allEdges.length === 0 ? (
-            <li className="text-[var(--glc-muted)] font-sans">No branch edges in current slice.</li>
+            <li className="font-sans text-[var(--text-tertiary)]">No branch edges in current slice.</li>
           ) : (
             allEdges.map((e, i) => (
               <li key={`${e.from}-${e.to}-${i}`}>
                 {e.from} {'->'} {e.to}
-                <span className="font-sans text-[var(--glc-muted)]">
+                <span className="font-sans text-[var(--text-tertiary)]">
                   {' '}
                   ({resolveLabel(e.from)} {'->'} {resolveLabel(e.to)})
                 </span>

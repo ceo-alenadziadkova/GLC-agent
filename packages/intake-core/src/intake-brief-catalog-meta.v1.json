@@ -23,7 +23,10 @@
     "d1": "Capture edition, integrations, and data hygiene; branch to which CRM if selected.",
     "d5": "Map triggers, volumes, and ownership.",
     "f1": "Restate pain as a measurable gap they agree with.",
-    "f5": "Frame as ranges for fix vs. strategic initiatives."
+    "d2": "For proposal-style scoping, pick the bottleneck that most often delays revenue or delivery.",
+    "f4": "Captures appetite for quick wins versus deeper change — helps phase a proposal without implying a firm implementation commitment.",
+    "f5": "Rough range is fine; use it to size fix versus initiative scenarios in roadmaps and proposals (not to lock budget).",
+    "f8": "Use deadlines to position phasing: immediate wins first, deeper initiatives later."
   },
   "triggersFollowup": {
     "d1": ["d1a"],

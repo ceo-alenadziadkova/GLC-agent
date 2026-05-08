@@ -61,7 +61,7 @@ export const SETTINGS_PAGE_COPY = {
     clientDescription: 'Used when you fill the brief after your audit request is approved.',
     consultantTitle: 'Consultant / admin (new audit & workspace)',
     consultantDescription:
-      'Used for the Brief step when creating an audit and for "Edit intake brief" in the audit workspace unless you pick a different layout there.',
+      'This default applies to "Edit intake brief" in a workspace audit. When you start a new audit, you choose step-by-step vs all sections on this device (or a saved New Audit choice) — it is not auto-filled from this default.',
     classic: 'All sections',
     wizard: 'Step by step',
     askEachTime: 'Ask each time',

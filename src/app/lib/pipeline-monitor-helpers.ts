@@ -76,6 +76,25 @@ export const EXPRESS_MAX_PHASE = 4;
 export const AUTO_WING_IDS = [1, 2, 3, 4];
 export const ANALYTIC_WING_IDS = [5, 6];
 
+const AUTO_WING_MAX_PHASE_ID = 4;
+
+/**
+ * `after_phase` for Review Gate 2 from server `review_points`, derived from execution plan coverage.
+ * Full six-domain audits use `4`; partial auto-wing coverage uses the highest selected auto phase (1–4).
+ */
+export function deriveAutoWingReviewAfterPhase(reviews: ReadonlyArray<{ after_phase: number }>): number {
+  const auto = reviews.map(r => r.after_phase).filter(ap => ap >= 1 && ap <= AUTO_WING_MAX_PHASE_ID);
+  return auto.length > 0 ? Math.max(...auto) : AUTO_WING_MAX_PHASE_ID;
+}
+
+/** True when some non-skipped phase above the sidebar row is visibly running (not inferred from stale audit status alone). */
+export function hasVisiblyRunningUpstreamPhase(
+  phases: ReadonlyArray<{ id: number; skipped: boolean; status: PhSt }>,
+  selectedPhaseId: number,
+): boolean {
+  return phases.some(p => !p.skipped && p.id < selectedPhaseId && p.status === 'running');
+}
+
 /**
  * Determine phase display status.
  *
@@ -90,13 +109,21 @@ export function getPhaseStatus(
   reviews: Array<{ after_phase: number; status: string }>,
   isExpress: boolean,
   domainStatus: string | null,
+  /** When set, phases not in this execution plan are not part of this audit (partial coverage). */
+  plannedPhaseIds?: ReadonlySet<number> | null,
 ): PhSt {
   if (isExpress && phaseId > EXPRESS_MAX_PHASE) return 'skipped';
+  if (plannedPhaseIds && plannedPhaseIds.size > 0 && !plannedPhaseIds.has(phaseId)) return 'skipped';
 
   if (domainStatus) {
     if (domainStatus === 'completed') return 'completed';
-    if (domainStatus === 'failed') return 'failed';
     if (domainStatus === 'collecting' || domainStatus === 'analyzing') return 'running';
+    if (domainStatus === 'failed') {
+      // Consultant retry: `claimPipelineRetry` sets `audits.status` active before `audit_domains`
+      // flips off `failed` — without this, the card stays "failed" until a full page refresh.
+      if (isPipelineAuditActiveStatus(auditStatus) && phaseId === currentPhase) return 'running';
+      return 'failed';
+    }
   }
 
   if (auditStatus === 'completed') return 'completed';
@@ -114,6 +141,12 @@ export function getPhaseStatus(
 
   if (phaseId < currentPhase) return 'completed';
   if (phaseId === currentPhase) {
+    // `review_points` rows are inserted at audit creation with `pending` long before this phase runs.
+    // Phases without `audit.domains` rows (recon, strategy) have `domainStatus === null`, so without
+    // this branch the card incorrectly shows "Needs Review" while the orchestrator is executing.
+    if (isPipelineAuditActiveStatus(auditStatus)) {
+      return 'running';
+    }
     const review = reviews.find(r => r.after_phase === phaseId);
     if (review?.status === 'pending') return 'review';
     // Approve clears the gate but does not advance `current_phase` until POST pipeline/next.

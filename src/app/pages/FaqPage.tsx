@@ -7,7 +7,7 @@ import { MarketingComparisonShell } from '../marketing/blocks/MarketingCompariso
 import { MarketingRevealMask } from '../marketing/blocks/MarketingRevealMask';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
-import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../locales/en/marketing-workspace-packaging.en.json';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import {
   Accordion,

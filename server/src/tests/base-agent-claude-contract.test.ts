@@ -2,9 +2,9 @@
  * Contract tests: BaseAgent.callClaudeWithRetry (AI tool_use + Zod)
  *
  * Mocks Anthropic SDK and Supabase. Exercises:
- *   - invalid tool input: retry until MAX_RETRIES, then throw
- *   - invalid then valid: succeeds on second API call
+ *   - invalid tool input: one API call, emit `llm_tool_validation_failed` with capped raw JSON, then throw
  *   - missing tool_use: immediate error (no HTTP retry path)
+ *   - HTTP 429: still retries the API call (unrelated to Zod)
  *
  * Does not call real Claude.
  */
@@ -43,6 +43,12 @@ vi.mock('../services/supabase.js', () => ({
   },
 }));
 
+vi.mock('../services/pipeline/events/insert-pipeline-event.js', () => ({
+  insertPipelineEventRow: vi.fn(async () => {}),
+}));
+
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { insertPipelineEventRow } from '../services/pipeline/events/insert-pipeline-event.js';
 import { BaseAgent } from '../agents/base.js';
 import type { DomainKey } from '../types/audit.js';
 import type { BaseCollector } from '../collectors/base.js';
@@ -165,30 +171,22 @@ describe('BaseAgent.callClaudeWithRetry — AI output contract', () => {
     tokenLogSpy.mockRestore();
   });
 
-  it('throws after MAX_RETRIES when tool input repeatedly fails Zod', async () => {
+  it('throws on first Zod failure after one Claude call and records llm_tool_validation_failed', async () => {
     mockAnthropicCreate.mockResolvedValue(toolUseResponse(makeInvalidToolInput()));
 
     const agent = new HarnessAgent('audit-contract-1');
-    await expect(agent.exerciseCall(makeAgentContext())).rejects.toThrow(
-      /Response validation failed after 3 attempts/i,
-    );
-    expect(mockAnthropicCreate).toHaveBeenCalledTimes(3);
-    // Tokens are logged for each API response before Zod validation.
-    expect(tokenLogSpy).toHaveBeenCalledTimes(3);
-  });
+    await expect(agent.exerciseCall(makeAgentContext())).rejects.toThrow(/Response validation failed:/i);
+    expect(mockAnthropicCreate).toHaveBeenCalledTimes(1);
+    expect(tokenLogSpy).toHaveBeenCalledTimes(1);
 
-  it('succeeds when a later attempt returns valid tool input', async () => {
-    mockAnthropicCreate
-      .mockResolvedValueOnce(toolUseResponse(makeInvalidToolInput()))
-      .mockResolvedValueOnce(toolUseResponse(makeValidToolInput()));
-
-    const agent = new HarnessAgent('audit-contract-2');
-    const result = await agent.exerciseCall(makeAgentContext());
-
-    expect(result.score).toBe(3);
-    expect(result.label).toBe('Moderate');
-    expect(mockAnthropicCreate).toHaveBeenCalledTimes(2);
-    expect(tokenLogSpy).toHaveBeenCalledTimes(2);
+    const rows = vi.mocked(insertPipelineEventRow).mock.calls.map((c) => c[0]);
+    const validationRow = rows.find((r) => r.eventType === PIPELINE_EVENT_TYPES.llmToolValidationFailed);
+    expect(validationRow).toBeDefined();
+    expect(validationRow?.data).toMatchObject({
+      call_type: 'domain_agent',
+      raw_tool_input_truncated: false,
+    });
+    expect(String(validationRow?.data?.raw_tool_input_json ?? '')).toContain('too short');
   });
 
   it('throws when Claude returns no tool_use block', async () => {

@@ -24,8 +24,8 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
   const secondaryButtonClassName = 'h-auto px-2 py-1 text-xs';
 
   return (
-    <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
-      <summary className="cursor-pointer text-xs font-medium text-[var(--glc-fg)]">{copy.advancedControls}</summary>
+    <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-2">
+      <summary className="cursor-pointer text-xs font-medium text-[var(--text-primary)]">{copy.advancedControls}</summary>
       <div className="mt-2 space-y-2">
         <div className="flex flex-wrap gap-2">
           {props.showWordingReview && (
@@ -33,7 +33,7 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
               type="button"
               variant="outline"
               size="sm"
-              className={`${secondaryButtonClassName} ${props.baReviewMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+              className={`${secondaryButtonClassName} ${props.baReviewMode ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
               onClick={props.onToggleBaReviewMode}
             >
               {props.baReviewMode ? copy.hideBaReview : copy.showBaReview}
@@ -51,17 +51,17 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs">
-            <span className="text-[var(--glc-muted)]">{copy.searchNode}</span>
+            <span className="text-[var(--text-tertiary)]">{copy.searchNode}</span>
             <Input
               type="search"
-              className="glc-input h-auto min-h-7 font-mono text-xs"
+              className="ds-input h-auto min-h-7 font-mono text-xs"
               value={props.searchQuery}
               onChange={event => props.onSearchQueryChange(event.target.value)}
               placeholder={copy.searchPlaceholder}
             />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="text-[var(--glc-muted)]">{copy.downstreamDepthFromFocus}</span>
+            <span className="text-[var(--text-tertiary)]">{copy.downstreamDepthFromFocus}</span>
             <input
               type="range"
               min={depthRange.min}
@@ -70,10 +70,10 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
               value={props.downstreamDepth}
               onChange={event => props.onDownstreamDepthChange(Number(event.target.value))}
             />
-            <span className="text-[var(--glc-muted)]">{props.downstreamDepth}</span>
+            <span className="text-[var(--text-tertiary)]">{props.downstreamDepth}</span>
           </label>
-          <div className="text-xs rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface)] p-2">
-            <div className="font-medium mb-1">{copy.legend}</div>
+          <div className="text-xs rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2">
+            <div className="mb-1 font-medium">{copy.legend}</div>
             <div className="grid grid-cols-2 gap-1 text-xs">
               {INTAKE_TRACE_EDGE_GRAPH_UI_COPY.legendRows.map(row => (
                 <span key={row.status} className="contents">
@@ -117,7 +117,7 @@ export function WordingReviewPanelControls(props: WordingReviewPanelControlsProp
   const secondaryButtonClassName = 'h-auto px-2 py-1 text-xs';
   return (
     <div className="mb-2 flex flex-wrap gap-2">
-      <span className="text-xs text-[var(--glc-muted)]">
+      <span className="text-xs text-[var(--text-tertiary)]">
         {copy.averageQuality}: {props.averageWordingScore}/100
       </span>
       <div className="flex flex-wrap gap-1">
@@ -127,7 +127,7 @@ export function WordingReviewPanelControls(props: WordingReviewPanelControlsProp
             type="button"
             variant="outline"
             size="sm"
-            className={`${secondaryButtonClassName} ${props.scoringMode === mode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+            className={`${secondaryButtonClassName} ${props.scoringMode === mode ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
             onClick={() => props.onScoringModeChange(mode)}
           >
             {mode}
@@ -138,7 +138,7 @@ export function WordingReviewPanelControls(props: WordingReviewPanelControlsProp
         type="button"
         variant="outline"
         size="sm"
-        className={`${secondaryButtonClassName} ${props.highOnly ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        className={`${secondaryButtonClassName} ${props.highOnly ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
         onClick={props.onToggleHighOnly}
       >
         {props.highOnly ? copy.showAllSeverities : copy.showHighOnly}

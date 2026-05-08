@@ -9,7 +9,7 @@ import {
 
 describe('orchestration-client-feature-gates', () => {
   const originalNarrative = APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeEnabled;
-  const originalNarrativeMode = APP_FEATURE_FLAGS.orchestrationRoadmapNarrativeRolloutMode;
+  const originalNarrativeMode = APP_FEATURE_FLAGS.orchestrationRoadmapRolloutMode;
   const originalDeepDive = APP_FEATURE_FLAGS.directorDeepDiveOnDemandEnabled;
   const originalDeepDiveMode = APP_FEATURE_FLAGS.directorDeepDiveRolloutMode;
   const originalSub = APP_FEATURE_FLAGS.directorSubAgentsEnabled;
@@ -22,7 +22,7 @@ describe('orchestration-client-feature-gates', () => {
   afterEach(() => {
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled =
       originalNarrative;
-    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeRolloutMode: FeatureRolloutMode }).orchestrationRoadmapNarrativeRolloutMode =
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapRolloutMode: FeatureRolloutMode }).orchestrationRoadmapRolloutMode =
       originalNarrativeMode;
     (APP_FEATURE_FLAGS as { directorDeepDiveOnDemandEnabled: boolean }).directorDeepDiveOnDemandEnabled = originalDeepDive;
     (APP_FEATURE_FLAGS as { directorDeepDiveRolloutMode: FeatureRolloutMode }).directorDeepDiveRolloutMode = originalDeepDiveMode;
@@ -32,21 +32,21 @@ describe('orchestration-client-feature-gates', () => {
 
   it('returns true when base narrative flag is on regardless of email', () => {
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled = true;
-    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeRolloutMode: FeatureRolloutMode }).orchestrationRoadmapNarrativeRolloutMode =
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapRolloutMode: FeatureRolloutMode }).orchestrationRoadmapRolloutMode =
       'shadow';
     expect(getEffectiveOrchestrationRoadmapNarrativeEnabled(null)).toBe(true);
   });
 
   it('unlocks narrative for allowlisted email in internal mode when base flag is off', () => {
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled = false;
-    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeRolloutMode: FeatureRolloutMode }).orchestrationRoadmapNarrativeRolloutMode =
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapRolloutMode: FeatureRolloutMode }).orchestrationRoadmapRolloutMode =
       'internal';
     expect(getEffectiveOrchestrationRoadmapNarrativeEnabled('CEO.AlenaDziadkova@gmail.com')).toBe(true);
   });
 
   it('keeps narrative off in shadow when base flag is off', () => {
     (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeEnabled: boolean }).orchestrationRoadmapNarrativeEnabled = false;
-    (APP_FEATURE_FLAGS as { orchestrationRoadmapNarrativeRolloutMode: FeatureRolloutMode }).orchestrationRoadmapNarrativeRolloutMode =
+    (APP_FEATURE_FLAGS as { orchestrationRoadmapRolloutMode: FeatureRolloutMode }).orchestrationRoadmapRolloutMode =
       'shadow';
     expect(getEffectiveOrchestrationRoadmapNarrativeEnabled('ceo.alenadziadkova@gmail.com')).toBe(false);
   });

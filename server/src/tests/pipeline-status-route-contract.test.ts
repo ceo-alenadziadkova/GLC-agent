@@ -117,13 +117,14 @@ const {
   const mockFrom = vi.fn((table: string) => {
     if (table === 'audits') return makeAuditsChain();
     if (table === 'pipeline_events') {
+      const chain: Record<string, unknown> = {};
+      chain.eq = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.limit = vi.fn(async () => ({ data: events, error: null }));
       return {
         select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => ({
-              limit: vi.fn(async () => ({ data: events, error: null })),
-            })),
-          })),
+          eq: vi.fn(() => chain),
         })),
       };
     }

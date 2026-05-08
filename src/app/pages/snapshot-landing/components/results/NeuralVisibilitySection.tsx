@@ -13,11 +13,11 @@ export function NeuralVisibilitySection(props: { result: FreeSnapshotPreview }) 
   return (
     <Surface
       padding="none"
-      className="glc-card glc-snapshot-result-card mb-6 rounded-[var(--radius-xl)] p-5 lg:p-6"
+      className="ds-card ds-snapshot-result-card mb-6 rounded-[var(--radius-xl)] p-5 lg:p-6"
     >
-      <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
-        <span className="glc-snapshot-section-h__rule" aria-hidden />
-        <Binoculars className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+      <div className="ds-snapshot-section-h ds-snapshot-section-h--info !mb-3">
+        <span className="ds-snapshot-section-h__rule" aria-hidden />
+        <Binoculars className="h-4 w-4 shrink-0 text-[var(--text-blue)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {SNAPSHOT_LANDING_HERO_COPY.neuralVisibilityTitle}
         </span>
@@ -46,7 +46,7 @@ export function NeuralVisibilitySection(props: { result: FreeSnapshotPreview }) 
 
         <p className="border-t border-[var(--border-subtle)] pt-3 text-xs leading-snug text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.narrowSnapshotOnlyPrefix}{' '}
-          <Link to={APP_ROUTE_PATHS.brief} className="font-semibold text-[var(--glc-blue)] no-underline">
+          <Link to={APP_ROUTE_PATHS.brief} className="font-semibold text-[var(--text-blue)] no-underline">
             {SNAPSHOT_LANDING_HERO_COPY.continueWithBriefLabel}
           </Link>{' '}
           {SNAPSHOT_LANDING_HERO_COPY.narrowSnapshotSpecialistSuffix}

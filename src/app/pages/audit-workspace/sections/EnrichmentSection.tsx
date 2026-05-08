@@ -99,12 +99,20 @@ export function EnrichmentSection({
                   onChange={value => {
                     queueFollowupSave(question.id, value, 'consultant', briefResponses);
                     if (!choiceValueNeedsSpecify(value)) {
-                      queueFollowupSave(otherKey, null, 'consultant', briefResponses);
+                      const baseAfterPrimary: BriefResponses = {
+                        ...briefResponses,
+                        [question.id]: { value, source: 'consultant' },
+                      };
+                      queueFollowupSave(otherKey, null, 'consultant', baseAfterPrimary);
                     }
                   }}
                   onSetUnknown={() => {
                     queueFollowupSave(question.id, null, 'unknown', briefResponses);
-                    queueFollowupSave(otherKey, null, 'unknown', briefResponses);
+                    const baseAfterUnknown: BriefResponses = {
+                      ...briefResponses,
+                      [question.id]: { value: null, source: 'unknown' },
+                    };
+                    queueFollowupSave(otherKey, null, 'unknown', baseAfterUnknown);
                   }}
                   otherSpecify={otherSpecify}
                   onOtherSpecifyChange={text => {

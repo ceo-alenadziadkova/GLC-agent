@@ -22,6 +22,7 @@ export function runIntakeReadinessPreflight(args: {
   applyExecutionPlanCoverageScope?: boolean;
   executionSelectedDomains?: DomainKey[];
   executionIncludeStrategy?: boolean;
+  readinessRole?: 'consultant' | 'client' | 'platform_admin' | string;
 }) {
   const normalizedIv = normalizeIntakeVersionTupleFromStorage(args.intakeVersionsRaw ?? null);
   const intakeTuple =
@@ -29,6 +30,10 @@ export function runIntakeReadinessPreflight(args: {
   // Phase-1 contract: baseline readiness enforcement is evaluated at pipeline_start semantics
   // for both /pipeline/start and /pipeline/next boundaries.
   const baselineEnforcementPoint = 'pipeline_start' as const;
+  const executionContext =
+    args.readinessRole === 'consultant' || args.readinessRole === 'platform_admin'
+      ? 'admin_presale'
+      : 'default';
   const readiness = evaluateIntakeReadinessEnvelope({
     responses: args.responses,
     slaProductMode: args.slaProductMode,
@@ -41,17 +46,14 @@ export function runIntakeReadinessPreflight(args: {
     applyExecutionPlanCoverageScope: args.applyExecutionPlanCoverageScope,
     executionSelectedDomains: args.executionSelectedDomains,
     executionIncludeStrategy: args.executionIncludeStrategy,
+    executionContext,
   });
   if (readiness.auditReadinessStatus === 'blocked') {
     return {
       blocked: true as const,
       intakeTuple,
       readiness,
-      error: pipelineRouteErr.intakeReadinessBlocked({
-        flowReadinessStatus: readiness.flowReadinessStatus,
-        auditReadinessStatus: readiness.auditReadinessStatus,
-        trace: readiness.trace,
-      }),
+      error: pipelineRouteErr.intakeReadinessBlocked(readiness, args.enforcementPoint),
     };
   }
   return { blocked: false as const, intakeTuple, readiness };

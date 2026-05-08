@@ -7,6 +7,7 @@ import { COLOR_TOKENS } from '../../../../design-system/tokens/colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 import { buildAppRoute } from '../../../config/route-paths';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
+import { buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 
 export function NavigationLinksSection({
   auditId,
@@ -25,10 +26,10 @@ export function NavigationLinksSection({
 }) {
   return (
     <>
-      {isCompleted && !isFreeSnapshot && APP_FEATURE_FLAGS.clientTimelineEnabled && (
+      {isCompleted && !isFreeSnapshot && APP_FEATURE_FLAGS.clientPlanWorkspaceEnabled && (
         <>
           <Link
-            to={buildAppRoute.portalTimeline(auditId)}
+            to={buildAppRoute.portalPlan(auditId)}
             className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 no-underline transition-all mobile:px-4"
             style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
           >
@@ -77,7 +78,11 @@ export function NavigationLinksSection({
           ) : null}
           {hasStrategy && (
             <Link
-              to={buildAppRoute.portalStrategy(auditId)}
+              to={buildPlanWorkspaceHref({
+                auditId,
+                isClient: true,
+                mode: 'shape',
+              })}
               className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline transition-all"
               style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
             >

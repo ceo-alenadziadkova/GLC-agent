@@ -60,7 +60,7 @@
       "preconditions": [{ "kind": "bank", "bankId": "a2", "equals": "Hospitality" }],
       "overlayQuestionIds": ["b_hotel_1", "b_hotel_2", "d_hotel_1"],
       "minOverlayAnswered": 1,
-      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["delivery_shape_baseline"] } },
+      "stopCondition": { "signalKeysWithConfidenceAtLeast": { "min": "low", "keys": ["operations_bottleneck"] } },
       "ownerDomain": "ux_conversion",
       "reviewByIsoDate": "2026-11-01"
     },

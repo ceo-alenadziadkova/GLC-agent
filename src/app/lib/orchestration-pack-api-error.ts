@@ -1,10 +1,17 @@
+import type { OrchestrationPlanGovernanceDto } from '../data/api/orchestration-types';
 import { ApiError } from '../data/api-error';
-import type { OrchestrationPlanGovernanceDto } from '../data/api/audits-orchestration';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
+import { coerceOrchestrationPlanGovernance } from './orchestration-plan-governance-guard';
 import {
   ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS,
   type OrchestrationPlanGovernanceReasonCode,
 } from '../config/orchestration-plan-governance';
+
+/** Narrow `plan_governance` from an {@link ApiError} without reading `details` blindly in UI handlers. */
+export function extractPlanGovernanceFromPackApiError(error: unknown): OrchestrationPlanGovernanceDto | null {
+  if (!(error instanceof ApiError)) return null;
+  return coerceOrchestrationPlanGovernance(error.details);
+}
 
 function linesForReasonCodes(codes: readonly string[]): string {
   return codes
@@ -34,18 +41,18 @@ export function formatOrchestrationPackRunErrorMessage(
 
   const d = details as {
     not_ready_reason_code?: string;
-    plan_governance?: OrchestrationPlanGovernanceDto;
   };
 
-  if (d.not_ready_reason_code) {
+  if (typeof d.not_ready_reason_code === 'string' && d.not_ready_reason_code.length > 0) {
     return {
       message: genericFailureLabel,
       description: `Not ready: ${d.not_ready_reason_code}`,
     };
   }
 
-  if (d.plan_governance) {
-    const { blocking_reasons, reason_codes, decision } = d.plan_governance;
+  const pg = coerceOrchestrationPlanGovernance(details);
+  if (pg) {
+    const { blocking_reasons, reason_codes, decision } = pg;
     if (Array.isArray(blocking_reasons) && blocking_reasons.length > 0) {
       return {
         message: ORCHESTRATION_UI_COPY.packBuildGovernanceBlockedTitle,

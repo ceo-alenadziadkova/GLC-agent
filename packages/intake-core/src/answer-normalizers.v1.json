@@ -212,6 +212,19 @@
           }
         ]
       },
+      {
+        "then": "unknown",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "don't know" },
+              { "kind": "string_includes", "value": "dont know" },
+              { "kind": "string_eq", "value": "i don't know for now" }
+            ]
+          }
+        ]
+      },
       { "then": "other", "if": [{ "kind": "always" }] }
     ]
   },
@@ -244,6 +257,19 @@
           }
         ]
       },
+      {
+        "then": "unknown",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "don't know" },
+              { "kind": "string_includes", "value": "dont know" },
+              { "kind": "string_eq", "value": "i don't know for now" }
+            ]
+          }
+        ]
+      },
       { "then": "other", "if": [{ "kind": "always" }] }
     ]
   },
@@ -251,6 +277,19 @@
     "priorityOutcomes": ["more_clients", "admin_overload"],
     "rules": [
       { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "unknown",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "don't know" },
+              { "kind": "string_includes", "value": "dont know" },
+              { "kind": "string_eq", "value": "i don't know for now" }
+            ]
+          }
+        ]
+      },
       {
         "then": "more_clients",
         "if": [

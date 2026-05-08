@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '../../lib/tanstack-react-query';
 import { createElement, type ReactNode } from 'react';
 
 // ─── Hoisted mocks (available before vi.mock hoisting) ─────────────────────
@@ -73,5 +73,20 @@ describe('useAudit', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('Audit not found');
     expect(result.current.audit).toBeNull();
+  });
+
+  it('reload triggers another getAudit (refetch)', async () => {
+    const fakeAudit = { meta: { id: 'audit-123', status: 'completed' }, domains: {} };
+    mockGetAudit.mockResolvedValue(fakeAudit);
+
+    const { result } = renderHook(() => useAudit('audit-123'), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.audit).toEqual(fakeAudit));
+    expect(mockGetAudit).toHaveBeenCalledTimes(1);
+
+    result.current.reload();
+    await waitFor(() => expect(mockGetAudit).toHaveBeenCalledTimes(2));
   });
 });

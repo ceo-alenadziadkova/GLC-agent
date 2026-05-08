@@ -36,7 +36,12 @@ Phase A-C addenda:
 ## UX contract (client canonical flow)
 
 - `Business Cockpit` is the first client entry point after the initial audit loop.
-- `Timeline` is the primary roadmap artifact (seasonal multi-lane execution projection).
+- `Delivery Board` (`/plan?...view=board`, rollout mode **`FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE`**) merges **persisted operational columns** with the same deterministic horizon projection used elsewhere; reconcile runs after each saved orchestration pack version so graph drift surfaces as orphaned metadata instead of rewriting strategy JSON silently.
+- **Delivery Board** is the primary execution surface on unified `/plan/:id` (same orchestration pack as structural truth); operational mutations go through `PATCH …/plan/board/cards`.
+- **Roadmap** remains the time/dependency projection surface (Gantt and scheduling ergonomics).
+- Bare `/plan/:id` and `/portal/plan/:id` without `view`: derive default from **`planDeliveryBoardRolloutMode`** ([`defaultPortalPlanSurfaceFromRollout`](../../src/app/config/portal-plan.ts)) — **`ga`** → default **`board`**; modes below **`ga`** still resolve through **`parsePortalPlanViewParam`** / **`PortalPlanPage`** (Delivery Board tab visibility uses **`isPlanDeliveryBoardUiEnabled`** from **`shadow`…** — see [`plan-delivery-board-ui.ts`](../../src/app/config/plan-delivery-board-ui.ts)).
+- Legacy **`?view=timeline`** deep links are retired and redirected to **`?view=board`** via canonical Plan redirects; timeline parity cues remain delivered through **`GET …/plan/board`** `timeline_parity` ([`docs/API.md`](../API.md)).
+- Product framing (**Accepted**): [`ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md`](../adrs/ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md). Engineering SSOT (**Accepted**): [`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](../adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md).
 - `Lab` is a secondary deep-dive layer for node-level detail and manifest/version operations.
 - Baseline/deep director provenance must stay visible through consistent node badges.
 - Coverage changes must produce a new roadmap version (`vN+1`) with explicit diff, never overwrite `vN`.

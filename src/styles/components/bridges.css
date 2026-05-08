@@ -1,0 +1,109 @@
+/* Extracted from legacy.css (safe split pass).
+ * Design-system token bridge utilities moved 1:1.
+ */
+
+/*
+ * Token bridge classes — use instead of inline visual styles in TSX (DS enforcement).
+ * Keeps the same CSS variables as inline `style={{ color: 'var(--…)' }}` patterns.
+ */
+.ds-text-primary {
+  color: var(--text-primary);
+}
+
+.ds-text-secondary {
+  color: var(--text-secondary);
+}
+
+.ds-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.ds-text-quaternary {
+  color: var(--text-quaternary);
+}
+
+.ds-text-brand {
+  color: var(--glc-blue);
+}
+
+.ds-text-score-1 {
+  color: var(--score-1);
+}
+
+.ds-text-score-2 {
+  color: var(--score-2);
+}
+
+.ds-text-score-3 {
+  color: var(--score-3);
+}
+
+.ds-text-score-4 {
+  color: var(--score-4);
+}
+
+.ds-text-score-5 {
+  color: var(--score-5);
+}
+
+.ds-bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.ds-bg-inset {
+  background-color: var(--bg-inset);
+}
+
+.ds-bg-canvas {
+  background-color: var(--bg-canvas);
+}
+
+.ds-border-subtle {
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-border-default {
+  border: 1px solid var(--border-default);
+}
+
+.ds-panel-canvas {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+}
+
+.ds-panel-canvas-primary {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-panel-surface-primary {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-panel-surface {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+
+.ds-radius-xl {
+  border-radius: var(--radius-xl);
+}
+
+.ds-type-xs-secondary {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.ds-type-xs-tertiary {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ds-type-sm-secondary-leading {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

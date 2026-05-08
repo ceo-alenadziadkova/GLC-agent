@@ -9,3 +9,4 @@ export { runPipelineResumeFromCancelled } from './use-cases/resume-pipeline-from
 export { loadPipelineStatus } from './use-cases/load-pipeline-status.use-case.js';
 export { loadQualityGateData } from './use-cases/load-quality-gate.use-case.js';
 export { runReviewApprove } from './use-cases/approve-review.use-case.js';
+export { runReviewRequestMissingData } from './use-cases/request-missing-data-review.use-case.js';

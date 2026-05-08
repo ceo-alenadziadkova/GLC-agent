@@ -159,7 +159,8 @@ export function readConsultantBriefLayoutDefault(): ClientBriefLayoutStored | nu
 export function writeConsultantBriefLayoutDefault(mode: ClientBriefLayoutStored): void {
   try {
     localStorage.setItem(CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY, mode);
-    // Drop New-Audit-only override so the default applies (avoids default + new_audit both set from Settings).
+    // Clear per-new_audit so Settings does not fight an explicit on-device New Audit pick.
+    // New Audit step 1 uses readConsultantNewAuditBriefLayout() and does not merge this default.
     localStorage.removeItem(consultantBriefLayoutStorageKey(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE));
     notifyBriefLayoutPrefsChanged();
   } catch {
@@ -194,4 +195,14 @@ export function applyConsultantBriefLayoutAskEachTime(): void {
 
 export function resolveConsultantBriefLayout(scope: string): ClientBriefLayoutStored | null {
   return readConsultantBriefLayout(scope) ?? readConsultantBriefLayoutDefault();
+}
+
+/**
+ * New Audit step 1: layout stored under `new_audit` only.
+ * Does not fall back to the global consultant default from Settings — so "All sections" in Settings
+ * does not open the full bank on /audit/new; user gets the chooser or an explicit per-new_audit pick.
+ * Workspace "Edit intake brief" still uses {@link resolveConsultantBriefLayout} with the audit id.
+ */
+export function readConsultantNewAuditBriefLayout(): ClientBriefLayoutStored | null {
+  return readConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE);
 }

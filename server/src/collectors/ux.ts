@@ -5,6 +5,7 @@ import {
 import { UX_VIEWPORT_EXPECTED_FRAMEWORK_LABELS } from '../config/ux-collector-heuristics.js';
 import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { collectDomUxSignals } from '../lib/dom-ux-signals.js';
 
 /**
  * UX Collector — extracts conversion signals, mobile readiness, and navigation
@@ -14,7 +15,7 @@ export class UxCollector extends BaseCollector {
   get key() { return 'ux_signals'; }
   get phase() { return 4; }
 
-  async collect(auditId: string, _companyUrl: string, _ctx?: CollectorCollectContext) {
+  async collect(auditId: string, companyUrl: string, _ctx?: CollectorCollectContext) {
     // Fetch crawled pages from cache (crawler always runs before UX in phase 4)
     const { data: crawlData } = await supabase
       .from('collected_data')
@@ -30,8 +31,11 @@ export class UxCollector extends BaseCollector {
         no_crawl_data: true,
         warning: 'No crawled pages available — UX signal extraction skipped',
         viewport_meta_present: false,
+        viewport_assessment_status: 'not_assessed',
         cta_count: 0,
+        cta_assessment_status: 'not_assessed',
         form_count: 0,
+        form_assessment_status: 'not_assessed',
         testimonial_indicators: 0,
         lang_attribute_present: false,
         heading_hierarchy_valid: false,
@@ -102,14 +106,34 @@ export class UxCollector extends BaseCollector {
     const viewportExpected = new Set<string>(UX_VIEWPORT_EXPECTED_FRAMEWORK_LABELS);
     const viewportMetaPresent = modernFrameworks.some(f => viewportExpected.has(f));
 
+    const domSignals = await collectDomUxSignals(companyUrl);
+    const ctaCountFinal = domSignals?.cta_count ?? ctaCount;
+    const formCountFinal = domSignals?.form_count ?? formCount;
+    const viewportMetaPresentFinal = domSignals?.viewport_meta_present ?? viewportMetaPresent;
+    const ctaAssessmentStatus: 'confirmed' | 'unverified' | 'not_assessed' =
+      domSignals ? 'confirmed' : 'unverified';
+    const formAssessmentStatus: 'confirmed' | 'unverified' | 'not_assessed' =
+      domSignals ? 'confirmed' : 'unverified';
+    const viewportAssessmentStatus: 'confirmed' | 'unverified' | 'not_assessed' =
+      domSignals
+        ? 'confirmed'
+        : viewportMetaPresentFinal
+          ? 'unverified'
+          : 'unverified';
+
     return {
       pages_analyzed: pages.length,
-      viewport_meta_present: viewportMetaPresent,
-      cta_count: ctaCount,
-      form_count: formCount,
+      viewport_meta_present: viewportMetaPresentFinal,
+      viewport_assessment_status: viewportAssessmentStatus,
+      cta_count: ctaCountFinal,
+      cta_assessment_status: ctaAssessmentStatus,
+      form_count: formCountFinal,
+      form_assessment_status: formAssessmentStatus,
       testimonial_indicators: trustCount,
       heading_hierarchy_valid: headingHierarchyValid,
       lang_attribute_present: langAttributePresent,
+      cta_detection_method: domSignals ? 'headless_dom' : 'metadata_heuristic',
+      viewport_detection_method: domSignals ? 'headless_dom' : 'framework_heuristic',
       total_h1s: allH1s.length,
       total_h2s: allH2s.length,
       pages_with_h1: pages.filter(p => ((p.h1 as string[]) ?? []).length > 0).length,

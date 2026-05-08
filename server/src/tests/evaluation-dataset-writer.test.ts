@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as featureFlags from '../config/feature-flags.js';
 
 const state = vi.hoisted(() => ({
   runNumberResponses: [1],
@@ -85,8 +86,12 @@ describe('recordEvaluationDatasetIfEnabled', () => {
     state.insertResponses = [{ data: { id: 'row-1' }, error: null }];
     state.insertPayloads = [];
     state.insertAttempt = 0;
-    delete process.env.EVALUATION_DATASETS_INSERT;
-    process.env.EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT = 'false';
+    vi.spyOn(featureFlags, 'isEvaluationDatasetsInsertEnabled').mockReturnValue(true);
+    vi.spyOn(featureFlags, 'isEvaluationDatasetsExplicitInternalConsentRequired').mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('stores selected variant id in evaluation_datasets', async () => {

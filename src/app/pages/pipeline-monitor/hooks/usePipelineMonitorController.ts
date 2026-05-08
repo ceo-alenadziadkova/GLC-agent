@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAudit } from '../../../hooks/useAudit';
 import { usePipeline } from '../../../hooks/usePipeline';
 import { useProfile } from '../../../hooks/useProfile';
@@ -13,11 +13,12 @@ import {
   selectPhaseViews,
   selectPipelineProgressPct,
 } from '../selectors/phase-view.selector';
+import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import {
-  hasNonEmptyReviewNotesForRerun,
-  isPipelineStrategyReviewGateAfterPhase,
-  PIPELINE_STRATEGY_PHASE_INDEX,
-} from '../../../config/pipeline-phase-policy';
+  reviewNotesMeetSubstantiveMinimum,
+  selectableAutoWingDomainPhasesForReviewRerun,
+} from '../../../config/pipeline-monitor-review-policy';
+import { isPipelineStrategyReviewGateAfterPhase, PIPELINE_STRATEGY_PHASE_INDEX } from '../../../config/pipeline-phase-policy';
 import { createQualityGateByPhaseMap } from '../selectors/quality-gates.selector';
 import {
   getGovernanceRefinesForReviewModal,
@@ -29,6 +30,7 @@ export function usePipelineMonitorController(id: string | undefined) {
     state: pipelineState,
     loading: pipeLoading,
     error: pipeError,
+    pipelineErrorExtras,
     runNextPhaseBusy,
     startPipeline,
     runNextPhase,
@@ -46,6 +48,30 @@ export function usePipelineMonitorController(id: string | undefined) {
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [resumeCancelledBusy, setResumeCancelledBusy] = useState(false);
   const [resumeCancelledError, setResumeCancelledError] = useState<string | null>(null);
+  const [resumeAutoNextBlockedNotice, setResumeAutoNextBlockedNotice] = useState<{
+    code?: string;
+    details: unknown;
+  } | null>(null);
+
+  const [postReviewRerunPrompt, setPostReviewRerunPrompt] = useState<number[] | null>(null);
+  const [postReviewRerunBusy, setPostReviewRerunBusy] = useState(false);
+  const postReviewRerunDismissInFlight = useRef(false);
+  /** Prevents Dialog `onOpenChange(false)` from duplicating `runNextPhase` after a successful retry-close. */
+  const postReviewRerunSuppressDismissRef = useRef(false);
+
+  useEffect(() => {
+    setSelectedPhaseId(0);
+    setModalReview(null);
+    setPostReviewRerunPrompt(null);
+    setPostReviewRerunBusy(false);
+    setResumeCancelledError(null);
+    setResumeAutoNextBlockedNotice(null);
+    setResumeCancelledBusy(false);
+    setIsStopping(false);
+    setStopDialogOpen(false);
+    postReviewRerunDismissInFlight.current = false;
+    postReviewRerunSuppressDismissRef.current = false;
+  }, [id]);
 
   const clientPortalOk = useClientPortalPipelineGate({
     isClient,
@@ -88,6 +114,43 @@ export function usePipelineMonitorController(id: string | undefined) {
     auditStatus as (typeof PIPELINE_MONITOR_UI_POLICY.status.nonStoppable)[number],
   );
 
+  const handlePostReviewContinueWithoutRerun = useCallback(async () => {
+    if (runNextPhaseBusy) return;
+    if (postReviewRerunSuppressDismissRef.current) return;
+    if (postReviewRerunBusy || postReviewRerunDismissInFlight.current || postReviewRerunPrompt === null) return;
+    postReviewRerunDismissInFlight.current = true;
+    setPostReviewRerunBusy(true);
+    try {
+      setPostReviewRerunPrompt(null);
+      await runNextPhase();
+    } finally {
+      setPostReviewRerunBusy(false);
+      postReviewRerunDismissInFlight.current = false;
+    }
+  }, [postReviewRerunBusy, postReviewRerunPrompt, runNextPhase, runNextPhaseBusy]);
+
+  const handlePostReviewRetrySelectedThenContinue = useCallback(
+    async (phaseIds: number[]) => {
+      if (runNextPhaseBusy) return;
+      if (postReviewRerunBusy || postReviewRerunPrompt === null || phaseIds.length === 0) return;
+      postReviewRerunDismissInFlight.current = true;
+      setPostReviewRerunBusy(true);
+      postReviewRerunSuppressDismissRef.current = true;
+      try {
+        for (const p of phaseIds) {
+          await retryPhase(p);
+        }
+        setPostReviewRerunPrompt(null);
+        await runNextPhase();
+      } finally {
+        postReviewRerunSuppressDismissRef.current = false;
+        setPostReviewRerunBusy(false);
+        postReviewRerunDismissInFlight.current = false;
+      }
+    },
+    [postReviewRerunBusy, postReviewRerunPrompt, retryPhase, runNextPhase, runNextPhaseBusy],
+  );
+
   async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {
     if (!modalReview) return;
     const ok = await approveReview(
@@ -97,15 +160,43 @@ export function usePipelineMonitorController(id: string | undefined) {
     );
     if (!ok) return;
     const afterPhase = modalReview.afterPhase;
-    const shouldRerunStrategy =
-      isPipelineStrategyReviewGateAfterPhase(afterPhase) &&
-      hasNonEmptyReviewNotesForRerun(consultantNotes, interviewNotes);
+    const substantive = reviewNotesMeetSubstantiveMinimum(consultantNotes, interviewNotes);
     setModalReview(null);
-    if (shouldRerunStrategy) {
-      await retryPhase(PIPELINE_STRATEGY_PHASE_INDEX);
-    } else {
-      await runNextPhase();
+
+    if (isPipelineStrategyReviewGateAfterPhase(afterPhase)) {
+      if (substantive) {
+        await retryPhase(PIPELINE_STRATEGY_PHASE_INDEX);
+      } else {
+        await runNextPhase();
+      }
+      return;
     }
+
+    const selectable = selectableAutoWingDomainPhasesForReviewRerun(audit?.meta ?? null, afterPhase);
+    const showRerunPrompt =
+      APP_FEATURE_FLAGS.pipelineMonitorPostReviewDomainRerunPromptEnabled &&
+      substantive &&
+      afterPhase >= 1 &&
+      selectable.length > 0;
+
+    if (showRerunPrompt) {
+      setPostReviewRerunPrompt(selectable);
+      return;
+    }
+
+    await runNextPhase();
+  }
+
+  async function handleRequestMissingData(_id: number, consultantNotes: string, interviewNotes: string) {
+    if (!modalReview) return;
+    const ok = await approveReview(
+      modalReview.afterPhase,
+      consultantNotes || undefined,
+      interviewNotes || undefined,
+      'request_missing_data',
+    );
+    if (!ok) return;
+    setModalReview(null);
   }
 
   async function handleStopPipeline() {
@@ -123,8 +214,17 @@ export function usePipelineMonitorController(id: string | undefined) {
     if (!id || resumeCancelledBusy) return;
     setResumeCancelledBusy(true);
     setResumeCancelledError(null);
+    setResumeAutoNextBlockedNotice(null);
     try {
-      await api.resumePlatformPipelineFromCancelled(id);
+      const res = await api.resumePlatformPipelineFromCancelled(id);
+      if (res.auto_next_blocked === true) {
+        setResumeAutoNextBlockedNotice({
+          code: res.auto_next_error_code,
+          details: res.auto_next_error_details ?? null,
+        });
+      } else {
+        setResumeAutoNextBlockedNotice(null);
+      }
       invalidateAuditRelatedQueries(getGlcQueryClient(), id);
       await reloadPipeline();
     } catch (err) {
@@ -138,6 +238,7 @@ export function usePipelineMonitorController(id: string | undefined) {
     pipelineState,
     pipeLoading,
     pipeError,
+    pipelineErrorExtras,
     runNextPhaseBusy,
     startPipeline,
     runNextPhase,
@@ -164,10 +265,21 @@ export function usePipelineMonitorController(id: string | undefined) {
     isCreated,
     canStopPipeline,
     handleApprove,
+    handleRequestMissingData,
     handleStopPipeline,
     canManagePlatformSettings,
     resumeCancelledBusy,
     resumeCancelledError,
+    resumeAutoNextBlockedNotice,
     handleResumeCancelledPlatform,
+    postReviewRerunPrompt,
+    postReviewRerunBusy,
+    handlePostReviewContinueWithoutRerun,
+    handlePostReviewRetrySelectedThenContinue,
+    reloadAudit: () => {
+      if (!id) return;
+      invalidateAuditRelatedQueries(getGlcQueryClient(), id);
+    },
+    reloadPipeline,
   };
 }

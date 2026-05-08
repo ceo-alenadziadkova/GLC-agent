@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '../../lib/tanstack-react-query';
 import { createElement, type ReactNode } from 'react';
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
 

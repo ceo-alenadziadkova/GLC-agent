@@ -1,5 +1,5 @@
-import marketingHomeCopy from '../../../data/marketing-home-copy.en.json';
-import workspacePackaging from '../../../data/marketing-workspace-packaging.en.json';
+import marketingHomeCopy from '../../../locales/en/marketing-home-copy.en.json';
+import workspacePackaging from '../../../locales/en/marketing-workspace-packaging.en.json';
 import type { HomeHeroHeadline, MarketingHomeViewModel } from '../types/home-content.types';
 
 function mapHeroHeadline(headline: string, gradientSuffix: string): HomeHeroHeadline {

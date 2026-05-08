@@ -31,7 +31,11 @@ export const INTAKE_TRACE_GRAPH_CONFIG = {
   export: {
     svgNamePrefix: 'intake-branch-graph',
     markdownFilename: 'intake-wording-ba-review.md',
-    fallbackRoute: '/admin/intake-wording',
+    /**
+     * LEGACY (TD-035 in docs/TECH_DEBT.md): previously pointed to '/admin/intake-wording',
+     * which has been disabled. Kept as a neutral analytics label until the workspace is removed.
+     */
+    fallbackRoute: 'unknown',
   },
 } as const;
 

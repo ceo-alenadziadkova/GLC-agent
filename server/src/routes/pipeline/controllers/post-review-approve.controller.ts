@@ -10,7 +10,7 @@ import {
 } from '../../../config/api-error-codes.js';
 import { REQUEST_FIELD_LIMITS } from '../../../config/request-field-limits.js';
 import { PIPELINE_MAX_PHASE_INDEX, PIPELINE_MIN_PHASE } from '../../../config/pipeline-phases.js';
-import { runReviewApprove } from '../../../services/pipeline-routes/pipeline-route.service.js';
+import { runReviewApprove, runReviewRequestMissingData } from '../../../services/pipeline-routes/pipeline-route.service.js';
 import { pipelineAuditIdParamsSchema, pipelinePhasePathParamSchema, pipelineReviewApproveBodySchema } from '../validators/pipeline-route-input.validator.js';
 
 export async function postReviewApproveController(req: AuthRequest, res: Response) {
@@ -38,6 +38,7 @@ export async function postReviewApproveController(req: AuthRequest, res: Respons
     const maxNotes = REQUEST_FIELD_LIMITS.reviewGateNotesMax;
     const consultant_notes = body.consultant_notes;
     const interview_notes = body.interview_notes;
+    const action = body.action ?? 'approve';
     const sanitizedConsultantNotes = consultant_notes
       ? String(consultant_notes).trim().slice(0, maxNotes) || null
       : null;
@@ -45,13 +46,21 @@ export async function postReviewApproveController(req: AuthRequest, res: Respons
       ? String(interview_notes).trim().slice(0, maxNotes) || null
       : null;
 
-    const result = await runReviewApprove({
-      auditId: idParse.data.id,
-      userId: req.userId!,
-      afterPhase: phaseParse.data,
-      consultantNotes: sanitizedConsultantNotes,
-      interviewNotes: sanitizedInterviewNotes,
-    });
+    const result = action === 'request_missing_data'
+      ? await runReviewRequestMissingData({
+        auditId: idParse.data.id,
+        userId: req.userId!,
+        afterPhase: phaseParse.data,
+        consultantNotes: sanitizedConsultantNotes,
+        interviewNotes: sanitizedInterviewNotes,
+      })
+      : await runReviewApprove({
+        auditId: idParse.data.id,
+        userId: req.userId!,
+        afterPhase: phaseParse.data,
+        consultantNotes: sanitizedConsultantNotes,
+        interviewNotes: sanitizedInterviewNotes,
+      });
 
     if (!result.ok) {
       res.status(result.error.status).json(result.error.body);

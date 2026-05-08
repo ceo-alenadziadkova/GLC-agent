@@ -5,7 +5,7 @@
  * Allows "Convert to audit" which creates a full audit from the session.
  */
 import { useState, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../lib/tanstack-react-query';
 import { useNavigate } from 'react-router';
 import {
   Users, Warning, Lightbulb, ArrowRight,

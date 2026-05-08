@@ -26,13 +26,13 @@ const STATUS_CONFIG: Record<Status, {
   running: {
     label: 'Running',
     tone: 'info',
-    dotClassName: 'bg-[var(--glc-blue)] shadow-[0_0_5px_var(--glc-blue)]',
-    pulseClassName: 'bg-[var(--glc-blue)]',
+    dotClassName: 'bg-[var(--text-blue)] shadow-[0_0_5px_var(--text-blue)]',
+    pulseClassName: 'bg-[var(--text-blue)]',
   },
   completed: {
     label: 'Completed',
     tone: 'success',
-    dotClassName: 'bg-[var(--glc-green)] shadow-[0_0_5px_var(--glc-green)]',
+    dotClassName: 'bg-[var(--score-5)] shadow-[0_0_5px_var(--score-5)]',
   },
   review: {
     label: 'Needs Review',
@@ -53,7 +53,7 @@ const STATUS_CONFIG: Record<Status, {
   active: {
     label: 'Active',
     tone: 'success',
-    dotClassName: 'bg-[var(--glc-green)] shadow-[0_0_5px_var(--glc-green)]',
+    dotClassName: 'bg-[var(--score-5)] shadow-[0_0_5px_var(--score-5)]',
   },
   paused: {
     label: 'Paused',

@@ -5,6 +5,7 @@ import {
   apiAuditsPipelineStart,
   apiAuditsPipelineStop,
   apiAuditsPipelineStatus,
+  apiAuditsTokenBudget,
 } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import {
@@ -51,16 +52,42 @@ export const auditsPipelineApi = {
     return payload;
   },
 
-  async retryPhase(id: string, phase: number, opts?: { disable_auto_remediate?: boolean }) {
+  async retryPhase(id: string, phase: number, opts?: { disable_auto_remediate?: boolean; retry_comment?: string }) {
+    const retryComment = opts?.retry_comment?.trim();
     const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineRetry(id), {
       method: 'POST',
       body: JSON.stringify({
         phase,
         ...(opts?.disable_auto_remediate ? { disable_auto_remediate: true } : {}),
+        ...(retryComment ? { retry_comment: retryComment } : {}),
       }),
     });
     assertPipelineMutationShape(payload, 'pipeline retry');
     return payload;
+  },
+
+  /**
+   * Platform admin only: increase the per-audit token budget.
+   * Backend route: `PATCH /api/audits/:id/token-budget`
+   * Errors: 403 PLATFORM_ADMIN_ONLY, 400 AUDITS_TOKEN_BUDGET_TOPUP_INVALID.
+   */
+  async patchAuditTokenBudget(
+    auditId: string,
+    payload: { delta_tokens: number; reason?: string },
+  ) {
+    const body: { delta_tokens: number; reason?: string } = { delta_tokens: payload.delta_tokens };
+    const reason = payload.reason?.trim();
+    if (reason) body.reason = reason;
+    return apiFetch<{
+      grant_id: string;
+      previous_budget: number;
+      token_budget: number;
+      tokens_used: number;
+      tokens_remaining: number;
+    }>(apiAuditsTokenBudget(auditId), {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
   },
 
   async getPipelineStatus(

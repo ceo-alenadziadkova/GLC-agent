@@ -1,5 +1,10 @@
+import {
+  formatAuditInitRollbackDeleteFailedMessageEn,
+  operationsAlertTitlesEn,
+} from '../config/operations-alerts-copy.en.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { emitStructuredNotification } from './notifications.js';
 import { normalizeExecutionPlan } from './execution-plan.js';
 import { PIPELINE_MAX_PHASE_INDEX } from '../config/pipeline-phases.js';
 import {
@@ -87,7 +92,37 @@ export async function createAuditWithChildren(params: {
   });
 
   if (initFailed) {
-    await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
+    const { error: rollbackErr } = await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
+    if (rollbackErr) {
+      logger.error('audit_init.rollback_delete_failed', {
+        audit_id: audit.id,
+        metric: 'audit_init.rollback_delete_failed',
+        error: rollbackErr.message,
+        code: rollbackErr.code,
+      });
+      await emitStructuredNotification({
+        category: 'system',
+        event: 'audit_init_rollback_delete_failed',
+        priority: 'critical',
+        audience: 'consultants',
+        title: operationsAlertTitlesEn.auditInitRollbackDeleteFailed,
+        message: formatAuditInitRollbackDeleteFailedMessageEn({
+          auditId: audit.id as string,
+          error: rollbackErr.message,
+        }),
+        payload: { audit_id: audit.id, code: rollbackErr.code },
+        sendInApp: true,
+        sendTelegram: true,
+      }).catch((notifyErr) => {
+        logger.error('audit_init.rollback_alert_emit_failed', {
+          audit_id: audit.id,
+          error: (notifyErr as Error).message,
+        });
+      });
+      throw new Error(
+        `${AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE}: parent_audit_delete_failed (${rollbackErr.message})`,
+      );
+    }
     logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
     throw new Error(AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE);
   }

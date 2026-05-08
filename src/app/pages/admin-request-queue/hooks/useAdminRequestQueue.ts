@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../../../lib/tanstack-react-query';
 import { GLC_AUDITS_AND_AUDIT_REQUESTS_LIST } from '@glc/route-limits';
 import { ADMIN_REQUEST_QUEUE_QUERY_CONFIG } from '../../../config/admin-request-queue-config';
 import { api } from '../../../data/apiService';

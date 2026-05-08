@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  DIRECTOR_ORCHESTRATION_MAX_CROSS_DOMAIN_REFS_PER_ACTION,
   DIRECTOR_ORCHESTRATION_MAX_ACTIONS_PER_WAVE,
   GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION,
 } from '../config/director-orchestration-policy.js';
@@ -17,6 +18,15 @@ export const DirectorActionSchema = z.object({
   urgency: z.number().int().min(1).max(5),
   confidence: z.enum(['high', 'medium', 'low']),
   dependencies: z.array(z.string().min(1).max(128)).max(24).default([]),
+  cross_domain_refs: z
+    .array(
+      z.string().trim().min(1).max(128).regex(
+        /^(tech_infrastructure|security_compliance|seo_digital|ux_conversion|marketing_utp|automation_processes):H[1-9]\d*$|^CONF-[1-9]\d*$/,
+        'cross_domain_refs must contain peer hypothesis ids or conflict ids.',
+      ),
+    )
+    .max(DIRECTOR_ORCHESTRATION_MAX_CROSS_DOMAIN_REFS_PER_ACTION)
+    .optional(),
   evidence: z
     .object({
       observed: evidenceBucketSchema.optional(),
@@ -51,6 +61,35 @@ export const GlcDirectorOrchestrationSliceSchema = z.object({
 });
 
 export type GlcDirectorOrchestrationSlice = z.infer<typeof GlcDirectorOrchestrationSliceSchema>;
+
+/**
+ * Claude `tool_use` occasionally returns nested objects as serialized JSON strings. Parse before structural validation.
+ * Empty / whitespace-only string is treated as omitted (`undefined`).
+ */
+export function coerceDirectorSliceJsonBlob(raw: unknown): unknown {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (t === '') return undefined;
+    try {
+      const parsed: unknown = JSON.parse(t);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return raw;
+      }
+      return parsed;
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+/** Optional director slice: normal object **or** JSON object string from the model. */
+export const GlcDirectorOrchestrationSliceFromToolInputSchema = z.preprocess(
+  coerceDirectorSliceJsonBlob,
+  GlcDirectorOrchestrationSliceSchema.optional(),
+);
 
 /**
  * Strict-domain quality gate: a slice is "strict-ready" only when baseline exists with at least one action.

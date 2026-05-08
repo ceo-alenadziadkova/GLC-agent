@@ -28,8 +28,9 @@ import {
 export type UserRole = 'consultant' | 'client' | 'guest';
 
 export interface AuthRequest extends Request {
-  userId?: string;
-  userEmail?: string;
+  /** Absent or undefined: no optional-auth attempt; `null`: bearer present but invalid / no user. */
+  userId?: string | null;
+  userEmail?: string | null;
   /** True when Supabase session is anonymous (snapshot flow until linkIdentity / full sign-up). */
   userIsAnonymous?: boolean;
   userRole?: UserRole;
@@ -137,18 +138,75 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
  * Optional auth — attaches user info if token is present, but doesn't block.
  */
 export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+  req.userId = undefined;
+  req.userEmail = undefined;
 
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    try {
-      const { data } = await getSupabaseUserWithTimeout(token);
-      if (data.user) {
-        req.userId = data.user.id;
-        req.userEmail = data.user.email ?? undefined;
+  const authHeader = req.headers.authorization;
+  const hasBearer = authHeader?.startsWith('Bearer ') === true;
+
+  if (!hasBearer) {
+    next();
+    return;
+  }
+
+  const token = authHeader!.slice(7);
+  try {
+    const { data, error } = await getSupabaseUserWithTimeout(token);
+    if (error) {
+      req.userId = null;
+      req.userEmail = null;
+      const transportFailure = isAuthTransportFailure(error);
+      logger.debug('optionalAuth: bearer token rejected', {
+        metric: 'optional_auth.bearer_failure',
+        optional_auth_failure: true,
+        failure_category: 'get_user_error',
+        category: 'get_user_error',
+        has_bearer: true,
+        transport_failure: transportFailure,
+        error: error.message,
+      });
+      if (transportFailure) {
+        logger.warn('optionalAuth: transport failure validating bearer token', {
+          error: error.message,
+          transport_failure: true,
+        });
       }
-    } catch {
-      // Silently continue without auth
+      next();
+      return;
+    }
+    if (!data.user) {
+      req.userId = null;
+      req.userEmail = null;
+      logger.debug('optionalAuth: no user for bearer token', {
+        metric: 'optional_auth.bearer_failure',
+        optional_auth_failure: true,
+        failure_category: 'no_user',
+        category: 'no_user',
+        has_bearer: true,
+      });
+      next();
+      return;
+    }
+    req.userId = data.user.id;
+    req.userEmail = data.user.email ?? undefined;
+  } catch (err) {
+    req.userId = null;
+    req.userEmail = null;
+    const transportFailure = isAuthTransportFailure(err);
+    logger.debug('optionalAuth: bearer validation threw', {
+      metric: 'optional_auth.bearer_failure',
+      optional_auth_failure: true,
+      failure_category: 'exception',
+      category: 'exception',
+      has_bearer: true,
+      transport_failure: transportFailure,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    if (transportFailure) {
+      logger.warn('optionalAuth: transport failure during bearer verification', {
+        error: err instanceof Error ? err.message : String(err),
+        transport_failure: true,
+      });
     }
   }
 

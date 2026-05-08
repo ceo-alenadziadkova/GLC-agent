@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 
 import { isManifestScenarioCompareEnabled } from '../../config/feature-flags.js';
+import {
+  ROADMAP_MANIFEST_PREVIEW_MEMO_MAX_ENTRIES,
+  ROADMAP_MANIFEST_PREVIEW_MEMO_TTL_MS,
+} from '../../config/roadmap-manifest-preview-memo-policy.js';
 import type { RoadmapManifestPreview } from '../../schemas/roadmap-manifest-preview.js';
-
-const TTL_MS = 60_000;
-const MAX_ENTRIES = 200;
 
 type CacheEntry = { preview: RoadmapManifestPreview; expiresAt: number };
 const store = new Map<string, CacheEntry>();
@@ -39,8 +40,8 @@ export function getOrSetRoadmapManifestPreviewMemo(args: {
     return hit.preview;
   }
   const preview = args.compute();
-  store.set(k, { preview, expiresAt: now + TTL_MS });
-  if (store.size > MAX_ENTRIES) {
+  store.set(k, { preview, expiresAt: now + ROADMAP_MANIFEST_PREVIEW_MEMO_TTL_MS });
+  if (store.size > ROADMAP_MANIFEST_PREVIEW_MEMO_MAX_ENTRIES) {
     const first = store.keys().next().value;
     if (first) store.delete(first);
   }

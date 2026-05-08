@@ -59,6 +59,10 @@ describe('getAuditViewModel contract', () => {
       { status: 'fulfilled', value: { data: null } },
       { status: 'fulfilled', value: { data: [] } },
       { status: 'fulfilled', value: { data: null } },
+      { status: 'fulfilled', value: { data: null } },
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: null } },
     ]);
 
     const model = await getAuditViewModel('audit-1', 'user-1', 'consultant');
@@ -103,6 +107,10 @@ describe('getAuditViewModel contract', () => {
           ],
         },
       },
+      { status: 'fulfilled', value: { data: null } },
+      { status: 'fulfilled', value: { data: null } },
+      { status: 'fulfilled', value: { data: [] } },
+      { status: 'fulfilled', value: { data: [] } },
       { status: 'fulfilled', value: { data: null } },
     ]);
 

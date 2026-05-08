@@ -202,4 +202,26 @@ describe('buildIntakePlan', () => {
       spy.mockRestore();
     }
   });
+
+  it('applies admin_presale Stage-2 curation on consultant surface', () => {
+    const plan = buildIntakePlan({
+      responses: {
+        a2: 'Healthcare',
+        a5: 'multi_page_website',
+        f1: ['Too much manual work and operational overload'],
+        f2: ['Process automation and efficiency (less manual work and handoffs)'],
+      },
+      productMode: 'full',
+      collectionMode: 'interview',
+      surface: 'consultant_interview',
+      executionContext: 'admin_presale',
+    });
+    expect(plan.deferred).toContain('f5');
+    expect(plan.deferred).toContain('d6');
+    expect(plan.visible).not.toContain('f5');
+    expect(plan.visible).not.toContain('d6');
+    expect(plan.nextRecommended).not.toContain('f5');
+    expect(plan.nextRecommended).not.toContain('d6');
+    expect(plan.reasonsById?.f5?.some(r => r.code === 'ADMIN_PRESALE_STAGE2_CURATED')).toBe(true);
+  });
 });

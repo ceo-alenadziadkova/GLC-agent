@@ -469,6 +469,9 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
 
 describe('arePreBriefSlotsSatisfied', () => {
   const minimalPreBrief = {
+    a1: 'Multi-site healthcare group in one sentence.',
+    a3: 'Spain',
+    a7: 'Scaling',
     a11: 'https://example.com',
     a12: 'Acme',
     a2: 'Hospitality',
@@ -476,10 +479,10 @@ describe('arePreBriefSlotsSatisfied', () => {
     a10: ['Lead generation / referrals'],
     f1: ['Not enough qualified leads or new customers'],
     b1: 'Travelers 30–50',
-    a6: 'Yes',
+    d2: 'Scheduling and confirming appointments',
   };
 
-  it('passes without optional bank fields f2, a7, f8 and without c5/c3 (not in pre_brief bank slice)', () => {
+  it('passes when portrait phase 1 (policy bankIncluded + identity) is filled; a6 is phase 2', () => {
     expect(arePreBriefSlotsSatisfied(minimalPreBrief)).toBe(true);
   });
 

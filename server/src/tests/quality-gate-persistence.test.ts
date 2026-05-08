@@ -24,8 +24,10 @@ const {
   clearCalls,
   setConsistencyResult,
   setAuditData,
+  setUpdateResult,
 } = vi.hoisted(() => {
   type UpdateCall = { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> };
+  type UpdateResult = { data: unknown[] | null; error: { message: string; code?: string } | null };
   const updateCalls: UpdateCall[] = [];
   const clearCalls = () => { updateCalls.length = 0; };
 
@@ -34,12 +36,15 @@ const {
 
   let auditData: Record<string, unknown> = { current_phase: 0, status: 'review', product_mode: 'full' };
   const setAuditData = (v: typeof auditData) => { auditData = v; };
+  let updateResult: UpdateResult = { data: [{}], error: null };
+  const setUpdateResult = (v: UpdateResult) => { updateResult = v; };
 
   (globalThis as Record<string, unknown>).__qgUpdateCalls = updateCalls;
   (globalThis as Record<string, unknown>).__qgGetConsistencyPassed = () => consistencyPassed;
   (globalThis as Record<string, unknown>).__qgGetAuditData = () => auditData;
+  (globalThis as Record<string, unknown>).__qgGetUpdateResult = () => updateResult;
 
-  return { updateCalls, clearCalls, setConsistencyResult, setAuditData };
+  return { updateCalls, clearCalls, setConsistencyResult, setAuditData, setUpdateResult };
 });
 
 // ─── Module mocks ───────────────────────────────────────────────────────────
@@ -49,6 +54,10 @@ vi.mock('../services/supabase.js', () => {
     table: string; payload: Record<string, unknown>; filters: Record<string, unknown>;
   }>;
   const getAuditData = (globalThis as Record<string, unknown>).__qgGetAuditData as () => Record<string, unknown>;
+  const getUpdateResult = (globalThis as Record<string, unknown>).__qgGetUpdateResult as () => {
+    data: unknown[] | null;
+    error: { message: string; code?: string } | null;
+  };
 
   const makeChain = (table: string) => {
     // Shared filter bag for the whole chain (both select and update .eq() calls go here)
@@ -60,12 +69,17 @@ vi.mock('../services/supabase.js', () => {
       const obj: Record<string, unknown> = {
         then: undefined as unknown,
       };
-      // Make it thenable so `await` resolves immediately
-      obj.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: null });
+      // Match PostgREST shape used by `updateAuditIfNotCancelled`: data must be a non-empty array
+      // when the audit is not cancelled so the orchestrator advances.
+      const updateResult = getUpdateResult();
+      obj.then = (resolve: (v: unknown) => void) => resolve(updateResult);
       obj.eq = vi.fn((col: string, val: unknown) => {
         callRecord.filters[col] = val;
-        return obj; // return same thenable so chained .eq() also captures filters
+        return obj;
       });
+      obj.neq = vi.fn(() => obj);
+      obj.in = vi.fn(() => obj);
+      obj.select = vi.fn(() => Promise.resolve(updateResult));
       return obj;
     };
 
@@ -152,6 +166,7 @@ vi.mock('../agents/strategy.js',   () => ({ StrategyAgent:   class { run = mockA
 
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { consistencyChecker } from '../services/consistency-checker.js';
+import { reopenHumanReviewPointForPhase, runStrategyQualityGate } from '../services/pipeline/reviewGateCoordinator.js';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -167,6 +182,7 @@ describe('quality_gate_passed persisted to review_points after auto wing', () =>
     // audit at current_phase=0 → runBlock() will trigger auto wing (phases 1-4)
     setAuditData({ current_phase: 0, status: 'review', product_mode: 'full' });
     setConsistencyResult(true);
+    setUpdateResult({ data: [{}], error: null });
   });
 
   it('calls consistencyChecker.run() with correct auditId and wing phases', async () => {
@@ -195,5 +211,25 @@ describe('quality_gate_passed persisted to review_points after auto wing', () =>
     const hit = updateCalls.find(c => c.table === 'review_points' && 'quality_gate_passed' in c.payload);
     expect(hit).toBeDefined();
     expect(hit!.payload.quality_gate_passed).toBe(false);
+  });
+
+  it('throws when quality_gate_passed cannot be persisted', async () => {
+    setUpdateResult({ data: null, error: { message: 'statement timeout', code: '57014' } });
+
+    await expect(
+      runStrategyQualityGate({
+        auditId: AUDIT_ID,
+        afterPhase: 7,
+        phasesToCheck: [5, 6, 7],
+      }),
+    ).rejects.toThrow('Failed to persist quality gate outcome: statement timeout');
+  });
+
+  it('throws when reopening a review point updates zero rows', async () => {
+    setUpdateResult({ data: [], error: null });
+
+    await expect(reopenHumanReviewPointForPhase(AUDIT_ID, 7)).rejects.toThrow(
+      `[review_gate] review point missing for audit ${AUDIT_ID} after phase 7`,
+    );
   });
 });

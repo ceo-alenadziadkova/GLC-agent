@@ -78,13 +78,35 @@ export async function getAuditViewModel(id: string, userId: string, viewerRole: 
   const { data: audit, error: auditErr } = await fetchAuditByIdForUser(id, userId);
   if (auditErr || !audit) return null;
 
-  const [reconRes, domainsRes, strategyRes, reviewsRes, briefRes] = await fetchAuditRelatedReadModel(id);
+  const [
+    reconRes,
+    domainsRes,
+    strategyRes,
+    reviewsRes,
+    briefRes,
+    clientSituationRes,
+    hypothesisDraftsRes,
+    alignmentResponsesRes,
+    conflictResolutionRes,
+  ] = await fetchAuditRelatedReadModel(id);
   const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
   const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
   const strategyRaw = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
   const reviewsRaw = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
   const reviews = redactReviewPointRowsForViewer(reviewsRaw as Array<Record<string, unknown>>, viewerRole);
   const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
+  const clientSituation = clientSituationRes.status === 'fulfilled'
+    ? ((clientSituationRes.value.data as { snapshot?: unknown } | null)?.snapshot ?? null)
+    : null;
+  const hypothesisDrafts = hypothesisDraftsRes.status === 'fulfilled'
+    ? ((hypothesisDraftsRes.value.data as Array<{ domain_key: string; draft: unknown }> | null) ?? [])
+    : [];
+  const alignmentResponses = alignmentResponsesRes.status === 'fulfilled'
+    ? ((alignmentResponsesRes.value.data as Array<{ domain_key: string; alignment: unknown }> | null) ?? [])
+    : [];
+  const conflictResolution = conflictResolutionRes.status === 'fulfilled'
+    ? ((conflictResolutionRes.value.data as { resolution?: unknown } | null)?.resolution ?? null)
+    : null;
 
   const domainsMap: Record<string, unknown> = {};
   for (const domainRow of domainsArr) {
@@ -143,5 +165,11 @@ export async function getAuditViewModel(id: string, userId: string, viewerRole: 
     strategy,
     reviews,
     brief,
+    coalition: {
+      client_situation_snapshot: clientSituation,
+      hypothesis_drafts: hypothesisDrafts,
+      alignment_responses: alignmentResponses,
+      conflict_resolution: conflictResolution,
+    },
   };
 }

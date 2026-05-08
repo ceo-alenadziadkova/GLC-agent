@@ -87,6 +87,7 @@ export async function runPipelineStart(params: {
         isDiagnosticIntakePilotEnabled() && isExecutionPlanCoverageScopeEnabled(),
       executionSelectedDomains: gatePlan.selected_domains,
       executionIncludeStrategy: gatePlan.include_strategy === true,
+      readinessRole: role,
     });
     if (preflight.blocked) {
       logger.info('pipeline.intake_readiness_blocked', {

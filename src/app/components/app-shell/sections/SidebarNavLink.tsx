@@ -5,11 +5,12 @@ import { cn } from '../../ui/utils';
 type SidebarNavLinkProps = {
   item: AppShellNavItem;
   pathname: string;
+  locationSearch: string;
   itemKey: string;
   onClick: () => void;
 };
 
-export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavLinkProps) {
+export function SidebarNavLink({ item, pathname, locationSearch, itemKey, onClick }: SidebarNavLinkProps) {
   const { to, icon: Icon, label, badge } = item;
   if (!to) {
     return (
@@ -23,7 +24,7 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
     );
   }
 
-  const active = isNavItemActive(pathname, to);
+  const active = isNavItemActive(pathname, to, locationSearch);
   return (
     <NavLink
       key={itemKey}
@@ -45,7 +46,7 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
       <Icon
         className={cn(
           'relative h-4 w-4 flex-shrink-0',
-          active ? 'text-[color:var(--glc-blue)]' : 'text-[color:var(--app-shell-sidebar-link-icon)]',
+          active ? 'text-[color:var(--text-blue)]' : 'text-[color:var(--app-shell-sidebar-link-icon)]',
         )}
       />
       <span className="relative flex-1 truncate">{label}</span>
@@ -54,7 +55,7 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
           className={cn(
             'relative rounded-full px-1.5 py-0.5 text-[length:var(--text-2xs)] font-semibold tabular-nums',
             active
-              ? 'border border-[color:var(--callout-info-border)] bg-[color:var(--callout-info-border)] text-[color:var(--glc-blue)]'
+              ? 'border border-[color:var(--callout-info-border)] bg-[color:var(--callout-info-border)] text-[color:var(--text-blue)]'
               : 'border border-transparent bg-[color:var(--sidebar-border)] text-[color:var(--app-shell-sidebar-link-icon)]',
           )}
         >

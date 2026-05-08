@@ -26,7 +26,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
     <div className="space-y-4">
       <button
         type="button"
-        className="glc-touch-target border-none bg-transparent text-xs font-medium text-[var(--glc-blue)]"
+        className="ds-touch-target border-none bg-transparent text-xs font-medium text-[var(--text-blue)]"
         onClick={onBack}
       >
         {LC.forgotBack}
@@ -36,7 +36,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       {forgotSent ? (
         <Callout intent="info">
           <p role="status" aria-live="polite" className="text-sm">
-            {LC.forgotSentPrefix}<span className="font-mono glc-auth-inline-mono">{email.trim()}</span>{LC.forgotSentSuffix}
+            {LC.forgotSentPrefix}<span className="font-mono ds-auth-inline-mono">{email.trim()}</span>{LC.forgotSentSuffix}
           </p>
         </Callout>
       ) : (
@@ -56,7 +56,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
               autoComplete="email"
               aria-invalid={Boolean(emailError)}
               aria-describedby={emailError ? emailErrorId : undefined}
-              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
+              className="ds-auth-input ds-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
             />
           </FormField>
           <motion.button
@@ -64,8 +64,8 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
             disabled={loading || !canSubmit}
             whileHover={!loading && canSubmit ? { scale: buttonHoverScale } : {}}
             className={cn(
-              'glc-auth-primary-btn glc-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
-              canSubmit ? 'glc-auth-submit-btn--ready' : 'glc-auth-submit-btn--disabled',
+              'ds-auth-primary-btn ds-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
+              canSubmit ? 'ds-auth-submit-btn--ready' : 'ds-auth-submit-btn--disabled',
               canSubmit && !loading ? 'cursor-pointer' : 'cursor-not-allowed',
             )}
           >

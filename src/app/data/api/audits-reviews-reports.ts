@@ -3,16 +3,24 @@ import {
   apiAuditsReportQuery,
   apiAuditsReview,
 } from '../../config/api-paths';
+import { API_CLIENT_TIMEOUT_MS } from '../../config/http-client-defaults';
 import { API_URL, apiFetch, getAuthHeaders } from '../api-http';
 import type { QualityGateReport } from '../audit/contracts/pipeline/pipeline.types';
 
 export const auditsReviewsReportsApi = {
-  async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {
+  async approveReview(
+    id: string,
+    phase: number,
+    consultantNotes?: string,
+    interviewNotes?: string,
+    action: 'approve' | 'request_missing_data' = 'approve',
+  ) {
     return apiFetch(apiAuditsReview(id, phase), {
       method: 'POST',
       body: JSON.stringify({
         consultant_notes: consultantNotes ?? null,
         interview_notes: interviewNotes ?? null,
+        action,
       }),
     });
   },
@@ -39,6 +47,11 @@ export const auditsReviewsReportsApi = {
         coverage_adjusted_score: number | null;
         comparability_note: string;
       };
+      idea_stage_readiness?: {
+        enabled: boolean;
+        validation_signal: 'weak' | 'mixed' | 'strong' | null;
+        gtm_test_ready: boolean;
+      };
       markdown: string;
     }>(
       apiAuditsReportQuery(id, format, profile),
@@ -50,6 +63,7 @@ export const auditsReviewsReportsApi = {
     const authHeaders = await getAuthHeaders();
     const res = await fetch(`${API_URL}${apiAuditsReportQuery(auditId, 'pdf', profile)}`, {
       headers: authHeaders,
+      signal: AbortSignal.timeout(API_CLIENT_TIMEOUT_MS),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -69,6 +83,7 @@ export const auditsReviewsReportsApi = {
     const authHeaders = await getAuthHeaders();
     const res = await fetch(`${API_URL}${apiAuditsReportQuery(auditId, 'csv', profile)}`, {
       headers: authHeaders,
+      signal: AbortSignal.timeout(API_CLIENT_TIMEOUT_MS),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));

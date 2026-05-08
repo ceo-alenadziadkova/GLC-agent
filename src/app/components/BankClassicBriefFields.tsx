@@ -30,6 +30,9 @@ export function BankClassicBriefFields({
   emphasizeClientSource,
   compact,
   productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  questionLabelOverrides,
+  questionHintOverrides,
+  questionOptionDisplayOverrides,
 }: {
   responses: BriefResponses;
   collectionMode?: IntakeBriefCollectionMode;
@@ -42,6 +45,10 @@ export function BankClassicBriefFields({
   compact?: boolean;
   /** Needed for express-specific option locking in some fields. */
   productMode?: ProductMode;
+  /** B1 display copy (same contract as `IntakeBankWizard`); stored values stay canonical. */
+  questionLabelOverrides?: Record<string, string>;
+  questionHintOverrides?: Record<string, string>;
+  questionOptionDisplayOverrides?: Record<string, string[]>;
 }) {
   const sections = useMemo(
     () => getVisibleBankBriefSections(responses, collectionMode, intakeSurface),
@@ -67,10 +74,23 @@ export function BankClassicBriefFields({
             {questions.map(q => {
               const otherKey = choiceSpecifyResponseKey(q.id);
               const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
+              const lo = questionLabelOverrides?.[q.id]?.trim();
+              const ho = questionHintOverrides?.[q.id]?.trim();
+              const qM =
+                lo || ho
+                  ? { ...q, ...(lo ? { question: lo } : {}), ...(ho ? { hint: ho } : {}) }
+                  : q;
+              const optionDisplayLabels =
+                q.options &&
+                q.options.length > 0 &&
+                questionOptionDisplayOverrides?.[q.id] &&
+                questionOptionDisplayOverrides[q.id]!.length === q.options.length
+                  ? questionOptionDisplayOverrides[q.id]
+                  : undefined;
               return (
                 <BriefField
                   key={q.id}
-                  q={q}
+                  q={qM}
                   value={q.id === 'f2' && productMode === 'express' ? normalizeF2ValueForExpress(responses[q.id]) as BriefResponses[string] : responses[q.id]}
                   onChange={v => {
                     const nextValue = q.id === 'f2' && productMode === 'express' ? normalizeF2ValueForExpress(v) : v;
@@ -89,6 +109,7 @@ export function BankClassicBriefFields({
                   onOtherSpecifyChange={text => onChange(otherKey, text || null)}
                   disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
                   productMode={productMode}
+                  optionDisplayLabels={optionDisplayLabels}
                 />
               );
             })}

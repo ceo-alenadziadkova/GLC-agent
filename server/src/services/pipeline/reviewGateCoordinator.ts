@@ -1,5 +1,6 @@
 import { supabase } from '../supabase.js';
 import { consistencyChecker } from '../consistency-checker.js';
+import { logger } from '../logger.js';
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import { pipelineOrchestratorCopy } from '../../config/pipeline-orchestrator-copy.js';
 
@@ -13,6 +14,30 @@ export type RunAutoWingQualityGateDeps = {
   cancelledErrorFactory: () => Error;
 };
 
+/**
+ * Persist the wing's `quality_gate_passed` flag for `(audit_id, after_phase)` and surface
+ * write failures: silently dropping this UPDATE leaves consultants looking at a stale flag,
+ * which `qualityGateRequiresConsultantNotes` then misreads at approve time.
+ */
+async function persistQualityGateOutcome(auditId: string, afterPhase: number, passed: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('review_points')
+    .update({ quality_gate_passed: passed })
+    .eq('audit_id', auditId)
+    .eq('after_phase', afterPhase);
+  if (error) {
+    logger.error('pipeline.review_quality_gate_update_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+      passed,
+      error: error.message,
+      code: error.code,
+    });
+    throw new Error(`Failed to persist quality gate outcome: ${error.message}`);
+  }
+}
+
 export async function runAutoWingQualityGateAndMaybeReviewGate(
   deps: RunAutoWingQualityGateDeps,
 ): Promise<void> {
@@ -20,10 +45,7 @@ export async function runAutoWingQualityGateAndMaybeReviewGate(
 
   const gateReport = await consistencyChecker.run(auditId, afterPhase, phasesInWing);
 
-  await supabase.from('review_points')
-    .update({ quality_gate_passed: gateReport.passed })
-    .eq('audit_id', auditId)
-    .eq('after_phase', afterPhase);
+  await persistQualityGateOutcome(auditId, afterPhase, gateReport.passed);
 
   if (!reviewPhases.includes(afterPhase)) return;
 
@@ -44,10 +66,7 @@ export async function runStrategyQualityGate(deps: RunStrategyQualityGateDeps): 
 
   const gateReport = await consistencyChecker.run(auditId, afterPhase, phasesToCheck);
 
-  await supabase.from('review_points')
-    .update({ quality_gate_passed: gateReport.passed })
-    .eq('audit_id', auditId)
-    .eq('after_phase', afterPhase);
+  await persistQualityGateOutcome(auditId, afterPhase, gateReport.passed);
 }
 
 /**
@@ -57,7 +76,7 @@ export async function runStrategyQualityGate(deps: RunStrategyQualityGateDeps): 
  * Prior-round notes are cleared here; they were already incorporated into the saved phase output.
  */
 export async function reopenHumanReviewPointForPhase(auditId: string, afterPhase: number): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('review_points')
     .update({
       status: 'pending',
@@ -67,7 +86,25 @@ export async function reopenHumanReviewPointForPhase(auditId: string, afterPhase
       quality_gate_passed: null,
     })
     .eq('audit_id', auditId)
-    .eq('after_phase', afterPhase);
-  if (error) throw new Error(`[review_gate] reopen review point failed: ${error.message}`);
+    .eq('after_phase', afterPhase)
+    .select('id');
+  if (error) {
+    logger.error('pipeline.review_reopen_failed', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+      error: error.message,
+      code: error.code,
+    });
+    throw new Error(`[review_gate] reopen review point failed: ${error.message}`);
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    logger.error('pipeline.review_reopen_missing_row', {
+      component: 'pipeline_review',
+      audit_id: auditId,
+      after_phase: afterPhase,
+    });
+    throw new Error(`[review_gate] review point missing for audit ${auditId} after phase ${afterPhase}`);
+  }
 }
 

@@ -5,6 +5,7 @@ import {
 } from '../schemas/control-object.js';
 import type { DomainResult } from '../types/audit.js';
 import * as ruleEngine from '../config/rule-engine.js';
+import * as featureFlags from '../config/feature-flags.js';
 
 const { insertMock, fromMock } = vi.hoisted(() => {
   const insertMock = vi.fn().mockResolvedValue({ error: null });
@@ -70,18 +71,17 @@ describe('softenAbsolutesInResult', () => {
 
 describe('applyAutoRemediation', () => {
   beforeEach(() => {
-    vi.stubEnv('FEATURE_AUTO_REMEDIATION', 'true');
+    vi.spyOn(featureFlags, 'isAutoRemediationEnabled').mockReturnValue(true);
     insertMock.mockClear();
     fromMock.mockClear();
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
   it('returns 0 when feature flag is off', async () => {
-    vi.stubEnv('FEATURE_AUTO_REMEDIATION', 'false');
+    vi.mocked(featureFlags.isAutoRemediationEnabled).mockReturnValue(false);
     const co = createControlObjectV1('a1', 'seo_digital');
     co.decision_hint = 'accept_with_warnings';
     co.errors.fixable.push('forbidden_absolutes');

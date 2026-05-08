@@ -12,6 +12,8 @@ export function MonitorHeaderActions(props: {
   isExpress: boolean;
   progressPct: number;
   auditStatus: string;
+  currentPhaseId: number;
+  phases: Array<{ id: number; name: string; status: string }>;
   /** True while POST /pipeline/next is in flight but DB row may still be `review` — show running pulse in the header. */
   isAdvancingFromReview?: boolean;
   canStopPipeline: boolean;
@@ -25,6 +27,8 @@ export function MonitorHeaderActions(props: {
     isExpress,
     progressPct,
     auditStatus,
+    currentPhaseId,
+    phases,
     isAdvancingFromReview = false,
     canStopPipeline,
     isStopping,
@@ -38,6 +42,18 @@ export function MonitorHeaderActions(props: {
   const headerPill = isAdvancingFromReview
     ? { status: 'running' as const, pulse: true }
     : getPipelineMonitorHeaderPresentation(auditStatus);
+  const runningPhases = phases.filter(phase => phase.status === 'running');
+  const currentPhase = phases.find(phase => phase.id === currentPhaseId) ?? null;
+  const primaryRunningPhase = runningPhases[0] ?? currentPhase;
+  const runningMoreCount = runningPhases.length > 1 ? runningPhases.length - 1 : 0;
+  const runningMoreSuffix =
+    runningMoreCount > 0
+      ? ` ${PM.header.runningMoreSuffix.replace('{count}', String(runningMoreCount))}`
+      : '';
+  const runningLabel =
+    headerPill.status === 'running' && primaryRunningPhase
+      ? `Running · ${PM.phasePrefix} ${primaryRunningPhase.id} ${primaryRunningPhase.name}${runningMoreSuffix}`
+      : undefined;
 
   if (isClient) {
     const cp = PIPELINE_MONITOR_UI_POLICY.clientPortal;
@@ -53,7 +69,7 @@ export function MonitorHeaderActions(props: {
           </div>
           <span className={cp.headerPercentClassName}>{progressPct}%</span>
         </div>
-        <StatusPill status={headerPill.status} pulse={headerPill.pulse} />
+        <StatusPill status={headerPill.status} pulse={headerPill.pulse} label={runningLabel} />
       </div>
     );
   }
@@ -63,23 +79,23 @@ export function MonitorHeaderActions(props: {
       {isExpress && (
         <StatusBadge
           label={PM.expressBadge}
-          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-muted)] font-bold ds-pipeline-express-badge-tracking text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--callout-info-border)] bg-[var(--callout-info-bg-subtle)] font-bold ds-pipeline-express-badge-tracking text-[var(--text-blue)]"
           className="font-[var(--font-display)]"
         />
       )}
       <div className="flex items-center gap-2.5">
         <div className="h-[var(--space-1)] w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]">
           <motion.div
-            className="h-full rounded-full bg-[var(--glc-green)] shadow-[0_0_6px_var(--glc-green)]"
+            className="h-full rounded-full bg-[var(--score-5)] shadow-[0_0_6px_var(--score-5)]"
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: PIPELINE_MONITOR_UI_POLICY.animation.progressDurationSec, ease: [0.16, 1, 0.3, 1] }}
           />
         </div>
-        <span className="text-xs font-mono font-bold tabular-nums text-[var(--glc-green)]">
+        <span className="text-xs font-mono font-bold tabular-nums text-[var(--score-5)]">
           {progressPct}%
         </span>
       </div>
-      <StatusPill status={headerPill.status} pulse={headerPill.pulse} />
+      <StatusPill status={headerPill.status} pulse={headerPill.pulse} label={runningLabel} />
       {showHeaderRetry && (
         <Button
           type="button"

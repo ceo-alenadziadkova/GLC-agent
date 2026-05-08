@@ -5,6 +5,7 @@
 import type {
   IntakeBriefCollectionMode,
   IntakeReadinessTraceEntry,
+  IntakeReadinessExecutionContext,
   IntakeVersionTuple,
   IntakeCriticalSignalConfidence,
   ProductMode,
@@ -38,6 +39,8 @@ export interface BuildIntakePlanInput {
    * Consultant/client/portal surfaces apply whenever set (see `layout-rules.v1.json`).
    */
   surface?: IntakeSurface;
+  /** Optional execution context used for presale-oriented curation policies. */
+  executionContext?: IntakeReadinessExecutionContext;
   /**
    * When set, policy/layout/bank JSON are loaded for this tuple (frozen bundles) instead of only the
    * live artifacts. Resolver **code** is always the current server build.

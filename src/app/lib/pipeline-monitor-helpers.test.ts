@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deriveAutoWingReviewAfterPhase,
   getAuditListPillPresentation,
   getPhaseStatus,
   getPipelineMonitorHeaderPresentation,
+  hasVisiblyRunningUpstreamPhase,
   isPipelineAuditActiveStatus,
 } from './pipeline-monitor-helpers';
 
@@ -31,11 +33,17 @@ describe('getPhaseStatus', () => {
     ).toBe('completed');
   });
 
-  it('still shows running for active phase work (audit in recon, no approved gate yet)', () => {
+  it('shows running for active phase work even when review rows are pre-seeded pending', () => {
     expect(
       getPhaseStatus(0, 0, 'recon', [{ after_phase: 0, status: 'pending' }], false, null),
-    ).toBe('review');
+    ).toBe('running');
     expect(getPhaseStatus(0, 0, 'recon', [], false, null)).toBe('running');
+  });
+
+  it('shows running for strategy while orchestrator executes even if Gate 3 review row is pending', () => {
+    expect(
+      getPhaseStatus(7, 7, 'strategy', [{ after_phase: 7, status: 'pending' }], false, null),
+    ).toBe('running');
   });
 
   it('cancelled audit does not show fake running on the current phase card', () => {
@@ -44,9 +52,24 @@ describe('getPhaseStatus', () => {
     ).toBe('pending');
   });
 
+  it('marks phases outside partial execution_plan as skipped', () => {
+    const planIds = new Set([0, 1, 6]);
+    expect(getPhaseStatus(5, 1, 'auto', [], false, null, planIds)).toBe('skipped');
+    expect(getPhaseStatus(1, 1, 'auto', [], false, null, planIds)).toBe('running');
+  });
+
   it('after resume from cancelled to review (mid-phase, no gate row), current phase is review so Continue is available', () => {
     expect(getPhaseStatus(3, 3, 'review', [], false, null)).toBe('review');
     expect(getPhaseStatus(1, 1, 'review', [], false, null)).toBe('review');
+  });
+
+  it('shows running when domain row is still failed but audit is already active on that phase (retry claimed)', () => {
+    expect(getPhaseStatus(3, 3, 'auto', [], false, 'failed')).toBe('running');
+  });
+
+  it('still shows failed when audit is not active even if domain is failed', () => {
+    expect(getPhaseStatus(3, 3, 'failed', [], false, 'failed')).toBe('failed');
+    expect(getPhaseStatus(3, 3, 'review', [], false, 'failed')).toBe('failed');
   });
 });
 
@@ -71,6 +94,51 @@ describe('getPipelineMonitorHeaderPresentation', () => {
 
   it('maps failed audits to failed pill', () => {
     expect(getPipelineMonitorHeaderPresentation('failed')).toEqual({ status: 'failed', pulse: false });
+  });
+});
+
+describe('hasVisiblyRunningUpstreamPhase', () => {
+  const row = (id: number, status: 'running' | 'pending' | 'skipped' | 'completed', skipped = false) => ({
+    id,
+    skipped,
+    status,
+  });
+
+  it('is true when a non-skipped upstream phase is running', () => {
+    const phases = [row(0, 'completed'), row(1, 'running'), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(true);
+  });
+
+  it('is false when upstream running phase is skipped (partial plan)', () => {
+    const phases = [row(0, 'completed'), row(5, 'skipped', true), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(false);
+  });
+
+  it('is false when no upstream phase is running', () => {
+    const phases = [row(0, 'completed'), row(1, 'completed'), row(6, 'pending')];
+    expect(hasVisiblyRunningUpstreamPhase(phases, 6)).toBe(false);
+  });
+});
+
+describe('deriveAutoWingReviewAfterPhase', () => {
+  it('uses the highest auto-wing review row (1–4) from the server snapshot', () => {
+    expect(
+      deriveAutoWingReviewAfterPhase([
+        { after_phase: 0 },
+        { after_phase: 1 },
+        { after_phase: 7 },
+      ]),
+    ).toBe(1);
+    expect(
+      deriveAutoWingReviewAfterPhase([
+        { after_phase: 0 },
+        { after_phase: 4 },
+      ]),
+    ).toBe(4);
+  });
+
+  it('defaults to 4 when no auto-wing gate is present in the array', () => {
+    expect(deriveAutoWingReviewAfterPhase([{ after_phase: 0 }, { after_phase: 7 }])).toBe(4);
   });
 });
 

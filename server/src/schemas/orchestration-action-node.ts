@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS } from '@glc/intake-core';
+
 import {
   ORCHESTRATION_GRAPH_NODE_ANALYSIS_DEPTHS,
   ORCHESTRATION_GRAPH_NODE_SOURCES,
@@ -34,6 +36,11 @@ export const OrchestrationActionNodeSchema = z.object({
       assumed: z.number().int().nonnegative(),
       missing: z.number().int().nonnegative(),
     })
+    .optional(),
+  board_identity_key: z
+    .string()
+    .min(1)
+    .max(CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS)
     .optional(),
 });
 

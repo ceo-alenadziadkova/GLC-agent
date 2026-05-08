@@ -4,6 +4,8 @@ import { attachProfile, requireAuth, requireRole } from '../../middleware/auth.j
 import { intakePublicReadLimiter, intakePublicWriteLimiter } from '../../middleware/rate-limit.js';
 import { getIntakePrefillController } from './controllers/get-intake-prefill.controller.js';
 import { getIntakePublicController } from './controllers/get-intake-public.controller.js';
+import { getIntakeTailoredQuestionsController } from './controllers/get-intake-tailored-questions.controller.js';
+import { postIntakeIntelligenceSnapshotController } from './controllers/post-intake-intelligence-snapshot.controller.js';
 import { getIntakeSubmissionsController } from './controllers/get-intake-submissions.controller.js';
 import { getIntakeIntelligenceKpiDashboardController } from './controllers/get-intake-intelligence-kpi-dashboard.controller.js';
 import { postIntakeLinkAuditController } from './controllers/post-intake-link-audit.controller.js';
@@ -56,6 +58,17 @@ intakeRouter.post(
   attachProfile,
   requireRole('consultant'),
   postIntakePlanTraceController,
+);
+
+intakeRouter.get(
+  '/:token/tailored-questions',
+  intakePublicReadLimiter,
+  getIntakeTailoredQuestionsController,
+);
+intakeRouter.post(
+  '/:token/intelligence-snapshot',
+  intakePublicWriteLimiter,
+  postIntakeIntelligenceSnapshotController,
 );
 
 intakeRouter.get('/:token', intakePublicReadLimiter, getIntakePublicController);

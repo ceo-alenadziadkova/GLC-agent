@@ -2,7 +2,6 @@ import { DIRECTOR_SUB_AGENTS, type DirectorSubAgentId } from '../../config/direc
 import { routeCmoOperatingMode } from './director-cmo-router.service.js';
 import { DIRECTOR_MODE_AGENT_DEPTHS, type DirectorOperatingMode } from '../../config/director-operating-modes.js';
 import { DIRECTOR_CMO_ORCHESTRATOR_POLICY } from '../../config/director-cmo-orchestrator-policy.js';
-import { SUB_AGENT_TOKEN_BUDGET_BY_DEPTH } from '../../config/director-orchestration-policy.js';
 import type { DirectorSubAgentBase } from '../../agents/director-sub-agent-base.js';
 import { CmoAgent1Market } from '../../agents/sub/cmo/agent-1-market.js';
 import { CmoAgent2AwarenessLadder } from '../../agents/sub/cmo/agent-2-awareness-ladder.js';
@@ -29,9 +28,15 @@ import { CmoStorytellingOutputSchema } from '../../schemas/sub-agents/cmo/storyt
 import { CmoTrafficOutputSchema } from '../../schemas/sub-agents/cmo/traffic.js';
 import { CmoViralOutputSchema } from '../../schemas/sub-agents/cmo/viral.js';
 import { CmoVoiceOutputSchema } from '../../schemas/sub-agents/cmo/voice.js';
-import { logger } from '../logger.js';
 import { z } from 'zod';
-import { buildExecutionWaves } from './sub-agent-wave-executor.js';
+import {
+  buildDependencyMapFromRegistry,
+  executeDirectorSubAgentPipeline,
+} from './director-shared-pipeline.helper.js';
+
+const DIRECTOR_DEPENDENCIES_BY_ID = new Map(
+  DIRECTOR_SUB_AGENTS.map((agent) => [agent.id, agent.depends_on] as const),
+);
 
 export async function runCmoSubAgentOrchestrator(args: {
   auditId?: string;
@@ -63,52 +68,25 @@ export async function runCmoSubAgentOrchestrator(args: {
     args.requestedSubAgentIds && args.requestedSubAgentIds.length > 0
       ? (args.requestedSubAgentIds.filter((id): id is DirectorSubAgentId => allowed.includes(id as DirectorSubAgentId)))
       : (allowed.filter((id) => DIRECTOR_MODE_AGENT_DEPTHS[mode][id] !== 'deferred') as DirectorSubAgentId[]);
-  const runOrder = buildTopoOrder(selected);
-  const dependencyMap = buildDependencyMapCmo(selected);
-  const runWaves = buildExecutionWaves(selected, dependencyMap);
+  const dependencyMap = buildDependencyMapFromRegistry(selected, DIRECTOR_DEPENDENCIES_BY_ID);
   const agents = buildAgentRuntime(args.auditId ?? 'deep-dive');
-  const agentOutputs: Partial<Record<DirectorSubAgentId, unknown>> = {};
-  const fallbackAgents = new Set<DirectorSubAgentId>();
-  for (const wave of runWaves) {
-    await Promise.all(
-      wave.map(async (subAgentId) => {
-        const runtime = agents[subAgentId];
-        const depth = DIRECTOR_MODE_AGENT_DEPTHS[mode][subAgentId];
-        let parsed: unknown;
-        try {
-          parsed = await runtime.runSubAgent({
-            context: buildSubAgentContext(args.goals, args.constraints),
-            mode,
-            maxTokens: SUB_AGENT_TOKEN_BUDGET_BY_DEPTH[depth === 'deferred' ? 'min' : depth],
-          });
-        } catch (error) {
-          logger.warn('director_cmo_orchestrator.sub_agent_fallback_deterministic', {
-            sub_agent_id: subAgentId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          const fallbackOutput = buildDeterministicOutput({
-            subAgentId,
-            goals: args.goals,
-            constraints: args.constraints,
-            depth,
-          });
-          parsed = runtime.outputSchema.parse(fallbackOutput);
-          fallbackAgents.add(subAgentId);
-        }
-        agentOutputs[subAgentId] = {
-          output: parsed,
-          metadata: {
-            depth,
-            analysis_mode: fallbackAgents.has(subAgentId) ? 'deterministic_fallback' : 'researched',
-            evidence_gap_reason: fallbackAgents.has(subAgentId)
-              ? 'sub-agent runtime failed; deterministic fallback output used'
-              : null,
-            prompt_ref: runtime.promptRef,
-          },
-        };
+  const { runOrder, agentOutputs, fallbackAgents } = await executeDirectorSubAgentPipeline({
+    selected,
+    dependenciesById: dependencyMap,
+    runtimesById: agents,
+    context: buildSubAgentContext(args.goals, args.constraints),
+    mode,
+    getDepth: (subAgentId) => DIRECTOR_MODE_AGENT_DEPTHS[mode][subAgentId],
+    buildDeterministicOutput: (subAgentId) =>
+      buildDeterministicOutput({
+        subAgentId,
+        goals: args.goals,
+        constraints: args.constraints,
+        depth: DIRECTOR_MODE_AGENT_DEPTHS[mode][subAgentId],
       }),
-    );
-  }
+    fallbackLogEvent: 'director_cmo_orchestrator.sub_agent_fallback_deterministic',
+    includeEvidenceGapReason: true,
+  });
   return {
     mode,
     selected_sub_agents: selected,
@@ -484,41 +462,6 @@ function buildSubAgentContext(goals: string[], constraints: string[]): string {
     `Goals: ${goals.join('; ') || 'n/a'}`,
     `Constraints: ${constraints.join('; ') || 'n/a'}`,
   ].join('\n');
-}
-
-function buildTopoOrder(selected: DirectorSubAgentId[]): DirectorSubAgentId[] {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const done = new Set<DirectorSubAgentId>();
-  const order: DirectorSubAgentId[] = [];
-
-  const visit = (id: DirectorSubAgentId) => {
-    if (!selectedSet.has(id) || done.has(id)) return;
-    const node = byId.get(id);
-    if (node) {
-      for (const dep of node.depends_on) {
-        if (selectedSet.has(dep)) visit(dep);
-      }
-    }
-    if (done.has(id)) return;
-    done.add(id);
-    order.push(id);
-  };
-
-  for (const id of selected) visit(id);
-  return order;
-}
-
-function buildDependencyMapCmo(selected: DirectorSubAgentId[]): Map<DirectorSubAgentId, DirectorSubAgentId[]> {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const dependencies = new Map<DirectorSubAgentId, DirectorSubAgentId[]>();
-  for (const id of selected) {
-    const node = byId.get(id);
-    const deps = (node?.depends_on ?? []).filter((dep) => selectedSet.has(dep));
-    dependencies.set(id, deps);
-  }
-  return dependencies;
 }
 
 function buildAgentRuntime(auditId: string): Record<DirectorSubAgentId, DirectorSubAgentBase> {

@@ -193,6 +193,7 @@ export function buildOrchestrationGraph(nodes: OrchestrationActionNode[]): Orche
     ...(n.time_bucket !== undefined ? { time_bucket: n.time_bucket } : {}),
     ...(n.target_window_days !== undefined ? { target_window_days: n.target_window_days } : {}),
     ...(n.priority_score !== undefined ? { priority_score: n.priority_score } : {}),
+    ...(n.board_identity_key !== undefined ? { board_identity_key: n.board_identity_key } : {}),
   }));
 
   const graph: OrchestrationGraphPayload = {

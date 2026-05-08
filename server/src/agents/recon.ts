@@ -2,14 +2,27 @@ import { BaseAgent, loadPrompt } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
+import { logger } from '../services/logger.js';
+import {
+  assertPhaseRunLeaseHeld,
+  getPhaseRunLeaseContext,
+} from '../services/pipeline/phase-run-lease-context.js';
 import {
   interpolatePipelineEventMessage,
   pipelineReconEventCopy,
 } from '../config/pipeline-events-copy.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import type { DomainResult } from '../types/audit.js';
 import { writeReconPrefillsAfterPhase0 } from '../services/recon-prefill.js';
+import { loadNewAuditSiteReconData } from '../services/audits/new-audit-site-scrape.service.js';
+import {
+  buildReconContextSummary,
+  extractReconCrawlSignalsForSummary,
+} from '../services/recon/recon-context-summary.service.js';
+import { normalizeReconRuntimeOutput } from '../services/recon/recon-output-normalizer.js';
+import { z } from 'zod';
 
 /**
  * Phase 0: Recon Agent
@@ -39,6 +52,7 @@ export class ReconAgent extends BaseAgent {
     );
     const crawler = new CrawlerCollector();
     const crawlResult = await crawler.run(this.auditId, companyUrl, { noPublicWebsite });
+    const newAuditSiteRecon = await loadNewAuditSiteReconData(this.auditId);
     const crawledPageCount = (crawlResult.data.pages_crawled as unknown[])?.length ?? 0;
     await this.emit(
       'log',
@@ -55,9 +69,10 @@ export class ReconAgent extends BaseAgent {
 
     // Step 2: Assemble context
     await this.emit('assembling_context', ev.assemblingContext);
-    const context = await this.contextBuilder.build(
-      this.auditId, 'recon', { crawler: crawlResult.data }, this.instructions
-    );
+    const context = await this.contextBuilder.build(this.auditId, this.phaseNumber, 'recon', {
+      crawler: crawlResult.data,
+      ...(newAuditSiteRecon ? { new_audit_site_recon: newAuditSiteRecon } : {}),
+    }, this.instructions);
 
     // Step 3: Claude call
     await this.emit('analyzing', ev.analyzing);
@@ -76,10 +91,78 @@ export class ReconAgent extends BaseAgent {
       );
     }
 
-    const reconResult = await this.callClaudeWithRetry(context, ReconOutputSchema, MODEL_MAX_TOKENS.recon) as unknown as import('zod').infer<typeof ReconOutputSchema>;
+    const reconRuntimeSchema = ReconOutputSchema.extend({
+      key_services_products: z.union([z.array(z.string()), z.string()]),
+      initial_observations: z.union([z.array(z.string()), z.string()]),
+      suggested_interview_questions: z.union([z.array(z.string()), z.string()]),
+    });
+    const reconRaw = await this.callClaudeWithRetry(
+      context,
+      reconRuntimeSchema,
+      MODEL_MAX_TOKENS.recon,
+    ) as unknown;
+    const normalizedRecon = normalizeReconRuntimeOutput(reconRaw);
+    if (normalizedRecon.appliedFields.length > 0) {
+      await this.emit(PIPELINE_EVENT_TYPES.coercionApplied, 'Recon list-field coercion applied', {
+        detail_level: 'debug',
+        fields: normalizedRecon.appliedFields,
+        raw_types_before: normalizedRecon.rawTypesBefore,
+      });
+    }
+    const reconParsed = ReconOutputSchema.safeParse(normalizedRecon.normalized);
+    if (!reconParsed.success) {
+      await this.emit(PIPELINE_EVENT_TYPES.coercionFailed, 'Recon coercion failed strict schema validation', {
+        detail_level: 'debug',
+        fields: normalizedRecon.appliedFields,
+        validation_path: reconParsed.error.issues[0]?.path ?? [],
+        validation_message: reconParsed.error.issues[0]?.message ?? reconParsed.error.message,
+      });
+      throw new Error(`Recon output validation failed after normalization: ${reconParsed.error.message}`);
+    }
+    const reconResult = reconParsed.data;
+    const { data: briefRow } = await supabase
+      .from('intake_brief')
+      .select('responses')
+      .eq('audit_id', this.auditId)
+      .maybeSingle();
+    const briefResponses =
+      briefRow && typeof briefRow.responses === 'object' && briefRow.responses && !Array.isArray(briefRow.responses)
+        ? (briefRow.responses as Record<string, unknown>)
+        : null;
+    const crawlSignals = extractReconCrawlSignalsForSummary({
+      tech_stack: crawlResult.data.tech_stack as Record<string, unknown> | undefined,
+      social_profiles: crawlResult.data.social_profiles as Record<string, unknown> | undefined,
+      contact_info: crawlResult.data.contact_info as
+        | {
+            emails?: unknown[] | null;
+            phones?: unknown[] | null;
+            addresses?: unknown[] | null;
+          }
+        | null
+        | undefined,
+    });
+
+    const reconContextSummary = buildReconContextSummary({
+      noPublicSite,
+      crawledPageCount,
+      reconResult,
+      briefResponses,
+      hasNewAuditSiteRecon: Boolean(newAuditSiteRecon),
+      crawlSignals,
+    });
+
+    const leaseCtx = getPhaseRunLeaseContext();
+    if (leaseCtx) {
+      await assertPhaseRunLeaseHeld({
+        auditId: this.auditId,
+        phase: this.phaseNumber,
+        attempt: leaseCtx.attempt,
+        expectedOwner: leaseCtx.leaseOwner,
+      });
+    }
 
     // Save to audit_recon
-    await supabase.from('audit_recon').update({
+    const { error: reconUpdateErr } = await supabase.from('audit_recon').update({
       status: 'completed',
       company_name: reconResult.company_name,
       industry: reconResult.industry,
@@ -89,7 +172,17 @@ export class ReconAgent extends BaseAgent {
       social_profiles: crawlResult.data.social_profiles,
       contact_info: crawlResult.data.contact_info,
       pages_crawled: crawlResult.data.pages_crawled,
+      recon_context_summary: reconContextSummary,
     }).eq('audit_id', this.auditId);
+
+    if (reconUpdateErr) {
+      logger.error('recon.audit_recon_update_failed', {
+        component: 'recon',
+        audit_id: this.auditId,
+        error: reconUpdateErr.message,
+      });
+      throw reconUpdateErr;
+    }
 
     if (!noPublicSite) {
       await writeReconPrefillsAfterPhase0(
@@ -99,12 +192,21 @@ export class ReconAgent extends BaseAgent {
     }
 
     // Update audit with discovered info
-    await supabase.from('audits').update({
+    const { error: auditUpdateErr } = await supabase.from('audits').update({
       company_name: reconResult.company_name ?? undefined,
       industry: reconResult.industry ?? undefined,
       status: 'review',
       current_phase: 0,
     }).eq('id', this.auditId);
+
+    if (auditUpdateErr) {
+      logger.error('recon.audits_update_failed', {
+        component: 'recon',
+        audit_id: this.auditId,
+        error: auditUpdateErr.message,
+      });
+      throw auditUpdateErr;
+    }
 
     await this.emit('completed', ev.completed, {
       company_name: reconResult.company_name,

@@ -115,6 +115,8 @@ Use this as a **single crosswalk** so intake pilots, orchestration flags, and CI
 
 **Log keys (dashboards):** `brief_write.intake_readiness_recomputed` (debug), `discover.convert.intake_readiness_blocked`, `pipeline.intake_readiness_blocked`, `pipeline.next.intake_readiness_blocked` — see implementation contract for field shapes.
 
+**HTTP triage:** `400` **`PIPELINE_INTAKE_READINESS_BLOCKED`** bodies use **`details.readiness`** (full envelope) and **`details.triage_blocking_trace_codes`** (compact list: excludes progressive-certainty codes, **`critical_signal_metadata_applied`**, **`signal_priority_evaluated`**, and informational enforcement markers — see **`READINESS_TRACE_CODES_EXCLUDED_FROM_OPERATOR_TRIAGE`** in **`@glc/intake-core`**). **`POST …/resume-cancelled`** may return **`auto_next_error_details`** mirroring that shape when automatic **`pipeline/next`** fails.
+
 **Log drain panels (practical):** index JSON logs by the **message** field (exact string match). For blocked-rate triage, chart rates of `pipeline.intake_readiness_blocked` and `pipeline.next.intake_readiness_blocked` vs successful starts; include `trace_codes` (array) and `auditId` on those lines. For discovery, use `discover.convert.intake_readiness_blocked`. For draft-save observability (no user block), sample or filter `brief_write.intake_readiness_recomputed` at debug level only — avoid high-cardinality dashboards on that key in production.
 
 **Product/Ops pre-flight (handshake before first enable):**
@@ -362,7 +364,7 @@ Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
 | Director deep-dive rollout stage                           | `FEATURE_DIRECTOR_DEEP_DIVE_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (see `server/src/config/system-defaults/feature-flags-defaults.ts` — **must match** SPA `directorDeepDiveRolloutMode` in `app-feature-flags.ts`) | `internal` after smoke + owner validation                           | Promote `pilot` then `ga` only after full regression and rollback rehearsal                                                                                                 | Backend + Product                                                                               |
 | Director sub-agents rollout stage                          | `FEATURE_DIRECTOR_SUB_AGENTS_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (same note as above — **code default is not `shadow`**) | `internal` with `FEATURE_DIRECTOR_SUB_AGENTS=true` and CMO-only scope | `pilot` only for approved segment; `ga` after stability window and token-budget soak                                                                                        | Backend + Product                                                                               |
 | Client roadmap narrative (all users) | `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED` | `true` (matches SPA `orchestrationRoadmapNarrativeEnabled` static default) | `true` in sandbox after `GET /timeline` narrative field checks | `true` in prod; rollback via env override to `false` | Backend + Product |
-| Roadmap narrative rollout (server; mirrors SPA staged access for consistency checks / logs) | `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (matches SPA `orchestrationRoadmapNarrativeRolloutMode`) | `internal` for allowlisted operators | `ga` when narrative ships broadly | Backend + Product |
+| Roadmap narrative rollout (server; mirrors SPA staged access for consistency checks / logs) | `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE` (`shadow \| internal \| pilot \| ga`) | `internal` (matches SPA `orchestrationRoadmapRolloutMode`) | `internal` for allowlisted operators | `ga` when narrative ships broadly | Backend + Product |
 | Non-CMO deep-dive stub bundles (CDO/CAO/CSO) | `FEATURE_DIRECTOR_CDO_SUB_AGENTS`, `FEATURE_DIRECTOR_CAO_SUB_AGENTS`, `FEATURE_DIRECTOR_CSO_SUB_AGENTS` | `false` each | `true` in sandbox to exercise domain routing | `false` in prod until domain orchestrators are signed off | Backend + Product |
 | CDO LLM deep-dive (`ux_conversion`) | `FEATURE_CDO_DEEP_DIVE_LLM` | `true` | `true` on staging after CMO deep-dive smoke + token soak | Keep enabled by default; rollback = `false` | Backend + Product |
 | CAO LLM deep-dive (`automation_processes`) | `FEATURE_CAO_DEEP_DIVE_LLM` | `true` | `true` after CDO LLM is stable | Keep enabled by default; rollback = `false` | Backend + Product |
@@ -373,16 +375,69 @@ Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
 | Consultant governance CTAs (POST `govern_action`) | `FEATURE_CONSULTANT_GOVERNANCE_CTAS` | `true` | `true` in staging | `true`; rollback to `false` (read-only + rebuild) | Backend + Product |
 | Manifest scenario compare (preview memo) | `FEATURE_MANIFEST_SCENARIO_COMPARE` | `true` | `true` | `true`; `false` bypasses 60s memo | Backend + Product |
 | Plan-level `control_object` in pack (ADR V4) | `FEATURE_PLAN_CONTROL_OBJECT` | `false` | `false` | `true` only after ADR Accepted | Backend + Product |
+| Delivery Board Plan tab rollout | `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE` (`shadow` \| `internal` \| `pilot` \| `ga`) | `ga` (must match SPA `planDeliveryBoardRolloutMode` in `app-feature-flags.ts`) | `internal` until Board smoke | Production: `ga` after sign-off; `shadow` hides Board tab in SPA | Backend + Product |
+| Delivery Board — ops shorthand (optional) | `PLAN_DELIVERY_BOARD` (`true` \| `false`) | *(omit)* | *(omit)* | Used **only** when `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE` is unset: `true` → server rollout **`internal`**, `false` → **`shadow`** (`getPlanDeliveryBoardRolloutMode`) | Backend + Ops |
+| Delivery Board — strict §2.3 (**manual → in_progress**) | `FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS` | `true` (matches `SYSTEM_DEFAULTS`) | `false` only for temporary rollback | **`409`** **`PLAN_BOARD_MANUAL_IN_PROGRESS_BLOCKED`** when **`true`** (shipped default after product sign-off) | Backend + Product |
+| Delivery Board — reconcile dry-run preview | `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW` | `false` | `false` | `true` after UX sign-off; enables `POST …/plan/board/reconcile/preview` | Backend + Product |
+| Delivery Board — transactional pack reconcile | `FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY` | `true` | `true` | `false` forces legacy multi-statement reconcile apply (rollback); requires migration **`078_plan_board_reconcile_apply_batch.sql`** | Backend + Ops |
 | Anthropic prompt cache (synthesis) | `FEATURE_LLM_PROMPT_CACHE` | `true` | `true` | `true`; `false` disables cache blocks | Backend + Ops |
 
 
-**SPA orchestration / timeline toggles (not env):** client nav and portal surfaces read `**APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts`: `orchestrationRoadmapUiEnabled`, `clientPostAuditCockpitEnabled`, `strategyLabOrchestratorDetailTabsEnabled`, `strategyLabDirectorStage2IntentEnabled`, `clientOrchestrationLabReadOnlyEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, **non-CMO LLM mirrors** `cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`, `ctoDeepDiveLlmEnabled`, `seoDeepDiveLlmEnabled`, and staged rollout mirrors (`orchestrationRoadmapNarrativeRolloutMode`, `directorDeepDiveRolloutMode`, `directorSubAgentsRolloutMode`). There is **no** `VITE_*` for these — change the static map and redeploy. Keep `**orchestrationTimelinePrimaryUxEnabled`** aligned with `**FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX**`, and keep LLM mirrors aligned with `SYSTEM_DEFAULTS` (see `src/app/config/orchestration-contract-parity.test.ts`).
+**SPA orchestration / Plan-workspace toggles (not env):** client nav and portal surfaces read `**APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts`: `orchestrationRoadmapUiEnabled`, `clientPostAuditCockpitEnabled`, `strategyLabOrchestratorDetailTabsEnabled`, `strategyLabDirectorStage2IntentEnabled`, `clientOrchestrationLabReadOnlyEnabled`, `clientPlanWorkspaceEnabled`, `orchestrationPlanWorkspacePrimaryUxEnabled`, `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, **non-CMO LLM mirrors** `cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`, `ctoDeepDiveLlmEnabled`, `seoDeepDiveLlmEnabled`, and staged rollout mirrors (`orchestrationRoadmapRolloutMode`, `directorDeepDiveRolloutMode`, `directorSubAgentsRolloutMode`). **Delivery Board:** `planDeliveryBoardRolloutMode`, **`planBoardDeferTimelineFetchOnBoardTabEnabled`** (when `true`, unified Plan skips `GET /timeline` on `?view=board`), and **`planBoardReconcileDiffPreviewEnabled`** (must match server `SYSTEM_DEFAULTS.featureFlags.planBoardReconcileDiffPreviewEnabled`; authorized by `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW`). There is **no** `VITE_*` for these — change the static map and redeploy. Keep `**orchestrationPlanWorkspacePrimaryUxEnabled`** aligned with `**FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX**`, and keep LLM mirrors aligned with `SYSTEM_DEFAULTS` (see `src/app/config/orchestration-contract-parity.test.ts`).
 
 **Note (2026-04-23):** Repo `SYSTEM_DEFAULTS` / SPA static maps ship `orchestrationRoadmapNarrativeEnabled`, `directorDeepDiveOnDemandEnabled`, `directorSubAgentsEnabled`, and non-CMO LLM mirrors (`cdoDeepDiveLlmEnabled`, `caoDeepDiveLlmEnabled`, `csoDeepDiveLlmEnabled`) as **on** with rollout mode **ga** where applicable; production can still **override** via env (`FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED`, `FEATURE_DIRECTOR_DEEP_DIVE_ON_DEMAND`, `FEATURE_DIRECTOR_SUB_AGENTS`, `FEATURE_CDO_DEEP_DIVE_LLM`, `FEATURE_CAO_DEEP_DIVE_LLM`, `FEATURE_CSO_DEEP_DIVE_LLM`, and matching `*_ROLLOUT_MODE`) per incident rollback.
 
 **Staged rollout allowlist parity:** the email allowlist in `src/app/config/orchestration-client-feature-gates.ts` (`ORCHESTRATION_CLIENT_ROLLOUT_ALLOWLIST_EMAILS`) must stay identical to `server/src/config/orchestration-rollout-gates.ts` (`ORCHESTRATION_ROLLOUT_ALLOWLIST_EMAILS`). Deep-dive POST/GET/quota and worker `subAgentsEntitled` use the server copy; `getEffective*` in the SPA uses the client copy. CI guard: `src/app/config/orchestration-contract-parity.test.ts` — **`keeps orchestration staged rollout allowlist identical on client and server`** (sorts both lists before compare).
 
 **Orchestration runbook (short):** (1) `FEATURE_ORCHESTRATION_PACK_API` on in target env. (2) Governance: start `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE=shadow`, watch `orchestration_pack_success` / `orchestration_pack_rejected` logs and `kpi_orchestration_plan_governance_rollout_observation`, then promote per `orchestration-plan-governance-rollout-policy.ts`. (3) Director strict: enable `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` only when domain output emits a parseable slice; optional pilot via `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT` in `director-orchestration-policy.ts`. (4) Optional auto-pack: `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` after manifest snapshots are routine.
+
+### Delivery Board — monitoring (ADR)
+
+Normative background: [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md](./adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) Appendices C, D, G; **[TECH_DEBT.md](./TECH_DEBT.md) TD-024** (`accepted_risk` until proven otherwise).
+
+**Deploy verification checklist (Railway + SPA + DB):**
+
+1. **DB:** migrations through `074_*` / `075_*` applied (`plan_task_delivery`) plus **`078_plan_board_reconcile_apply_batch.sql`** for transactional reconcile — see [DATABASE.md](./DATABASE.md).
+2. **Railway:** `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE` matches SPA **`planDeliveryBoardRolloutMode`** (CI **`orchestration-contract-parity.test.ts`** vs `SYSTEM_DEFAULTS`).
+3. **SPA:** redeploy after any edits to **`app-feature-flags.ts`** (no `VITE_*` mirrors for Delivery Board rollout).
+4. **Smoke:** `/plan/:id?view=board` renders; `/plan?view=roadmap` task drawer shows **Move to workflow column** when `GET …/plan/board` returns a matching operational row.
+5. **Accessibility (ADR P0 gate):** (a) **`pnpm vitest run src/app/pages/portal-plan/board/__tests__/PlanBoardOperationalCard.a11y.test.tsx`** — axe on board card primitive in jsdom; (b) before broad promotion, optionally run **Lighthouse** accessibility category on **`/plan/:id?view=board`** in a staged environment (ADR target score ≥ **90**; not asserted in CI by default).
+
+**Repo defaults vs Railway (GA alignment):** `SYSTEM_DEFAULTS.featureFlags.planDeliveryBoardRolloutMode` and static **`planDeliveryBoardRolloutMode`** in **`src/app/config/app-feature-flags.ts`** are the shipped contract (currently **`ga`**). Production should either **omit** `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE` so the server facade reads the same default, or set it explicitly to **`ga`** after sign-off. After any env change, run **`pnpm vitest run src/app/config/orchestration-contract-parity.test.ts`** locally (or rely on CI) before promoting traffic.
+
+**Defer-timeline rollback:** set **`planBoardDeferTimelineFetchOnBoardTabEnabled`** to **`false`** in **`src/app/config/app-feature-flags.ts`**, redeploy; run **`pnpm vitest run src/app/config/__tests__/plan-delivery-board-ui.test.ts`**.
+
+**Align Railway + SPA:** keep `FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE` aligned with `SYSTEM_DEFAULTS` / static `APP_FEATURE_FLAGS` so consultants do not see a Board tab while the server still gates pack APIs incorrectly.
+
+**`pipeline_events` (sanitized payloads):** chart or sample recent rows for `event_type` in `plan_board_reconciled`, `plan_board_card_moved`, `plan_board_conflict_409`, `plan_board_manual_in_progress_blocked`, `plan_board_view_opened`. Correlate spikes in **`plan_board_conflict_409`** or HTTP **`409`** with **`AUDITS_ORCHESTRATION_PACK_STALE_VERSION`** after pack version bumps and `plan_board_reconciled`. Pack-persist reconcile uses **`plan_board_apply_reconcile_batch`** (single transaction + advisory lock) when **`FEATURE_PLAN_BOARD_RECONCILE_TRANSACTIONAL_APPLY`** is on; if conflicts still cluster against concurrent **`PATCH`** traffic, escalate per thresholds below (TD-024).
+
+**Exploratory SQL (Supabase SQL editor — adjust column list against your schema if needed):**
+
+```sql
+select id, created_at, audit_id::text, event_type
+from public.pipeline_events
+where event_type in (
+  'plan_board_reconciled',
+  'plan_board_card_moved',
+  'plan_board_conflict_409',
+  'plan_board_manual_in_progress_blocked',
+  'plan_board_view_opened'
+)
+order by created_at desc
+limit 100;
+```
+
+**Implemented alerting (TD-024 / GLC-PB-022):** the server alert worker (`runAlertChecks` in `server/src/services/alerts.ts`) emits structured notifications (**`alert_plan_board_conflict_burst_post_reconcile`**, in-app + Telegram when configured) when there are **≥ `ALERT_BOARD_CONFLICT_BURST_THRESHOLD`** `plan_board_conflict_409` events **after** a `plan_board_reconciled` for the **same** `audit_id` within **`ALERT_BOARD_CONFLICT_WINDOW_MINUTES`** (same window as general pipeline alert sampling — see `server/src/config/alerts-config.ts`). For ad-hoc Grafana/log triage, you can still correlate HTTP **`409`** `AUDITS_ORCHESTRATION_PACK_STALE_VERSION` spikes across users.
+
+**Escalation thresholds (operational, tune per tenant volume):**
+
+| Severity | Signal | Suggested action |
+| --- | --- | --- |
+| **Triage** | ≥ **3** **`plan_board_conflict_409`** rows for the **same** `audit_id` within **15 minutes** of a **`plan_board_reconciled`** event for that audit | Verify single consultant editing session vs pack churn; capture API correlation ids |
+| **Escalate (engineering)** | Same pattern on **≥ 5** distinct **`audit_id`** values in **60 minutes**, or **`409`** **`AUDITS_ORCHESTRATION_PACK_STALE_VERSION`** spike correlated with reconcile cron across tenants | Open ticket for Appendix C mitigation (single-transaction lock / SECURITY DEFINER); link **[TECH_DEBT.md](./TECH_DEBT.md) TD-024** |
+| **Hold** | Sporadic single **`409`** after intentional pack rebuild | Expected — client refresh per existing mutation contract |
+
+**Board-only fetch optimization:** SPA `planBoardDeferTimelineFetchOnBoardTabEnabled` skips `GET /api/audits/:id/timeline` on `?view=board` when parity fields on `GET …/plan/board` suffice; rollback = set to `false` in `app-feature-flags.ts` and redeploy. **Automated guard:** Vitest **`src/app/config/__tests__/plan-delivery-board-ui.test.ts`** (`planOrchestrationIncludeTimelineForUnifiedPlanView`).
 
 **Roadmap narrative rollback:** set `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ENABLED=false` and optionally `FEATURE_ORCHESTRATION_ROADMAP_NARRATIVE_ROLLOUT_MODE=shadow` so `GET /api/audits/:id/timeline` omits `milestones` and `top_priorities` for non-entitled users; redeploy SPA with `orchestrationRoadmapNarrativeEnabled=false` for the same UX.
 

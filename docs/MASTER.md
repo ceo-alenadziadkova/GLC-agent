@@ -33,6 +33,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Literal `error` string inventory (generated; see [API.md](./API.md#error-responses)) | [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) |
 | Auth, roles, JWT | [AUTH.md](./AUTH.md) |
 | Threat model, rate limits, CORS, snapshot log redaction | [SECURITY.md](./SECURITY.md) |
+| Horizontal API scale (Redis limiters/locks, `generateLockToken` leases — not PID), multi-instance posture | [ARCHITECTURE.md § Public routes…](./ARCHITECTURE.md#public-routes-abuse-control-and-scaling) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Local dev, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase), env matrix, monitoring hooks | [DEPLOYMENT.md](./DEPLOYMENT.md) |
@@ -59,6 +60,7 @@ Selected ADR quick links:
 | Free snapshot scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Intake wording lifecycle + trace IA | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Frontend i18n | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
+| Frontend source layout (`pages` vs `features` vs `components`) | [ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md](adrs/ADR-FRONTEND-PAGE-SLICING-AND-FEATURES.md) |
 | Director layer (two-stage deep audit pattern) | [ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md](adrs/ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md) |
 | Marketing Director (two-stage) | [ADR-MARKETING-DIRECTOR-TWO-STAGE.md](adrs/ADR-MARKETING-DIRECTOR-TWO-STAGE.md) |
 | Tech Director (two-stage) | [ADR-TECH-DIRECTOR-TWO-STAGE.md](adrs/ADR-TECH-DIRECTOR-TWO-STAGE.md) |
@@ -68,6 +70,11 @@ Selected ADR quick links:
 | CTO Director orchestration (deep technical rubric) | [ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md](adrs/ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md) |
 | GLC Orchestrator v1.1 (meta orchestration) | [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md](adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md) |
 | Client unified roadmap (multi-lane timeline, lab split, pre-commit manifest) | [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) |
+| Delivery Board (operational state, Plan `view=board`, Timeline sunset path) | [ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md](adrs/ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md) |
+| Delivery Board vs narrative Timeline — product §2 matrix + GLC-PB ticket skeleton (Accepted v1; additive product framing aligned with Operational-layer ADR) | [ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md](adrs/ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md) |
+| Delivery Board deferred epics stub (Epics 2–3 backlog; Epic 1 shipped — see Preserve key ADR) | [ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md](adrs/ADR-DELIVERY-BOARD-FOLLOWUP-EPICS.md) |
+| Delivery Board Epic 1 — preserve canonical node key on rename (Accepted) | [ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md](adrs/ADR-PRESERVE-CANONICAL-NODE-KEY-EPIC1.md) |
+| Plan Workspace unified IA (`/plan/:id?mode=`, single compile, focus symmetry) — **Accepted** (Phases 1–3 implemented + UX polish: Board/Table inline lane, Shape inline initiatives, Cmd-K surface registry + `?lane=` filter, manifest compile status pill) | [ADR-PLAN-WORKSPACE-UNIFIED-V1.md](adrs/ADR-PLAN-WORKSPACE-UNIFIED-V1.md) |
 | Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
 | Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |
@@ -208,7 +215,7 @@ Current implementation note: persisted `glc_orchestration_pack` uses schema v2 (
 
 ### 9. Frontend application
 
-**What it is:** React 18 SPA: pages, hooks, Realtime subscriptions, API client; **GLC design system** (tokens in `src/styles/theme.css`, light/dark, shadcn-compatible variables).
+**What it is:** React 18 SPA: pages, hooks, Realtime subscriptions, API client; **GLC design system** (tokens in `src/styles/theme.css`, light/dark, shadcn-compatible variables). **Strategy Lab vs Plan:** Lab holds define / manifest / pack tooling on `/strategy/:id`; canonical delivery lives on `/plan/:id` (`view=board`, `roadmap`, or legacy `timeline`), with in-page IA anchors linking Define context, Shape pack, and Publish & operate.
 
 **Why it matters:** User-facing audit workflow and live pipeline UI.
 

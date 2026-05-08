@@ -63,6 +63,7 @@ export interface Database {
           pages_crawled: Record<string, unknown>[];
           brief: string | null;
           interview_answers: string | null;
+          recon_context_summary: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
@@ -79,6 +80,7 @@ export interface Database {
           pages_crawled?: Record<string, unknown>[];
           brief?: string | null;
           interview_answers?: string | null;
+          recon_context_summary?: Record<string, unknown> | null;
         };
         Update: Partial<Database['public']['Tables']['audit_recon']['Insert']>;
       };
@@ -203,6 +205,7 @@ export interface Database {
           message: string | null;
           data: Record<string, unknown>;
           created_at: string;
+          event_seq: number;
         };
         Insert: {
           audit_id: string;
@@ -210,6 +213,7 @@ export interface Database {
           event_type: string;
           message?: string | null;
           data?: Record<string, unknown>;
+          event_seq?: number;
         };
         Update: Partial<Database['public']['Tables']['pipeline_events']['Insert']>;
       };

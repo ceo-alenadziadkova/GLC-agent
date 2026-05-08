@@ -3,20 +3,17 @@ import {
   interpolatePipelineEventMessage,
   pipelineStrategyEventCopy,
 } from '../config/pipeline-events-copy.js';
-import { STRATEGY_INITIATIVE_SCHEMA_VERSION } from '../config/strategy-initiative-policy.js';
 import { type StrategyOutput, StrategyOutputSchema } from '../schemas/domain-output.js';
-import { supabase } from '../services/supabase.js';
-import {
-  buildDomainIssueIdIndex,
-  buildStrategyBriefConstraintSnapshot,
-  mergeBriefSnapshotWithLabOverrides,
-} from '../services/strategy/strategy-brief-constraint-snapshot.js';
-import { postProcessStrategyInitiatives } from '../services/strategy/strategy-initiative-post-process.js';
-import { calculateWeightedScore } from '../config/industry-weights.js';
+import { writeStrategyCompletionToDatabase } from '../services/strategy/strategy-completion-db.js';
+import { hydrateStrategyAfterParse } from '../services/strategy/hydrate-strategy-after-parse.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
-import type { DomainKey, DomainResult } from '../types/audit.js';
-import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
-import { buildStrategyNarrowControlObject } from '../services/governance/narrow/build-strategy-narrow-control-object.js';
+import type { DomainResult } from '../types/audit.js';
+import {
+  assertPhaseRunLeaseHeld,
+  getPhaseRunLeaseContext,
+} from '../services/pipeline/phase-run-lease-context.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING } from '../config/coalition-protocol-policy.js';
 
 type StrategyPersistPayload = {
   strategyResult: StrategyOutput;
@@ -51,22 +48,20 @@ export class StrategyAgent extends BaseAgent {
     }
     this.pendingPersistence = null;
 
-    await supabase.from('audit_strategy').update({
-      status: 'completed',
-      executive_summary: payload.strategyResult.executive_summary,
-      overall_score: payload.weightedScore,
-      quick_wins: payload.quick_wins,
-      medium_term: payload.medium_term,
-      strategic: payload.strategic,
-      scorecard: payload.strategyResult.scorecard,
-      schema_version: STRATEGY_INITIATIVE_SCHEMA_VERSION.v2,
-    }).eq('audit_id', this.auditId);
+    const leaseCtx = getPhaseRunLeaseContext();
+    if (leaseCtx) {
+      await assertPhaseRunLeaseHeld({
+        auditId: this.auditId,
+        phase: this.phaseNumber,
+        attempt: leaseCtx.attempt,
+        expectedOwner: leaseCtx.leaseOwner,
+      });
+    }
 
-    await supabase.from('audits').update({
-      status: 'completed',
-      overall_score: payload.weightedScore,
-      current_phase: 7,
-    }).eq('id', this.auditId);
+    await writeStrategyCompletionToDatabase({
+      auditId: this.auditId,
+      payload,
+    });
   }
 
   /**
@@ -76,7 +71,7 @@ export class StrategyAgent extends BaseAgent {
     const ev = pipelineStrategyEventCopy();
     await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
-      this.auditId, 'strategy', {}, this.instructions
+      this.auditId, this.phaseNumber, 'strategy', {}, this.instructions
     );
 
     await this.emit('analyzing', ev.analyzing);
@@ -98,71 +93,30 @@ export class StrategyAgent extends BaseAgent {
     const rawStrategy = await this.callClaudeWithRetry(context, StrategyOutputSchema, MODEL_MAX_TOKENS.strategy);
     const strategyResult = StrategyOutputSchema.parse(rawStrategy);
 
-    const { data: domains } = await supabase
-      .from('audit_domains')
-      .select('domain_key, score')
-      .eq('audit_id', this.auditId)
-      .eq('status', 'completed');
-
-    const { data: audit } = await supabase
-      .from('audits')
-      .select('industry')
-      .eq('id', this.auditId)
-      .single();
-
-    const domainScores = (domains ?? [])
-      .filter(d => d.score != null)
-      .map(d => ({ domain_key: d.domain_key as DomainKey, score: d.score! }));
-
-    const weightedScore = domainScores.length > 0
-      ? calculateWeightedScore(domainScores, audit?.industry ?? null)
-      : strategyResult.overall_score;
-
-    const { data: domainIssueRows } = await supabase
-      .from('audit_domains')
-      .select('domain_key, issues')
-      .eq('audit_id', this.auditId)
-      .eq('status', 'completed');
-
-    const [{ data: briefRow }, { data: labRow }] = await Promise.all([
-      supabase.from('intake_brief').select('responses').eq('audit_id', this.auditId).maybeSingle(),
-      supabase.from('audit_strategy').select('strategy_lab_context').eq('audit_id', this.auditId).maybeSingle(),
-    ]);
-
-    const briefResponses =
-      briefRow?.responses && typeof briefRow.responses === 'object' && !Array.isArray(briefRow.responses)
-        ? (briefRow.responses as Record<string, unknown>)
-        : undefined;
-    const briefSnapshot = mergeBriefSnapshotWithLabOverrides(
-      buildStrategyBriefConstraintSnapshot(briefResponses),
-      labRow?.strategy_lab_context,
-    );
-    const issueIndex = buildDomainIssueIdIndex(domainIssueRows ?? []);
-
-    const quick_wins = postProcessStrategyInitiatives(strategyResult.quick_wins, briefSnapshot, issueIndex);
-    const medium_term = postProcessStrategyInitiatives(strategyResult.medium_term, briefSnapshot, issueIndex);
-    const strategic = postProcessStrategyInitiatives(strategyResult.strategic, briefSnapshot, issueIndex);
-
-    this.lastRawDomainResult = { ...strategyResult } as unknown as Record<string, unknown>;
-
-    const executionMode = await this.resolveExecutionMode();
-    const riskProfile = await fetchAuditGovernanceRiskProfile(this.auditId);
-
-    this.lastControlObject = buildStrategyNarrowControlObject({
+    const hydrated = await hydrateStrategyAfterParse({
       auditId: this.auditId,
-      executionMode,
-      riskProfile,
       strategyResult,
-      weightedOverallScore: weightedScore,
-      completedDomainCount: domainScores.length,
+      coalitionAlignmentResponses: context.coalition_alignment_responses,
     });
+    const { weightedScore } = hydrated;
+    const missingCrossDomainDependencyIds = hydrated.missingCrossDomainDependencyIds;
+
+    if (missingCrossDomainDependencyIds.length > 0) {
+      await this.emit(PIPELINE_EVENT_TYPES.qualityGate, COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING, {
+        gate: 'coalition_strategy_cross_domain_dependencies',
+        initiative_ids: missingCrossDomainDependencyIds,
+      });
+    }
+
+    this.lastRawDomainResult = hydrated.lastRawDomainResult;
+    this.lastControlObject = hydrated.lastControlObject;
 
     this.pendingPersistence = {
-      strategyResult,
-      weightedScore,
-      quick_wins,
-      medium_term,
-      strategic,
+      strategyResult: hydrated.strategyResult,
+      weightedScore: hydrated.weightedScore,
+      quick_wins: hydrated.quick_wins,
+      medium_term: hydrated.medium_term,
+      strategic: hydrated.strategic,
     };
 
     await this.emit('completed', ev.completed, {
@@ -172,16 +126,7 @@ export class StrategyAgent extends BaseAgent {
       strategic_count: strategyResult.strategic.length,
     });
 
-    return {
-      score: Math.round(weightedScore),
-      label: 'Strategy',
-      summary: strategyResult.executive_summary,
-      strengths: [],
-      weaknesses: [],
-      issues: [],
-      quick_wins: [],
-      recommendations: [],
-      unknown_items: [],
-    };
+    return hydrated.cleanedOutput;
   }
 }
+

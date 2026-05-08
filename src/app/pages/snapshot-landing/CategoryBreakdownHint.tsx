@@ -13,7 +13,7 @@ export function CategoryBreakdownHint(props: { label: string; categoryKey: Snaps
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 rounded p-0.5 text-[var(--text-quaternary)] transition-colors hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--glc-blue)]"
+          className="inline-flex shrink-0 rounded p-0.5 text-[var(--text-quaternary)] transition-colors hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--text-blue)]"
           aria-label={`What “${label}” means in this report`}
         >
           <Info size={15} weight="bold" aria-hidden />

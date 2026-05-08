@@ -60,7 +60,7 @@ export function IntakePlanQuestionTrace({
   }, [setGraphFocusId]);
 
   const filterBar = (
-    <div className="flex flex-wrap items-center gap-2 border-b border-[var(--glc-border)] pb-3">
+    <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
       <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={resetFilters}>
         Reset filters
       </Button>
@@ -78,7 +78,7 @@ export function IntakePlanQuestionTrace({
         Collapse all
       </Button>
       {useVirtual && (
-        <span className="text-[length:var(--text-2xs)] text-[var(--glc-muted)]">Virtual scroll on ({filteredIds.length} rows)</span>
+        <span className="text-[length:var(--text-2xs)] text-[var(--text-tertiary)]">Virtual scroll on ({filteredIds.length} rows)</span>
       )}
     </div>
   );
@@ -101,7 +101,7 @@ export function IntakePlanQuestionTrace({
       />
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-[var(--glc-fg)]">Question id contains</span>
+        <span className="font-medium text-[var(--text-primary)]">Question id contains</span>
         <Input
           type="search"
           className="glc-input h-auto min-h-7 font-mono text-xs"
@@ -113,7 +113,7 @@ export function IntakePlanQuestionTrace({
       </label>
 
       <div className="space-y-2">
-        <div className="text-xs font-medium text-[var(--glc-muted)]">Layer (reason row)</div>
+        <div className="text-xs font-medium text-[var(--text-tertiary)]">Layer (reason row)</div>
         <div className="flex flex-wrap gap-2">
           {TRACE_LAYERS.map(layer => (
             <button
@@ -121,8 +121,8 @@ export function IntakePlanQuestionTrace({
               type="button"
               className={`rounded-md border px-2 py-1 text-xs font-mono transition-colors ${
                 layerFilter.has(layer)
-                  ? 'border-[var(--glc-accent)] bg-[var(--glc-accent)]/15 text-[var(--glc-fg)]'
-                  : 'border-[var(--glc-border)] text-[var(--glc-muted)] hover:bg-[var(--glc-surface)]'
+                  ? 'border-[var(--text-blue)] bg-[var(--callout-info-bg-subtle)] text-[var(--text-primary)]'
+                  : 'border-[var(--border-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--bg-surface)]'
               }`}
               onClick={() => toggleLayer(layer)}
             >
@@ -133,7 +133,7 @@ export function IntakePlanQuestionTrace({
       </div>
 
       <div className="space-y-2">
-        <div className="text-xs font-medium text-[var(--glc-muted)]">
+        <div className="text-xs font-medium text-[var(--text-tertiary)]">
           State (row matches if any reason has selected state; none selected = no state filter)
         </div>
         <div className="flex flex-wrap gap-2">
@@ -145,10 +145,10 @@ export function IntakePlanQuestionTrace({
                 type="button"
                 className={`rounded-md border px-2 py-1 text-xs font-mono transition-colors ${
                   highlight
-                    ? 'border-[var(--glc-accent)] bg-[var(--glc-accent)]/10 text-[var(--glc-fg)]'
+                    ? 'border-[var(--text-blue)] bg-[var(--callout-info-bg-subtle)] text-[var(--text-primary)]'
                     : stateFilter.size === 0
-                      ? 'border-[var(--glc-border)] text-[var(--glc-muted)] hover:bg-[var(--glc-surface)]'
-                      : 'border-[var(--glc-border)] text-[var(--glc-muted)] opacity-50'
+                      ? 'border-[var(--border-subtle)] text-[var(--text-tertiary)] hover:bg-[var(--bg-surface)]'
+                      : 'border-[var(--border-subtle)] text-[var(--text-tertiary)] opacity-50'
                 }`}
                 onClick={() => toggleState(state)}
               >
@@ -159,16 +159,16 @@ export function IntakePlanQuestionTrace({
         </div>
       </div>
 
-      <div className="text-xs text-[var(--glc-muted)]">
+      <div className="text-xs text-[var(--text-tertiary)]">
         Showing {filteredIds.length} of {sortedIds.length} question ids
       </div>
 
       <div
         ref={scrollParentRef}
-        className="max-h-[min(70vh,560px)] overflow-y-auto rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)]"
+        className="max-h-[min(70vh,560px)] overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)]"
       >
         {filteredIds.length === 0 ? (
-          <div className="px-3 py-6 text-center text-sm text-[var(--glc-muted)]">
+          <div className="px-3 py-6 text-center text-sm text-[var(--text-tertiary)]">
             No questions match filters.
           </div>
         ) : useVirtual ? (
@@ -221,17 +221,17 @@ export function IntakePlanQuestionTrace({
 
       {(plan.debugTrace?.length ?? 0) > 0 && (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-[var(--glc-fg)]">Resolver debug trace</div>
-          <ul className="max-h-48 overflow-y-auto rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2 font-mono text-xs text-[var(--glc-muted)]">
+          <div className="text-sm font-medium text-[var(--text-primary)]">Resolver debug trace</div>
+          <ul className="max-h-48 overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-2 font-mono text-xs text-[var(--text-tertiary)]">
             {debugFiltered.map((e, i) => (
-              <li key={`${e.code}-${i}`} className="border-b border-[var(--glc-border)] py-1 last:border-0">
-                <span className="text-[var(--glc-fg)]">[{e.layer}]</span> {e.level.toUpperCase()} {e.code}
+              <li key={`${e.code}-${i}`} className="border-b border-[var(--border-subtle)] py-1 last:border-0">
+                <span className="text-[var(--text-primary)]">[{e.layer}]</span> {e.level.toUpperCase()} {e.code}
                 : {e.message}
               </li>
             ))}
           </ul>
           {query.trim() && debugFiltered.length === 0 && (
-            <p className="text-xs text-[var(--glc-muted)]">No debug lines match search.</p>
+            <p className="text-xs text-[var(--text-tertiary)]">No debug lines match search.</p>
           )}
         </div>
       )}

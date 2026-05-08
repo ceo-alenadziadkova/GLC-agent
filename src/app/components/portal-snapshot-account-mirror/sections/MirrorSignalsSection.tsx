@@ -15,7 +15,7 @@ export function MirrorSignalsSection({ signalsFound }: { signalsFound: string[] 
         {signalsFound.map((signal, i) => (
           <span
             key={i}
-            className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
+            className="ds-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
             style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.pillSurface}
           >
             {signal}

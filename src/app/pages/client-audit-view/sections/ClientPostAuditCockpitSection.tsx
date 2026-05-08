@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../../../lib/tanstack-react-query';
 import { useMemo, useState } from 'react';
 import { ArrowsClockwise, ClipboardText, FileText, MapTrifold, Path } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import {
 } from '../../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import { buildAppRoute } from '../../../config/route-paths';
+import { buildPlanWorkspaceHref } from '../../../lib/plan-cross-nav';
 import { api } from '../../../data/apiService';
 import { glcKeys } from '../../../lib/glc-keys';
 import { buildOrchestrationRevisionStorySummary } from '../../../lib/orchestration-revision-story';
@@ -67,7 +68,7 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   const timelineStatusQuery = useQuery({
     queryKey: glcKeys.timeline.detail(auditId),
     queryFn: () => api.getAuditTimeline(auditId),
-    enabled: APP_FEATURE_FLAGS.clientTimelineEnabled,
+    enabled: APP_FEATURE_FLAGS.clientPlanWorkspaceEnabled,
     staleTime: CLIENT_POST_AUDIT_COCKPIT_UI.timelineStatusQueryStaleTimeMs,
   });
   const timelineStatus = timelineStatusQuery.data?.timeline.status ?? null;
@@ -108,8 +109,12 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
   }, [strategy?.glc_orchestration_pack]);
 
   const reportHref = buildAppRoute.portalReports(auditId);
-  const timelineHref = buildAppRoute.portalTimeline(auditId);
-  const labHref = buildAppRoute.portalStrategy(auditId);
+  const timelineHref = buildAppRoute.portalPlan(auditId);
+  const labHref = buildPlanWorkspaceHref({
+    auditId,
+    isClient: true,
+    mode: 'shape',
+  });
   const adjustScopeHref = `${labHref}?${ORCHESTRATION_LAB_FOCUS_QUERY_KEY}=${ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE}`;
   const manifestWizardHref = buildAppRoute.portalRoadmapManifest(auditId);
   const decisionCards = useMemo(() => {
@@ -282,7 +287,7 @@ export function ClientPostAuditCockpitSection({ audit, auditId }: { audit: Audit
         </div>
       ) : null}
 
-      {APP_FEATURE_FLAGS.clientTimelineEnabled && roadmapVersion && timelineStatus === 'stale_manifest' ? (
+      {APP_FEATURE_FLAGS.clientPlanWorkspaceEnabled && roadmapVersion && timelineStatus === 'stale_manifest' ? (
         <div
           role="status"
           className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] px-4 py-3"

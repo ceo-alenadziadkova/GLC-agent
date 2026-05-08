@@ -12,6 +12,7 @@ import {
 import { postBenchmarkRecomputeHandler } from './controllers/benchmarks.controller.js';
 import { postBanditRecomputeHandler } from './controllers/bandits.controller.js';
 import { postPlatformPipelineResumeCancelledController } from './controllers/post-pipeline-resume-cancelled.controller.js';
+import { postPlatformStrategyRepairedJsonApplyController } from './controllers/post-strategy-repaired-json-apply.controller.js';
 
 export const platformRouter = Router();
 
@@ -36,4 +37,10 @@ platformRouter.post(
   '/audits/:id/pipeline/resume-cancelled',
   requireRole(PLATFORM_CONSULTANT_ROLE),
   postPlatformPipelineResumeCancelledController,
+);
+
+platformRouter.post(
+  '/audits/:id/strategy/repaired-json-apply',
+  requireRole(PLATFORM_CONSULTANT_ROLE),
+  postPlatformStrategyRepairedJsonApplyController,
 );

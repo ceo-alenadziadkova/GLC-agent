@@ -8,8 +8,12 @@ export const ROADMAP_CHANGE_SCENARIOS = ['integrate_existing', 'build_new', 'hyb
 
 export type RoadmapChangeScenario = (typeof ROADMAP_CHANGE_SCENARIOS)[number];
 
-/** Manifest payload schema version persisted in roadmap snapshots (v2: optional calendar `plan_horizon`). */
-export const ROADMAP_MANIFEST_SCHEMA_VERSION = 2 as const;
+/**
+ * Manifest payload schema version persisted in roadmap snapshots:
+ * - v2: optional calendar `plan_horizon`
+ * - v3: optional `node_execution_hints` from Delivery Board draft queue (Epic 2.1-C)
+ */
+export const ROADMAP_MANIFEST_SCHEMA_VERSION = 3 as const;
 
 export const ROADMAP_PRIORITY_SPEED_RISK_PRESETS = ['speed', 'balanced', 'risk_averse'] as const;
 export type RoadmapPrioritySpeedRiskPreset = (typeof ROADMAP_PRIORITY_SPEED_RISK_PRESETS)[number];

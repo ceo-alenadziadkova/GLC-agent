@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient } from './tanstack-react-query';
 import {
   GLC_QUERY_GC_TIME_MS,
   GLC_QUERY_STALE_TIME_MS,

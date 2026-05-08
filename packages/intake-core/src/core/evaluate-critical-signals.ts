@@ -1,6 +1,10 @@
 import criticalSignals from '../artifacts/intake-critical-signals-pilot-1.0.0.json' with { type: 'json' };
 
-import type { IntakeCriticalSignalConfidence, IntakeReadinessTraceEntry } from '../audit-contract.js';
+import type {
+  IntakeCriticalSignalConfidence,
+  IntakeReadinessExecutionContext,
+  IntakeReadinessTraceEntry,
+} from '../audit-contract.js';
 import {
   INTAKE_CRITICAL_SIGNAL_REGISTRY_POLICY,
   INTAKE_UNKNOWN_POLICY,
@@ -72,6 +76,10 @@ function normalizeSource(value: string | undefined): SignalEvidenceSource | null
   if (value === 'explicit' || value === 'recon_confirmed' || value === 'imported' || value === 'inferred') {
     return value;
   }
+  // Consultant/client capture paths attach role provenance; pilot registry lists `explicit` only.
+  if (value === 'client' || value === 'consultant') {
+    return 'explicit';
+  }
   return null;
 }
 
@@ -81,6 +89,7 @@ function normalizeSource(value: string | undefined): SignalEvidenceSource | null
 export function evaluateCriticalSignalsPilot(args: {
   responses: Record<string, unknown>;
   plan: Pick<IntakePlan, 'eligible'>;
+  executionContext?: IntakeReadinessExecutionContext;
 }): { satisfied: boolean; trace: IntakeReadinessTraceEntry[]; confidenceByKey: Record<string, IntakeCriticalSignalConfidence> } {
   const trace: IntakeReadinessTraceEntry[] = [];
   const confidenceByKey: Record<string, IntakeCriticalSignalConfidence> = {};
@@ -96,6 +105,7 @@ export function evaluateCriticalSignalsPilot(args: {
   }
 
   const eligible = new Set(args.plan.eligible);
+  const executionContext = args.executionContext ?? 'default';
   let satisfied = true;
 
   for (const [signalKey, def] of Object.entries(ART.signals)) {
@@ -144,14 +154,22 @@ export function evaluateCriticalSignalsPilot(args: {
         !INTAKE_UNKNOWN_POLICY.unknownMaySatisfyAuditReadiness &&
         isUnknownSourced(cell)
       ) {
-        satisfied = false;
+        if (executionContext !== 'admin_presale') {
+          satisfied = false;
+        }
         signalWorst = minConfidence(
           signalWorst,
           clampUnknownConfidenceFloor(INTAKE_UNKNOWN_POLICY.maxConfidenceFromUnknown),
         );
         trace.push({
-          code: 'critical_signal_unknown_source',
-          semanticCause: `Pilot critical signal "${signalKey}" is unknown-sourced; cannot authorize audit_ready without explicit evidence`,
+          code:
+            executionContext === 'admin_presale'
+              ? 'critical_signal_unknown_source_allowed_admin_presale'
+              : 'critical_signal_unknown_source',
+          semanticCause:
+            executionContext === 'admin_presale'
+              ? `Pilot critical signal "${signalKey}" is unknown-sourced; admin presale mode keeps readiness advisory with caveats`
+              : `Pilot critical signal "${signalKey}" is unknown-sourced; cannot authorize audit_ready without explicit evidence`,
           signalKey,
           questionId: bankId,
         });

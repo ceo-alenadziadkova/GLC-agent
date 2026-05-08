@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
+import { ORCHESTRATION_UI_LIMITS } from '../../../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import { OrchestrationNodeDetailCard } from '../OrchestrationNodeDetailCard';
 import { StrategyLabOrchestratorListBody } from '../StrategyLabOrchestratorListBody';
@@ -29,6 +30,22 @@ const PACK_FIXTURE: GlcOrchestrationPackView = {
 };
 
 describe('strategy lab orchestrator ui', () => {
+  it('exposes the orchestration-first copy keys in the SSOT (no legacy initiative tabs)', () => {
+    expect(STRATEGY_LAB_COPY.journeyStrip.step1Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step2Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step3Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.journeyStrip.step4Title.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.orchestrationDisclosure.advancedSummary.length).toBeGreaterThan(0);
+    expect(STRATEGY_LAB_COPY.orchestrationDisclosure.snapshotHistorySummary.length).toBeGreaterThan(0);
+    expect(
+      // Legacy timeframe tabs and roadmap markdown export keys must no longer be reachable.
+      (STRATEGY_LAB_COPY as unknown as { tabLabels?: unknown }).tabLabels,
+    ).toBeUndefined();
+    expect(
+      (STRATEGY_LAB_COPY as unknown as { pageNav?: unknown }).pageNav,
+    ).toBeUndefined();
+  });
+
   it('renders now-tab nodes and selects a node on click', () => {
     const onSelectNode = vi.fn<(id: string | null) => void>();
     render(
@@ -69,5 +86,42 @@ describe('strategy lab orchestrator ui', () => {
 
     expect(screen.getByRole('heading', { name: STRATEGY_LAB_COPY.packDependencyMap.sectionTitle })).toBeInTheDocument();
     expect(screen.getByText(STRATEGY_LAB_COPY.orchestratorTabs.dependenciesListTitle)).toBeInTheDocument();
+  });
+
+  it('risks tab shows truncation hint and expands to full conflict list when over limit', () => {
+    const max = ORCHESTRATION_UI_LIMITS.orchestratorRisksMaxItems;
+    const total = max + 1;
+    const manyConflicts: GlcOrchestrationPackView['conflicts_resolved'] = Array.from({ length: total }, (_, i) => ({
+      id: `c-${i}`,
+      summary: `Conflict summary ${i}`,
+      resolution: 'synthesis_applied',
+    }));
+
+    const onSelectNode = vi.fn<(id: string | null) => void>();
+    const packHeavy: GlcOrchestrationPackView = {
+      ...PACK_FIXTURE,
+      conflicts_resolved: manyConflicts,
+    };
+
+    render(
+      <StrategyLabOrchestratorListBody pack={packHeavy} tab="risks" selectedNodeId={null} onSelectNode={onSelectNode} />,
+    );
+
+    const truncationLine = STRATEGY_LAB_COPY.orchestratorTabs.risksShownOfTotal
+      .replace('{shown}', String(max))
+      .replace('{total}', String(total));
+    expect(screen.getByText(truncationLine)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(truncationLine);
+    expect(screen.getByText('Conflict summary 0')).toBeInTheDocument();
+    expect(screen.queryByText(`Conflict summary ${max}`)).not.toBeInTheDocument();
+
+    const expandBtn = screen.getByRole('button', { name: STRATEGY_LAB_COPY.orchestratorTabs.risksShowAll });
+    expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(expandBtn);
+    expect(expandBtn).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(`Conflict summary ${max}`)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: STRATEGY_LAB_COPY.orchestratorTabs.risksShowFewer }));
+    expect(screen.queryByText(`Conflict summary ${max}`)).not.toBeInTheDocument();
   });
 });

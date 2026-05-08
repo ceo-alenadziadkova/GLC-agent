@@ -33,8 +33,10 @@ export const ORCHESTRATION_UI_LIMITS = {
   maxManifestSnapshotHistoryItems: 12,
   /** Strategy Lab orchestrator tab: dependency rows. */
   orchestratorDependenciesMaxEdges: 14,
-  /** Strategy Lab orchestrator tab: conflict rows. */
+  /** Strategy Lab orchestrator tab: conflict rows (before expand). */
   orchestratorRisksMaxItems: 12,
+  /** After deep-link scroll to orchestration panel, keep IntersectionObserver this long to nudge scroll if layout lags. */
+  orchestrationFocusScrollIntersectionWatchMs: 750,
   /** Portal execution timeline: pack graph panel dependency rows (V5). */
   portalTimelinePackGraphMaxEdgesDisplayed: 24,
   /** Portal execution timeline: DOT export edge budget from the same panel (V5). */

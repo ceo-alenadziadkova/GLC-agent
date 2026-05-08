@@ -17,6 +17,7 @@ import { cn } from '../ui/utils';
 import { StatusPill } from './StatusPill';
 import { SectionLabel } from './SectionLabel';
 import { ReconReviewSummary } from './ReconReviewSummary';
+import { ApproveCoalitionGate } from '../ApproveCoalitionGate';
 
 interface ReviewPoint {
   id: number;
@@ -42,6 +43,7 @@ interface ReviewPointModalProps {
   open: boolean;
   onClose: () => void;
   onApprove: (id: number, consultantNotes: string, interviewNotes: string) => void;
+  onRequestMissingData?: (id: number, consultantNotes: string, interviewNotes: string) => void;
   qualityGate?: QualityGateReport | null;
   /** Decision Layer `refine_recommended` events for domain phases in this review block */
   governanceRefines?: GovernanceRefinePhaseSummary[];
@@ -49,6 +51,9 @@ interface ReviewPointModalProps {
   governanceRefineSectionIntro?: string;
   /** After phase 0 only: persisted recon snapshot for informed approval */
   reconReviewSummary?: ReconReviewSummaryPayload | null;
+  /** Coalition Phase 0.5 snapshot shown in the renamed Approve client situation gate. */
+  clientSituationSnapshot?: Record<string, unknown> | null;
+  showClientSituationGate?: boolean;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -68,14 +73,18 @@ export function ReviewPointModal({
   open,
   onClose,
   onApprove,
+  onRequestMissingData,
   qualityGate,
   governanceRefines = [],
   governanceRefineSectionTitle = 'Phases flagged for manual review',
   governanceRefineSectionIntro = '',
   reconReviewSummary = null,
+  clientSituationSnapshot = null,
+  showClientSituationGate = false,
 }: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
+  const [verifiedOverrideNote, setVerifiedOverrideNote] = useState('');
 
   if (!reviewPoint) return null;
 
@@ -85,12 +94,24 @@ export function ReviewPointModal({
   const warnings = qualityGate?.flags.filter(f => f.severity === 'warning') ?? [];
   const infoFlags = qualityGate?.flags.filter(f => f.severity === 'info') ?? [];
   const notesRequired = warnings.length > 0 && !consultantNotes.trim();
+  const canRequestMissingData = Boolean(consultantNotes.trim() || interviewNotes.trim());
 
   function handleApprove() {
     if (notesRequired) return;
-    onApprove(reviewPoint.id, consultantNotes, interviewNotes);
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onApprove(reviewPoint.id, notes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
+    setVerifiedOverrideNote('');
+  }
+
+  function handleRequestMissingData() {
+    if (!onRequestMissingData || !canRequestMissingData) return;
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onRequestMissingData(reviewPoint.id, notes, interviewNotes);
+    setConsultantNotes('');
+    setInterviewNotes('');
+    setVerifiedOverrideNote('');
   }
 
   return (
@@ -146,6 +167,12 @@ export function ReviewPointModal({
                 {PM.reviewModal.reconSnapshotCorrectionHint}
               </Callout>
             </>
+          ) : null}
+          {showClientSituationGate && reviewPoint.after === 0 ? (
+            <ApproveCoalitionGate
+              snapshot={clientSituationSnapshot}
+              onVerifiedOverrideChange={setVerifiedOverrideNote}
+            />
           ) : null}
           {isPipelineStrategyReviewGateAfterPhase(reviewPoint.after) ? (
             <Callout intent="info" className="p-3 text-xs leading-relaxed">
@@ -307,6 +334,16 @@ export function ReviewPointModal({
           <Button onClick={onClose} variant="ghost">
             Cancel
           </Button>
+          {onRequestMissingData ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRequestMissingData}
+              disabled={!canRequestMissingData}
+            >
+              {PM.reviewModal.requestMissingDataCta}
+            </Button>
+          ) : null}
           <motion.div
             whileHover={notesRequired ? {} : { scale: 1.01 }}
             whileTap={notesRequired ? {} : { scale: 0.98 }}

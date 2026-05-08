@@ -41,8 +41,10 @@ export function reviewPhasesForExecutionPlan(plan: AuditExecutionPlan): number[]
   const phases = executionPlanToPhases(plan);
   const reviews = new Set<number>();
   if (phases.includes(PIPELINE_MIN_PHASE)) reviews.add(PIPELINE_MIN_PHASE);
-  if (phases.some((p) => p >= 1 && p <= PIPELINE_UX_BLOCK_END_PHASE)) {
-    reviews.add(PIPELINE_UX_BLOCK_END_PHASE);
+  /** After the auto wing, pause where the executed auto block actually ends — not always phase 4. */
+  const autoPhasesSelected = phases.filter((p) => p >= 1 && p <= PIPELINE_UX_BLOCK_END_PHASE);
+  if (autoPhasesSelected.length > 0) {
+    reviews.add(Math.max(...autoPhasesSelected));
   }
   if (phases.includes(PIPELINE_MAX_PHASE_INDEX)) reviews.add(PIPELINE_MAX_PHASE_INDEX);
   return Array.from(reviews).sort((a, b) => a - b);

@@ -2,7 +2,7 @@ import { Check, X } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { cn } from '../../components/ui/utils';
 import { AUDIT_COMPARE_FOCUSED_ROW_LABELS } from '../../config/audit-compare-marketing';
-import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../../locales/en/marketing-workspace-packaging.en.json';
 
 const ROWS: { label: string; starter: boolean | 'partial'; pro: boolean | 'partial'; complete: boolean | 'partial' }[] = [
   { label: 'Coverage breadth', starter: 'partial', pro: 'partial', complete: true },

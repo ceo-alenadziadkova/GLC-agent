@@ -22,7 +22,7 @@ See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [
 
 **Package:** Shared intake (question bank JSON, resolver, SLA gates, `choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`, `@glc/intake-core`) — import by package name only; decision record [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
 
-**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md). **Diagnostic adaptive intake — roadmap vs implementation (G1–G13, F1/F2, KPI wire-up):** [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md).
+**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md). **Diagnostic adaptive intake — roadmap vs implementation (G1–G13, F1/F2, KPI wire-up):** [ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md](./adrs/ADR-DIAGNOSTIC-ADAPTIVE-INTAKE-ROADMAP-AUDIT.md). **Situational copy vs F2, two-phase UX map, Sprint C overlay priorities:** [ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md](./adrs/ADR-INTAKE-PERSONALIZATION-PRODUCT-SCOPE.md). **Rolling client project context** (bank answers + narrative + audit enrichment, SSOT still `intake_brief`): [ADR-CLIENT-PROJECT-CONTEXT-V1](./adrs/ADR-CLIENT-PROJECT-CONTEXT-V1.md).
 
 **Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
 
@@ -214,7 +214,7 @@ All Claude calls use `tool_use` with a JSON schema. Zod schemas in `server/src/s
 ```typescript
 const DomainOutputSchema = z.object({
   score: z.number().int().min(1).max(5),
-  label: z.enum(['Critical', 'Needs Work', 'Moderate', 'Good', 'Excellent']),
+  label: z.string(),
   summary: z.string().min(50),
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
@@ -224,4 +224,4 @@ const DomainOutputSchema = z.object({
 });
 ```
 
-If validation fails: retry with a corrective prompt appended ("Your previous response did not match the required schema. Please fix: ..."). Max 2 validation retries per phase.
+If validation fails: the phase errors out after **one** Claude response (no extra LLM round-trips for Zod). The server records `pipeline_events` `llm_tool_validation_failed` with **capped** `raw_tool_input_json` plus a Zod summary for analysis. Transient **HTTP** errors (e.g. 429) still use the existing multi-attempt retry loop.

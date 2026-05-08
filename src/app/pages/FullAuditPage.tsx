@@ -10,7 +10,7 @@ import { ProcessTimeline } from '../marketing/blocks/ProcessTimeline';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { SnapshotTeaser, BriefTeaser } from '../marketing/blocks/RepeatingTeasers';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
-import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
+import workspacePackaging from '../locales/en/marketing-workspace-packaging.en.json';
 import { PACKAGE_MARKETING_OUTCOME_CARD } from '../config/package-marketing-ui';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';

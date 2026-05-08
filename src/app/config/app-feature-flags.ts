@@ -4,13 +4,19 @@
  */
 
 import { INTAKE_TRACE_IA_V2_ENABLED_DEFAULT } from './intake-trace-defaults';
-import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-defaults';
+// LEGACY (TD-034 in docs/TECH_DEBT.md): Question Bank Studio retired from the SPA.
+// import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-defaults';
 
 export const FEATURE_ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
 export type FeatureRolloutMode = (typeof FEATURE_ROLLOUT_MODES)[number];
+const PLAN_WORKSPACE_PRIMARY_UX_ENABLED_DEFAULT = true;
+const CLIENT_PLAN_WORKSPACE_ENABLED_DEFAULT = true;
+const CLIENT_EXECUTION_PACKS_SURFACE_ENABLED_DEFAULT = true;
+const ORCHESTRATION_ROADMAP_ROLLOUT_MODE_DEFAULT = 'ga' as FeatureRolloutMode;
 
 export const APP_FEATURE_FLAGS = {
-  questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
+  // LEGACY (TD-034 in docs/TECH_DEBT.md): Question Bank Studio retired from the SPA.
+  // questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
   intakeTraceIaV2Enabled: INTAKE_TRACE_IA_V2_ENABLED_DEFAULT,
   /**
    * Public `/brief` session + submissions flow (vs legacy intake-only path).
@@ -47,23 +53,30 @@ export const APP_FEATURE_FLAGS = {
    * Client portal timeline: list saved execution packs + link to Strategy Lab (V8 surface).
    * Server must allow `FEATURE_STRATEGY_EXECUTION_PACK`; when disabled, the list query may fail and UI shows a short error line.
    */
-  clientExecutionPackTimelineSurfaceEnabled: true,
+  clientExecutionPackWorkspaceSurfaceEnabled: CLIENT_EXECUTION_PACKS_SURFACE_ENABLED_DEFAULT,
   /**
-   * Client-facing timeline primary surface rollout.
+   * Client-facing Plan workspace primary surface rollout.
    */
-  clientTimelineEnabled: true,
+  clientPlanWorkspaceEnabled: CLIENT_PLAN_WORKSPACE_ENABLED_DEFAULT,
   /**
-   * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
+   * Plan-workspace-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
    */
-  orchestrationTimelinePrimaryUxEnabled: true,
+  orchestrationPlanWorkspacePrimaryUxEnabled: PLAN_WORKSPACE_PRIMARY_UX_ENABLED_DEFAULT,
+  /** Delivery Board rollout; mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planDeliveryBoardRolloutMode`. Env: FEATURE_PLAN_DELIVERY_BOARD_ROLLOUT_MODE. */
+  planDeliveryBoardRolloutMode: 'ga' as FeatureRolloutMode,
   /**
-   * Client timeline narrative enhancements (lane promises, milestones, priority reasons).
-   * Staged promotion: see `orchestrationRoadmapNarrativeRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
+   * Delivery Board lane/owner hints queue for signed manifest snapshots (Epic 2.1-C).
+   * Mirrors server `FEATURE_MANIFEST_DRAFT_REVISIONS_FROM_BOARD` (default on in SYSTEM_DEFAULTS); set false in both layers to rollback.
+   */
+  manifestDraftRevisionsFromBoard: true,
+  /**
+   * Client roadmap narrative enhancements (lane promises, milestones, priority reasons).
+   * Staged promotion: see `orchestrationRoadmapRolloutMode` + `orchestration-client-feature-gates.ts` allowlist; rollback in `docs/DEPLOYMENT.md` (Roadmap narrative rollback).
    */
   orchestrationRoadmapNarrativeEnabled: true,
-  /** Client timeline narrative staged rollout mode. */
-  orchestrationRoadmapNarrativeRolloutMode: 'ga' as FeatureRolloutMode,
-  /** On-demand director deep-dive from timeline/report surfaces. */
+  /** Client roadmap narrative staged rollout mode. */
+  orchestrationRoadmapRolloutMode: ORCHESTRATION_ROADMAP_ROLLOUT_MODE_DEFAULT,
+  /** On-demand director deep-dive from plan/report surfaces. */
   directorDeepDiveOnDemandEnabled: true,
   /** Director deep-dive staged rollout mode. */
   directorDeepDiveRolloutMode: 'ga' as FeatureRolloutMode,
@@ -112,6 +125,15 @@ export const APP_FEATURE_FLAGS = {
    */
   intakePublicNlDescribeEnabled: false,
   /**
+   * Public intake: after pre-brief slots, load `GET .../tailored-questions` and show planner-driven follow-ups (full `nextRecommended` minus baseline).
+   * Default off; enable with staged QA.
+   */
+  intakeTwoPhasePublicEnabled: false,
+  /**
+   * When true with `intakeTwoPhasePublicEnabled`, load follow-ups via `POST .../intelligence-snapshot` (F2 + optional narrative) instead of `GET .../tailored-questions` alone.
+   */
+  intakeIntelligenceSnapshotEnabled: true,
+  /**
    * Portal timeline: Now / Next / Later board (grouped by `time_bucket`). Client-only; see `orchestration-contract-parity` for other pairs.
    */
   nowNextLaterBoardEnabled: true,
@@ -131,4 +153,60 @@ export const APP_FEATURE_FLAGS = {
    * Plan control object panel (ADR V4). Server: `FEATURE_PLAN_CONTROL_OBJECT`.
    */
   planControlObjectUiEnabled: false,
+  /**
+   * New Audit step 1: show **Project context** side readout (`GET /api/audits/:id/client-project-context`) when `draftAuditId` exists.
+   */
+  newAuditClientProjectContextPanelEnabled: true,
+  /**
+   * Consultant New Audit: after required brief, **save** + `POST /api/audits/:id/brief/intelligence-snapshot` and a short confirm screen
+   * (bank + F2/narrative preview; same contract as public intake — not B2 generative).
+   */
+  newAuditIntelligenceSnapshotStepEnabled: true,
+  /**
+   * Early `POST …/brief/intelligence-snapshot` with `{ early_capture: true }` (Basics + Lighthouse only).
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.briefEarlyIntelligenceSnapshotEnabled` — `orchestration-contract-parity.test.ts`.
+   */
+  briefEarlyIntelligenceSnapshotEnabled: true,
+  /**
+   * `POST …/brief/clone-from` — copy brief answers from a sibling audit (same `client_id`, including both null).
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.briefCloneFromAuditEnabled`.
+   */
+  briefCloneFromAuditEnabled: true,
+  /**
+   * Pipeline Monitor: after approving a mid-pipeline review gate with substantive notes, offer optional
+   * multi-select Auto Wing domain re-runs before Continue. Disable to only use per-phase “Re-run this phase”.
+   */
+  pipelineMonitorPostReviewDomainRerunPromptEnabled: true,
+  /**
+   * Delivery Board: `POST …/plan/board/reconcile/preview` dry-run diff before reconcile.
+   * Mirrors `SYSTEM_DEFAULTS_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled` — `FEATURE_PLAN_BOARD_RECONCILE_DIFF_PREVIEW` on server.
+   */
+  planBoardReconcileDiffPreviewEnabled: false,
+  /**
+   * Delivery Board per-audit custom columns (PATCH `…/plan/board/column-policy`). Server: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS` + owner `profiles.plan_board_custom_columns_entitled`.
+   */
+  planBoardCustomColumnsEnabled: false,
+  /**
+   * Master switch for the Collaborative Director Protocol UI surfaces (Approve-Coalition gate,
+   * ClientSituationCard, ConflictMatrix). Server-authoritative — pipeline behavior is driven by
+   * `SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolEnabled`. SPA mirror is parity-tested via
+   * `orchestration-contract-parity.test.ts`.
+   */
+  coalitionProtocolEnabled: false,
+  /**
+   * Coalition rollout mode mirror (`shadow | internal | pilot | ga`). Used to gate UI affordances
+   * (e.g. show Approve-Coalition gate only when rollout mode is `internal+`). Server SSOT:
+   * `SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolRolloutMode`.
+   */
+  coalitionProtocolRolloutMode: 'shadow' as const,
+  /**
+   * Mirror of server `FEATURE_COALITION_PHASE3_ITERATIVE` (V2+, default off in V1).
+   * UI-only gate for iterative resolver affordances; server remains authoritative.
+   */
+  coalitionPhase3IterativeEnabled: false,
+  /**
+   * Mirror of server `FEATURE_COALITION_AUTO_LOOP_ENABLED`.
+   * UI-only gate for showing auto-loop escalation hints.
+   */
+  coalitionAutoLoopEnabled: false,
 } as const;

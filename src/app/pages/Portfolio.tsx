@@ -19,6 +19,7 @@ import { PAGE_SHELL_CONTRACTS } from '../../design-system/patterns/Layouts';
 import { getAuditListPillPresentation } from '../lib/pipeline-monitor-helpers';
 import { formatAppShortDate } from '../lib/date-format';
 import { QueueInlineActionLink } from './queue-inline-action-link';
+import { buildAppRoute } from '../config/route-paths';
 
 const EASE_GLC = [0.16, 1, 0.3, 1] as const;
 
@@ -68,7 +69,14 @@ function PortfolioAuditMobileCard({
           {companyLabel.slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <Link to={`/audit/${auditId}`} className="text-foreground block truncate text-sm font-semibold no-underline">
+          <Link
+            to={
+              status === 'created'
+                ? buildAppRoute.auditNewResumeDraft(auditId)
+                : buildAppRoute.audit(auditId)
+            }
+            className="text-foreground block truncate text-sm font-semibold no-underline"
+          >
             {companyLabel}
           </Link>
           <div className="text-muted-foreground mt-0.5 truncate text-xs">{websiteLabel}</div>
@@ -93,7 +101,11 @@ function PortfolioAuditMobileCard({
       <div className="mt-4 flex items-center justify-end border-t pt-3">
         <Button asChild variant="outline" size="sm" className="glc-touch-target no-underline">
           <Link
-            to={status === 'created' ? `/pipeline/${auditId}` : `/audit/${auditId}`}
+            to={
+              status === 'created'
+                ? buildAppRoute.auditNewResumeDraft(auditId)
+                : buildAppRoute.audit(auditId)
+            }
             aria-label={openIconAriaLabel}
           >
             <ArrowUpRight className="h-4 w-4" /> {openButtonLabel}
@@ -239,7 +251,11 @@ export function Portfolio() {
                     </div>
                     <div className="min-w-0">
                       <Link
-                        to={`/audit/${c.id}`}
+                        to={
+                          c.status === 'created'
+                            ? buildAppRoute.auditNewResumeDraft(c.id)
+                            : buildAppRoute.audit(c.id)
+                        }
                         className="text-foreground block truncate text-sm font-semibold no-underline"
                       >
                         {companyLabel}
@@ -266,7 +282,11 @@ export function Portfolio() {
 
                   <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                     <QueueInlineActionLink
-                      to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
+                      to={
+                        c.status === 'created'
+                          ? buildAppRoute.auditNewResumeDraft(c.id)
+                          : buildAppRoute.audit(c.id)
+                      }
                       tone="info"
                       className="h-7 w-7 rounded-md p-0"
                       ariaLabel={formatPortfolioOpenAriaLabel(portfolioAuditsListCopy.openIconAriaLabel, companyLabel)}

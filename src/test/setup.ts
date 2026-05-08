@@ -1,5 +1,8 @@
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
+import { toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 // Before injecting design tokens: native `getComputedStyle(document.documentElement)` in jsdom
 // can allocate huge style maps and stall or OOM workers (e.g. SyncPathLoader reads CSS vars).

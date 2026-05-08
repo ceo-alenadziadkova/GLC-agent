@@ -27,12 +27,34 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     logEntryDurationSec: 0.24,
     cursorBlinkDurationSec: 0.65,
   },
+  resilience: {
+    /** Mirrors server stalled watchdog threshold (`SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin`). */
+    stalledPhaseWarningTimeoutMin: 15,
+  },
+  /**
+   * Platform-admin only token-budget top-up suggestion.
+   * Server policy (source of truth): `server/src/config/audit-token-budget-topup-policy.ts`.
+   * Keep in sync; values mirrored here so the UI never blocks/permits a request the API would reject.
+   */
+  tokenBudgetTopup: {
+    /** Show the admin banner when remaining budget falls to or below this percentage. */
+    lowPct: 15,
+    /** Quick-pick top-up amounts (matches server PRESETS). */
+    presets: [50_000, 100_000, 200_000] as const,
+    /** Smallest value accepted by the API. */
+    minDelta: 1_000,
+    /** Largest single grant accepted by the API. */
+    maxDelta: 500_000,
+    /** Max length of optional reason text. */
+    reasonMaxLength: 500,
+  },
   status: {
     nonStoppable: [
       PIPELINE_MONITOR_AUDIT_STATUS.completed,
       PIPELINE_MONITOR_AUDIT_STATUS.failed,
       PIPELINE_MONITOR_AUDIT_STATUS.cancelled,
     ] as const,
+    completed: PIPELINE_MONITOR_AUDIT_STATUS.completed,
     created: PIPELINE_MONITOR_AUDIT_STATUS.created,
     /** Error / watchdog; same string as `PhaseView.status` when a phase card is failed. */
     failed: PIPELINE_MONITOR_AUDIT_STATUS.failed,
@@ -46,7 +68,7 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     bodyMaxHeightDefault: 'max-h-[length:var(--pipeline-monitor-review-body-max-height)]',
     bodyMaxHeightWithRecon: 'max-h-[length:var(--pipeline-monitor-review-body-with-recon-max-height)]',
   },
-  /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `components.css`). */
+  /** Header / sidebar emphasis for `/portal/pipeline` (token-backed classes in `src/styles/components/*.css`). */
   clientPortal: {
     headerProgressTrackClassName:
       'h-[length:var(--space-1)] min-w-[length:var(--pipeline-monitor-client-header-progress-min-width)] flex-1 overflow-hidden rounded-full bg-[var(--border-subtle)] sm:w-40 sm:flex-none',

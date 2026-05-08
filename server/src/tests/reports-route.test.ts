@@ -98,7 +98,8 @@ const {
   const makeDomainsChain = () => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn(() => {
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn(() => {
       if (domainsShouldThrow) throw new Error('domains failed');
       if (domainsInvalidForPdf) {
         return Promise.resolve({
@@ -330,6 +331,15 @@ describe('GET /api/audits/:id/report', () => {
     expect(res.status).toBe(500);
     const body = await res.json() as Record<string, unknown>;
     expect(body.code).toBe('REPORTS_GENERATE_FAILED');
+  });
+
+  it('returns 400 for unsupported format with structured reason', async () => {
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report?format=xml`);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('REPORTS_GENERATE_FAILED');
+    const details = body.details as Record<string, unknown>;
+    expect(details.reason).toBe('unsupported_format');
   });
 
   it('returns hardened headers for PDF response', async () => {

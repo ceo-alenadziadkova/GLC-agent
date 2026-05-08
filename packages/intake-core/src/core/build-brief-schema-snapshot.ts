@@ -10,6 +10,7 @@ import type {
   IntakeReadinessEnvelope,
   IntakeVersionTuple,
   ProductMode,
+  IntakeReadinessExecutionContext,
 } from '../audit-contract.js';
 import type { IntakeIntelligenceContract } from '../config/intake-intelligence-contract.js';
 import {
@@ -102,6 +103,8 @@ export function buildBriefSchemaSnapshot(args: {
   intakeVersionTuple: IntakeVersionTuple;
   /** Defaults to `productMode` — override when audit execution plan differs from schema product axis. */
   slaProductMode?: ProductMode;
+  /** Optional presale/admin execution context for curated visibility/readiness. */
+  executionContext?: IntakeReadinessExecutionContext;
 }): BriefSchemaSnapshot {
   const plan = buildIntakePlan({
     responses: args.responses,
@@ -109,6 +112,7 @@ export function buildBriefSchemaSnapshot(args: {
     collectionMode: args.collectionMode,
     surface: args.surface,
     intakeVersionTuple: args.intakeVersionTuple,
+    executionContext: args.executionContext,
   });
 
   const questions: BriefSchemaQuestionRow[] = [];
@@ -145,6 +149,7 @@ export function buildBriefSchemaSnapshot(args: {
     surface: args.surface,
     intakeVersionTuple: args.intakeVersionTuple,
     enforcementPoint: 'brief_recompute',
+    executionContext: args.executionContext,
   });
 
   return {

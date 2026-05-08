@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '../../lib/tanstack-react-query';
 
 import { glcKeys } from '../../lib/glc-keys';
 import { api } from '../apiService';
-import type { OrchestrationPackGetBody } from './audits-orchestration';
+import type { OrchestrationPackGetBody } from './orchestration-types';
 
 export type UseOrchestrationReadModelOptions = {
   enabled?: boolean;
