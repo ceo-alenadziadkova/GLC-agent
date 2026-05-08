@@ -8,7 +8,7 @@ import type { TimelineGroupBase } from 'react-calendar-timeline';
 
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { ROADMAP_GANTT_DAY_MS } from '../config/roadmap-gantt-view-preferences';
-import type { PlanBoardCardDto } from '../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../data/api/orchestration-types';
 import { usePatchPlanBoardCardMutation } from '../data/api/plan-board-queries';
 import type { RoadmapGanttPlanBoardHydration } from '../components/roadmap-gantt/types';
 import {

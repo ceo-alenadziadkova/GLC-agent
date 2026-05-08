@@ -1,4 +1,4 @@
-import type { OrchestrationPlanGovernanceDto } from '../../../data/api/audits-orchestration';
+import type { OrchestrationPlanGovernanceDto } from '../../../data/api/orchestration-types';
 import type { GlcOrchestrationPackView } from '../../../data/audit/contracts/report/orchestration-pack.types';
 import { ORCHESTRATION_UI_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
 

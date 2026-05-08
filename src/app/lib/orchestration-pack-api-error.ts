@@ -1,4 +1,4 @@
-import type { OrchestrationPlanGovernanceDto } from '../data/api/audits-orchestration';
+import type { OrchestrationPlanGovernanceDto } from '../data/api/orchestration-types';
 import { ApiError } from '../data/api-error';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { coerceOrchestrationPlanGovernance } from './orchestration-plan-governance-guard';

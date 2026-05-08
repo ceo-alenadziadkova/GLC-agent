@@ -23,7 +23,6 @@ import {
 import { DIRECTOR_SUB_AGENTS } from '../../config/director-sub-agents.js';
 import {
   DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES,
-  SUB_AGENT_TOKEN_BUDGET_BY_DEPTH,
 } from '../../config/director-orchestration-policy.js';
 import { CdoExperimentationOutputSchema } from '../../schemas/sub-agents/cdo/experimentation.js';
 import { CdoFrictionOutputSchema } from '../../schemas/sub-agents/cdo/friction.js';
@@ -39,10 +38,18 @@ import { CdoValuePropositionOutputSchema } from '../../schemas/sub-agents/cdo/va
 import type { DirectorWaveBundle } from '../../schemas/glc-director-orchestration-slice.js';
 import { routeCdoDeepDiveCase } from './director-cdo-router.service.js';
 import { buildCdoMaterializedWaveBundle } from './director-domain-materialized-bundles.service.js';
-import { buildExecutionWaves } from './sub-agent-wave-executor.js';
+import {
+  buildDependencyMapFromRegistry,
+  buildTopoOrderFromRegistry,
+  executeDirectorSubAgentPipeline,
+  expandSelectionWithDependencies,
+} from './director-shared-pipeline.helper.js';
 import { logger } from '../logger.js';
 
 const s = DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES;
+const DIRECTOR_DEPENDENCIES_BY_ID = new Map(
+  DIRECTOR_SUB_AGENTS.map((agent) => [agent.id, agent.depends_on] as const),
+);
 
 /**
  * CDO deep-dive: router case + deterministic multi-action wave (MVP). Used for stub domains and fallback.
@@ -91,47 +98,25 @@ export async function runCdoSubAgentOrchestrator(args: {
     (id) => DIRECTOR_CDO_ACCESS_AGENT_DEPTHS[access][id] !== 'deferred',
   );
   const selected: CdoMvpSubAgentId[] = requested.length > 0 ? requested : defaultSelection;
-  const effectiveSelection = expandCdoSelectionWithDependencies(selected);
-  const runOrder = buildTopoOrderCdo(effectiveSelection);
-  const dependencyMap = buildDependencyMapCdo(effectiveSelection);
-  const runWaves = buildExecutionWaves(effectiveSelection, dependencyMap);
+  const effectiveSelection = expandSelectionWithDependencies({
+    selected,
+    allowed: new Set<CdoMvpSubAgentId>(listCdoMvpAgentIds()),
+    dependenciesById: DIRECTOR_DEPENDENCIES_BY_ID,
+  });
+  const runOrder = buildTopoOrderFromRegistry(effectiveSelection, DIRECTOR_DEPENDENCIES_BY_ID);
+  const dependencyMap = buildDependencyMapFromRegistry(effectiveSelection, DIRECTOR_DEPENDENCIES_BY_ID);
   const agents = buildCdoAgentRuntime(args.auditId);
-  const agentOutputs: Partial<
-    Record<CdoMvpSubAgentId, { output: unknown; metadata: { depth: string; analysis_mode: string; prompt_ref: string } }>
-  > = {};
-  const fallbackAgents = new Set<CdoMvpSubAgentId>();
-
-  for (const wave of runWaves) {
-    await Promise.all(
-      wave.map(async (subAgentId) => {
-        const runtime = agents[subAgentId];
-        const depth = DIRECTOR_CDO_ACCESS_AGENT_DEPTHS[access][subAgentId];
-        let parsed: unknown;
-        try {
-          parsed = await runtime.runSubAgent({
-            context: buildCdoSubAgentContext(args.goals, args.constraints, access, args.domainKey),
-            mode: access,
-            maxTokens: SUB_AGENT_TOKEN_BUDGET_BY_DEPTH[depth === 'deferred' ? 'min' : depth],
-          });
-        } catch (error) {
-          logger.warn('director_cdo_orchestrator.sub_agent_fallback_deterministic', {
-            sub_agent_id: subAgentId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          parsed = runtime.outputSchema.parse(buildDeterministicCdoOutput(subAgentId, args.goals, args.constraints));
-          fallbackAgents.add(subAgentId);
-        }
-        agentOutputs[subAgentId] = {
-          output: parsed,
-          metadata: {
-            depth,
-            analysis_mode: fallbackAgents.has(subAgentId) ? 'deterministic_fallback' : 'researched',
-            prompt_ref: runtime.promptRef,
-          },
-        };
-      }),
-    );
-  }
+  const { agentOutputs, fallbackAgents } = await executeDirectorSubAgentPipeline({
+    selected: effectiveSelection,
+    dependenciesById: dependencyMap,
+    runtimesById: agents,
+    context: buildCdoSubAgentContext(args.goals, args.constraints, access, args.domainKey),
+    mode: access,
+    getDepth: (subAgentId) => DIRECTOR_CDO_ACCESS_AGENT_DEPTHS[access][subAgentId],
+    buildDeterministicOutput: (subAgentId) => buildDeterministicCdoOutput(subAgentId, args.goals, args.constraints),
+    fallbackLogEvent: 'director_cdo_orchestrator.sub_agent_fallback_deterministic',
+    fallbackLogContext: { access_level: access, domain_key: args.domainKey },
+  });
 
   return {
     access,
@@ -168,62 +153,6 @@ function buildCdoSubAgentContext(
     `Goals: ${goals.join('; ') || 'n/a'}`,
     `Constraints: ${constraints.join('; ') || 'n/a'}`,
   ].join('\n');
-}
-
-function buildTopoOrderCdo(selected: CdoMvpSubAgentId[]): CdoMvpSubAgentId[] {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const done = new Set<CdoMvpSubAgentId>();
-  const order: CdoMvpSubAgentId[] = [];
-
-  const visit = (id: CdoMvpSubAgentId) => {
-    if (!selectedSet.has(id) || done.has(id)) return;
-    const node = byId.get(id);
-    if (node) {
-      for (const dep of node.depends_on) {
-        if (selectedSet.has(dep as CdoMvpSubAgentId)) visit(dep as CdoMvpSubAgentId);
-      }
-    }
-    if (done.has(id)) return;
-    done.add(id);
-    order.push(id);
-  };
-
-  for (const id of selected) visit(id);
-  return order;
-}
-
-function expandCdoSelectionWithDependencies(selected: CdoMvpSubAgentId[]): CdoMvpSubAgentId[] {
-  const allowed = new Set<CdoMvpSubAgentId>(listCdoMvpAgentIds());
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const expanded: CdoMvpSubAgentId[] = [];
-  const seen = new Set<CdoMvpSubAgentId>();
-  const visit = (id: CdoMvpSubAgentId) => {
-    if (!allowed.has(id) || seen.has(id)) return;
-    const node = byId.get(id);
-    if (node) {
-      for (const dep of node.depends_on) {
-        if (allowed.has(dep as CdoMvpSubAgentId)) visit(dep as CdoMvpSubAgentId);
-      }
-    }
-    if (seen.has(id)) return;
-    seen.add(id);
-    expanded.push(id);
-  };
-  for (const id of selected) visit(id);
-  return expanded;
-}
-
-function buildDependencyMapCdo(selected: CdoMvpSubAgentId[]): Map<CdoMvpSubAgentId, CdoMvpSubAgentId[]> {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const dependencies = new Map<CdoMvpSubAgentId, CdoMvpSubAgentId[]>();
-  for (const id of selected) {
-    const node = byId.get(id);
-    const deps = (node?.depends_on ?? []).filter((dep) => selectedSet.has(dep as CdoMvpSubAgentId));
-    dependencies.set(id, deps as CdoMvpSubAgentId[]);
-  }
-  return dependencies;
 }
 
 function buildCdoAgentRuntime(auditId: string): Record<CdoMvpSubAgentId, DirectorSubAgentBase> {

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '../data/apiService';
-import type { RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
+import type { RoadmapManifestRequestBody } from '../data/api/orchestration-types';
 import { invalidatePlanWorkspaceQueries } from '../lib/plan-workspace-queries';
 
 type UseCompilePlanMutationOptions = {

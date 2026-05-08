@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 
 import { ORCHESTRATION_UI_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
-import type { OrchestrationPackRevisionHistoryItemDto } from '../../../data/api/audits-orchestration';
+import type { OrchestrationPackRevisionHistoryItemDto } from '../../../data/api/orchestration-types';
 import { ORCHESTRATION_PACK_DIFF_SCHEMA_VERSION } from '../../../config/orchestration-contract';
 import { RevisionHistoryPanel } from '../RevisionHistoryPanel';
 

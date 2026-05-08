@@ -62,16 +62,16 @@ function buildCards(kpis: DashboardKpis | undefined): Card[] {
 
 const KPI_ICON_TONE_CLASS: Record<Card['tone'], { container: string; icon: string }> = {
   info: {
-    container: 'bg-[color:color-mix(in_oklab,var(--glc-blue)_18%,transparent)]',
-    icon: 'text-[var(--glc-blue)]',
+    container: 'bg-[color:color-mix(in_oklab,var(--text-blue)_18%,transparent)]',
+    icon: 'text-[var(--text-blue)]',
   },
   warning: {
-    container: 'bg-[color:color-mix(in_oklab,var(--glc-orange)_18%,transparent)]',
-    icon: 'text-[var(--glc-orange)]',
+    container: 'bg-[color:color-mix(in_oklab,var(--text-accent)_18%,transparent)]',
+    icon: 'text-[var(--text-accent)]',
   },
   success: {
-    container: 'bg-[color:color-mix(in_oklab,var(--glc-green)_18%,transparent)]',
-    icon: 'text-[var(--glc-green)]',
+    container: 'bg-[color:color-mix(in_oklab,var(--score-5)_18%,transparent)]',
+    icon: 'text-[var(--score-5)]',
   },
   muted: {
     container: 'bg-[color:color-mix(in_oklab,var(--text-tertiary)_18%,transparent)]',

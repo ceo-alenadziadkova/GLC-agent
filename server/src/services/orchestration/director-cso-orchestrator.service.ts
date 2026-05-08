@@ -20,7 +20,6 @@ import {
 import { DIRECTOR_SUB_AGENTS } from '../../config/director-sub-agents.js';
 import {
   DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES,
-  SUB_AGENT_TOKEN_BUDGET_BY_DEPTH,
 } from '../../config/director-orchestration-policy.js';
 import { CsoCaseClassifierOutputSchema } from '../../schemas/sub-agents/cso/case-classifier.js';
 import { CsoComplianceMapOutputSchema } from '../../schemas/sub-agents/cso/compliance-map.js';
@@ -34,10 +33,18 @@ import { CsoThreatModelOutputSchema } from '../../schemas/sub-agents/cso/threat-
 import type { DirectorWaveBundle } from '../../schemas/glc-director-orchestration-slice.js';
 import { routeCsoDeepDiveCase } from './director-cso-router.service.js';
 import { buildCsoMaterializedWaveBundle } from './director-domain-materialized-bundles.service.js';
-import { buildExecutionWaves } from './sub-agent-wave-executor.js';
+import {
+  buildDependencyMapFromRegistry,
+  buildTopoOrderFromRegistry,
+  executeDirectorSubAgentPipeline,
+  expandSelectionWithDependencies,
+} from './director-shared-pipeline.helper.js';
 import { logger } from '../logger.js';
 
 const s = DIRECTOR_DEEP_DIVE_FALLBACK_ACTION_SCORES;
+const DIRECTOR_DEPENDENCIES_BY_ID = new Map(
+  DIRECTOR_SUB_AGENTS.map((agent) => [agent.id, agent.depends_on] as const),
+);
 
 /**
  * CSO deep-dive: case routing + deterministic threat/compliance wave (MVP).
@@ -86,52 +93,26 @@ export async function runCsoSubAgentOrchestrator(args: {
     (id) => DIRECTOR_CSO_CASE_AGENT_DEPTHS[csoCase][id] !== 'deferred',
   );
   const selected: CsoSubAgentId[] = requested.length > 0 ? requested : defaultSelection;
-  const effectiveSelection = expandCsoSelectionWithDependencies(
-    selected.filter((id) => isCsoAgentApplicableForCase(id, csoCase)),
-    csoCase,
-  );
-  const runOrder = buildTopoOrderCso(effectiveSelection);
-  const dependencyMap = buildDependencyMapCso(effectiveSelection);
-  const runWaves = buildExecutionWaves(effectiveSelection, dependencyMap);
+  const effectiveSelection = expandSelectionWithDependencies({
+    selected: selected.filter((id) => isCsoAgentApplicableForCase(id, csoCase)),
+    allowed: new Set<CsoSubAgentId>(listCsoSubAgentIds()),
+    dependenciesById: DIRECTOR_DEPENDENCIES_BY_ID,
+    isApplicable: (id) => isCsoAgentApplicableForCase(id, csoCase),
+  });
+  const runOrder = buildTopoOrderFromRegistry(effectiveSelection, DIRECTOR_DEPENDENCIES_BY_ID);
+  const dependencyMap = buildDependencyMapFromRegistry(effectiveSelection, DIRECTOR_DEPENDENCIES_BY_ID);
   const agents = buildCsoAgentRuntime(args.auditId);
-  const agentOutputs: Partial<
-    Record<CsoSubAgentId, { output: unknown; metadata: { depth: string; analysis_mode: string; prompt_ref: string } }>
-  > = {};
-  const fallbackAgents = new Set<CsoSubAgentId>();
-
-  for (const wave of runWaves) {
-    await Promise.all(
-      wave.map(async (subAgentId) => {
-        const runtime = agents[subAgentId];
-        const depth = DIRECTOR_CSO_CASE_AGENT_DEPTHS[csoCase][subAgentId];
-        let parsed: unknown;
-        try {
-          parsed = await runtime.runSubAgent({
-            context: buildCsoSubAgentContext(args.goals, args.constraints, csoCase, args.domainKey),
-            mode: csoCase,
-            maxTokens: SUB_AGENT_TOKEN_BUDGET_BY_DEPTH[depth === 'deferred' ? 'min' : depth],
-          });
-        } catch (error) {
-          logger.warn('director_cso_orchestrator.sub_agent_fallback_deterministic', {
-            sub_agent_id: subAgentId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          parsed = runtime.outputSchema.parse(
-            buildDeterministicCsoOutput(subAgentId, args.goals, args.constraints, csoCase),
-          );
-          fallbackAgents.add(subAgentId);
-        }
-        agentOutputs[subAgentId] = {
-          output: parsed,
-          metadata: {
-            depth,
-            analysis_mode: fallbackAgents.has(subAgentId) ? 'deterministic_fallback' : 'researched',
-            prompt_ref: runtime.promptRef,
-          },
-        };
-      }),
-    );
-  }
+  const { agentOutputs, fallbackAgents } = await executeDirectorSubAgentPipeline({
+    selected: effectiveSelection,
+    dependenciesById: dependencyMap,
+    runtimesById: agents,
+    context: buildCsoSubAgentContext(args.goals, args.constraints, csoCase, args.domainKey),
+    mode: csoCase,
+    getDepth: (subAgentId) => DIRECTOR_CSO_CASE_AGENT_DEPTHS[csoCase][subAgentId],
+    buildDeterministicOutput: (subAgentId) => buildDeterministicCsoOutput(subAgentId, args.goals, args.constraints, csoCase),
+    fallbackLogEvent: 'director_cso_orchestrator.sub_agent_fallback_deterministic',
+    fallbackLogContext: { cso_case: csoCase, domain_key: args.domainKey },
+  });
 
   return {
     cso_case: csoCase,
@@ -168,63 +149,6 @@ function buildCsoSubAgentContext(
     `Goals: ${goals.join('; ') || 'n/a'}`,
     `Constraints: ${constraints.join('; ') || 'n/a'}`,
   ].join('\n');
-}
-
-function buildTopoOrderCso(selected: CsoSubAgentId[]): CsoSubAgentId[] {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const done = new Set<CsoSubAgentId>();
-  const order: CsoSubAgentId[] = [];
-
-  const visit = (id: CsoSubAgentId) => {
-    if (!selectedSet.has(id) || done.has(id)) return;
-    const node = byId.get(id);
-    if (node) {
-      for (const dep of node.depends_on) {
-        if (selectedSet.has(dep as CsoSubAgentId)) visit(dep as CsoSubAgentId);
-      }
-    }
-    if (done.has(id)) return;
-    done.add(id);
-    order.push(id);
-  };
-
-  for (const id of selected) visit(id);
-  return order;
-}
-
-function expandCsoSelectionWithDependencies(selected: CsoSubAgentId[], csoCase: CsoDeepDiveCase): CsoSubAgentId[] {
-  const allowed = new Set<CsoSubAgentId>(listCsoSubAgentIds());
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const expanded: CsoSubAgentId[] = [];
-  const seen = new Set<CsoSubAgentId>();
-  const visit = (id: CsoSubAgentId) => {
-    if (!allowed.has(id) || seen.has(id)) return;
-    if (!isCsoAgentApplicableForCase(id, csoCase)) return;
-    const node = byId.get(id);
-    if (node) {
-      for (const dep of node.depends_on) {
-        if (allowed.has(dep as CsoSubAgentId)) visit(dep as CsoSubAgentId);
-      }
-    }
-    if (seen.has(id)) return;
-    seen.add(id);
-    expanded.push(id);
-  };
-  for (const id of selected) visit(id);
-  return expanded;
-}
-
-function buildDependencyMapCso(selected: CsoSubAgentId[]): Map<CsoSubAgentId, CsoSubAgentId[]> {
-  const selectedSet = new Set(selected);
-  const byId = new Map(DIRECTOR_SUB_AGENTS.map((item) => [item.id, item] as const));
-  const dependencies = new Map<CsoSubAgentId, CsoSubAgentId[]>();
-  for (const id of selected) {
-    const node = byId.get(id);
-    const deps = (node?.depends_on ?? []).filter((dep) => selectedSet.has(dep as CsoSubAgentId));
-    dependencies.set(id, deps as CsoSubAgentId[]);
-  }
-  return dependencies;
 }
 
 function buildCsoAgentRuntime(auditId: string): Record<CsoSubAgentId, DirectorSubAgentBase> {

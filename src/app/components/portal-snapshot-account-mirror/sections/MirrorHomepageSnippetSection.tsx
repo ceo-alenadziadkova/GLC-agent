@@ -5,7 +5,7 @@ export function MirrorHomepageSnippetSection({ snippet }: { snippet: { title: st
   if (!snippet.title.trim() && !snippet.description.trim()) return null;
   return (
     <div
-      className="glc-card glc-snapshot-result-card p-5 text-left lg:p-6"
+      className="ds-card ds-snapshot-result-card p-5 text-left lg:p-6"
       style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardOutlined}
     >
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">

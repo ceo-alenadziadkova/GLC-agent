@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../../data/api/orchestration-types';
 import { ORCHESTRATION_LANE_LABELS, type OrchestrationLaneId } from '../../../../config/orchestration-roadmap-ui-copy.en';
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
 import {

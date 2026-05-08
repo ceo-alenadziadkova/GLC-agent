@@ -14,8 +14,9 @@ const CONSULTANT_AND_ADMIN_PATHS = [
   `/admin/requests`,
   `/admin/snapshots`,
   `/admin/discovery`,
-  `/admin/intake-wording`,
-  `/admin/question-bank-studio`,
+  // LEGACY (TD-034 / TD-035 in docs/TECH_DEBT.md): admin tools disabled in routes.tsx.
+  // `/admin/intake-wording`,
+  // `/admin/question-bank-studio`,
   `/admin/design-system`,
   `/audit/${PLACEHOLDER_AUDIT_ID}`,
   `/audit/${PLACEHOLDER_AUDIT_ID}/tech_infrastructure`,

@@ -7,7 +7,7 @@
  */
 import dayjs from 'dayjs';
 
-import type { AuditTimelineDto } from '../data/api/audits-orchestration';
+import type { AuditTimelineDto } from '../data/api/orchestration-types';
 import { ROADMAP_GANTT_DAY_MS } from '../config/roadmap-gantt-view-preferences';
 
 export { timeBucketForSeasonIndexOneBased, type OrchestrationTimelineTimeBucket } from './orchestration-time-buckets';

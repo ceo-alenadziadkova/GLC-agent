@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { AuditTimelineDto } from '../../data/api/audits-orchestration';
+import type { AuditTimelineDto } from '../../data/api/orchestration-types';
 import { ROADMAP_GANTT_BASELINE_STORAGE_PREFIX } from '../../config/roadmap-gantt-view-preferences';
 import {
   baselineDeltaDays,

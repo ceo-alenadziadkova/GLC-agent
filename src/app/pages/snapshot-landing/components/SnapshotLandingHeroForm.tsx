@@ -56,14 +56,14 @@ export function SnapshotLandingHeroForm(props: {
         <div className="order-1 flex flex-col gap-6 text-center lg:order-none lg:col-span-7 lg:row-start-1 lg:gap-6 lg:text-left mobile:gap-5">
           <motion.section
             aria-labelledby="snapshot-hero-heading"
-            className="relative flex flex-col items-stretch gap-4 overflow-hidden  px-4 py-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--glc-blue)_45%,var(--border-subtle))] lg:px-0 lg:py-0 lg:pl-6 mobile:gap-3"
+            className="relative flex flex-col items-stretch gap-4 overflow-hidden  px-4 py-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--text-blue)_45%,var(--border-subtle))] lg:px-0 lg:py-0 lg:pl-6 mobile:gap-3"
             variants={heroMotion.container}
             initial={reduceMotion ? false : 'hidden'}
             animate="visible"
           >
             <motion.div className="flex justify-center lg:justify-start" variants={heroMotion.item}>
               <div
-                className="ds-bg-gradient-badge-blue-orange inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-default)] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[var(--tracking-snapshot-badge)] text-[var(--glc-blue)] mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-xs mobile:leading-tight"
+                className="ds-bg-gradient-badge-blue-orange inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-default)] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[var(--tracking-snapshot-badge)] text-[var(--text-blue)] mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-xs mobile:leading-tight"
               >
                 <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> {SNAPSHOT_LANDING_HERO_COPY.quickRuleBasedScanBadge}
               </div>
@@ -75,7 +75,7 @@ export function SnapshotLandingHeroForm(props: {
               className="mx-auto w-full max-w-[min(100%,var(--snapshot-hero-title-max-width))] text-balance text-[length:var(--snapshot-hero-title-size)] [font-family:var(--font-display)] font-bold leading-[1.04] text-[var(--text-primary)] tracking-[var(--tracking-snapshot-hero)] lg:mx-0 lg:max-w-xl lg:tracking-[var(--tracking-snapshot-hero-lg)]"
             >
               <span className="block lg:max-w-[15ch]">{Copy.titleLead}</span>
-              <span className="mt-2 block font-bold text-[var(--glc-blue)] lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
+              <span className="mt-2 block font-bold text-[var(--text-blue)] lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
                 {Copy.titleAccent}
               </span>
             </motion.h1>
@@ -99,15 +99,15 @@ export function SnapshotLandingHeroForm(props: {
               className="mx-auto flex w-full max-w-md items-center justify-center gap-2 py-1 text-sm font-medium text-[var(--text-tertiary)] lg:mx-0 lg:w-auto lg:max-w-none lg:justify-start"
               variants={heroMotion.item}
             >
-              <CheckCircle className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
+              <CheckCircle className="h-4 w-4 shrink-0 text-[var(--score-5)]" weight="fill" />
               {hasFullAccount ? WORKSPACE_PAGE_COPY.snapshotLanding.trustSignedIn : WORKSPACE_PAGE_COPY.snapshotLanding.trustAnonymous}
             </motion.div>
           </motion.div>
         </div>
 
         <div className="order-2 w-full lg:order-none lg:col-span-5 lg:row-span-2 lg:row-start-1 lg:self-start lg:pt-1">
-          <div className="glc-light-snapshot-shell ds-snapshot-command-shell-hairline rounded-[var(--radius-2xl)] p-px shadow-[var(--shadow-sm)]">
-            <div className="glc-light-snapshot-shell-inner rounded-[var(--radius-2xl-inner)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 lg:p-7 mobile:p-5 mobile:shadow-[var(--shadow-snapshot-shell-inner-mobile)]">
+          <div className="ds-light-snapshot-shell ds-snapshot-command-shell-hairline rounded-[var(--radius-2xl)] p-px shadow-[var(--shadow-sm)]">
+            <div className="ds-light-snapshot-shell-inner rounded-[var(--radius-2xl-inner)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 lg:p-7 mobile:p-5 mobile:shadow-[var(--shadow-snapshot-shell-inner-mobile)]">
               <p
                 className="mb-4 hidden text-left text-xs font-semibold tracking-wide text-[var(--text-primary)] lg:hidden"
               >
@@ -127,7 +127,7 @@ export function SnapshotLandingHeroForm(props: {
                     inputMode="url"
                     autoCapitalize="none"
                     autoCorrect="off"
-                    className="glc-field-control glc-light-snapshot-input h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
+                    className="ds-field-control ds-light-snapshot-input h-auto w-full min-h-10 rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
                   />
                 </div>
 
@@ -138,7 +138,7 @@ export function SnapshotLandingHeroForm(props: {
                   whileHover={url.trim() ? { scale: 1.015 } : {}}
                   whileTap={url.trim() ? { scale: 0.985 } : {}}
                   data-snapshot-cta-filled={url.trim() ? 'true' : 'false'}
-                  className="glc-light-snapshot-cta flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
+                  className="ds-light-snapshot-cta flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                 >
                   {stage === 'submitting' ? (
                     <>

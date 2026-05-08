@@ -1,241 +1,23 @@
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-  type Dispatch,
-  type KeyboardEvent,
-  type RefObject,
-  type SetStateAction,
-} from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
-import type { TimelineGroupBase } from 'react-calendar-timeline';
 
-import {
-  ROADMAP_GANTT_STORAGE_SHOW_SCHEDULE_PROGRESS,
-  ROADMAP_GANTT_STORAGE_SHOW_SLACK,
-} from '../config/roadmap-gantt-view-preferences';
-import {
-  ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY,
-  ROADMAP_TIMELINE_DAY_RANGE_STORAGE_KEY,
-  ROADMAP_TIMELINE_DENSITY_STORAGE_KEY,
-  ROADMAP_TIMELINE_SCALE_STORAGE_KEY,
-  ROADMAP_SEARCH_PARAM_TASK,
-  readChainHighlightFromSearchParams,
-  readCriticalPathOnlyFromSearchParams,
-  readDayRangeFromSearchParams,
-  readDensityFromSearchParams,
-  readDependencyTypeFromSearchParams,
-  readRoadmapToolbarExpandedFromSearchParams,
-  readScaleFromSearchParams,
-  readShowScheduleProgressFromSearchParams,
-  readShowSlackFromSearchParams,
-} from '../lib/roadmap-gantt-url-params';
-import {
-  ROADMAP_SEARCH_PARAM_OWNER,
-  ROADMAP_SEARCH_PARAM_QUERY,
-} from '../lib/roadmap-gantt-url-params';
-import type { RoadmapGanttBaselineSnapshot } from '../lib/roadmap-gantt-baseline-storage';
+import { ROADMAP_SEARCH_PARAM_TASK } from '../lib/roadmap-gantt-url-params';
 import type {
-  RoadmapGanttDependency,
-  RoadmapGanttProjection,
-  RoadmapGanttTask,
-} from '../lib/roadmap-gantt-mapper';
-import {
-  type RoadmapGanttDependencySort,
-  type RoadmapGanttDependencyTypeFilter,
-  type RoadmapGanttDependencyView,
-} from '../lib/roadmap-gantt-dependency-filters';
-import type { RoadmapGanttActiveFilterTagId } from '../lib/roadmap-gantt-active-filter-tags';
-import type { computeOverviewWindowMetrics } from '../lib/roadmap-gantt-overview-window';
-import {
-  buildRoadmapGanttUrlSearchParams,
-  readInitialActivePanel,
-  readInitialDependenciesTab,
-  readInitialDependencySort,
-  readInitialDependencyView,
-  readInitialLaneFilter,
-  readInitialShowAdvancedControls,
-  readInitialShowRestoredViewNotice,
-  readInitialStatusFilter,
-  type RoadmapGanttActivePanel,
-  type RoadmapGanttDependenciesTab,
-} from '../lib/roadmap-gantt-view-model';
-import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
-import type {
-  RoadmapGanttPlanBoardHydration,
-} from '../components/roadmap-gantt/types';
-import type { TaskDetailsPlanBoardMove } from '../components/roadmap-gantt/TaskDetailsDrawer';
-import type { GanttTaskItem } from '../components/roadmap-gantt/lib/timeline-item-types';
+  RoadmapGanttActiveFilterTag,
+  UseRoadmapGanttViewArgs,
+  UseRoadmapGanttViewResult,
+} from './useRoadmapGanttView.types';
 import { useProfile } from './useProfile';
 import { useRoadmapGanttData } from './useRoadmapGanttData';
 import { useRoadmapGanttInteractions } from './useRoadmapGanttInteractions';
 import { useRoadmapGanttViewport } from './useRoadmapGanttViewport';
 import { useRoadmapGanttActions } from './useRoadmapGanttActions';
 import { useRoadmapGanttSelectors } from './useRoadmapGanttSelectors';
+import { useRoadmapGanttPersistenceEffects } from './useRoadmapGanttPersistenceEffects';
+import { useRoadmapGanttUrlSyncEffect } from './useRoadmapGanttUrlSyncEffect';
+import { useRoadmapGanttViewState } from './useRoadmapGanttViewState';
 
-type StatusFilter = 'all' | 'planned' | 'in-progress' | 'done';
-type TimeScale = 'day' | 'month';
-type DayRange = 30 | 60 | 90;
-type DensityMode = 'compact' | 'comfortable';
-type ActivePanel = RoadmapGanttActivePanel;
-type DependenciesTab = RoadmapGanttDependenciesTab;
-
-export type RoadmapGanttActiveFilterTag = {
-  id: RoadmapGanttActiveFilterTagId;
-  label: string;
-  clear: () => void;
-};
-
-export type UseRoadmapGanttViewArgs = {
-  auditId: string;
-  projection: RoadmapGanttProjection;
-  orchestrationPack?: GlcOrchestrationPackView | null;
-  planBoardHydration?: RoadmapGanttPlanBoardHydration;
-  getDeliveryBoardHrefForPackNode?: (packGraphNodeId: string) => string | null | undefined;
-};
-
-export type UseRoadmapGanttViewResult = {
-  state: {
-    selectedTaskId: string | null;
-    focusedTaskId: string | null;
-    laneMoveMenuOpen: boolean;
-    hoveredDependencyId: string | null;
-    timeScale: TimeScale;
-    dayRangeDays: DayRange;
-    dependencyTypeFilter: RoadmapGanttDependencyTypeFilter;
-    densityMode: DensityMode;
-    ownerFilter: string;
-    statusFilter: StatusFilter;
-    laneFilter: string;
-    blockedOnly: boolean;
-    dependencyView: RoadmapGanttDependencyView;
-    dependencySort: RoadmapGanttDependencySort;
-    criticalPathOnly: boolean;
-    highlightDependencyChain: boolean;
-    titleQuery: string;
-    sprintExportBusy: boolean;
-    icalExportBusy: boolean;
-    showSlack: boolean;
-    showScheduleProgress: boolean;
-    baselineSnapshot: RoadmapGanttBaselineSnapshot | null;
-    canScrollLeft: boolean;
-    canScrollRight: boolean;
-    isOverviewDragging: boolean;
-    showAdvancedControls: boolean;
-    activePanel: ActivePanel;
-    dependenciesTab: DependenciesTab;
-    gridNavAnnouncement: string;
-    mainPanelTabAnnouncement: string;
-    roadmapToolbarMoreOpen: boolean;
-    showRestoredViewNotice: boolean;
-  };
-  setters: {
-    setSelectedTaskId: Dispatch<SetStateAction<string | null>>;
-    setFocusedTaskId: Dispatch<SetStateAction<string | null>>;
-    setLaneMoveMenuOpen: Dispatch<SetStateAction<boolean>>;
-    setHoveredDependencyId: Dispatch<SetStateAction<string | null>>;
-    setTimeScale: Dispatch<SetStateAction<TimeScale>>;
-    setDayRangeDays: Dispatch<SetStateAction<DayRange>>;
-    setDependencyTypeFilter: Dispatch<SetStateAction<RoadmapGanttDependencyTypeFilter>>;
-    setDensityMode: Dispatch<SetStateAction<DensityMode>>;
-    setOwnerFilter: Dispatch<SetStateAction<string>>;
-    setStatusFilter: Dispatch<SetStateAction<StatusFilter>>;
-    setLaneFilter: Dispatch<SetStateAction<string>>;
-    setBlockedOnly: Dispatch<SetStateAction<boolean>>;
-    setDependencyView: Dispatch<SetStateAction<RoadmapGanttDependencyView>>;
-    setCriticalPathOnly: Dispatch<SetStateAction<boolean>>;
-    setHighlightDependencyChain: Dispatch<SetStateAction<boolean>>;
-    setTitleQuery: Dispatch<SetStateAction<string>>;
-    setShowSlack: Dispatch<SetStateAction<boolean>>;
-    setShowScheduleProgress: Dispatch<SetStateAction<boolean>>;
-    setIsOverviewDragging: Dispatch<SetStateAction<boolean>>;
-    setShowAdvancedControls: Dispatch<SetStateAction<boolean>>;
-    setActivePanel: Dispatch<SetStateAction<ActivePanel>>;
-    setDependenciesTab: Dispatch<SetStateAction<DependenciesTab>>;
-    setRoadmapToolbarMoreOpen: Dispatch<SetStateAction<boolean>>;
-    setShowRestoredViewNotice: Dispatch<SetStateAction<boolean>>;
-    setMainPanelTabAnnouncement: Dispatch<SetStateAction<string>>;
-  };
-  refs: {
-    timelineShellRef: RefObject<HTMLDivElement | null>;
-    overviewTrackRef: RefObject<HTMLDivElement | null>;
-  };
-  ids: {
-    mainTabTimelineId: string;
-    mainTabDependenciesId: string;
-    mainPanelTimelineId: string;
-    mainPanelDependenciesId: string;
-    depsTabGraphId: string;
-    depsTabTableId: string;
-    depsPanelGraphId: string;
-    depsPanelTableId: string;
-    roadmapOverviewMapDescriptionId: string;
-  };
-  derived: {
-    isMonthScale: boolean;
-    timelineTasks: RoadmapGanttTask[];
-    filteredTaskIds: ReadonlySet<string>;
-    groups: TimelineGroupBase[];
-    items: GanttTaskItem[];
-    chainTaskIds: ReadonlySet<string> | null;
-    selectableLanesForJump: { id: string; title: string }[];
-    laneMoveMenuEligible: boolean;
-    timelineEditableTaskIds: ReadonlySet<string>;
-    selectedTask: RoadmapGanttTask | null;
-    drawerTask: RoadmapGanttTask | null;
-    downstreamTaskCount: number;
-    deliveryBoardHref: string | null;
-    taskPlanBoardMove: TaskDetailsPlanBoardMove;
-    consultantBoardPlanHref: string | null;
-    focusedTask: RoadmapGanttTask | null;
-    taskTitleById: Map<string, string>;
-    taskByIdFull: Map<string, RoadmapGanttTask>;
-    visibleDependencies: RoadmapGanttDependency[];
-    sortedVisibleDependencies: RoadmapGanttDependency[];
-    hoveredDependency: RoadmapGanttDependency | null;
-    highlightedTaskIds: ReadonlySet<string>;
-    dependencyChainShouldDim: (dep: RoadmapGanttDependency) => boolean;
-    overviewWindow: ReturnType<typeof computeOverviewWindowMetrics>;
-    overviewTasks: RoadmapGanttTask[];
-    isHeavyTaskLoad: boolean;
-    ownerOptions: string[];
-    activeFilterTags: RoadmapGanttActiveFilterTag[];
-    activeFilterReason: string;
-    hasActiveFilters: boolean;
-    advancedFiltersCount: number;
-    defaultViewportStart: number;
-    defaultViewportEnd: number;
-    dependencySvgPathsByDepId: ReadonlyMap<string, string>;
-    mapX: (ts: number) => number;
-    mapY: (laneId: string) => number;
-    dependencyCanvasHeight: number;
-    timelineRangeMs: number;
-  };
-  handlers: {
-    applyLaneFocusFilter: (lane: { id: string; title: string }) => void;
-    handleTimelineGridKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-    handleOverviewKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-    handleMainPanelTablistKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-    handleTimelineItemMove: (itemId: number | string, dragTime: number, newGroupOrder: number) => void;
-    handleTimelineItemResize: (itemId: number | string, time: number, edge: 'left' | 'right') => void;
-    scrollTimelineByDirection: (direction: 'left' | 'right') => void;
-    jumpTimelineRangeByDirection: (direction: 'previous' | 'next') => void;
-    jumpTimelineToToday: () => void;
-    handleOverviewPointer: (clientX: number) => void;
-    downloadSprintPlanCsv: () => Promise<void>;
-    downloadIcal: () => void;
-    captureBaseline: () => void;
-    clearBaseline: () => void;
-    toggleDependencySort: (key: 'from' | 'to' | 'type') => void;
-    sortArrow: (key: 'from' | 'to' | 'type') => string;
-    resetView: () => void;
-    applyPresetBlocked: () => void;
-    applyPresetExecution: () => void;
-    applyPresetCriticalPath: () => void;
-    selectTask: (taskId: string) => void;
-  };
-};
+export type { RoadmapGanttActiveFilterTag, UseRoadmapGanttViewArgs, UseRoadmapGanttViewResult } from './useRoadmapGanttView.types';
 
 export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGanttViewResult {
   const { auditId, projection, orchestrationPack, planBoardHydration, getDeliveryBoardHrefForPackNode } = args;
@@ -244,64 +26,100 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
   const location = useLocation();
   const { isClient } = useProfile();
 
-  // ---------- Selection state (orchestrator-owned, public) ----------
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() => searchParams.get(ROADMAP_SEARCH_PARAM_TASK));
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const [laneMoveMenuOpen, setLaneMoveMenuOpen] = useState(false);
-  const [hoveredDependencyId, setHoveredDependencyId] = useState<string | null>(null);
+  const vs = useRoadmapGanttViewState(searchParams);
 
-  // ---------- Filter / view state ----------
-  const [timeScale, setTimeScale] = useState<TimeScale>(() => readScaleFromSearchParams(searchParams));
-  const [dayRangeDays, setDayRangeDays] = useState<DayRange>(() => readDayRangeFromSearchParams(searchParams));
-  const [dependencyTypeFilter, setDependencyTypeFilter] = useState<RoadmapGanttDependencyTypeFilter>(() =>
-    readDependencyTypeFromSearchParams(searchParams),
-  );
-  const [densityMode, setDensityMode] = useState<DensityMode>(() => readDensityFromSearchParams(searchParams));
-  const [ownerFilter, setOwnerFilter] = useState<string>(() => searchParams.get(ROADMAP_SEARCH_PARAM_OWNER) ?? 'all');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => readInitialStatusFilter(searchParams));
-  const [laneFilter, setLaneFilter] = useState<string>(() => readInitialLaneFilter(searchParams));
-  const [blockedOnly, setBlockedOnly] = useState<boolean>(() => searchParams.get('blocked') === '1');
-  const [dependencyView, setDependencyView] = useState<RoadmapGanttDependencyView>(() =>
-    readInitialDependencyView(searchParams),
-  );
-  const [dependencySort, setDependencySort] = useState<RoadmapGanttDependencySort>(() =>
-    readInitialDependencySort(searchParams),
-  );
-  const [criticalPathOnly, setCriticalPathOnly] = useState<boolean>(() =>
-    readCriticalPathOnlyFromSearchParams(searchParams),
-  );
-  const [highlightDependencyChain, setHighlightDependencyChain] = useState<boolean>(() =>
-    readChainHighlightFromSearchParams(searchParams),
-  );
-  const [titleQuery, setTitleQuery] = useState<string>(() => searchParams.get(ROADMAP_SEARCH_PARAM_QUERY) ?? '');
-  const [sprintExportBusy, setSprintExportBusy] = useState(false);
-  const [icalExportBusy, setIcalExportBusy] = useState(false);
-  const [showSlack, setShowSlack] = useState<boolean>(() => readShowSlackFromSearchParams(searchParams));
-  const [showScheduleProgress, setShowScheduleProgress] = useState<boolean>(() =>
-    readShowScheduleProgressFromSearchParams(searchParams),
-  );
+  const {
+    selectedTaskId,
+    setSelectedTaskId,
+    focusedTaskId,
+    setFocusedTaskId,
+    laneMoveMenuOpen,
+    setLaneMoveMenuOpen,
+    hoveredDependencyId,
+    setHoveredDependencyId,
+    timeScale,
+    setTimeScale,
+    dayRangeDays,
+    setDayRangeDays,
+    dependencyTypeFilter,
+    setDependencyTypeFilter,
+    densityMode,
+    setDensityMode,
+    ownerFilter,
+    setOwnerFilter,
+    statusFilter,
+    setStatusFilter,
+    laneFilter,
+    setLaneFilter,
+    blockedOnly,
+    setBlockedOnly,
+    dependencyView,
+    setDependencyView,
+    dependencySort,
+    setDependencySort,
+    criticalPathOnly,
+    setCriticalPathOnly,
+    highlightDependencyChain,
+    setHighlightDependencyChain,
+    titleQuery,
+    setTitleQuery,
+    sprintExportBusy,
+    setSprintExportBusy,
+    icalExportBusy,
+    setIcalExportBusy,
+    showSlack,
+    setShowSlack,
+    showScheduleProgress,
+    setShowScheduleProgress,
+    isOverviewDragging,
+    setIsOverviewDragging,
+    showAdvancedControls,
+    setShowAdvancedControls,
+    activePanel,
+    setActivePanel,
+    dependenciesTab,
+    setDependenciesTab,
+    gridNavAnnouncement,
+    setGridNavAnnouncement,
+    mainPanelTabAnnouncement,
+    setMainPanelTabAnnouncement,
+    roadmapToolbarMoreOpen,
+    setRoadmapToolbarMoreOpen,
+    showRestoredViewNotice,
+    setShowRestoredViewNotice,
+  } = vs;
 
-  /**
-   * Lifted to orchestrator so both data hook (SVG path freeze) and viewport hook (scroll behavior)
-   * can read the value without creating a circular dependency between them.
-   */
-  const [isOverviewDragging, setIsOverviewDragging] = useState(false);
-  const [showAdvancedControls, setShowAdvancedControls] = useState<boolean>(() =>
-    readInitialShowAdvancedControls(searchParams),
-  );
-  const [activePanel, setActivePanel] = useState<ActivePanel>(() => readInitialActivePanel(searchParams));
-  const [dependenciesTab, setDependenciesTab] = useState<DependenciesTab>(() => readInitialDependenciesTab(searchParams));
-  const [gridNavAnnouncement, setGridNavAnnouncement] = useState('');
-  const [mainPanelTabAnnouncement, setMainPanelTabAnnouncement] = useState('');
-  const [roadmapToolbarMoreOpen, setRoadmapToolbarMoreOpen] = useState(() =>
-    readRoadmapToolbarExpandedFromSearchParams(searchParams),
-  );
-  const [showRestoredViewNotice, setShowRestoredViewNotice] = useState<boolean>(() =>
-    readInitialShowRestoredViewNotice(
-      searchParams,
-      typeof window !== 'undefined' ? window.localStorage : null,
-    ),
-  );
+  useRoadmapGanttPersistenceEffects({
+    timeScale,
+    dayRangeDays,
+    densityMode,
+    criticalPathOnly,
+    showSlack,
+    showScheduleProgress,
+  });
+
+  useRoadmapGanttUrlSyncEffect({
+    setSearchParams,
+    timeScale,
+    dayRangeDays,
+    densityMode,
+    dependencyTypeFilter,
+    ownerFilter,
+    statusFilter,
+    laneFilter,
+    blockedOnly,
+    dependencyView,
+    dependencySort,
+    selectedTaskId,
+    criticalPathOnly,
+    highlightDependencyChain,
+    titleQuery,
+    showSlack,
+    showScheduleProgress,
+    activePanel,
+    dependenciesTab,
+    roadmapToolbarMoreOpen,
+  });
 
   const mainTabTimelineId = useId();
   const mainTabDependenciesId = useId();
@@ -313,7 +131,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
   const depsPanelTableId = useId();
   const roadmapOverviewMapDescriptionId = useId();
 
-  // ---------- Subhook 1: data ----------
   const data = useRoadmapGanttData({
     auditId,
     projection,
@@ -346,7 +163,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     isOverviewDragging,
   });
 
-  // ---------- Subhook 2: viewport ----------
   const viewport = useRoadmapGanttViewport({
     timeScale,
     dayRangeDays,
@@ -359,7 +175,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     setIsOverviewDragging,
   });
 
-  // ---------- Subhook 3: selectors (memoized derived) ----------
   const filterClearSetters = useMemo(
     () => ({
       setDependencyTypeFilter,
@@ -382,7 +197,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     filterClearSetters,
   });
 
-  // ---------- Subhook 4: actions (exports + view presets/reset) ----------
   const presetSetters = useMemo(
     () => ({
       setTimeScale,
@@ -422,7 +236,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     presetSetters,
   });
 
-  // ---------- Subhook 5: interactions (timeline DnD, keyboard, lane focus, sort) ----------
   const interactionsSetters = useMemo(
     () => ({
       setSelectedTaskId,
@@ -462,88 +275,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     setters: interactionsSetters,
   });
 
-  // ---------- Persistence (localStorage) ----------
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_TIMELINE_SCALE_STORAGE_KEY, timeScale);
-  }, [timeScale]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_TIMELINE_DAY_RANGE_STORAGE_KEY, String(dayRangeDays));
-  }, [dayRangeDays]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_TIMELINE_DENSITY_STORAGE_KEY, densityMode);
-  }, [densityMode]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_TIMELINE_CRITICAL_PATH_STORAGE_KEY, criticalPathOnly ? '1' : '0');
-  }, [criticalPathOnly]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_GANTT_STORAGE_SHOW_SLACK, showSlack ? '1' : '0');
-  }, [showSlack]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ROADMAP_GANTT_STORAGE_SHOW_SCHEDULE_PROGRESS, showScheduleProgress ? '1' : '0');
-  }, [showScheduleProgress]);
-
-  // ---------- URL sync ----------
-  useEffect(() => {
-    setSearchParams(
-      (prev) =>
-        buildRoadmapGanttUrlSearchParams(prev, {
-          timeScale,
-          dayRangeDays,
-          densityMode,
-          dependencyTypeFilter,
-          ownerFilter,
-          statusFilter,
-          laneFilter,
-          blockedOnly,
-          dependencyView,
-          dependencySort,
-          selectedTaskId,
-          criticalPathOnly,
-          highlightDependencyChain,
-          titleQuery,
-          showSlack,
-          showScheduleProgress,
-          activePanel,
-          dependenciesTab,
-          roadmapToolbarMoreOpen,
-        }),
-      { replace: true },
-    );
-  }, [
-    blockedOnly,
-    criticalPathOnly,
-    dayRangeDays,
-    densityMode,
-    dependencySort,
-    dependencyTypeFilter,
-    dependencyView,
-    highlightDependencyChain,
-    laneFilter,
-    ownerFilter,
-    roadmapToolbarMoreOpen,
-    activePanel,
-    dependenciesTab,
-    selectedTaskId,
-    setSearchParams,
-    showScheduleProgress,
-    showSlack,
-    statusFilter,
-    timeScale,
-    titleQuery,
-  ]);
-
-  // ---------- Live region for focused task ----------
   useEffect(() => {
     setGridNavAnnouncement(selectors.focusedTaskAnnouncement);
   }, [selectors.focusedTaskAnnouncement]);
@@ -554,7 +285,6 @@ export function useRoadmapGanttView(args: UseRoadmapGanttViewArgs): UseRoadmapGa
     return () => window.clearTimeout(t);
   }, [mainPanelTabAnnouncement]);
 
-  // ---------- Active filter tags carry orchestrator-owned clear callbacks ----------
   const activeFilterTags = selectors.activeFilterTags as RoadmapGanttActiveFilterTag[];
   const state = useMemo(
     () => ({

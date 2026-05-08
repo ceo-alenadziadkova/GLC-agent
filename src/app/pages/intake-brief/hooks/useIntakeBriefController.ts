@@ -46,6 +46,7 @@ import {
 import { useIntakeBriefF1Effect } from '../effects/useIntakeBriefF1Effect';
 import { useIntakeBriefKpiEffects } from '../effects/useIntakeBriefKpiEffects';
 import { useIntakeBriefSubmissionActions } from '../effects/useIntakeBriefSubmissionActions';
+import { useIntakeBriefProgressiveActions } from '../effects/useIntakeBriefProgressiveActions';
 import {
   buildIntelligenceByQuestionId,
   buildRawQuestionList,
@@ -53,6 +54,12 @@ import {
   buildSignalConfidenceByQuestionId,
   buildVisibleQuestions,
 } from '../lib/intake-brief-derived';
+import {
+  buildModeSubtitleOverride,
+  buildProgressiveContinueBusy,
+  buildTailoredPhaseBanner,
+  buildVisibleOptionalDetailsById,
+} from '../lib/intake-brief-view-model';
 
 export type IntakeBriefPhase = 'form' | 'review' | 'success';
 type IntakeJourneyStage = 'fast_pass' | 'precision_pass';
@@ -379,143 +386,28 @@ export function useIntakeBriefController(rawToken: string | undefined) {
     },
     [token],
   );
-  const onAdvanceProgressive = useCallback(() => {
-    if (questionMode === 'all_questions') {
-      setPhase('review');
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading') {
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'prebrief') {
-      const atLastStep = progressiveStepIndex >= progressiveQueue.length - 1;
-      if (!atLastStep) {
-        setProgressiveStepIndex(prev => prev + 1);
-        return;
-      }
-      if (!token) {
-        return;
-      }
-      setTwoPhaseWave('tailored_loading');
-      setSubmitError(null);
-      void (async () => {
-        try {
-          if (APP_FEATURE_FLAGS.intakeIntelligenceSnapshotEnabled) {
-            const r = await api.postIntakeIntelligenceSnapshot(token);
-            setIntelligenceSnapshotNarrative(
-              r.narrative && r.narrative.trim().length > 0 ? r.narrative.trim() : null,
-            );
-            setTailoredLabelOverrides(r.label_overrides ?? {});
-            if (r.question_ids.length === 0) {
-              setTwoPhaseWave('prebrief');
-              setPhase('review');
-              return;
-            }
-            setTailoredPayload({ questions: r.questions, questionIds: r.question_ids });
-            setTwoPhaseWave('tailored');
-            setProgressiveStepIndex(0);
-            return;
-          }
-          const r = await api.getIntakeTailoredQuestions(token);
-          if (r.question_ids.length === 0) {
-            setTwoPhaseWave('prebrief');
-            setPhase('review');
-            return;
-          }
-          setIntelligenceSnapshotNarrative(null);
-          setTailoredLabelOverrides({});
-          setTailoredPayload({ questions: r.questions, questionIds: r.question_ids });
-          setTwoPhaseWave('tailored');
-          setProgressiveStepIndex(0);
-        } catch (e) {
-          setTwoPhaseWave('prebrief');
-          setSubmitError(toUiApiErrorMessage(e));
-        }
-      })();
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored') {
-      const atLastT = progressiveStepIndex >= progressiveQueue.length - 1;
-      if (!atLastT) {
-        setProgressiveStepIndex(prev => prev + 1);
-        return;
-      }
-      setPhase('review');
-      return;
-    }
-    const atLastStep = progressiveStepIndex >= progressiveQueue.length - 1;
-    if (!atLastStep) {
-      setProgressiveStepIndex(prev => prev + 1);
-      return;
-    }
-    if (journeyStage === 'fast_pass') {
-      if (!fastPassCompletedRef.current && token) {
-        fastPassCompletedRef.current = true;
-        void api.reportIntelligenceKpi(token, {
-          event: 'fast_pass_completed',
-          client_session_id: intakeKpiSessionIdRef.current,
-        });
-      }
-      if (precisionPassIds.length > 0) {
-        setJourneyStage('precision_pass');
-        setProgressiveStepIndex(0);
-      } else {
-        setPhase('review');
-      }
-      return;
-    }
-    setPhase('review');
-  }, [
-    journeyStage,
-    precisionPassIds.length,
-    progressiveQueue.length,
-    progressiveStepIndex,
+  const { onAdvanceProgressive, onBackProgressive, onSaveAndContinueLater } = useIntakeBriefProgressiveActions({
     questionMode,
-    token,
     twoPhaseWave,
-  ]);
-  const onBackProgressive = useCallback(() => {
-    if (questionMode === 'all_questions') {
-      setQuestionMode('progressive');
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored' && progressiveStepIndex > 0) {
-      setProgressiveStepIndex(prev => prev - 1);
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored' && progressiveStepIndex === 0) {
-      setTwoPhaseWave('prebrief');
-      setTailoredPayload(null);
-      setTailoredLabelOverrides({});
-      setIntelligenceSnapshotNarrative(null);
-      setProgressiveStepIndex(Math.max(0, (preBriefStepGroups?.length ?? 1) - 1));
-      return;
-    }
-    if (APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading') {
-      setTwoPhaseWave('prebrief');
-      return;
-    }
-    if (progressiveStepIndex > 0) {
-      setProgressiveStepIndex(prev => prev - 1);
-      return;
-    }
-    if (journeyStage === 'precision_pass') {
-      setJourneyStage('fast_pass');
-      setProgressiveStepIndex(0);
-    }
-  }, [journeyStage, preBriefStepGroups?.length, progressiveStepIndex, questionMode, twoPhaseWave]);
-  const onSaveAndContinueLater = useCallback(() => {
-    if (!token || typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      intakeProgressiveStateKey(token),
-      JSON.stringify({
-        responses,
-        stage: journeyStage,
-        mode: questionMode,
-        stepIndex: progressiveStepIndex,
-      }),
-    );
-  }, [journeyStage, progressiveStepIndex, questionMode, responses, token]);
+    progressiveStepIndex,
+    progressiveQueueLength: progressiveQueue.length,
+    token,
+    responses,
+    journeyStage,
+    precisionPassCount: precisionPassIds.length,
+    preBriefStepGroupLength: preBriefStepGroups?.length ?? 1,
+    intakeKpiSessionIdRef,
+    fastPassCompletedRef,
+    setPhase,
+    setProgressiveStepIndex,
+    setJourneyStage,
+    setQuestionMode,
+    setTwoPhaseWave,
+    setTailoredPayload,
+    setTailoredLabelOverrides,
+    setIntelligenceSnapshotNarrative,
+    setSubmitError,
+  });
 
   const scrollToQuestion = useCallback((id: string) => {
     setPhase('form');
@@ -585,32 +477,23 @@ export function useIntakeBriefController(rawToken: string | undefined) {
   const showFastPassDoneBanner =
     journeyStage === 'precision_pass' &&
     (precisionPassIds.length > 0 || fastPassCompletedRef.current);
-  const visibleOptionalDetailsById = useMemo(() => {
-    const out: Record<string, boolean> = {};
-    for (const id of activeQueueItem) {
-      if (optionalDetailsOpenById[id]) out[id] = true;
-    }
-    return out;
-  }, [activeQueueItem, optionalDetailsOpenById]);
+  const visibleOptionalDetailsById = useMemo(
+    () => buildVisibleOptionalDetailsById(activeQueueItem, optionalDetailsOpenById),
+    [activeQueueItem, optionalDetailsOpenById],
+  );
 
   const hideGuidedAllToggle = APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled;
-  const tailoredPhaseBanner =
-    APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled &&
-    twoPhaseWave === 'tailored' &&
-    progressiveStepIndex === 0
-      ? {
-          title: copy.tailoredPhaseTitle,
-          body:
-            intelligenceSnapshotNarrative && intelligenceSnapshotNarrative.length > 0
-              ? `${copy.tailoredPhaseBody}\n\n${intelligenceSnapshotNarrative}`
-              : copy.tailoredPhaseBody,
-        }
-      : null;
-  const modeSubtitleOverride =
-    APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored'
-      ? copy.modeSubtitleTailored
-      : null;
-  const progressiveContinueBusy = APP_FEATURE_FLAGS.intakeTwoPhasePublicEnabled && twoPhaseWave === 'tailored_loading';
+  const tailoredPhaseBanner = buildTailoredPhaseBanner({
+    twoPhaseWave,
+    progressiveStepIndex,
+    intelligenceSnapshotNarrative,
+    copy,
+  });
+  const modeSubtitleOverride = buildModeSubtitleOverride({
+    twoPhaseWave,
+    tailoredSubtitle: copy.modeSubtitleTailored,
+  });
+  const progressiveContinueBusy = buildProgressiveContinueBusy(twoPhaseWave);
 
   return {
     token,

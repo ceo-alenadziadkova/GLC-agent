@@ -119,7 +119,7 @@ export function WorkspaceSidebar({
             >
               <CaretRight
                 className={cn(
-                  'w-3.5 h-3.5 flex-shrink-0 transition-transform text-[var(--glc-blue)]',
+                  'w-3.5 h-3.5 flex-shrink-0 transition-transform text-[var(--text-blue)]',
                   briefPanelOpen && 'rotate-90',
                 )}
               />
@@ -128,7 +128,7 @@ export function WorkspaceSidebar({
             {briefPanelOpen && (
               <div className={`px-3 pb-3 space-y-2 ${AUDIT_WORKSPACE_UI.layout.briefPanelMaxHeightClass} overflow-y-auto`}>
                 {workspaceBriefSavedFlash && (
-                  <p className="text-[length:var(--text-2xs)] font-medium text-[var(--glc-green)]">
+                  <p className="text-[length:var(--text-2xs)] font-medium text-[var(--score-5)]">
                     {AUDIT_WORKSPACE_COPY.sidebar.briefSaved}
                   </p>
                 )}
@@ -136,7 +136,7 @@ export function WorkspaceSidebar({
                   {AUDIT_WORKSPACE_COPY.sidebar.defaultLayoutPrefix}{' '}
                   <Link
                     to="/settings#brief-layout"
-                    className="font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
+                    className="font-medium text-[var(--text-blue)] underline-offset-2 hover:underline"
                   >
                     {AUDIT_WORKSPACE_COPY.sidebar.settingsLink}
                   </Link>
@@ -149,7 +149,7 @@ export function WorkspaceSidebar({
                       <button
                         type="button"
                         onClick={clearBriefLayout}
-                        className="cursor-pointer border-0 bg-none p-0 text-[length:var(--text-2xs)] font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
+                        className="cursor-pointer border-0 bg-none p-0 text-[length:var(--text-2xs)] font-medium text-[var(--text-blue)] underline-offset-2 hover:underline"
                       >
                         {AUDIT_WORKSPACE_COPY.sidebar.changeLayout}
                       </button>

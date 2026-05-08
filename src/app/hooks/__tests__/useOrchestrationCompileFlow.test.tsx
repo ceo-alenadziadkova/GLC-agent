@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useOrchestrationCompileFlow } from '../useOrchestrationCompileFlow';
-import type { RoadmapManifestRequestBody } from '../../data/api/audits-orchestration';
+import type { RoadmapManifestRequestBody } from '../../data/api/orchestration-types';
 
 const postRoadmapManifestSnapshot = vi.fn();
 const compileMutateAsync = vi.fn();

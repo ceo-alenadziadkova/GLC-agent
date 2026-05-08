@@ -730,6 +730,8 @@
   --glc-mobile-nav-height: 56px;
   --glc-mobile-header-height: 52px;
   --glc-touch-target-min: 44px;
+  --app-shell-mobile-header-height: var(--glc-mobile-header-height);
+  --app-touch-target-min: var(--glc-touch-target-min);
 
   /** Intake brief main column — pixel parity with legacy 560px at 16px root */
   --intake-brief-max-width: 35rem;

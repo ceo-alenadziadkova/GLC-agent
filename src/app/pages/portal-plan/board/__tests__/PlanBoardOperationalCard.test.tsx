@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../../../config/plan-board-copy.en';
-import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../../data/api/orchestration-types';
 import { PlanBoardOperationalCard } from '../PlanBoardOperationalCard';
 
 const DEFAULT_MOVE_MENU = PLAN_BOARD_UI_COLUMNS.map((id) => ({

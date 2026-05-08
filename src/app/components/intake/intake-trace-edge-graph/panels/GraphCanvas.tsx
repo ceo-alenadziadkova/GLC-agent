@@ -43,7 +43,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
       onMouseMove={props.onMouseMove}
       onMouseUp={props.onMouseUp}
       onMouseLeave={props.onMouseUp}
-      className="w-full overflow-auto rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface)] cursor-grab active:cursor-grabbing"
+      className="w-full cursor-grab overflow-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] active:cursor-grabbing"
     >
       <svg ref={props.svgRef} width={props.layout.width} height={props.layout.height} role="img" aria-label={copy.aria.graphLabel}>
         <defs>

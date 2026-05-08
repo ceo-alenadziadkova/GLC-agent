@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AuditTimelineDto } from '../../data/api/audits-orchestration';
+import type { AuditTimelineDto } from '../../data/api/orchestration-types';
 import { buildIcalFromProjection, foldIcalContent } from '../roadmap-gantt-ical';
 import { buildRoadmapGanttProjection } from '../roadmap-gantt-mapper';
 

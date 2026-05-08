@@ -195,7 +195,9 @@ export function useNewAuditSnapshotActions(args: {
           option_display_overrides: wording.option_display_overrides ?? {},
         });
         args.setBriefTailoredPhaseUnlocked(true);
-        args.snapshotMachine.resetToShortBrief();
+        // After successful wording personalization, continue to review and keep
+        // snapshot gate marked as completed to avoid reopening it in a loop.
+        args.snapshotMachine.skipSnapshotAndGoReview(args.setStep);
       } catch (e) {
         args.setIntelligenceSnapshotError(getSnapshotGenericError(e));
       } finally {

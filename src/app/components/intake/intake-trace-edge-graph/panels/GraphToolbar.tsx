@@ -27,7 +27,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         type="button"
         variant="outline"
         size="sm"
-        className={`${secondaryButtonClassName} ${props.pathOnlyMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        className={`${secondaryButtonClassName} ${props.pathOnlyMode ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
         onClick={props.onTogglePathOnlyMode}
       >
         {props.pathOnlyMode ? copy.showFullGraph : copy.showPathOnly}
@@ -36,7 +36,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         type="button"
         variant="outline"
         size="sm"
-        className={`${secondaryButtonClassName} ${props.isFocusedSubtreeCollapsed ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        className={`${secondaryButtonClassName} ${props.isFocusedSubtreeCollapsed ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
         onClick={props.onToggleCollapseFocused}
         disabled={!props.canCollapseFocused}
       >
@@ -55,7 +55,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         type="button"
         variant="outline"
         size="sm"
-        className={`${secondaryButtonClassName} ${props.hasPinnedFocus ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        className={`${secondaryButtonClassName} ${props.hasPinnedFocus ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
         onClick={props.onTogglePin}
         disabled={!props.canPinFocused}
       >
@@ -65,7 +65,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         type="button"
         variant="outline"
         size="sm"
-        className={`${secondaryButtonClassName} ${props.showBeforeAfter ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        className={`${secondaryButtonClassName} ${props.showBeforeAfter ? 'ring-1 ring-[var(--text-blue)]' : ''}`}
         onClick={props.onToggleShowBeforeAfter}
       >
         {props.showBeforeAfter ? copy.hideBeforeAfter : copy.showBeforeAfter}

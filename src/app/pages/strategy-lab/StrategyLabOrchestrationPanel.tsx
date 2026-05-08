@@ -9,7 +9,7 @@ import type {
 import type { GlcOrchestrationPackRevisionDiffView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type {
   OrchestrationPlanGovernanceDto,
-} from '../../data/api/audits-orchestration';
+} from '../../data/api/orchestration-types';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
 import { PlanWorkspaceManifestStatePill } from '../../components/glc/PlanWorkspaceManifestStatePill';
 import { Button } from '../../components/ui/button';

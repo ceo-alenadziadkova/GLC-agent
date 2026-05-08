@@ -14,7 +14,7 @@ const STATUS_TONE_BADGE_CLASS = {
   danger: 'text-[var(--score-1)] border-[var(--score-1-border)] bg-[var(--score-1-bg)]',
   warning: 'text-[var(--score-2)] border-[var(--score-2-border)] bg-[var(--score-2-bg)]',
   neutral: 'text-[var(--text-tertiary)] border-[var(--border-default)] bg-[var(--bg-muted)]',
-  success: 'text-[var(--glc-green-dark)] border-[var(--score-5-border)] bg-[var(--score-5-bg)]',
+  success: 'text-[var(--score-5)] border-[var(--score-5-border)] bg-[var(--score-5-bg)]',
 } as const;
 
 type SnapshotStatusTone = keyof typeof STATUS_TONE_BADGE_CLASS;
@@ -49,7 +49,7 @@ export function SnapshotIdlePreviewCards() {
           return (
           <motion.div
             key={item.title}
-            className="rounded-[var(--radius-xl)] border border-[color-mix(in_oklab,var(--overlay-white-20)_42%,var(--border-subtle))] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--bg-surface)_94%,var(--glc-blue-muted))_0%,color-mix(in_oklab,var(--bg-muted)_84%,var(--bg-surface))_100%)] p-4 shadow-[var(--shadow-sm)]"
+            className="rounded-[var(--radius-xl)] border border-[color-mix(in_oklab,var(--overlay-white-20)_42%,var(--border-subtle))] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--bg-surface)_94%,var(--callout-info-bg-subtle))_0%,color-mix(in_oklab,var(--bg-muted)_84%,var(--bg-surface))_100%)] p-4 shadow-[var(--shadow-sm)]"
             variants={{
               hidden: { opacity: 0, y: MARKETING_CARD_MOTION.hiddenY },
               visible: { opacity: 1, y: 0 },

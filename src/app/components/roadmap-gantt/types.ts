@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../data/api/orchestration-types';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type { RoadmapGanttProjection } from '../../lib/roadmap-gantt-mapper';
 

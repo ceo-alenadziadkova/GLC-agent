@@ -179,4 +179,175 @@ describe('useRoadmapGanttView', () => {
     expect(result.current.state).toBe(first.state);
     expect(result.current.setters).toBe(first.setters);
   });
+
+  it('exposes a stable public API shape (keys only)', () => {
+    const { result } = renderHook(() =>
+      useRoadmapGanttView({
+        auditId: 'audit-1',
+        projection,
+        planBoardHydration: {
+          enabled: false,
+          pending: false,
+          fetchFailed: false,
+          blockedNoPack: false,
+          blockedGovernance: false,
+          cards: [],
+          packVersionUsed: 1,
+          role: 'consultant',
+        },
+      }),
+    );
+
+    expect(Object.keys(result.current.state).sort()).toMatchInlineSnapshot(`
+      [
+        "activePanel",
+        "baselineSnapshot",
+        "blockedOnly",
+        "canScrollLeft",
+        "canScrollRight",
+        "criticalPathOnly",
+        "dayRangeDays",
+        "densityMode",
+        "dependenciesTab",
+        "dependencySort",
+        "dependencyTypeFilter",
+        "dependencyView",
+        "focusedTaskId",
+        "gridNavAnnouncement",
+        "highlightDependencyChain",
+        "hoveredDependencyId",
+        "icalExportBusy",
+        "isOverviewDragging",
+        "laneFilter",
+        "laneMoveMenuOpen",
+        "mainPanelTabAnnouncement",
+        "ownerFilter",
+        "roadmapToolbarMoreOpen",
+        "selectedTaskId",
+        "showAdvancedControls",
+        "showRestoredViewNotice",
+        "showScheduleProgress",
+        "showSlack",
+        "sprintExportBusy",
+        "statusFilter",
+        "timeScale",
+        "titleQuery",
+      ]
+    `);
+    expect(Object.keys(result.current.setters).sort()).toMatchInlineSnapshot(`
+      [
+        "setActivePanel",
+        "setBlockedOnly",
+        "setCriticalPathOnly",
+        "setDayRangeDays",
+        "setDensityMode",
+        "setDependenciesTab",
+        "setDependencyTypeFilter",
+        "setDependencyView",
+        "setFocusedTaskId",
+        "setHighlightDependencyChain",
+        "setHoveredDependencyId",
+        "setIsOverviewDragging",
+        "setLaneFilter",
+        "setLaneMoveMenuOpen",
+        "setMainPanelTabAnnouncement",
+        "setOwnerFilter",
+        "setRoadmapToolbarMoreOpen",
+        "setSelectedTaskId",
+        "setShowAdvancedControls",
+        "setShowRestoredViewNotice",
+        "setShowScheduleProgress",
+        "setShowSlack",
+        "setStatusFilter",
+        "setTimeScale",
+        "setTitleQuery",
+      ]
+    `);
+    expect(Object.keys(result.current.refs).sort()).toMatchInlineSnapshot(`
+      [
+        "overviewTrackRef",
+        "timelineShellRef",
+      ]
+    `);
+    expect(Object.keys(result.current.ids).sort()).toMatchInlineSnapshot(`
+      [
+        "depsPanelGraphId",
+        "depsPanelTableId",
+        "depsTabGraphId",
+        "depsTabTableId",
+        "mainPanelDependenciesId",
+        "mainPanelTimelineId",
+        "mainTabDependenciesId",
+        "mainTabTimelineId",
+        "roadmapOverviewMapDescriptionId",
+      ]
+    `);
+    expect(Object.keys(result.current.derived).sort()).toMatchInlineSnapshot(`
+      [
+        "activeFilterReason",
+        "activeFilterTags",
+        "advancedFiltersCount",
+        "chainTaskIds",
+        "consultantBoardPlanHref",
+        "defaultViewportEnd",
+        "defaultViewportStart",
+        "deliveryBoardHref",
+        "dependencyCanvasHeight",
+        "dependencyChainShouldDim",
+        "dependencySvgPathsByDepId",
+        "downstreamTaskCount",
+        "drawerTask",
+        "filteredTaskIds",
+        "focusedTask",
+        "groups",
+        "hasActiveFilters",
+        "highlightedTaskIds",
+        "hoveredDependency",
+        "isHeavyTaskLoad",
+        "isMonthScale",
+        "items",
+        "laneMoveMenuEligible",
+        "mapX",
+        "mapY",
+        "overviewTasks",
+        "overviewWindow",
+        "ownerOptions",
+        "selectableLanesForJump",
+        "selectedTask",
+        "sortedVisibleDependencies",
+        "taskByIdFull",
+        "taskPlanBoardMove",
+        "taskTitleById",
+        "timelineEditableTaskIds",
+        "timelineRangeMs",
+        "timelineTasks",
+        "visibleDependencies",
+      ]
+    `);
+    expect(Object.keys(result.current.handlers).sort()).toMatchInlineSnapshot(`
+      [
+        "applyLaneFocusFilter",
+        "applyPresetBlocked",
+        "applyPresetCriticalPath",
+        "applyPresetExecution",
+        "captureBaseline",
+        "clearBaseline",
+        "downloadIcal",
+        "downloadSprintPlanCsv",
+        "handleMainPanelTablistKeyDown",
+        "handleOverviewKeyDown",
+        "handleOverviewPointer",
+        "handleTimelineGridKeyDown",
+        "handleTimelineItemMove",
+        "handleTimelineItemResize",
+        "jumpTimelineRangeByDirection",
+        "jumpTimelineToToday",
+        "resetView",
+        "scrollTimelineByDirection",
+        "selectTask",
+        "sortArrow",
+        "toggleDependencySort",
+      ]
+    `);
+  });
 });

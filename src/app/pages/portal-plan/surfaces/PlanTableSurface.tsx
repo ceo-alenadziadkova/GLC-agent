@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
 import type { InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
-import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../data/api/orchestration-types';
 import {
   usePatchPlanBoardCardsBatchMutation,
   usePatchPlanBoardCardMutation,

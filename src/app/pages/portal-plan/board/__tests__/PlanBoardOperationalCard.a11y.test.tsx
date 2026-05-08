@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../../config/plan-board-ui-columns';
-import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../../data/api/orchestration-types';
 import { PlanBoardOperationalCard } from '../PlanBoardOperationalCard';
 
 const DEFAULT_MOVE_MENU = PLAN_BOARD_UI_COLUMNS.map((id) => ({

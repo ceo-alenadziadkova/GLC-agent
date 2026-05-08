@@ -44,8 +44,9 @@ import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { AdminAllAudits } from './pages/AdminAllAudits';
 import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
-import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
-import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
+// LEGACY (TD-034 / TD-035 in docs/TECH_DEBT.md): admin tools disabled, scheduled for full deletion.
+// import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
+// import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
 import { AdminDesignSystemPage } from './pages/AdminDesignSystemPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
@@ -144,8 +145,9 @@ export const router = createBrowserRouter([
       { path: P.adminAudits, element: <Consultant><AdminAllAudits /></Consultant> },
       { path: P.adminSnapshots, element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
-      { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
-      { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
+      // LEGACY (TD-034 / TD-035 in docs/TECH_DEBT.md): admin tools disabled, scheduled for full deletion.
+      // { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
+      // { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
       { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
       { path: P.timelineById, element: <Consultant><LegacyPlanPathRedirect variant="consultant" surface="timeline" /></Consultant> },

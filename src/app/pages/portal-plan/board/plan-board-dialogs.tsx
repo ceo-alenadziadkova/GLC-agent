@@ -11,7 +11,7 @@ import {
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import { PlanBoardColumnPolicySheet } from './plan-board-column-policy-sheet';
 import { PlanTicketDetailsPanel, type PlanTicketDetailsDraft } from '../PlanTicketDetailsPanel';
-import type { PlanBoardGetBody } from '../../../data/api/audits-orchestration';
+import type { PlanBoardGetBody } from '../../../data/api/orchestration-types';
 
 type PlanBoardDialogsProps = {
   deleteDialogOpen: boolean;

@@ -10,7 +10,7 @@ import { Input } from '../../design-system/ui';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { DOMAIN_LABELS, type DomainKey } from '../data/auditTypes';
-import type { RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
+import type { RoadmapManifestRequestBody } from '../data/api/orchestration-types';
 import { useOrchestrationReadModel } from '../data/api/use-orchestration-read-model';
 import { isGlcOrchestrationPackView } from '../lib/orchestration-pack-guards';
 import { toast } from 'sonner';

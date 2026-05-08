@@ -7,19 +7,19 @@ export function MirrorRecommendationsSection({ recommendations }: { recommendati
   if (recommendations.length < 1) return null;
   return (
     <div
-      className="glc-card glc-snapshot-result-card p-5 lg:p-6"
+      className="ds-card ds-snapshot-result-card p-5 lg:p-6"
       style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardOutlined}
     >
-      <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
-        <span className="glc-snapshot-section-h__rule" aria-hidden />
-        <Target className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+      <div className="ds-snapshot-section-h ds-snapshot-section-h--info !mb-3">
+        <span className="ds-snapshot-section-h__rule" aria-hidden />
+        <Target className="h-4 w-4 shrink-0 text-[var(--text-blue)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {PORTAL_SNAPSHOT_MIRROR_COPY.recommendations.title}
         </span>
       </div>
       <div className="space-y-3">
         {recommendations.map(rec => (
-          <div key={rec.id} className="glc-snapshot-insight-row flex gap-3">
+          <div key={rec.id} className="ds-snapshot-insight-row flex gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 {rec.title}

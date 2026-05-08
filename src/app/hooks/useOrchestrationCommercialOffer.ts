@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { DOMAIN_LABELS, type DomainKey } from '../data/auditTypes';
 import type { OrchestrationChangeScenario, OrchestrationSeasonPreset } from '../config/orchestration-roadmap-manifest';
 import { ORCHESTRATION_MANIFEST_SCHEMA_VERSION, parseOptionalOrchestrationPlanHorizon } from '../config/orchestration-roadmap-manifest';
-import type { OrchestrationCommercialOfferResponseDto, OrchestrationPlanGovernanceDto } from '../data/api/audits-orchestration';
+import type { OrchestrationCommercialOfferResponseDto, OrchestrationPlanGovernanceDto } from '../data/api/orchestration-types';
 import { api } from '../data/apiService';
 import { extractPlanGovernanceFromPackApiError } from '../lib/orchestration-pack-api-error';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';

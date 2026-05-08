@@ -1,4 +1,4 @@
-import type { PlanBoardCardDto } from '../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../data/api/orchestration-types';
 import type { RoadmapGanttPlanBoardHydration } from '../components/roadmap-gantt/types';
 import type { RoadmapGanttTask } from './roadmap-gantt-mapper';
 

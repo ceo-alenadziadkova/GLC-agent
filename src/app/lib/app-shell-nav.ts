@@ -75,8 +75,8 @@ export function buildConsultantNav(auditId: string | null, opts?: NavPlanPrimary
     { to: APP_ROUTE_PATHS.adminSnapshots,                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
     { to: APP_ROUTE_PATHS.adminDiscovery,                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
     { to: auditId ? buildAppRoute.pipeline(auditId) : null, icon: Pulse,          label: n.pipeline,       badge: null },
-    // TODO(next iteration): restore Intake wording admin link
-    // after refining owner workflows and usage criteria.
+    // LEGACY (TD-035 in docs/TECH_DEBT.md): Intake wording admin link removed.
+    // Route + page also disabled in routes.tsx. Slated for full deletion.
     { to: auditId ? buildAppRoute.audit(auditId) : null,    icon: Briefcase,      label: n.auditWorkspace, badge: null },
     strategyLabItem,
     ...sequencingPair,

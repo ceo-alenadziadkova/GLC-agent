@@ -57,25 +57,25 @@ export function Dashboard() {
           </div>
           <KpiStrip kpis={dashData?.kpis} loading={dashLoading} />
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm" className="glc-touch-target sm:min-h-0">
+            <Button asChild variant="outline" size="sm" className="ds-touch-target sm:min-h-0">
               <Link to={APP_ROUTE_PATHS.adminRequests}>
                 <Tray className="h-4 w-4" />
                 {consultantNavCopy.requestQueue}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="glc-touch-target sm:min-h-0">
+            <Button asChild variant="outline" size="sm" className="ds-touch-target sm:min-h-0">
               <Link to={APP_ROUTE_PATHS.adminSnapshots}>
                 <Lightning className="h-4 w-4" />
                 {consultantNavCopy.snapshotQueue}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="glc-touch-target sm:min-h-0">
+            <Button asChild variant="outline" size="sm" className="ds-touch-target sm:min-h-0">
               <Link to={APP_ROUTE_PATHS.adminDiscovery}>
                 <MagnifyingGlass className="h-4 w-4" />
                 {consultantNavCopy.discoveryQueue}
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="glc-touch-target sm:min-h-0">
+            <Button asChild variant="outline" size="sm" className="ds-touch-target sm:min-h-0">
               <Link to={APP_ROUTE_PATHS.adminAudits}>
                 <Briefcase className="h-4 w-4" />
                 {consultantNavCopy.allAudits}

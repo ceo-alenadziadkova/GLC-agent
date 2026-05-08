@@ -104,37 +104,15 @@
   transform: translateY(0);
 }
 
-/* Legacy compatibility shim.
- * Prefer design-system primitive: <Button variant="ghost" />.
- */
-.glc-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: var(--radius-pill);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  font-family: var(--font-sans);
-  border: none;
-  cursor: pointer;
-  transition: background var(--ease-fast), color var(--ease-fast);
-  white-space: nowrap;
-}
-
-.glc-btn-ghost:hover {
-  background: var(--bg-muted);
-  color: var(--text-primary);
-}
-
-.glc-field-control {
+.glc-field-control,
+.ds-field-control {
   transition: border-color var(--ease-fast), box-shadow var(--ease-fast);
 }
 
 .glc-field-control:focus,
-.glc-field-control:focus-visible {
+.glc-field-control:focus-visible,
+.ds-field-control:focus,
+.ds-field-control:focus-visible {
   border-color: var(--glc-blue);
   box-shadow: var(--shadow-blue);
 }
@@ -179,41 +157,6 @@
 html:not(.dark) .glc-soft-panel {
   border-color: color-mix(in oklab, var(--border-subtle) 78%, var(--glc-blue-muted));
   box-shadow: 0 10px 24px rgba(11, 17, 32, 0.08), 0 1px 2px rgba(11, 17, 32, 0.04);
-}
-
-.glc-glass-strip {
-  border: 1px solid color-mix(in oklab, var(--border-subtle) 76%, rgba(255, 255, 255, 0.8));
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-xl);
-}
-
-.glc-hover-row {
-  border-radius: var(--radius-md);
-  transition: background var(--ease-fast), border-color var(--ease-fast);
-}
-
-.glc-hover-row:hover {
-  background: color-mix(in oklab, var(--bg-muted) 75%, transparent);
-}
-
-html:not(.dark) .glc-hover-row:hover {
-  background: color-mix(in oklab, var(--glc-blue) 9%, var(--bg-muted));
-}
-
-.glc-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2-5);
-  margin-bottom: var(--space-3-5);
-}
-
-.glc-panel-meta {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  letter-spacing: 0.01em;
 }
 
 .glc-kicker {

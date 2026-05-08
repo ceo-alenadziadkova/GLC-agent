@@ -210,7 +210,7 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
 
       {isEmpty && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <CheckCircle className="h-8 w-8 text-[var(--glc-green)]" weight="fill" />
+          <CheckCircle className="h-8 w-8 text-[var(--score-5)]" weight="fill" />
           <p className="text-sm font-medium text-[var(--text-secondary)]">No items requiring action</p>
           <p className="text-xs text-[var(--text-tertiary)]">All audits are on track</p>
         </div>

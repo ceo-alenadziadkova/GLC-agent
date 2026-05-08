@@ -4,7 +4,8 @@
  */
 
 import { INTAKE_TRACE_IA_V2_ENABLED_DEFAULT } from './intake-trace-defaults';
-import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-defaults';
+// LEGACY (TD-034 in docs/TECH_DEBT.md): Question Bank Studio retired from the SPA.
+// import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from './question-bank-studio-defaults';
 
 export const FEATURE_ROLLOUT_MODES = ['shadow', 'internal', 'pilot', 'ga'] as const;
 export type FeatureRolloutMode = (typeof FEATURE_ROLLOUT_MODES)[number];
@@ -14,7 +15,8 @@ const CLIENT_EXECUTION_PACKS_SURFACE_ENABLED_DEFAULT = true;
 const ORCHESTRATION_ROADMAP_ROLLOUT_MODE_DEFAULT = 'ga' as FeatureRolloutMode;
 
 export const APP_FEATURE_FLAGS = {
-  questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
+  // LEGACY (TD-034 in docs/TECH_DEBT.md): Question Bank Studio retired from the SPA.
+  // questionBankStudioEnabled: QUESTION_BANK_STUDIO_ENABLED_DEFAULT,
   intakeTraceIaV2Enabled: INTAKE_TRACE_IA_V2_ENABLED_DEFAULT,
   /**
    * Public `/brief` session + submissions flow (vs legacy intake-only path).

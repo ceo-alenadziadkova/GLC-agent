@@ -1,4 +1,4 @@
-import type { OrchestrationPlanGovernanceDto } from '../data/api/audits-orchestration';
+import type { OrchestrationPlanGovernanceDto } from '../data/api/orchestration-types';
 
 const GOVERNANCE_STATUS = new Set<string>(['pass', 'pass_with_warnings', 'fail']);
 const GOVERNANCE_DECISION = new Set<string>(['persist', 'reject']);

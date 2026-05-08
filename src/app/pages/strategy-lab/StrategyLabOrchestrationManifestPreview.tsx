@@ -9,7 +9,7 @@ import {
   type OrchestrationLaneId,
 } from '../../config/orchestration-roadmap-ui-copy.en';
 import { DOMAIN_LABELS } from '../../data/auditTypes';
-import type { RoadmapManifestPreviewDto } from '../../data/api/audits-orchestration';
+import type { RoadmapManifestPreviewDto } from '../../data/api/orchestration-types';
 
 type PlanHorizonPreview = { start_date: string; end_date: string };
 

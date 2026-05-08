@@ -12,11 +12,11 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
 
   return (
     <Surface
-      className="glc-card glc-snapshot-result-card glc-snapshot-surface-category mb-4 p-5 lg:p-6 ds-radius-xl"
+      className="ds-card ds-snapshot-result-card ds-snapshot-surface-category mb-4 p-5 lg:p-6 ds-radius-xl"
       
     >
-      <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral">
-        <span className="glc-snapshot-section-h__rule" aria-hidden />
+      <div className="ds-snapshot-section-h ds-snapshot-section-h--neutral">
+        <span className="ds-snapshot-section-h__rule" aria-hidden />
         <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.categoryBreakdownLabel}
         </span>

@@ -39,6 +39,8 @@ runStep('DS_ENFORCEMENT_SCOPE=app node scripts/design-system-enforcement-check.m
 runStep('node scripts/design-system-ts-color-literals-check.mjs');
 runStep('node scripts/design-system-primitive-boundary-check.mjs');
 runStep('node scripts/design-system-patterns-lock-check.mjs');
+runStep('node scripts/check-legacy-css-growth.mjs');
+runStep('node scripts/check-no-new-glc-usage.mjs');
 
 console.log('design-system-runtime-ci: all steps passed');
 process.exit(0);

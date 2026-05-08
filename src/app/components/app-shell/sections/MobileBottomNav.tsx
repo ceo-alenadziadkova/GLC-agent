@@ -14,7 +14,7 @@ export function MobileBottomNav({ items, pathname, locationSearch, navAriaLabel 
 
   return (
     <nav
-      className="ds-mobile-bottom-nav sm:hidden flex flex-shrink-0 items-stretch justify-around bg-[var(--bg-surface)] glc-safe-pad-x"
+      className="ds-mobile-bottom-nav sm:hidden flex flex-shrink-0 items-stretch justify-around bg-[var(--bg-surface)] ds-safe-pad-x"
       aria-label={navAriaLabel}
     >
       {items.map(({ to, icon: Icon, label }) => {
@@ -25,8 +25,8 @@ export function MobileBottomNav({ items, pathname, locationSearch, navAriaLabel 
             key={to}
             to={to}
             className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 glc-touch-target',
-              active ? 'text-[color:var(--glc-blue)]' : 'text-[color:var(--text-tertiary)]',
+              'flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 ds-touch-target',
+              active ? 'text-[color:var(--text-blue)]' : 'text-[color:var(--text-tertiary)]',
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />

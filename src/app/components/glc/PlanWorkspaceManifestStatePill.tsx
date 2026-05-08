@@ -10,7 +10,7 @@ const MANIFEST_PILL_CONFIG: Record<
 > = {
   saved: {
     tone: 'success',
-    dotClassName: 'bg-[var(--glc-green)]',
+    dotClassName: 'bg-[var(--score-5)]',
   },
   dirty: {
     tone: 'warning',
@@ -18,7 +18,7 @@ const MANIFEST_PILL_CONFIG: Record<
   },
   pending: {
     tone: 'info',
-    dotClassName: 'bg-[var(--glc-blue)]',
+    dotClassName: 'bg-[var(--text-blue)]',
     pulse: true,
   },
 };

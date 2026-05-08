@@ -79,19 +79,19 @@ export function MonitorHeaderActions(props: {
       {isExpress && (
         <StatusBadge
           label={PM.expressBadge}
-          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-muted)] font-bold ds-pipeline-express-badge-tracking text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--callout-info-border)] bg-[var(--callout-info-bg-subtle)] font-bold ds-pipeline-express-badge-tracking text-[var(--text-blue)]"
           className="font-[var(--font-display)]"
         />
       )}
       <div className="flex items-center gap-2.5">
         <div className="h-[var(--space-1)] w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]">
           <motion.div
-            className="h-full rounded-full bg-[var(--glc-green)] shadow-[0_0_6px_var(--glc-green)]"
+            className="h-full rounded-full bg-[var(--score-5)] shadow-[0_0_6px_var(--score-5)]"
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: PIPELINE_MONITOR_UI_POLICY.animation.progressDurationSec, ease: [0.16, 1, 0.3, 1] }}
           />
         </div>
-        <span className="text-xs font-mono font-bold tabular-nums text-[var(--glc-green)]">
+        <span className="text-xs font-mono font-bold tabular-nums text-[var(--score-5)]">
           {progressPct}%
         </span>
       </div>

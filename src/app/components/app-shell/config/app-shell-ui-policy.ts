@@ -17,7 +17,7 @@ export const APP_SHELL_UI_POLICY = {
     white03: 'var(--overlay-white-30)',
   },
   brand: {
-    activeNavBackground: 'linear-gradient(90deg, var(--glc-blue-muted-strong) 0%, var(--glc-blue-muted-soft) 100%)',
+    activeNavBackground: 'var(--app-shell-sidebar-active-row-bg)',
     activeNavBorder: 'var(--border-width-default) solid var(--callout-info-border)',
     activeNavGlow: 'var(--glow-blue-sm)',
     activeBadgeBackground: 'var(--callout-info-border)',

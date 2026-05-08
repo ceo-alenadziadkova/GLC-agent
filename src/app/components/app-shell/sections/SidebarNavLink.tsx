@@ -46,7 +46,7 @@ export function SidebarNavLink({ item, pathname, locationSearch, itemKey, onClic
       <Icon
         className={cn(
           'relative h-4 w-4 flex-shrink-0',
-          active ? 'text-[color:var(--glc-blue)]' : 'text-[color:var(--app-shell-sidebar-link-icon)]',
+          active ? 'text-[color:var(--text-blue)]' : 'text-[color:var(--app-shell-sidebar-link-icon)]',
         )}
       />
       <span className="relative flex-1 truncate">{label}</span>
@@ -55,7 +55,7 @@ export function SidebarNavLink({ item, pathname, locationSearch, itemKey, onClic
           className={cn(
             'relative rounded-full px-1.5 py-0.5 text-[length:var(--text-2xs)] font-semibold tabular-nums',
             active
-              ? 'border border-[color:var(--callout-info-border)] bg-[color:var(--callout-info-border)] text-[color:var(--glc-blue)]'
+              ? 'border border-[color:var(--callout-info-border)] bg-[color:var(--callout-info-border)] text-[color:var(--text-blue)]'
               : 'border border-transparent bg-[color:var(--sidebar-border)] text-[color:var(--app-shell-sidebar-link-icon)]',
           )}
         >

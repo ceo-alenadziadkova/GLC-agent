@@ -15,7 +15,7 @@ import type {
   PlanTicketCommentDto,
   PlanTicketEventDto,
   PlanBoardReconcilePreviewDto,
-} from './audits-orchestration';
+} from './orchestration-types';
 
 export const planBoardQueryKeys = {
   audit: (auditId: string) => glcKeys.planWorkspace.board(auditId),

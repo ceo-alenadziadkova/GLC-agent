@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router';
 
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
-import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../data/api/orchestration-types';
 import { PlanBoardOperationalCard } from '../board/BoardView';
 import { BoardColumnShell } from '../board/plan-board-column-shell';
 import { PlanBoardBacklogPanel } from '../board/plan-board-backlog-panel';

@@ -52,7 +52,7 @@ export function DomainNav({
             <Icon
               className={cn(
                 'h-4 w-4 shrink-0',
-                active ? 'text-[color:var(--glc-blue)]' : 'text-[var(--text-tertiary)]',
+                active ? 'text-[color:var(--text-blue)]' : 'text-[var(--text-tertiary)]',
               )}
             />
             <div className="flex-1 min-w-0">

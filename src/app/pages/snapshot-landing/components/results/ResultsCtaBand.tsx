@@ -9,7 +9,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
 
   return (
     <div
-      className="glc-snapshot-cta-band overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--overlay-white-09)] bg-[var(--gradient-ink-rich)] p-6 text-center shadow-[var(--shadow-ink)] mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
+      className="ds-snapshot-cta-band overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--overlay-white-09)] bg-[var(--gradient-ink-rich)] p-6 text-center shadow-[var(--shadow-ink)] mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
     >
       <div className="relative z-[1] min-w-0 flex-1">
         {quotaHint && (

@@ -85,7 +85,7 @@ export function ReconReviewSummary({
         </Callout>
       ) : null}
 
-      <div className="glc-card rounded-xl border p-4">
+      <div className="ds-card rounded-xl border p-4">
         <SectionLabel className="mb-2.5">{copy.contextSummaryTitle}</SectionLabel>
         {contextSummary ? (
           <div className="space-y-3">
@@ -176,7 +176,7 @@ export function ReconReviewSummary({
       </Callout>
 
       {profileRows.length > 0 ? (
-        <div className="glc-card rounded-xl border p-4">
+        <div className="ds-card rounded-xl border p-4">
           <SectionLabel className="mb-2.5">{copy.sectionProfile}</SectionLabel>
           <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
             {profileRows.map(row => (
@@ -191,7 +191,7 @@ export function ReconReviewSummary({
         </div>
       ) : null}
 
-      <div className="glc-card rounded-xl border p-4">
+      <div className="ds-card rounded-xl border p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <SectionLabel>{copy.sectionCrawl}</SectionLabel>
           <span className="text-muted-foreground text-xs font-medium">
@@ -284,7 +284,7 @@ export function ReconReviewSummary({
         )}
       </div>
 
-      <div className="glc-card rounded-xl border p-4">
+      <div className="ds-card rounded-xl border p-4">
         <SectionLabel className="mb-2.5">{copy.sectionTech}</SectionLabel>
         {techEntries.length === 0 ? (
           <p className="text-muted-foreground text-xs">{copy.emptyTech}</p>
@@ -306,7 +306,7 @@ export function ReconReviewSummary({
         )}
       </div>
 
-      <div className="glc-card rounded-xl border p-4">
+      <div className="ds-card rounded-xl border p-4">
         <SectionLabel className="mb-2.5">{copy.sectionContact}</SectionLabel>
         {!hasContacts && socialEntries.length === 0 ? (
           <p className="text-muted-foreground text-xs">{copy.emptyContact}</p>
@@ -353,7 +353,7 @@ export function ReconReviewSummary({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[var(--glc-blue)] break-all underline-offset-2 hover:underline"
+                        className="text-[var(--text-blue)] break-all underline-offset-2 hover:underline"
                       >
                         {url}
                       </a>
@@ -367,7 +367,7 @@ export function ReconReviewSummary({
       </div>
 
       {recon.brief?.trim() ? (
-        <div className="glc-card rounded-xl border p-4">
+        <div className="ds-card rounded-xl border p-4">
           <SectionLabel className="mb-2">{copy.sectionBrief}</SectionLabel>
           <pre className="text-muted-foreground max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-sans text-xs leading-relaxed">
             {recon.brief.trim()}
@@ -376,7 +376,7 @@ export function ReconReviewSummary({
       ) : null}
 
       {recon.interview_answers?.trim() ? (
-        <div className="glc-card rounded-xl border p-4">
+        <div className="ds-card rounded-xl border p-4">
           <SectionLabel className="mb-2">{copy.sectionInterview}</SectionLabel>
           <pre className="text-muted-foreground max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-sans text-xs leading-relaxed">
             {recon.interview_answers.trim()}

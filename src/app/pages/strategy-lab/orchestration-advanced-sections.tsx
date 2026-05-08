@@ -9,7 +9,7 @@ import type {
   OrchestrationPackRevisionHistoryItemDto,
   OrchestrationPlanGovernanceDto,
   RoadmapManifestSnapshotListItem,
-} from '../../data/api/audits-orchestration';
+} from '../../data/api/orchestration-types';
 import type {
   StrategyRoadmap,
 } from '../../data/audit/contracts/report/report-domain.types';

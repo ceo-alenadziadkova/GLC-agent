@@ -5,7 +5,7 @@ import { APP_FEATURE_FLAGS } from '../config/app-feature-flags';
 import { ORCHESTRATION_UI_LIMITS } from '../config/orchestration-ui-limits';
 import { STRATEGY_LAB_COPY } from '../config/strategy-lab-copy';
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
-import type { OrchestrationCommercialOfferResponseDto, OrchestrationPlanGovernanceDto } from '../data/api/audits-orchestration';
+import type { OrchestrationCommercialOfferResponseDto, OrchestrationPlanGovernanceDto } from '../data/api/orchestration-types';
 import type { StrategyRoadmap } from '../data/audit/contracts/report/report-domain.types';
 
 type UseOrchestrationAdvancedSectionStateOptions = {

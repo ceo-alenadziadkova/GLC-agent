@@ -1,4 +1,4 @@
-import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../data/api/orchestration-types';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import { PlanManualCardCreateForm } from '../PlanManualCardCreateForm';
 import { PlanBoardOperationalCard } from './PlanBoardOperationalCard';

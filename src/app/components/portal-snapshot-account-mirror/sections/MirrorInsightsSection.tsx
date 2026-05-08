@@ -20,9 +20,9 @@ export function MirrorInsightsSection({
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {issues.length > 0 ? (
-        <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
-          <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
-            <span className="glc-snapshot-section-h__rule" aria-hidden />
+        <div className="ds-card ds-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
+          <div className="ds-snapshot-section-h ds-snapshot-section-h--warning">
+            <span className="ds-snapshot-section-h__rule" aria-hidden />
             <Warning className="h-4 w-4 shrink-0 text-[var(--score-2)]" />
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.issues.title}
@@ -30,7 +30,7 @@ export function MirrorInsightsSection({
           </div>
           <div className="space-y-1">
             {issues.map(issue => (
-              <div key={issue.id} className="glc-snapshot-insight-row flex gap-3">
+              <div key={issue.id} className="ds-snapshot-insight-row flex gap-3">
                 <div
                   className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ds-mirror-severity-dot"
                   style={
@@ -54,18 +54,18 @@ export function MirrorInsightsSection({
         </div>
       ) : null}
       {quickWins.length > 0 ? (
-        <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
-          <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
-            <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Lightning className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
+        <div className="ds-card ds-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
+          <div className="ds-snapshot-section-h ds-snapshot-section-h--positive">
+            <span className="ds-snapshot-section-h__rule" aria-hidden />
+            <Lightning className="h-4 w-4 shrink-0 text-[var(--score-5)]" weight="fill" />
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.quickWins.title}
             </span>
           </div>
           <div className="space-y-1">
             {quickWins.map(qw => (
-              <div key={qw.id} className="glc-snapshot-insight-row flex gap-3">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--glc-green)]" />
+              <div key={qw.id} className="ds-snapshot-insight-row flex gap-3">
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--score-5)]" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--text-primary)]">
                     {qw.title}
@@ -80,10 +80,10 @@ export function MirrorInsightsSection({
         </div>
       ) : null}
       {techChips.length > 0 ? (
-        <div className="glc-card glc-snapshot-result-card p-5 lg:p-6 lg:col-span-2" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
-          <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
-            <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Shield className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+        <div className="ds-card ds-snapshot-result-card p-5 lg:p-6 lg:col-span-2" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
+          <div className="ds-snapshot-section-h ds-snapshot-section-h--info !mb-3">
+            <span className="ds-snapshot-section-h__rule" aria-hidden />
+            <Shield className="h-4 w-4 shrink-0 text-[var(--text-blue)]" />
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.techStack.title}
             </span>
@@ -92,7 +92,7 @@ export function MirrorInsightsSection({
             {techChips.map((tech, i) => (
               <span
                 key={i}
-                className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
+                className="ds-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
                 style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.pillInset}
               >
                 {tech}

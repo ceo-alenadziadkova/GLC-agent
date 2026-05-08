@@ -71,6 +71,7 @@ import {
   getNewAuditBankIntakeSurface,
   getNewAuditCollectionModeForPlan,
 } from './mappers/newAuditWizardMappers';
+import { buildPreBriefViewModel } from './mappers/newAuditWizardViewModel';
 
 export type { NewAuditVariant } from './wizard-contract/useNewAuditWizard.types';
 
@@ -522,6 +523,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     user,
     preBriefState,
   });
+  const preBriefViewModel = buildPreBriefViewModel(preBriefState);
 
   return {
     // Props derived
@@ -649,37 +651,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setConsultantDpaChecked,
 
     // Pre-brief modal
-    preBriefOpen: preBriefState.preBriefOpen,
-    setPreBriefOpen: preBriefState.setPreBriefOpen,
-    preBriefCompany: preBriefState.preBriefCompany,
-    setPreBriefCompany: preBriefState.setPreBriefCompany,
-    preBriefWebsite: preBriefState.preBriefWebsite,
-    setPreBriefWebsite: preBriefState.setPreBriefWebsite,
-    preBriefIndustryField: preBriefState.preBriefIndustryField,
-    setPreBriefIndustryField: preBriefState.setPreBriefIndustryField,
-    preBriefIndustrySpecify: preBriefState.preBriefIndustrySpecify,
-    setPreBriefIndustrySpecify: preBriefState.setPreBriefIndustrySpecify,
-    preBriefMessage: preBriefState.preBriefMessage,
-    setPreBriefMessage: preBriefState.setPreBriefMessage,
-    preBriefConsultantName: preBriefState.preBriefConsultantName,
-    setPreBriefConsultantName: preBriefState.setPreBriefConsultantName,
-    preBriefExpectedContact: preBriefState.preBriefExpectedContact,
-    setPreBriefExpectedContact: preBriefState.setPreBriefExpectedContact,
-    preBriefContactChannel: preBriefState.preBriefContactChannel,
-    setPreBriefContactChannel: preBriefState.setPreBriefContactChannel,
-    preBriefEmail: preBriefState.preBriefEmail,
-    setPreBriefEmail: preBriefState.setPreBriefEmail,
-    preBriefWhatsapp: preBriefState.preBriefWhatsapp,
-    setPreBriefWhatsapp: preBriefState.setPreBriefWhatsapp,
-    preBriefLink: preBriefState.preBriefLink,
-    setPreBriefLink: preBriefState.setPreBriefLink,
-    preBriefToken: preBriefState.preBriefToken,
-    setPreBriefToken: preBriefState.setPreBriefToken,
-    preBriefLoading: preBriefState.preBriefLoading,
-    setPreBriefLoading: preBriefState.setPreBriefLoading,
-    preBriefErr: preBriefState.preBriefErr,
-    setPreBriefErr: preBriefState.setPreBriefErr,
-    closePreBriefModal: preBriefState.closePreBriefModal,
+    ...preBriefViewModel,
     handlePreBriefCreate,
     responseSource,
   };

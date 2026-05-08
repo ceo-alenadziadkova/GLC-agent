@@ -15,7 +15,7 @@ import {
   type PlanBoardUiColumnId,
 } from '../../config/plan-board-ui-columns';
 import { PLAN_BOARD_COPY } from '../../config/plan-board-copy.en';
-import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../data/api/orchestration-types';
 import { usePatchPlanBoardCardMutation } from '../../data/api/plan-board-queries';
 import type { RoadmapGanttDependency, RoadmapGanttLaneId, RoadmapGanttTask } from '../../lib/roadmap-gantt-mapper';
 import { ROADMAP_GANTT_MILESTONE_LANE_ID } from '../../lib/roadmap-gantt-mapper';

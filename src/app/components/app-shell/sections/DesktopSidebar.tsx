@@ -220,7 +220,7 @@ export function DesktopSidebar({
 
         {isAuthenticated && user && (
           <div
-            className="mt-1 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--sidebar-border)] bg-[var(--glc-blue-muted-faint)] px-2.5 py-2"
+            className="mt-1 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--sidebar-border)] bg-[var(--callout-info-bg)] px-2.5 py-2"
           >
             <div
               className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--gradient-brand-cta)] text-xs font-bold text-[var(--on-gradient-brand-fg)] shadow-[var(--glow-blue-sm)]"
@@ -238,7 +238,7 @@ export function DesktopSidebar({
             <button
               type="button"
               onClick={onSignOut}
-              className="glc-touch-target flex-shrink-0 text-[var(--app-shell-sidebar-link-icon)]"
+              className="ds-touch-target flex-shrink-0 text-[var(--app-shell-sidebar-link-icon)]"
               title={shellCopy.sidebar.signOutTitle}
             >
               <SignOut className="w-3 h-3" />

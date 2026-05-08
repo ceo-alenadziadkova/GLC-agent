@@ -14,7 +14,7 @@ import type {
   OrchestrationPlanGovernanceDto,
   RoadmapManifestRequestBody,
   RoadmapManifestSnapshotListItem,
-} from '../data/api/audits-orchestration';
+} from '../data/api/orchestration-types';
 import type { DomainKey } from '../data/auditTypes';
 import type { OrchestrationChangeScenario, OrchestrationSeasonPreset } from '../config/orchestration-roadmap-manifest';
 import type { GlcOrchestrationPackRevisionDiffView } from '../data/audit/contracts/report/orchestration-pack.types';

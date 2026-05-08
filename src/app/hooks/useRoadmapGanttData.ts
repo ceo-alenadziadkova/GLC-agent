@@ -17,7 +17,7 @@ import type {
   RoadmapGanttPlanBoardHydration,
 } from '../components/roadmap-gantt/types';
 import type { TaskDetailsPlanBoardMove } from '../components/roadmap-gantt/TaskDetailsDrawer';
-import type { PlanBoardCardDto } from '../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../data/api/orchestration-types';
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 import {
   buildBoardRowByPackNodeId,

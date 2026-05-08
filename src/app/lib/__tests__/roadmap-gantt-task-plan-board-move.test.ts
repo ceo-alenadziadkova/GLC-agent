@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { computeTaskPlanBoardMove } from '../roadmap-gantt-task-plan-board-move';
 import type { RoadmapGanttPlanBoardHydration } from '../../components/roadmap-gantt/types';
-import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../data/api/orchestration-types';
 import type { RoadmapGanttTask } from '../roadmap-gantt-mapper';
 
 function buildCard(overrides: Partial<PlanBoardCardDto>): PlanBoardCardDto {

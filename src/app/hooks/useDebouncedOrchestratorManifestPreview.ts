@@ -4,7 +4,7 @@ import { ORCHESTRATION_UI_LIMITS } from '../config/orchestration-ui-limits';
 import { ORCHESTRATION_UI_COPY } from '../config/orchestration-roadmap-ui-copy.en';
 import { ApiError } from '../data/api-error';
 import { api } from '../data/apiService';
-import type { RoadmapManifestPreviewDto, RoadmapManifestRequestBody } from '../data/api/audits-orchestration';
+import type { RoadmapManifestPreviewDto, RoadmapManifestRequestBody } from '../data/api/orchestration-types';
 
 /**
  * Debounced manifest preview (POST orchestrator preview) with AbortController for strict cleanup.

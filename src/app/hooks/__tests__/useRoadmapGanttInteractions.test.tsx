@@ -8,7 +8,7 @@ import {
   type RoadmapGanttProjection,
   type RoadmapGanttTask,
 } from '../../lib/roadmap-gantt-mapper';
-import type { PlanBoardCardDto } from '../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../data/api/orchestration-types';
 import type { RoadmapGanttPlanBoardHydration } from '../../components/roadmap-gantt/types';
 import type { RoadmapGanttTimelineTaskOverrides } from '../../lib/roadmap-gantt-timeline-overrides';
 

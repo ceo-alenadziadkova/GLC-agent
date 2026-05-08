@@ -127,7 +127,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
         <DesktopHeader title={title} subtitle={subtitle} actions={actions} />
 
-        <main className="flex-1 overflow-y-auto min-h-0 glc-main-mobile-nav-pad">{children}</main>
+        <main className="flex-1 overflow-y-auto min-h-0 ds-main-mobile-nav-pad">{children}</main>
 
         <MobileBottomNav
           items={mobileBottomNav}

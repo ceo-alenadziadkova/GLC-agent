@@ -95,7 +95,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
       <button
         onClick={onGoogleClick}
         disabled={loading}
-        className="glc-auth-social-btn flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed"
+        className="ds-auth-social-btn flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] py-3 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed"
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="var(--brand-oauth-google-blue)" />
@@ -131,7 +131,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
             autoComplete="email"
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? emailErrorId : undefined}
-            className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
+            className="ds-auth-input ds-auth-input--field h-auto w-full min-h-10 px-4 py-3 outline-none"
           />
         </FormField>
         <FormField label={<span className="sr-only">{LC.labelPassword}</span>} htmlFor="auth-password" error={fieldErrors.password ? <span id={passwordErrorId}>{fieldErrors.password}</span> : undefined}>
@@ -149,13 +149,13 @@ export function SignInUpForm(props: SignInUpFormProps) {
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
               voiceInput={false}
-              className="glc-auth-input glc-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
+              className="ds-auth-input ds-auth-input--field h-auto w-full min-h-10 py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
               onClick={onTogglePassword}
               aria-label={showPassword ? LC.ariaHidePassword : LC.ariaShowPassword}
-              className="glc-touch-target absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center border-none bg-transparent text-[var(--text-tertiary)]"
+              className="ds-touch-target absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center border-none bg-transparent text-[var(--text-tertiary)]"
             >
               {showPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -165,7 +165,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
           <div className="flex justify-end -mt-1">
             <button
               type="button"
-              className="glc-auth-secondary-link glc-touch-target text-xs font-medium"
+              className="ds-auth-secondary-link ds-touch-target text-xs font-medium"
               onClick={onForgotClick}
             >
               {LC.forgotPasswordLink}
@@ -212,8 +212,8 @@ export function SignInUpForm(props: SignInUpFormProps) {
           whileHover={!loading ? { scale: buttonHoverScale } : {}}
           whileTap={!loading ? { scale: buttonTapScale } : {}}
           className={cn(
-            'glc-auth-primary-btn glc-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
-            isReady ? 'glc-auth-submit-btn--ready' : 'glc-auth-submit-btn--disabled',
+            'ds-auth-primary-btn ds-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
+            isReady ? 'ds-auth-submit-btn--ready' : 'ds-auth-submit-btn--disabled',
             isReady && !loading ? 'cursor-pointer' : 'cursor-not-allowed',
           )}
         >

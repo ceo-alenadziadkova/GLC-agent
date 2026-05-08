@@ -1,6 +1,6 @@
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
 import { ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
-import type { OrchestrationPackRevisionHistoryItemDto } from '../../data/api/audits-orchestration';
+import type { OrchestrationPackRevisionHistoryItemDto } from '../../data/api/orchestration-types';
 
 export function RevisionHistoryPanel({
   items,

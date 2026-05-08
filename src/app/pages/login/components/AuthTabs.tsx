@@ -15,7 +15,7 @@ export function AuthTabs(props: AuthTabsProps) {
   const { mode, authTabIds, signInTabRef, signUpTabRef, onActivateMode, onKeyDown } = props;
   return (
     <div
-      className="glc-auth-tabs flex rounded-lg p-0.5 ds-auth-tablist-border"
+      className="ds-auth-tabs flex rounded-lg p-0.5 ds-auth-tablist-border"
       role="tablist"
       aria-label={LC.tagline}
       onKeyDown={onKeyDown}
@@ -29,7 +29,7 @@ export function AuthTabs(props: AuthTabsProps) {
         aria-selected={mode === 'signin'}
         aria-controls={authTabIds.panel}
         tabIndex={mode === 'signin' ? 0 : -1}
-        className={`glc-auth-tab flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'signin' ? 'ds-auth-tab-active' : 'ds-auth-tab-inactive'}`}
+        className={`ds-auth-tab flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'signin' ? 'ds-auth-tab-active' : 'ds-auth-tab-inactive'}`}
       >
         {LC.tabSignIn}
       </button>
@@ -42,7 +42,7 @@ export function AuthTabs(props: AuthTabsProps) {
         aria-selected={mode === 'signup'}
         aria-controls={authTabIds.panel}
         tabIndex={mode === 'signup' ? 0 : -1}
-        className={`glc-auth-tab flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'signup' ? 'ds-auth-tab-active' : 'ds-auth-tab-inactive'}`}
+        className={`ds-auth-tab flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'signup' ? 'ds-auth-tab-active' : 'ds-auth-tab-inactive'}`}
       >
         {LC.tabRegister}
       </button>

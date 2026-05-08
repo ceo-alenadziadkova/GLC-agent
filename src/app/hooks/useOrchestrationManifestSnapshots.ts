@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   RoadmapManifestRequestBody,
   RoadmapManifestSnapshotListItem,
-} from '../data/api/audits-orchestration';
+} from '../data/api/orchestration-types';
 import type {
   OrchestrationChangeScenario,
   OrchestrationSeasonPreset,

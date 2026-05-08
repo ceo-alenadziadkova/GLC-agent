@@ -120,7 +120,7 @@ export default tseslint.config(
     ],
     rules: {
       'no-restricted-syntax': [
-        'warn',
+        'error',
         {
           selector: "Literal[value=/^#(?:[0-9a-fA-F]{3,8})$/]",
           message: 'Prefer design tokens over raw HEX colors.',
@@ -132,6 +132,22 @@ export default tseslint.config(
         {
           selector: "Literal[value=/^hsla?\\(/i]",
           message: 'Prefer design tokens over raw hsl/hsla colors.',
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'src/app/components/app-shell/**/*.{ts,tsx}',
+      'src/app/pages/login/**/*.{ts,tsx}',
+      'src/app/pages/snapshot-landing/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: "Literal[value=/\\bglc-[a-z0-9_-]+\\b/i]",
+          message: 'No new glc-* runtime usage. Use ds-* classes/tokens or explicit compatibility allowlists.',
         },
       ],
     },

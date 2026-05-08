@@ -6,7 +6,7 @@ import {
   closestCorners,
 } from '@dnd-kit/core';
 
-import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../data/api/orchestration-types';
 import { formatLaneDensityLine, isBacklogOperationalColumn, matchesPlanCardMetricFilters } from './plan-board-card-helpers';
 import { BoardColumnShell } from './plan-board-column-shell';
 import { PlanBoardBacklogPanel } from './plan-board-backlog-panel';

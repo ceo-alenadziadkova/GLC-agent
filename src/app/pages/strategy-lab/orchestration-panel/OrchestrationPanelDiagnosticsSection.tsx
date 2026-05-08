@@ -4,7 +4,7 @@ import type {
   GlcOrchestrationPackRevisionDiffView,
   OrchestrationPackRevisionHistoryItemDto,
   OrchestrationPlanGovernanceDto,
-} from '../../../data/api/audits-orchestration';
+} from '../../../data/api/orchestration-types';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import { STRATEGY_LAB_COPY } from '../../../config/strategy-lab-copy';
 import {

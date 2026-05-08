@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
-import type { PlanBoardReconcilePreviewDto } from '../../../data/api/audits-orchestration';
+import type { PlanBoardReconcilePreviewDto } from '../../../data/api/orchestration-types';
 import {
   usePostPlanBoardReconcileMutation,
   usePostPlanBoardReconcilePreviewMutation,

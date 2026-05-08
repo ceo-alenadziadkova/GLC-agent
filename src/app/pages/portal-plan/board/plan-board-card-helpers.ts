@@ -3,7 +3,7 @@ import {
   ORCHESTRATION_LANE_LABELS,
   type OrchestrationLaneId,
 } from '../../../config/orchestration-roadmap-ui-copy.en';
-import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/orchestration-types';
 import type { PlanCardMetricFilters } from '../../../lib/plan-cross-nav';
 
 export function manualCardNeedsPackAlignmentBanner(

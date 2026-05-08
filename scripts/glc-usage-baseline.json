@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "maxNonLegacyGlcUsage": 1277,
+  "note": "Counts glc-* matches under src/**/*.{ts,tsx,css} excluding src/styles/components/legacy.css."
+}

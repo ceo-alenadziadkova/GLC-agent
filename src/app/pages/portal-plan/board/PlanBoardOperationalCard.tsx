@@ -18,7 +18,7 @@ import {
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
-import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/orchestration-types';
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
 import { InlineEditableDate } from '../../../components/glc/InlineEditableDate';
 import { InlineEditableSelect } from '../../../components/glc/InlineEditableSelect';

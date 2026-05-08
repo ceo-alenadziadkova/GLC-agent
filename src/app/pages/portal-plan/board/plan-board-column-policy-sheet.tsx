@@ -28,7 +28,7 @@ import {
   PLAN_BOARD_COLUMN_TITLE_MAX_UI,
 } from '../../../config/plan-board-column-policy-ui';
 import { PLAN_BOARD_SEMANTIC_ORDER, type PlanBoardSemanticRole } from '../../../config/plan-board-semantics-order';
-import type { PlanBoardColumnDto, PlanBoardColumnPolicyReplaceBody } from '../../../data/api/audits-orchestration';
+import type { PlanBoardColumnDto, PlanBoardColumnPolicyReplaceBody } from '../../../data/api/orchestration-types';
 import { usePatchPlanBoardColumnPolicyMutation } from '../../../data/api/plan-board-queries';
 
 type ColumnRowDraft = { id: string; title: string };

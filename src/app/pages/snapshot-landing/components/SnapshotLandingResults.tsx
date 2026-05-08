@@ -98,7 +98,7 @@ export function SnapshotLandingResults(props: {
           <div className="mb-4 lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
             <Surface
               padding="none"
-              className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center rounded-[var(--radius-xl)] p-6 text-center lg:col-span-5 lg:mb-0 lg:p-8 ds-snapshot-score-hero-minh"
+              className="ds-card ds-snapshot-result-card ds-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center rounded-[var(--radius-xl)] p-6 text-center lg:col-span-5 lg:mb-0 lg:p-8 ds-snapshot-score-hero-minh"
             >
               <p className="mb-3 text-xs font-medium uppercase ds-snapshot-section-eyebrow text-[var(--text-tertiary)]">
                 {SNAPSHOT_LANDING_HERO_COPY.snapshotScoreLabel}
@@ -116,10 +116,10 @@ export function SnapshotLandingResults(props: {
             </Surface>
             <Surface
               padding="none"
-              className="glc-card glc-snapshot-result-card flex flex-col justify-center rounded-[var(--radius-xl)] p-6 text-left lg:col-span-7 lg:p-8"
+              className="ds-card ds-snapshot-result-card flex flex-col justify-center rounded-[var(--radius-xl)] p-6 text-left lg:col-span-7 lg:p-8"
             >
-              <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral !mb-3">
-                <span className="glc-snapshot-section-h__rule" aria-hidden />
+              <div className="ds-snapshot-section-h ds-snapshot-section-h--neutral !mb-3">
+                <span className="ds-snapshot-section-h__rule" aria-hidden />
                 <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
                   {SNAPSHOT_LANDING_HERO_COPY.summaryLabel}
                 </span>
@@ -133,7 +133,7 @@ export function SnapshotLandingResults(props: {
         ) : (
           <Surface
             padding="none"
-            className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex flex-row items-center justify-between rounded-[var(--radius-xl)] p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
+            className="ds-card ds-snapshot-result-card ds-snapshot-surface-hero mb-4 flex flex-row items-center justify-between rounded-[var(--radius-xl)] p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
           >
             <div className="flex min-w-0 flex-1 flex-col items-center gap-3 mobile:w-full lg:flex-row lg:items-center lg:justify-center lg:gap-10">
               <div className="flex w-full flex-col items-center text-center mobile:items-center lg:w-auto lg:shrink-0">
@@ -171,7 +171,7 @@ export function SnapshotLandingResults(props: {
       )}
 
       {snapshotLimitations && (
-        <div className="glc-snapshot-limitations mx-auto max-w-lg lg:mx-0 lg:max-w-none">
+        <div className="ds-snapshot-limitations mx-auto max-w-lg lg:mx-0 lg:max-w-none">
           <ul className="list-disc space-y-1.5 pl-4 text-left text-xs text-[var(--callout-warning-fg)]">
             {snapshotLimitations.map((line, i) => (
               <li key={i}>{line}</li>
@@ -191,7 +191,7 @@ export function SnapshotLandingResults(props: {
             {result.signals_found.map((s, i) => (
               <span
                 key={i}
-                className="glc-snapshot-signal-pill rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]"
+                className="ds-snapshot-signal-pill rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]"
               >
                 {s}
               </span>

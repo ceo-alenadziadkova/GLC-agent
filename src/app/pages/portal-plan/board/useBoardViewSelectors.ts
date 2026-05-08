@@ -3,7 +3,7 @@ import type {
   AuditTimelineDto,
   PlanBoardCardDto,
   PlanBoardGetBody,
-} from '../../../data/api/audits-orchestration';
+} from '../../../data/api/orchestration-types';
 import type { PlanCardMetricFilters } from '../../../lib/plan-cross-nav';
 import { buildPlanSurfaceHrefWithFocus } from '../../../lib/plan-cross-nav';
 import { buildPlanBoardCardMetrics } from './plan-board-card-helpers';

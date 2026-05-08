@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Button } from '../../../components/ui/button';
-import type { AuditTimelineDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
+import type { AuditTimelineDto, PlanBoardGetBody } from '../../../data/api/orchestration-types';
 import { auditsOrchestrationApi } from '../../../data/api/audits-orchestration';
 import {
   bucketPlanBoardCardsByColumn,
@@ -133,17 +133,6 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
       .map((r) => `${r.id}:${r.column_id}:${r.position}`)
       .join('|') ?? '';
 
-  const [columnBuckets, setColumnBuckets] = useState<Record<string, string[]>>(() =>
-    emptyOperationalColumnBuckets([...PLAN_BOARD_UI_COLUMNS]),
-  );
-  useEffect(() => {
-    setColumnBuckets(
-      hydrateSignature === ''
-        ? emptyOperationalColumnBuckets(operationalColumnIds)
-        : bucketPlanBoardCardsByColumn(cards, operationalColumnIds),
-    );
-  }, [cards, hydrateSignature, operationalColumnIds, operationalColumnIdsKey]);
-
   const boardPackReady = !loadPending && !loadError && isGlcOrchestrationPackView(pack);
   const glcPack = boardPackReady ? pack : null;
   const timelineParity = boardQuery.data?.timeline_parity;
@@ -152,6 +141,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     parity: timelineParity,
     timeline: timelineDto ?? null,
   });
+
   const selectors = useBoardViewSelectors({
     cards,
     columns: boardQuery.data?.columns,
@@ -170,6 +160,16 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   const operationalColumnIds = selectors.operationalColumnIds;
   const operationalColumnIdsKey = operationalColumnIds.join('|');
 
+  const [columnBuckets, setColumnBuckets] = useState<Record<string, string[]>>(() =>
+    emptyOperationalColumnBuckets([...PLAN_BOARD_UI_COLUMNS]),
+  );
+  useEffect(() => {
+    setColumnBuckets(
+      hydrateSignature === ''
+        ? emptyOperationalColumnBuckets(operationalColumnIds)
+        : bucketPlanBoardCardsByColumn(cards, operationalColumnIds),
+    );
+  }, [hydrateSignature, operationalColumnIdsKey]);
   const governanceReadOnly = Boolean(boardQuery.data?.issues?.some((i) => i.code === 'governance_blocked'));
   const canEditCardFields = canEditPlanBoardCardFields({
     role: isClient ? 'client' : 'consultant',

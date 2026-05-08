@@ -7,7 +7,7 @@ import { InlineEditableNumber } from '../../../../components/glc/InlineEditableN
 import { InlineEditableSelect } from '../../../../components/glc/InlineEditableSelect';
 import { InlineEditableText } from '../../../../components/glc/InlineEditableText';
 import { PLAN_BOARD_COPY } from '../../../../config/plan-board-copy.en';
-import type { PlanBoardCardDto } from '../../../../data/api/audits-orchestration';
+import type { PlanBoardCardDto } from '../../../../data/api/orchestration-types';
 import { buildPlanBoardPrimaryMarkers, laneDisplayLabel, type PlanBoardCardMetrics } from '../../board/plan-board-card-helpers';
 
 type PlanTableRowProps = {

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type {
   GlcOrchestrationPackRevisionDiffView,
 } from '../data/audit/contracts/report/orchestration-pack.types';
-import type { OrchestrationPackRevisionHistoryItemDto } from '../data/api/audits-orchestration';
+import type { OrchestrationPackRevisionHistoryItemDto } from '../data/api/orchestration-types';
 import { api } from '../data/apiService';
 import { ORCHESTRATION_UI_LIMITS } from '../config/orchestration-ui-limits';
 

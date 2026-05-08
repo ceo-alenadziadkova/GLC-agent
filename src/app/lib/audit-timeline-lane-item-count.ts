@@ -1,4 +1,4 @@
-import type { AuditTimelineDto } from '../data/api/audits-orchestration';
+import type { AuditTimelineDto } from '../data/api/orchestration-types';
 
 /** Raw count of lane items returned by GET timeline (before Gantt mapper). */
 export function countTimelineLaneItems(timeline: AuditTimelineDto): number {

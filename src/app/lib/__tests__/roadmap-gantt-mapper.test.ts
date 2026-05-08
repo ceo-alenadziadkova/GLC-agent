@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ORCHESTRATION_PACK_SCHEMA_VERSION } from '../../config/orchestration-contract';
-import type { AuditTimelineDto } from '../../data/api/audits-orchestration';
+import type { AuditTimelineDto } from '../../data/api/orchestration-types';
 import type { GlcOrchestrationPackView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import { buildRoadmapGanttProjection, computeCpmSchedule } from '../roadmap-gantt-mapper';
 
@@ -204,6 +204,18 @@ describe('buildRoadmapGanttProjection', () => {
       { from: 'y', to: 'x', kind: 'FS' as const },
     ];
     expect(computeCpmSchedule(tasks, deps)).toBeNull();
+  });
+
+  it('sets freeFloatMs equal to totalFloatMs for a sink task with no outgoing edges', () => {
+    const tasks = [
+      { id: 'a', start_time: 0, end_time: DAY_MS },
+      { id: 'b', start_time: DAY_MS, end_time: 2 * DAY_MS },
+    ];
+    const deps = [{ from: 'a', to: 'b', kind: 'FS' as const }];
+    const cpm = computeCpmSchedule(tasks, deps);
+    expect(cpm).not.toBeNull();
+    const sink = cpm!.get('b')!;
+    expect(sink.freeFloatMs).toBe(sink.totalFloatMs);
   });
 
   it('does not set confidence on milestone pseudo-tasks', () => {

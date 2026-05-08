@@ -85,7 +85,7 @@ export function MirrorScoreSection({
     return (
       <div className="lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
         <div
-          className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center p-6 text-center lg:col-span-5 lg:mb-0 lg:min-h-[15rem] lg:p-8"
+          className="ds-card ds-snapshot-result-card ds-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center p-6 text-center lg:col-span-5 lg:mb-0 lg:min-h-[15rem] lg:p-8"
           style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}
         >
           <p className="mb-3 text-xs font-medium" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.scoreEyebrow}>
@@ -98,9 +98,9 @@ export function MirrorScoreSection({
             </p>
           ) : null}
         </div>
-        <div className="glc-card glc-snapshot-result-card flex flex-col justify-center p-6 text-left lg:col-span-7 lg:p-8" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
-          <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral !mb-3">
-            <span className="glc-snapshot-section-h__rule" aria-hidden />
+        <div className="ds-card ds-snapshot-result-card flex flex-col justify-center p-6 text-left lg:col-span-7 lg:p-8" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
+          <div className="ds-snapshot-section-h ds-snapshot-section-h--neutral !mb-3">
+            <span className="ds-snapshot-section-h__rule" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.score.summary}
             </span>
@@ -117,7 +117,7 @@ export function MirrorScoreSection({
   const preset = PORTAL_SNAPSHOT_MIRROR_CONSTANTS.donutPreset.compact;
   return (
     <div
-      className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
+      className="ds-card ds-snapshot-result-card ds-snapshot-surface-hero mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
       style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}
     >
       <div className="flex min-w-0 flex-1 flex-col items-center gap-3 mobile:w-full lg:flex-row lg:items-center lg:justify-center lg:gap-10">
