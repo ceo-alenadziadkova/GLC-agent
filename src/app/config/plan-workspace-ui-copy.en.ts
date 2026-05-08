@@ -9,6 +9,9 @@ export const PLAN_WORKSPACE_UI_COPY = {
   modeBarDefine: 'Define',
   modeBarShape: 'Shape',
   modeBarExecute: 'Execute',
+  modeBarStatusDone: 'done',
+  modeBarStatusCurrent: 'current',
+  modeBarStatusPending: 'pending',
   /** Cmd/Ctrl+K command palette (Plan workspace). */
   commandPaletteTitle: 'Plan commands',
   commandPaletteDescription: 'Jump to a mode, execute view, lane filter, audit command, or run compile from the keyboard.',

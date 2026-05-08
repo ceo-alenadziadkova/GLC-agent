@@ -21,6 +21,7 @@ import {
 import { cn } from '../../components/ui/utils';
 import { useOptionalPlanAdvancedDrawer } from '../../context/PlanAdvancedDrawerContext';
 import type { PlanViewSegmentActive } from './PlanViewSegmentedNav';
+import { PlanModeBar, type PlanModeVisualStatus } from './PlanModeBar';
 import { StrategyJourneyHeader } from './StrategyJourneyHeader';
 
 /** Lazy so Strategy Lab (/strategy) does not preload Plan tab primitives (collapsible segment nav). */
@@ -72,6 +73,31 @@ export function StrategyPlanningChrome({
     view: primaryPlanWorkbenchViewForStrategyLinks(),
   });
   const bc = STRATEGY_LAB_COPY.planSurfaceBreadcrumb;
+  const contextStep = steps.find((s) => s.id === 'context')?.status ?? 'pending';
+  const manifestStep = steps.find((s) => s.id === 'manifest')?.status ?? 'pending';
+  const packStep = steps.find((s) => s.id === 'pack')?.status ?? 'pending';
+  const planStep = steps.find((s) => s.id === 'plan')?.status ?? 'pending';
+
+  const modeStatuses: Record<'define' | 'shape' | 'execute', PlanModeVisualStatus> = {
+    define:
+      contextStep === 'done'
+        ? 'done'
+        : planWorkspaceMode === 'define'
+          ? 'current'
+          : 'pending',
+    shape:
+      manifestStep === 'done' && packStep === 'done'
+        ? 'done'
+        : planWorkspaceMode === 'shape' || manifestStep === 'current' || packStep === 'current'
+          ? 'current'
+          : 'pending',
+    execute:
+      planWorkspaceMode === 'execute'
+        ? 'current'
+        : planStep === 'current' || planStep === 'done'
+          ? 'done'
+          : 'pending',
+  };
 
   return (
     <div className="bg-card border-border divide-border sticky top-0 z-[15] divide-y border-b">
@@ -109,6 +135,7 @@ export function StrategyPlanningChrome({
         </>
       ) : variant.kind === 'plan' ?
         <>
+          <PlanModeBar statuses={modeStatuses} />
           <div className="px-4 py-2 pb-3">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-4">
               <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
@@ -178,7 +205,9 @@ export function StrategyPlanningChrome({
             </div>
           </div>
         </>
-      : null}
+      : <>
+          <PlanModeBar statuses={modeStatuses} />
+        </>}
       <StrategyJourneyHeader auditId={auditId} isClient={isClient} steps={steps} visible={stripVisible} />
     </div>
   );

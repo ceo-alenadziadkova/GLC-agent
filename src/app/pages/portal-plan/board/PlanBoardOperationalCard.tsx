@@ -20,6 +20,8 @@ import { Label } from '../../../components/ui/label';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
 import type { PlanBoardCardDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
+import { InlineEditableDate } from '../../../components/glc/InlineEditableDate';
+import { InlineEditableSelect } from '../../../components/glc/InlineEditableSelect';
 import { InlineEditableText } from '../../../components/glc/InlineEditableText';
 import { laneDisplayLabel, manualCardNeedsPackAlignmentBanner } from './plan-board-card-helpers';
 import { buildPlanBoardPrimaryMarkers } from './plan-board-card-helpers';
@@ -110,6 +112,12 @@ export function PlanBoardOperationalCard(props: {
   const showQuickPriority = Boolean(props.canMutateCard && props.onCommitPriorityInline);
   const showQuickDueDate = Boolean(props.canMutateCard && props.onCommitDueDateInline);
   const showQuickPromote = props.columnId === 'backlog' && Boolean(props.canMutateCard && props.onQuickPromoteToNextUp);
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' },
+  ] as const;
   const primaryMarkers = buildPlanBoardPrimaryMarkers({
     metrics: {
       domainKey: 'other',
@@ -290,31 +298,25 @@ export function PlanBoardOperationalCard(props: {
               {showQuickPriority ? (
                 <label className="text-muted-foreground flex items-center gap-1 text-[length:var(--text-2xs)]">
                   <span>Priority</span>
-                  <select
+                  <InlineEditableSelect
                     value={props.priorityLevel ?? 'medium'}
-                    className="h-7 rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-1 text-[length:var(--text-2xs)]"
-                    onChange={(e) =>
-                      void props.onCommitPriorityInline?.(
-                        e.target.value as 'low' | 'medium' | 'high' | 'urgent',
-                      )
+                    options={priorityOptions}
+                    ariaLabel="Edit card priority"
+                    onCommit={(next) =>
+                      props.onCommitPriorityInline?.(next as 'low' | 'medium' | 'high' | 'urgent') ??
+                      Promise.resolve()
                     }
                     disabled={props.dragLocked}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
+                  />
                 </label>
               ) : null}
               {showQuickDueDate ? (
                 <label className="text-muted-foreground flex items-center gap-1 text-[length:var(--text-2xs)]">
                   <span>Due</span>
-                  <Input
-                    type="date"
-                    className="h-7 w-[9rem] text-[length:var(--text-2xs)]"
+                  <InlineEditableDate
                     value={props.dueDate ?? ''}
-                    onChange={(e) => void props.onCommitDueDateInline?.(e.target.value)}
+                    ariaLabel="Edit due date"
+                    onCommit={(next) => props.onCommitDueDateInline?.(next) ?? Promise.resolve()}
                     disabled={props.dragLocked}
                   />
                 </label>

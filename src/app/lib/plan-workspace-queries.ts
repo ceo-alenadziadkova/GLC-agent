@@ -13,6 +13,7 @@ export function invalidatePlanWorkspaceQueries(
     qc.invalidateQueries({ queryKey: glcKeys.planWorkspace.detail(auditId) }),
     qc.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) }),
     qc.invalidateQueries({ queryKey: glcKeys.orchestrationPack.detail(auditId) }),
+    qc.invalidateQueries({ queryKey: glcKeys.timeline.detail(auditId) }),
     qc.invalidateQueries({ queryKey: glcKeys.planWorkspace.board(auditId) }),
   ]);
 }

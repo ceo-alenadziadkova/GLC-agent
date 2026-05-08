@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { Button } from '../../../components/ui/button';
+import { InlineEditableDate } from '../../../components/glc/InlineEditableDate';
 import { InlineEditableLanePicker, type InlineLaneOption } from '../../../components/glc/InlineEditableLanePicker';
+import { InlineEditableNumber } from '../../../components/glc/InlineEditableNumber';
+import { InlineEditableSelect } from '../../../components/glc/InlineEditableSelect';
 import { InlineEditableText } from '../../../components/glc/InlineEditableText';
 import type { PlanBoardCardDto } from '../../../data/api/audits-orchestration';
 import {
@@ -195,6 +198,26 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
       }
     },
     [auditId, cardsById, manifestDraftMutation, orchestrationPackVersion, patchMutation, qc, showConsultantPlanTools],
+  );
+
+  const commitInlinePatch = useCallback(
+    async (
+      cardId: string,
+      body: {
+        expected_pack_version: number;
+        priority?: 'low' | 'medium' | 'high' | 'urgent';
+        due_date?: string;
+        story_points?: number | null;
+      },
+    ) => {
+      try {
+        await patchMutation.mutateAsync({ cardId, body });
+      } catch (err) {
+        await invalidatePlanBoardQueriesAfterConflict(qc, auditId, err);
+        throw err;
+      }
+    },
+    [auditId, patchMutation, qc],
   );
 
   const saveTicketDetails = useCallback(
@@ -723,6 +746,18 @@ export function PlanTableSurface({ unifiedShellTabActive = true }: PlanTableSurf
                           laneSelectOptions={laneSelectOptions}
                           onCommitTitle={title => commitCardTitleInline(card.id, title)}
                           onCommitLane={(lane, hint) => commitCardLaneInline(card.id, lane, hint)}
+                          onCommitPriority={(priority) =>
+                            commitInlinePatch(card.id, { expected_pack_version: orchestrationPackVersion, priority })
+                          }
+                          onCommitDueDate={(dueDate) =>
+                            commitInlinePatch(card.id, { expected_pack_version: orchestrationPackVersion, due_date: dueDate })
+                          }
+                          onCommitStoryPoints={(storyPoints) =>
+                            commitInlinePatch(card.id, {
+                              expected_pack_version: orchestrationPackVersion,
+                              story_points: storyPoints,
+                            })
+                          }
                           isFocusTarget={cardFocusMatch(card, focusToken)}
                           metrics={metrics}
                           selected={selectedCardIds.has(card.id)}
@@ -781,6 +816,9 @@ function PlanTableRow(props: {
   laneSelectOptions: readonly InlineLaneOption[];
   onCommitTitle: (title: string) => Promise<void>;
   onCommitLane: (lane: string, ownerHint?: string) => Promise<void>;
+  onCommitPriority: (priority: 'low' | 'medium' | 'high' | 'urgent') => Promise<void>;
+  onCommitDueDate: (dueDate: string) => Promise<void>;
+  onCommitStoryPoints: (storyPoints: number | null) => Promise<void>;
   isFocusTarget: boolean;
   metrics: PlanBoardCardMetrics;
   selected: boolean;
@@ -790,6 +828,12 @@ function PlanTableRow(props: {
 }) {
   const trRef = useRef<HTMLTableRowElement | null>(null);
   const displayTitle = props.card.title ?? props.card.canonical_node_key ?? props.card.id;
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' },
+  ] as const;
   const primaryMarkers = buildPlanBoardPrimaryMarkers({
     metrics: props.metrics,
     laneLabel: laneDisplayLabel(props.card.lane) ?? null,
@@ -859,7 +903,17 @@ function PlanTableRow(props: {
           ) : null}
           {props.metrics.priorityLevel ? (
             <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
-              {`Priority: ${props.metrics.priorityLevel}`}
+              <span className="mr-1">{'Priority:'}</span>
+              {props.canMutateCard ? (
+                <InlineEditableSelect
+                  value={props.metrics.priorityLevel}
+                  options={priorityOptions}
+                  ariaLabel="Edit table priority"
+                  onCommit={(next) => props.onCommitPriority(next as 'low' | 'medium' | 'high' | 'urgent')}
+                />
+              ) : (
+                props.metrics.priorityLevel
+              )}
             </span>
           ) : null}
           {props.metrics.priorityReasonLabel ? (
@@ -874,7 +928,28 @@ function PlanTableRow(props: {
           ) : null}
           {props.metrics.dueDate ? (
             <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
-              {props.metrics.dueState === 'overdue' ? `Overdue ${props.metrics.dueDate}` : `Due ${props.metrics.dueDate}`}
+              <span className="mr-1">{props.metrics.dueState === 'overdue' ? 'Overdue' : 'Due'}</span>
+              {props.canMutateCard ? (
+                <InlineEditableDate
+                  value={props.metrics.dueDate}
+                  ariaLabel="Edit table due date"
+                  onCommit={(next) => props.onCommitDueDate(next)}
+                />
+              ) : (
+                props.metrics.dueDate
+              )}
+            </span>
+          ) : null}
+          {props.canMutateCard ? (
+            <span className="border-border text-muted-foreground rounded-sm border px-2 py-0.5 text-[length:var(--text-2xs)]">
+              <span className="mr-1">{'SP:'}</span>
+              <InlineEditableNumber
+                value={props.card.story_points ?? null}
+                ariaLabel="Edit story points"
+                onCommit={props.onCommitStoryPoints}
+                min={0}
+                max={100}
+              />
             </span>
           ) : null}
           <Button type="button" variant="outline" size="sm" className="h-6 text-[length:var(--text-2xs)]" onClick={props.onOpenTicketDetails}>

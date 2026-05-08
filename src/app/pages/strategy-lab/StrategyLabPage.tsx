@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useId } from 'react';
+import { useMemo, useCallback, useId } from 'react';
 import { useQueryClient } from '../../lib/tanstack-react-query';
 import { useParams, useSearchParams } from 'react-router';
 import { AppShell } from '../../components/AppShell';
@@ -11,8 +11,6 @@ import {
 } from '../../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
-import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
-import { DOMAIN_KEYS } from '../../data/auditTypes';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { applyStrategyLabContextPatchToAuditCache } from '../../lib/strategy-lab-context-cache';
 import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
@@ -42,6 +40,9 @@ import type { StrategyLabContextView } from '../../data/audit/contracts/report/r
 import { useStrategyOrchestratorTabs } from '../../hooks/useStrategyOrchestratorTabs';
 import { useStrategyBoardIdentityPreference } from '../../hooks/useStrategyBoardIdentityPreference';
 import { useStrategyLabWorkspaceLinks } from '../../hooks/useStrategyLabWorkspaceLinks';
+import { usePlanFocusCanonicalToken } from '../../hooks/usePlanFocusKey';
+import { useStrategyLabEmbeddedScroll } from '../../hooks/useStrategyLabEmbeddedScroll';
+import { useStrategyLabExecutionPlan } from '../../hooks/useStrategyLabExecutionPlan';
 
 export type StrategyLabPlanStudioScrollTarget = 'define' | 'shape-pack' | 'plan-setup';
 
@@ -62,6 +63,7 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     `(max-width: ${STRATEGY_LAB_LAYOUT_POLICY.packSummarySheetMaxWidthPx - 1}px)`,
   );
   const [searchParams, setSearchParams] = useSearchParams();
+  const focusToken = usePlanFocusCanonicalToken();
   const queryClient = useQueryClient();
   const { audit, loading, error, reload, isFetching } = useAudit(id);
   const online = useBrowserOnline();
@@ -148,23 +150,14 @@ export function StrategyLab(props: StrategyLabProps = {}) {
 
   useOrchestrationFocusScroll({ searchParams, setSearchParams, isClient });
 
-  // Anchor scroll runs only when audit is loaded with a strategy; declared before any early
-  // return so React Hook order stays stable across render branches.
-  useEffect(() => {
-    if (!embedded || !planStudioScrollTarget || !audit?.strategy) return;
-    const anchorId =
-      planStudioScrollTarget === 'define'
-        ? STRATEGY_LAB_PAGE_ANCHORS.definePhase
-        : planStudioScrollTarget === 'shape-pack'
-          ? STRATEGY_LAB_PAGE_ANCHORS.shapePack
-          : STRATEGY_LAB_PAGE_ANCHORS.planSetup;
-    const el = typeof document !== 'undefined' ? document.getElementById(anchorId) : null;
-    if (!el) return;
-    const frame = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [embedded, planStudioScrollTarget, audit?.strategy]);
+  useStrategyLabEmbeddedScroll({
+    embedded,
+    planStudioScrollTarget,
+    strategyPresent: Boolean(audit?.strategy),
+    focusToken,
+    packView: glcPackView,
+    onSelectPackNode: setSelectedPackNodeId,
+  });
 
   const {
     orchestrationUiEnabled,
@@ -173,36 +166,10 @@ export function StrategyLab(props: StrategyLabProps = {}) {
     planExecutionHref,
   } = useStrategyLabWorkspaceLinks({ auditId: id, isClient });
 
-  type ExecutionPlanForLab = NonNullable<AuditMeta['execution_plan']>;
-
-  /**
-   * `GET /audits/:id` sometimes omits `meta.execution_plan` even when a GLC pack exists (Plan studio embed).
-   * Infer `selected_domains` from pack graph so {@link StrategyLabOrchestrationPanel} mounts and can register
-   * the Plan Advanced drawer body; otherwise the sheet shows only chrome copy.
-   */
-  const executionPlanForRoadmap = useMemo((): ExecutionPlanForLab | null => {
-    if (!audit?.strategy) return null;
-    const fromMeta = audit.meta.execution_plan ?? null;
-    if (fromMeta) return fromMeta;
-
-    const rawPack = audit.strategy.glc_orchestration_pack;
-    if (!isGlcOrchestrationPackView(rawPack)) return null;
-
-    const domainSet = new Set<(typeof DOMAIN_KEYS)[number]>();
-    for (const node of rawPack.graph?.nodes ?? []) {
-      const d = node.domain;
-      if (d && (DOMAIN_KEYS as readonly string[]).includes(d)) {
-        domainSet.add(d as (typeof DOMAIN_KEYS)[number]);
-      }
-    }
-    const selected_domains = domainSet.size > 0 ? [...domainSet] : [...DOMAIN_KEYS];
-
-    return {
-      selected_domains,
-      depth: 'standard',
-      source: 'system_default',
-    };
-  }, [audit?.meta.execution_plan, audit?.strategy]);
+  const executionPlanForRoadmap = useStrategyLabExecutionPlan({
+    strategy: audit?.strategy,
+    executionPlan: audit?.meta.execution_plan,
+  });
 
   if (loading && !audit) {
     return (

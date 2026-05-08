@@ -66,7 +66,6 @@ export function ConsultantOrchestrationCockpitPage() {
     try {
       await compileMutation.mutateAsync(latestManifestPayload);
       await invalidatePlanWorkspaceQueries(queryClient, auditId);
-      await queryClient.invalidateQueries({ queryKey: glcKeys.timeline.detail(auditId) });
       toast.success(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackSuccess);
     } catch {
       toast.error(ORCHESTRATION_UI_COPY.consultantCockpitRegeneratePackError);

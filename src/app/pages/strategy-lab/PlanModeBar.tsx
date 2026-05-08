@@ -7,6 +7,11 @@ import { usePlanWorkspaceMode } from '../../hooks/usePlanWorkspaceMode';
 import { buildPlanUrlWithModePreservingForeignParams } from '../../lib/plan-cross-nav';
 
 const MODE_ORDER: readonly PlanWorkspaceMode[] = ['define', 'shape', 'execute'];
+export type PlanModeVisualStatus = 'done' | 'current' | 'pending';
+
+type PlanModeBarProps = {
+  statuses?: Partial<Record<PlanWorkspaceMode, PlanModeVisualStatus>>;
+};
 
 function modeLabel(m: PlanWorkspaceMode): string {
   const c = PLAN_WORKSPACE_UI_COPY;
@@ -15,10 +20,16 @@ function modeLabel(m: PlanWorkspaceMode): string {
   return c.modeBarExecute;
 }
 
+function modeStatusGlyph(status: PlanModeVisualStatus): string {
+  if (status === 'done') return '✓';
+  if (status === 'current') return '•';
+  return '○';
+}
+
 /**
  * Top-level Plan workspace mode control (`?mode=define|shape|execute`) on canonical `/plan` routes.
  */
-export function PlanModeBar() {
+export function PlanModeBar({ statuses }: PlanModeBarProps) {
   const location = useLocation();
   const { mode } = usePlanWorkspaceMode();
 
@@ -35,6 +46,7 @@ export function PlanModeBar() {
             nextMode: m,
           });
           const active = mode === m;
+          const status = statuses?.[m] ?? (active ? 'current' : 'pending');
           return (
             <Link
               key={m}
@@ -48,7 +60,38 @@ export function PlanModeBar() {
                   : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
               )}
             >
-              {modeLabel(m)}
+              <span>{modeLabel(m)}</span>
+              <span
+                aria-hidden
+                className={cn(
+                  'ml-2 inline-block text-[11px] leading-none',
+                  status === 'done'
+                    ? 'text-emerald-600'
+                    : status === 'current'
+                      ? 'text-primary'
+                      : 'text-muted-foreground/70',
+                )}
+              >
+                {modeStatusGlyph(status)}
+              </span>
+              <span
+                aria-hidden
+                className={cn(
+                  'ml-2 inline-block h-1.5 w-1.5 rounded-full align-middle',
+                  status === 'done'
+                    ? 'bg-emerald-500'
+                    : status === 'current'
+                      ? 'bg-primary'
+                      : 'bg-muted-foreground/40',
+                )}
+              />
+              <span className="sr-only">
+                {status === 'done'
+                  ? PLAN_WORKSPACE_UI_COPY.modeBarStatusDone
+                  : status === 'current'
+                    ? PLAN_WORKSPACE_UI_COPY.modeBarStatusCurrent
+                    : PLAN_WORKSPACE_UI_COPY.modeBarStatusPending}
+              </span>
             </Link>
           );
         })}
