@@ -184,4 +184,27 @@ export const APP_FEATURE_FLAGS = {
    * Delivery Board per-audit custom columns (PATCH `…/plan/board/column-policy`). Server: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS` + owner `profiles.plan_board_custom_columns_entitled`.
    */
   planBoardCustomColumnsEnabled: false,
+  /**
+   * Master switch for the Collaborative Director Protocol UI surfaces (Approve-Coalition gate,
+   * ClientSituationCard, ConflictMatrix). Server-authoritative — pipeline behavior is driven by
+   * `SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolEnabled`. SPA mirror is parity-tested via
+   * `orchestration-contract-parity.test.ts`.
+   */
+  coalitionProtocolEnabled: false,
+  /**
+   * Coalition rollout mode mirror (`shadow | internal | pilot | ga`). Used to gate UI affordances
+   * (e.g. show Approve-Coalition gate only when rollout mode is `internal+`). Server SSOT:
+   * `SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolRolloutMode`.
+   */
+  coalitionProtocolRolloutMode: 'shadow' as const,
+  /**
+   * Mirror of server `FEATURE_COALITION_PHASE3_ITERATIVE` (V2+, default off in V1).
+   * UI-only gate for iterative resolver affordances; server remains authoritative.
+   */
+  coalitionPhase3IterativeEnabled: false,
+  /**
+   * Mirror of server `FEATURE_COALITION_AUTO_LOOP_ENABLED`.
+   * UI-only gate for showing auto-loop escalation hints.
+   */
+  coalitionAutoLoopEnabled: false,
 } as const;

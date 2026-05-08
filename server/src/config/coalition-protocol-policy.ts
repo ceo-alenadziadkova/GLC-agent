@@ -18,6 +18,13 @@
 import type { DomainKey } from '@glc/intake-core';
 import { DOMAIN_KEYS } from '@glc/intake-core';
 
+import {
+  CLAUDE_COALITION_ALIGNMENT_TOOL_NAME,
+  CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME,
+  CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME,
+  CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME,
+} from './agent-claude-contract.js';
+
 // ----------------------------------------------------------------------------
 // Schema versioning
 // ----------------------------------------------------------------------------
@@ -364,10 +371,10 @@ export function computeCoalitionDomainWeights(
 // ----------------------------------------------------------------------------
 
 export const COALITION_TOOL_NAMES = {
-  contextDirector: 'submit_client_situation',
-  hypothesis: 'submit_domain_hypothesis',
-  alignment: 'submit_domain_alignment',
-  conflictResolver: 'submit_conflict_resolution',
+  contextDirector: CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME,
+  hypothesis: CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME,
+  alignment: CLAUDE_COALITION_ALIGNMENT_TOOL_NAME,
+  conflictResolver: CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME,
 } as const;
 
 // ----------------------------------------------------------------------------
@@ -380,6 +387,7 @@ export const COALITION_PROMPT_NAMES = [
   'cross-domain-conflict-resolver',
   ...DOMAIN_KEYS.map((d) => `${d}-hypothesis`),
   ...DOMAIN_KEYS.map((d) => `${d}-alignment`),
+  ...DOMAIN_KEYS.map((d) => `${d}-finalize`),
 ] as const;
 
 /** Coalition prompts that additionally receive `_append-pipeline-trust-boundary.md`. */

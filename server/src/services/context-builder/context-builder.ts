@@ -26,7 +26,19 @@ export class ContextBuilder {
     instructions: string,
   ): Promise<AgentContext> {
     const snapshot = await loadContextSnapshot(auditId);
-    const { audit, recon, completedDomains, failedDomains, reviews, retryNotes, brief } = snapshot;
+    const {
+      audit,
+      recon,
+      completedDomains,
+      failedDomains,
+      reviews,
+      retryNotes,
+      brief,
+      clientSituation,
+      hypothesisDrafts,
+      alignmentResponses,
+      conflictResolution,
+    } = snapshot;
 
     const allResponses = prepareAllBriefResponses(brief?.responses);
 
@@ -90,6 +102,10 @@ export class ContextBuilder {
       recon_conflicts: Array.isArray(reconConflictsRaw) ? (reconConflictsRaw as ReconConflict[]) : [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
       slice_domain: domainKey as IntakeSliceDomain,
+      client_situation_snapshot: clientSituation,
+      coalition_hypothesis_drafts: hypothesisDrafts,
+      coalition_alignment_responses: alignmentResponses,
+      coalition_conflict_resolution: conflictResolution,
       instructions,
     };
   }

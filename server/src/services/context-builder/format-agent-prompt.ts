@@ -61,6 +61,41 @@ ${P.companyProfileIntakeDataQuality}${ctx.intake_data_quality_score}`;
   sections.push(profileBlock);
 
   if (
+    ctx.client_situation_snapshot
+    && Object.keys(ctx.client_situation_snapshot).length > 0
+  ) {
+    sections.push(
+      `${P.clientSituationHeading}
+${P.clientSituationSubheading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.client_situation_snapshot, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if ((ctx.coalition_hypothesis_drafts?.length ?? 0) > 0) {
+    sections.push(
+      `${P.peerHypothesesHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_hypothesis_drafts, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if ((ctx.coalition_alignment_responses?.length ?? 0) > 0) {
+    sections.push(
+      `${P.peerAlignmentsHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_alignment_responses, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if (
+    ctx.coalition_conflict_resolution
+    && Object.keys(ctx.coalition_conflict_resolution).length > 0
+  ) {
+    sections.push(
+      `${P.coalitionResolutionHeading}
+${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_conflict_resolution, null, 2)}${P.collectedDataJsonFenceClose}`,
+    );
+  }
+
+  if (
     ctx.intake_project_context_envelope
     && Object.keys(ctx.intake_project_context_envelope).length > 0
   ) {

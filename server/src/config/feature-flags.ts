@@ -555,3 +555,64 @@ export function isManifestDraftRevisionsFromBoardEnabled(): boolean {
     FF.manifestDraftRevisionsFromBoardEnabled,
   );
 }
+
+// ─── Collaborative Director Protocol ────────────────────────────────────────
+//
+// Concept ADR: `docs/adrs/ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md`.
+// Rollout: `docs/adrs/ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-ROLLOUT.md`.
+// All thresholds and caps live in `server/src/config/coalition-protocol-policy.ts`.
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Master switch for the Collaborative Director Protocol. When false, the
+ * pipeline runs in legacy mode (byte-equivalent to pre-protocol behavior).
+ * Env: `FEATURE_COALITION_PROTOCOL_ENABLED`.
+ */
+export function isCoalitionProtocolEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_COALITION_PROTOCOL_ENABLED, FF.coalitionProtocolEnabled);
+}
+
+/**
+ * Rollout mode (`shadow | internal | pilot | ga`).
+ *
+ * - `shadow`: coalition phases run, results persist, but Phase 4 finalize ignores them.
+ * - `internal+`: coalition results feed finalize and the Approve-Coalition gate replaces Gate 1.
+ *
+ * Env: `FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE`.
+ */
+export function getCoalitionProtocolRolloutMode(): FeatureRolloutMode {
+  return readFeatureRolloutMode(
+    process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE,
+    FF.coalitionProtocolRolloutMode as FeatureRolloutMode,
+  );
+}
+
+/**
+ * Returns true when the rollout mode allows coalition results to feed Phase 4
+ * finalize. False under `shadow` (collect-only) or when the master switch is off.
+ */
+export function isCoalitionProtocolFinalizingEnabled(): boolean {
+  if (!isCoalitionProtocolEnabled()) return false;
+  const mode = getCoalitionProtocolRolloutMode();
+  return mode !== 'shadow';
+}
+
+/**
+ * V2+ iterative multi-turn between directors during Phase 3 (conflict resolver).
+ * V1 always uses single-call. Env: `FEATURE_COALITION_PHASE3_ITERATIVE`.
+ */
+export function isCoalitionPhase3IterativeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_COALITION_PHASE3_ITERATIVE,
+    FF.coalitionPhase3IterativeEnabled,
+  );
+}
+
+/**
+ * Allows auto-loop to retrigger Phase 0.5 (Context Director) when the resolver
+ * surfaces escalations or critical-confidence assumptions. Capped per audit by
+ * `COALITION_AUTO_LOOP_MAX_RUNS` in policy. Env: `FEATURE_COALITION_AUTO_LOOP_ENABLED`.
+ */
+export function isCoalitionAutoLoopEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_COALITION_AUTO_LOOP_ENABLED, FF.coalitionAutoLoopEnabled);
+}
