@@ -17,6 +17,7 @@ import { cn } from '../ui/utils';
 import { StatusPill } from './StatusPill';
 import { SectionLabel } from './SectionLabel';
 import { ReconReviewSummary } from './ReconReviewSummary';
+import { ApproveCoalitionGate } from '../ApproveCoalitionGate';
 
 interface ReviewPoint {
   id: number;
@@ -50,6 +51,9 @@ interface ReviewPointModalProps {
   governanceRefineSectionIntro?: string;
   /** After phase 0 only: persisted recon snapshot for informed approval */
   reconReviewSummary?: ReconReviewSummaryPayload | null;
+  /** Coalition Phase 0.5 snapshot shown in the renamed Approve client situation gate. */
+  clientSituationSnapshot?: Record<string, unknown> | null;
+  showClientSituationGate?: boolean;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -75,9 +79,12 @@ export function ReviewPointModal({
   governanceRefineSectionTitle = 'Phases flagged for manual review',
   governanceRefineSectionIntro = '',
   reconReviewSummary = null,
+  clientSituationSnapshot = null,
+  showClientSituationGate = false,
 }: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
+  const [verifiedOverrideNote, setVerifiedOverrideNote] = useState('');
 
   if (!reviewPoint) return null;
 
@@ -91,16 +98,20 @@ export function ReviewPointModal({
 
   function handleApprove() {
     if (notesRequired) return;
-    onApprove(reviewPoint.id, consultantNotes, interviewNotes);
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onApprove(reviewPoint.id, notes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
+    setVerifiedOverrideNote('');
   }
 
   function handleRequestMissingData() {
     if (!onRequestMissingData || !canRequestMissingData) return;
-    onRequestMissingData(reviewPoint.id, consultantNotes, interviewNotes);
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onRequestMissingData(reviewPoint.id, notes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
+    setVerifiedOverrideNote('');
   }
 
   return (
@@ -156,6 +167,12 @@ export function ReviewPointModal({
                 {PM.reviewModal.reconSnapshotCorrectionHint}
               </Callout>
             </>
+          ) : null}
+          {showClientSituationGate && reviewPoint.after === 0 ? (
+            <ApproveCoalitionGate
+              snapshot={clientSituationSnapshot}
+              onVerifiedOverrideChange={setVerifiedOverrideNote}
+            />
           ) : null}
           {isPipelineStrategyReviewGateAfterPhase(reviewPoint.after) ? (
             <Callout intent="info" className="p-3 text-xs leading-relaxed">

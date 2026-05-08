@@ -4,6 +4,7 @@ import type { DomainKey } from '@glc/intake-core';
 import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
 import { buildStrategyBriefConstraintSnapshot } from '../services/strategy/strategy-brief-constraint-snapshot.js';
 import {
+  collectMissingCrossDomainDependencyIds,
   postProcessStrategyInitiatives,
   verifyInitiativeEvidence,
 } from '../services/strategy/strategy-initiative-post-process.js';
@@ -56,8 +57,29 @@ describe('strategy-initiative-post-process', () => {
   });
 
   it('fails verification when issue id is unknown', () => {
-    const bad = { ...baseInit, evidence: { sources: [{ domain_key: 'marketing_utp', issue_id: 'nope' }] } };
+    const bad = {
+      ...baseInit,
+      evidence: { sources: [{ domain_key: 'marketing_utp', issue_id: 'nope' }], cross_domain_dependencies: [] },
+    };
     const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
     expect(verifyInitiativeEvidence(bad, idx)).toBe(false);
+  });
+
+  it('requires cross-domain dependencies when coalition alignments indicate dependency reactions', () => {
+    const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
+    expect(verifyInitiativeEvidence(baseInit, idx, { requireCrossDomainDependencies: true })).toBe(false);
+    const withDependency = StrategyInitiativeSchema.parse({
+      ...baseInit,
+      evidence: {
+        ...baseInit.evidence,
+        cross_domain_dependencies: [{ domain_key: 'tech_infrastructure', hypothesis_id: 'tech_infrastructure:H1' }],
+      },
+    });
+    expect(verifyInitiativeEvidence(withDependency, idx, { requireCrossDomainDependencies: true })).toBe(true);
+  });
+
+  it('collects initiatives missing cross-domain dependency evidence for strategy quality warnings', () => {
+    expect(collectMissingCrossDomainDependencyIds([baseInit], false)).toEqual([]);
+    expect(collectMissingCrossDomainDependencyIds([baseInit], true)).toEqual(['X-1']);
   });
 });

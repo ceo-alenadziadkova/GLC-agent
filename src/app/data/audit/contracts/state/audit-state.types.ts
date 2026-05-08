@@ -5,6 +5,19 @@ import type { IntakeBrief } from '../intake/intake-brief.types';
 import type { DomainData, StrategyRoadmap } from '../report/report-domain.types';
 import type { ReviewPoint } from '../pipeline/pipeline.types';
 
+export interface CoalitionArtifactRow {
+  domain_key: string;
+  draft?: unknown;
+  alignment?: unknown;
+}
+
+export interface CoalitionAuditArtifacts {
+  client_situation_snapshot: Record<string, unknown> | null;
+  hypothesis_drafts: CoalitionArtifactRow[];
+  alignment_responses: CoalitionArtifactRow[];
+  conflict_resolution: Record<string, unknown> | null;
+}
+
 export interface AuditState {
   meta: AuditMeta;
   report_coverage?: {
@@ -20,4 +33,6 @@ export interface AuditState {
   reviews: ReviewPoint[];
   /** Present when `GET /api/audits/:id` loaded intake_brief (see server audits route). */
   brief: IntakeBrief | null;
+  /** Collaborative Director Protocol artifacts, present only after coalition shadow/internal phases run. */
+  coalition?: CoalitionAuditArtifacts;
 }

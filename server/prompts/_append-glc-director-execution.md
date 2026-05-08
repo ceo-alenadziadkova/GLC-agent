@@ -1,4 +1,4 @@
-<!-- version: 1.4 date: 2026-04-22 -->
+<!-- version: 2.0 date: 2026-05-08 -->
 ## Director orchestration bundle (`glc_director_execution`)
 
 Add this object **at the top level** of the same JSON you return from `submit_analysis` (alongside `score`, `issues`, `recommendations`, etc.).
@@ -22,6 +22,7 @@ For **best-effort SEO**, omission is allowed by policy, but a valid minimal bund
     - `impact`, `effort`, `risk`, `urgency`: integers **1–5** (evidence-backed).
     - `confidence`: `high` | `medium` | `low`.
     - `dependencies`: string ids of other actions in this bundle (empty array if none).
+    - `cross_domain_refs`: optional string ids of peer coalition hypotheses or resolver conflicts that shape this action (`<domain>:H<n>` or `CONF-<n>`). Use `[]` when there are no peer refs.
     - optional `evidence`: `{ observed?, derived?, assumed?, missing? }` string arrays (short bullets).
   - optional `bottlenecks`, `risks`, `zones` (short strings).
 - `deep`: optional second wave with the same shape when the engagement includes deep analysis; omit if not applicable.

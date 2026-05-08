@@ -9,7 +9,7 @@ import type { z } from 'zod';
 
 import { createAnthropicClient } from '../../config/claude-client.js';
 import type { AgentVariant } from '../../config/agent-variants.js';
-import { isCausalDagEnabled } from '../../config/feature-flags.js';
+import { isCausalDagEnabled, isCoalitionProtocolFinalizingEnabled } from '../../config/feature-flags.js';
 import { getExtendedPhaseProfile } from '../../config/phase-profiles.js';
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import {
@@ -33,6 +33,7 @@ import { TokenTracker } from '../../services/token-tracker.js';
 import type { BriefSnapshot } from '../../services/feasibility-layer.js';
 import type { DomainKey, DomainResult } from '../../types/audit.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../../config/model.js';
+import { CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } from '../../config/agent-claude-contract.js';
 
 import { insertAgentPipelineEvent } from './agent-pipeline-emit.js';
 import { saveCompletedDomainRow } from './audit-domain-persistence.js';
@@ -137,6 +138,9 @@ export abstract class BaseAgent {
       collectedData,
       this.getEffectiveInstructions(),
     );
+    if (this.domainKey !== 'recon' && this.domainKey !== 'strategy' && isCoalitionProtocolFinalizingEnabled()) {
+      context.coalition_context_stage = 'finalize';
+    }
 
     const reviewPhasesInContext = context.review_notes
       .filter(n => Boolean(n.consultant_notes || n.interview_notes))
@@ -250,12 +254,13 @@ export abstract class BaseAgent {
     return result;
   }
 
-  protected async callClaudeWithRetry(
+  protected async callClaudeWithRetry<TOutput = DomainResult>(
     context: AgentContext,
     schema: z.ZodSchema = this.outputSchema,
     maxTokens: number = MODEL_MAX_TOKENS.domain,
-  ): Promise<DomainResult> {
-    return invokeClaudeWithRetry(
+    toolName: string = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME,
+  ): Promise<TOutput> {
+    return invokeClaudeWithRetry<TOutput>(
       {
         anthropic: this.anthropic,
         auditId: this.auditId,
@@ -265,7 +270,7 @@ export abstract class BaseAgent {
         tokenTracker: this.tokenTracker,
         emit: this.emit.bind(this),
       },
-      { context, schema, maxTokens },
+      { context, schema, maxTokens, toolName },
     );
   }
 

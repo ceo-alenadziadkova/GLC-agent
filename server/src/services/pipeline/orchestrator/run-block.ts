@@ -24,6 +24,7 @@ export type RunPipelineOrchestratorBlockParams = {
   loadExecutionPlan: () => Promise<AuditExecutionPlan>;
   updateAuditIfNotCancelled: (patch: Record<string, unknown>) => Promise<boolean>;
   runParallelBlock: (phases: readonly number[]) => Promise<string[]>;
+  runCoalitionBlock?: () => Promise<void>;
   startPhaseSequential: (phase: number, options?: StartPhaseSequentialOptions) => Promise<SequentialPhaseOutcome>;
   emitEvent: EmitPipelineEventFn;
   cancelledErrorFactory: () => PipelineCancelledError;
@@ -35,6 +36,7 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
     loadExecutionPlan,
     updateAuditIfNotCancelled,
     runParallelBlock,
+    runCoalitionBlock,
     startPhaseSequential,
     emitEvent,
     cancelledErrorFactory,
@@ -74,6 +76,10 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
         current_phase: nextPhase,
       });
       if (!movedToAuto) throw cancelledErrorFactory();
+
+      if (audit.current_phase === 0) {
+        await runCoalitionBlock?.();
+      }
 
       await runParallelBlock(wingPhases);
 

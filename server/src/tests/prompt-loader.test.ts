@@ -6,7 +6,13 @@ import { fileURLToPath } from 'url';
 import { DOMAIN_KEYS } from '@glc/intake-core';
 
 import { loadPrompt } from '../agents/base/prompt-loader.js';
-import { CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } from '../config/agent-claude-contract.js';
+import {
+  CLAUDE_COALITION_ALIGNMENT_TOOL_NAME,
+  CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME,
+  CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME,
+  CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME,
+  CLAUDE_DOMAIN_SUBMIT_TOOL_NAME,
+} from '../config/agent-claude-contract.js';
 import { GLC_DIRECTOR_ORCHESTRATION_SLICE_SCHEMA_VERSION } from '../config/director-orchestration-policy.js';
 import { ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME } from '../config/orchestration-synthesis-policy.js';
 import { PROMPT_INDUSTRY_HEURISTICS } from '../config/prompt-industry-heuristics.js';
@@ -23,6 +29,7 @@ const APPEND_FILES = {
   directorResearchRigor: '_append-director-research-rigor-core.md',
   subAgentSafety: '_append-sub-agent-safety-core.md',
   nonDomainSafety: '_append-non-domain-security-core.md',
+  collaborationProtocol: '_append-collaboration-protocol.md',
 } as const;
 
 function stripVersionHeader(raw: string): string {
@@ -146,6 +153,21 @@ describe('prompt-loader', () => {
     }
   });
 
+  it('appends collaboration protocol to coalition prompts', () => {
+    const coalitionAppend = readAppend(APPEND_FILES.collaborationProtocol);
+    const promptNames = [
+      'context-director',
+      'cross-domain-conflict-resolver',
+      ...DOMAIN_KEYS.map((d) => `${d}-hypothesis`),
+      ...DOMAIN_KEYS.map((d) => `${d}-alignment`),
+      ...DOMAIN_KEYS.map((d) => `${d}-finalize`),
+    ];
+    for (const promptName of promptNames) {
+      const promptBody = loadPrompt(promptName);
+      expect(promptBody).toContain(coalitionAppend);
+    }
+  });
+
   it('appends pipeline trust boundary to recon and strategy prompts', () => {
     const recon = loadPrompt('recon');
     const strategy = loadPrompt('strategy');
@@ -173,6 +195,21 @@ describe('prompt-loader', () => {
 
     expect(tech).toContain('For **strict phases** (Tech, Security, UX, Marketing, Automation), do **not omit** this key');
     expect(seo).toContain('For **best-effort SEO**, omission is allowed by policy');
+  });
+
+  it('aliases legacy domain prompts to finalize prompts only when coalition finalizing is active', () => {
+    const previousEnabled = process.env.FEATURE_COALITION_PROTOCOL_ENABLED;
+    const previousMode = process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE;
+    try {
+      process.env.FEATURE_COALITION_PROTOCOL_ENABLED = 'true';
+      process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE = 'internal';
+      expect(loadPrompt('tech_infrastructure')).toContain('CTO Director finalizing the Tech Infrastructure domain');
+    } finally {
+      if (previousEnabled === undefined) delete process.env.FEATURE_COALITION_PROTOCOL_ENABLED;
+      else process.env.FEATURE_COALITION_PROTOCOL_ENABLED = previousEnabled;
+      if (previousMode === undefined) delete process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE;
+      else process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE = previousMode;
+    }
   });
 
   it('keeps recon and strategy safety-redaction baseline explicit', () => {
@@ -219,6 +256,16 @@ describe('prompt-loader tool name centralization', () => {
 
   it('injects strategy-execution-pack tool gate from canonical constant', () => {
     expectToolGate(loadPrompt('strategy-execution-pack'), STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME);
+  });
+
+  it('injects coalition tool gates from canonical constants', () => {
+    expectToolGate(loadPrompt('context-director'), CLAUDE_COALITION_CONTEXT_DIRECTOR_TOOL_NAME);
+    expectToolGate(loadPrompt('cross-domain-conflict-resolver'), CLAUDE_COALITION_CONFLICT_RESOLVER_TOOL_NAME);
+    for (const domainKey of DOMAIN_KEYS) {
+      expectToolGate(loadPrompt(`${domainKey}-hypothesis`), CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME);
+      expectToolGate(loadPrompt(`${domainKey}-alignment`), CLAUDE_COALITION_ALIGNMENT_TOOL_NAME);
+      expectToolGate(loadPrompt(`${domainKey}-finalize`), CLAUDE_DOMAIN_SUBMIT_TOOL_NAME);
+    }
   });
 
   it('injects orchestration-pack-synthesis tool gate from canonical constant', () => {

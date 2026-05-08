@@ -11,7 +11,10 @@ import {
   buildStrategyBriefConstraintSnapshot,
   mergeBriefSnapshotWithLabOverrides,
 } from '../services/strategy/strategy-brief-constraint-snapshot.js';
-import { postProcessStrategyInitiatives } from '../services/strategy/strategy-initiative-post-process.js';
+import {
+  collectMissingCrossDomainDependencyIds,
+  postProcessStrategyInitiatives,
+} from '../services/strategy/strategy-initiative-post-process.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
@@ -22,6 +25,8 @@ import {
   assertPhaseRunLeaseHeld,
   getPhaseRunLeaseContext,
 } from '../services/pipeline/phase-run-lease-context.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING } from '../config/coalition-protocol-policy.js';
 
 type StrategyPersistPayload = {
   strategyResult: StrategyOutput;
@@ -30,6 +35,20 @@ type StrategyPersistPayload = {
   medium_term: StrategyOutput['medium_term'];
   strategic: StrategyOutput['strategic'];
 };
+
+function coalitionAlignmentsIndicateDependencies(rows: Array<Record<string, unknown>> | undefined): boolean {
+  return (rows ?? []).some((row) => {
+    const alignment = row.alignment;
+    if (!alignment || typeof alignment !== 'object') return false;
+    const reactions = (alignment as { cross_domain_reactions?: unknown }).cross_domain_reactions;
+    return Array.isArray(reactions)
+      && reactions.some((reaction) => (
+        Boolean(reaction)
+        && typeof reaction === 'object'
+        && (reaction as { relation?: unknown }).relation === 'depends_on'
+      ));
+  });
+}
 
 /**
  * Phase 7: Strategy & Roadmap Synthesis
@@ -171,10 +190,40 @@ export class StrategyAgent extends BaseAgent {
       labRow?.strategy_lab_context,
     );
     const issueIndex = buildDomainIssueIdIndex(domainIssueRows ?? []);
+    const requireCrossDomainDependencies = coalitionAlignmentsIndicateDependencies(
+      context.coalition_alignment_responses,
+    );
 
-    const quick_wins = postProcessStrategyInitiatives(strategyResult.quick_wins, briefSnapshot, issueIndex);
-    const medium_term = postProcessStrategyInitiatives(strategyResult.medium_term, briefSnapshot, issueIndex);
-    const strategic = postProcessStrategyInitiatives(strategyResult.strategic, briefSnapshot, issueIndex);
+    const quick_wins = postProcessStrategyInitiatives(
+      strategyResult.quick_wins,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
+    const medium_term = postProcessStrategyInitiatives(
+      strategyResult.medium_term,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
+    const strategic = postProcessStrategyInitiatives(
+      strategyResult.strategic,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
+
+    const missingCrossDomainDependencyIds = collectMissingCrossDomainDependencyIds(
+      [...quick_wins, ...medium_term, ...strategic],
+      requireCrossDomainDependencies,
+    );
+
+    if (missingCrossDomainDependencyIds.length > 0) {
+      await this.emit(PIPELINE_EVENT_TYPES.qualityGate, COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING, {
+        gate: 'coalition_strategy_cross_domain_dependencies',
+        initiative_ids: missingCrossDomainDependencyIds,
+      });
+    }
 
     this.lastRawDomainResult = { ...strategyResult } as unknown as Record<string, unknown>;
 

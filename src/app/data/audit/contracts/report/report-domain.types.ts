@@ -72,6 +72,12 @@ export interface StrategyInitiativeEvidenceSource {
   signal?: string;
 }
 
+export interface StrategyInitiativeCrossDomainDependency {
+  domain_key: DomainKey;
+  hypothesis_id?: string;
+  conflict_id?: string;
+}
+
 export interface StrategyInitiative {
   id: string;
   title: string;
@@ -101,7 +107,10 @@ export interface StrategyInitiative {
   constraints?: { budget?: string; team?: string; tech?: string };
   readiness?: { score: number; blockers?: string[] };
   decision?: { why_this: string[]; tradeoffs?: string[]; if_skipped?: string[] };
-  evidence?: { sources: StrategyInitiativeEvidenceSource[] };
+  evidence?: {
+    sources: StrategyInitiativeEvidenceSource[];
+    cross_domain_dependencies?: StrategyInitiativeCrossDomainDependency[];
+  };
   evidence_verified?: boolean;
   /** Optional stable Board identity across title edits (Epic 1); explicit consultant opt-in only. */
   board_identity_key?: string;

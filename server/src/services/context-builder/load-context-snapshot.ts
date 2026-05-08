@@ -1,6 +1,9 @@
 import { supabase } from '../supabase.js';
 import { logger } from '../logger.js';
-import { POSTGREST_NO_ROWS_CODE } from '../../config/postgrest-codes.js';
+import {
+  POSTGRES_UNDEFINED_TABLE_CODE,
+  POSTGREST_NO_ROWS_CODE,
+} from '../../config/postgrest-codes.js';
 
 export interface ContextBuilderAuditRow {
   company_url: string | null;
@@ -45,6 +48,10 @@ export interface ContextBuilderSnapshot {
     created_at: string;
   }> | null;
   brief: ContextBuilderBriefRow | null;
+  clientSituation: Record<string, unknown> | null;
+  hypothesisDrafts: Array<Record<string, unknown>>;
+  alignmentResponses: Array<Record<string, unknown>>;
+  conflictResolution: Record<string, unknown> | null;
 }
 
 export async function loadContextSnapshot(auditId: string): Promise<ContextBuilderSnapshot> {
@@ -130,6 +137,70 @@ export async function loadContextSnapshot(auditId: string): Promise<ContextBuild
     .eq('audit_id', auditId)
     .single();
 
+  const { data: clientSituation, error: clientSituationError } = await supabase
+    .from('audit_client_situation')
+    .select('snapshot')
+    .eq('audit_id', auditId)
+    .single();
+  if (
+    clientSituationError
+    && clientSituationError.code !== POSTGREST_NO_ROWS_CODE
+    && clientSituationError.code !== POSTGRES_UNDEFINED_TABLE_CODE
+  ) {
+    logger.warn('context_builder.client_situation_unavailable', {
+      component: 'context_builder',
+      audit_id: auditId,
+      error: clientSituationError.message,
+      code: clientSituationError.code,
+    });
+  }
+
+  const { data: hypothesisDraftsData, error: hypothesisDraftsError } = await supabase
+    .from('audit_domain_hypotheses')
+    .select('domain_key, draft')
+    .eq('audit_id', auditId)
+    .order('domain_key', { ascending: true });
+  if (hypothesisDraftsError && hypothesisDraftsError.code !== POSTGRES_UNDEFINED_TABLE_CODE) {
+    logger.warn('context_builder.hypothesis_drafts_unavailable', {
+      component: 'context_builder',
+      audit_id: auditId,
+      error: hypothesisDraftsError.message,
+      code: hypothesisDraftsError.code,
+    });
+  }
+
+  const { data: alignmentResponsesData, error: alignmentResponsesError } = await supabase
+    .from('audit_domain_alignments')
+    .select('domain_key, alignment')
+    .eq('audit_id', auditId)
+    .order('domain_key', { ascending: true });
+  if (alignmentResponsesError && alignmentResponsesError.code !== POSTGRES_UNDEFINED_TABLE_CODE) {
+    logger.warn('context_builder.alignment_responses_unavailable', {
+      component: 'context_builder',
+      audit_id: auditId,
+      error: alignmentResponsesError.message,
+      code: alignmentResponsesError.code,
+    });
+  }
+
+  const { data: conflictResolutionData, error: conflictResolutionError } = await supabase
+    .from('audit_conflict_resolutions')
+    .select('resolution')
+    .eq('audit_id', auditId)
+    .single();
+  if (
+    conflictResolutionError
+    && conflictResolutionError.code !== POSTGREST_NO_ROWS_CODE
+    && conflictResolutionError.code !== POSTGRES_UNDEFINED_TABLE_CODE
+  ) {
+    logger.warn('context_builder.conflict_resolution_unavailable', {
+      component: 'context_builder',
+      audit_id: auditId,
+      error: conflictResolutionError.message,
+      code: conflictResolutionError.code,
+    });
+  }
+
   return {
     audit: audit as ContextBuilderAuditRow,
     recon: (recon as Record<string, unknown> | null) ?? null,
@@ -138,5 +209,19 @@ export async function loadContextSnapshot(auditId: string): Promise<ContextBuild
     reviews,
     retryNotes,
     brief: brief as ContextBuilderBriefRow | null,
+    clientSituation: (clientSituation as { snapshot?: unknown } | null)?.snapshot as Record<string, unknown> | null,
+    hypothesisDrafts: (hypothesisDraftsData as Array<{ domain_key: string; draft: unknown }> | null)?.map((row) => ({
+      domain_key: row.domain_key,
+      draft: row.draft,
+    })) ?? [],
+    alignmentResponses: (
+      alignmentResponsesData as Array<{ domain_key: string; alignment: unknown }> | null
+    )?.map((row) => ({
+      domain_key: row.domain_key,
+      alignment: row.alignment,
+    })) ?? [],
+    conflictResolution:
+      ((conflictResolutionData as { resolution?: unknown } | null)?.resolution as Record<string, unknown> | null)
+      ?? null,
   };
 }

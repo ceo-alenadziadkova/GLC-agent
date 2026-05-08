@@ -237,4 +237,35 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: `FEATURE_PLAN_BOARD_CUSTOM_COLUMNS`
    */
   planBoardCustomColumnsEnabled: false,
+  /**
+   * Master switch for the Collaborative Director Protocol (concept ADR
+   * `ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md`). When `false`, pipeline
+   * is byte-equivalent to legacy. Env: `FEATURE_COALITION_PROTOCOL_ENABLED`
+   */
+  coalitionProtocolEnabled: false,
+  /**
+   * Rollout mode for the Collaborative Director Protocol (`shadow | internal | pilot | ga`).
+   * Defines whether coalition-phase results feed Phase 4 finalize.
+   * Env: `FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE`
+   */
+  coalitionProtocolRolloutMode: 'shadow',
+  /**
+   * Internal/pilot staged rollout allowlists for coalition protocol.
+   * Env: `FEATURE_COALITION_PROTOCOL_ALLOWLIST_USER_IDS`,
+   * `FEATURE_COALITION_PROTOCOL_ALLOWLIST_CLIENT_IDS`
+   */
+  coalitionProtocolAllowlistUserIds: [] as string[],
+  coalitionProtocolAllowlistClientIds: [] as string[],
+  /**
+   * V2+ only: enables iterative multi-turn between directors during Phase 3.
+   * V1 stays single-call. Env: `FEATURE_COALITION_PHASE3_ITERATIVE`
+   */
+  coalitionPhase3IterativeEnabled: false,
+  /**
+   * Allows auto-loop to retrigger Phase 0.5 (Context Director) when the
+   * resolver returns critical-confidence assumptions or unresolved
+   * `recommended_action='escalate'` entries. Capped per audit by policy.
+   * Env: `FEATURE_COALITION_AUTO_LOOP_ENABLED`
+   */
+  coalitionAutoLoopEnabled: false,
 } as const;

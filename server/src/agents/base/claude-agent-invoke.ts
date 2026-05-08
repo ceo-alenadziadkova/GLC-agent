@@ -61,14 +61,15 @@ export type ClaudeAgentInvokeParams = {
   context: AgentContext;
   schema: z.ZodSchema;
   maxTokens: number;
+  toolName?: string;
 };
 
-export async function callClaudeWithRetry(
+export async function callClaudeWithRetry<TOutput = DomainResult>(
   deps: ClaudeAgentInvokeDeps,
   params: ClaudeAgentInvokeParams,
-): Promise<DomainResult> {
+): Promise<TOutput> {
   const { anthropic, auditId, phaseNumber, domainKey, contextBuilder, tokenTracker, emit } = deps;
-  const { context, schema, maxTokens } = params;
+  const { context, schema, maxTokens, toolName = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } = params;
 
   const ev = pipelineBaseEventCopy();
   const { system, prompt, truncated, truncatedKeys } = contextBuilder.formatPrompt(context);
@@ -79,8 +80,6 @@ export async function callClaudeWithRetry(
     );
   }
   const jsonSchema = zodToJsonSchema(schema);
-  const toolName = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME;
-
   for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
     const callStartedAt = Date.now();
     await emit(PIPELINE_EVENT_TYPES.llmCallStarted, 'LLM call started', {
@@ -203,7 +202,7 @@ export async function callClaudeWithRetry(
         continue;
       }
 
-      return parsed.data as DomainResult;
+      return parsed.data as TOutput;
     } catch (err) {
       const error = err as Error & { status?: number };
       const status = error.status;

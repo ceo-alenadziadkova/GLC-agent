@@ -169,6 +169,21 @@ describe('orchestration contract parity', () => {
     );
   });
 
+  it('keeps coalition protocol SPA mirror flags aligned with server defaults', () => {
+    expect(APP_FEATURE_FLAGS.coalitionProtocolEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionProtocolRolloutMode).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionProtocolRolloutMode,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionPhase3IterativeEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionPhase3IterativeEnabled,
+    );
+    expect(APP_FEATURE_FLAGS.coalitionAutoLoopEnabled).toBe(
+      SYSTEM_DEFAULTS_FEATURE_FLAGS.coalitionAutoLoopEnabled,
+    );
+  });
+
   it('keeps v9 orchestration manifest/governance/ADR flags aligned (server env defaults vs APP_FEATURE_FLAGS)', () => {
     expect(APP_FEATURE_FLAGS.manifestScenarioCompareEnabled).toBe(
       SYSTEM_DEFAULTS_FEATURE_FLAGS.manifestScenarioCompareEnabled,

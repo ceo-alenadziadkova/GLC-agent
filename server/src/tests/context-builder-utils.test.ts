@@ -298,4 +298,76 @@ describe('ContextBuilder.formatPrompt', () => {
     expect(prompt).not.toContain('abc\u202Edef');
     expect(prompt).not.toContain('\u2066');
   });
+
+  it('includes coalition sections when coalition artifacts are present', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        client_situation_snapshot: {
+          strategic_mode: 'growth',
+          dominant_constraint: 'conversion',
+        },
+        coalition_hypothesis_drafts: [
+          { domain_key: 'tech_infrastructure', draft: { hypotheses: [{ id: 'tech_infrastructure:H1' }] } },
+        ],
+        coalition_alignment_responses: [
+          { domain_key: 'marketing_utp', alignment: { cross_domain_reactions: [] } },
+        ],
+        coalition_conflict_resolution: {
+          resolved_conflicts: [{ id: 'CONF-1' }],
+        },
+      }),
+    );
+
+    expect(prompt).toContain('## Client Situation (Coalition Snapshot)');
+    expect(prompt).toContain('## Peer Hypotheses (Coalition Phase 1)');
+    expect(prompt).toContain('## Peer Alignments (Coalition Phase 2)');
+    expect(prompt).toContain('## Coalition Resolution (Conflict Policy)');
+    expect(prompt).toContain('CONF-1');
+  });
+
+  it('uses alignment-corrected hypotheses for finalize context', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        coalition_context_stage: 'finalize',
+        coalition_hypothesis_drafts: [
+          {
+            domain_key: 'tech_infrastructure',
+            draft: {
+              hypotheses: [
+                { id: 'tech_infrastructure:H1', statement: 'Original tech statement', confidence: 'high' },
+                { id: 'tech_infrastructure:H2', statement: 'Dropped tech statement', confidence: 'medium' },
+              ],
+            },
+          },
+        ],
+        coalition_alignment_responses: [
+          {
+            domain_key: 'tech_infrastructure',
+            alignment: {
+              self_corrections: [
+                {
+                  hypothesis_id: 'tech_infrastructure:H1',
+                  change: 'reformulate',
+                  new_text: 'Corrected tech statement',
+                  reason: 'Peer alignment changed the sequence.',
+                },
+                {
+                  hypothesis_id: 'tech_infrastructure:H2',
+                  change: 'drop',
+                  reason: 'Duplicate after alignment.',
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(prompt).toContain('Corrected tech statement');
+    expect(prompt).toContain('self_corrections_applied');
+    expect(prompt).not.toContain('Original tech statement');
+    expect(prompt).not.toContain('Dropped tech statement');
+  });
 });

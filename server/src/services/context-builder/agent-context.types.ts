@@ -1,6 +1,8 @@
 import type { IntakeSliceDomain } from '@glc/intake-core';
 import type { ReconConflict, ReconData } from '../../types/audit.js';
 
+export type CoalitionContextStage = 'context_director' | 'hypothesis' | 'alignment' | 'conflict_resolver' | 'finalize';
+
 export interface AgentContext {
   company_url: string;
   /** When true, treat as no public site (skip live URL context); legacy rows may rely on sentinel URL only. */
@@ -53,5 +55,15 @@ export interface AgentContext {
   failed_domains: string[];
   /** Agent receiving this context — used to group intake lines by primary vs secondary feeds. */
   slice_domain: IntakeSliceDomain;
+  /** Coalition stage receiving this context; controls which coalition blocks are rendered. */
+  coalition_context_stage?: CoalitionContextStage;
+  /** Coalition snapshot from Context Director (Phase 0.5). */
+  client_situation_snapshot?: Record<string, unknown> | null;
+  /** Coalition hypothesis drafts (Phase 1), usually visible to alignment/finalize phases. */
+  coalition_hypothesis_drafts?: Array<Record<string, unknown>>;
+  /** Coalition alignment responses (Phase 2), usually visible to finalize/conflict phases. */
+  coalition_alignment_responses?: Array<Record<string, unknown>>;
+  /** Coalition conflict resolution bundle (Phase 3), visible to finalize/strategy phases. */
+  coalition_conflict_resolution?: Record<string, unknown> | null;
   instructions: string;
 }
