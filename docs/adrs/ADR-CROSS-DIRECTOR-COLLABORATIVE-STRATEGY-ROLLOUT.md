@@ -53,10 +53,12 @@ Initial state (2026-05-08): no phases completed. Concept ADR `ADR-CROSS-DIRECTOR
 | Date | Check | Result |
 |---|---|---|
 | 2026-05-08 | Concept ADR `ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md` published (Proposed) | published; awaiting AI Platform Lead sign-off |
-| 2026-05-08 | Rollout Phase 0 close — schemas + migrations + flags merged default-off | complete in code: schemas, policy, tool constants, prompt-loader scaffolding, feature flags, SPA mirrors, migrations `088..091`; targeted Vitest `48/48` passed on prompt/context/schema rigor |
-| 2026-05-08 | Rollout Phase 1–4 backend shadow runtime implementation | implemented behind `FEATURE_COALITION_PROTOCOL_ENABLED=false` default: Context Director persistence, hypothesis/alignment wings, bounded peer hypothesis formatting, `collaboration_degraded` alignment fallback, resolver persistence, unresolved-conflict escalation event, anti-drift tests |
-| 2026-05-08 | Rollout Phase 5+ follow-up boundary | kept as post-shadow release block: finalize prompt alias flip, UI matrix/snapshot editing, staged activation, and post-GA hardening remain guarded by KPI evidence from shadow audits |
-| 2026-05-08 | Rollout Phase 1–6 contract completion | completed in code: per-domain hypothesis/alignment wrappers, coalition phase events, ADR/runtime escalation alias, strategy dependency quality warning, `ClientSituationCard`, `ApproveCoalitionGate`, pipeline monitor snapshot/phase display, and targeted contract/component tests |
+| 2026-05-08 | Rollout Phase 0 close — schemas + migrations + flags merged default-off | complete in code: schemas, policy, tool constants, prompt-loader scaffolding, feature flags, SPA mirrors, migrations `088..091`; verified by targeted coalition server Vitest below |
+| 2026-05-08 | Rollout Phase 1–4 backend shadow runtime implementation | implemented behind `FEATURE_COALITION_PROTOCOL_ENABLED=false` default: Context Director persistence, hypothesis/alignment wings, bounded peer hypothesis formatting, `collaboration_degraded` alignment fallback, resolver persistence, unresolved-conflict escalation event, and anti-drift coverage |
+| 2026-05-08 | Rollout Phase 5 finalize integration | implemented behind rollout gates: finalize prompt alias flip, alignment-corrected finalize context, snapshot-aware domain weights, strategy dependency contract, and quality-warning path |
+| 2026-05-08 | Rollout Phase 6 frontend contract | implemented in code: `ClientSituationCard`, `ApproveCoalitionGate`, `ConflictMatrix`, `CoalitionChainView`, pipeline monitor coalition status strip, and AuditWorkspace coalition sections |
+| 2026-05-08 | Targeted verification | `server`: `pnpm vitest run src/tests/coalition-*.test.ts src/tests/context-builder-utils.test.ts src/tests/prompt-loader.test.ts` → 9 files / 59 tests passed; `app`: coalition component suite → 4 files / 4 tests passed; parity suite `src/app/config/orchestration-contract-parity.test.ts` → 23 tests passed |
+| 2026-05-08 | Full server typecheck | blocked by pre-existing non-coalition failures in `src/lib/dom-ux-signals.ts`, `post-orchestration-compile.controller.ts`, and plan-board services/tests; no coalition-specific type errors surfaced in targeted suites |
 | YYYY-MM-DD | Rollout Phase 1 close — Context Director shadow on staging | TBD |
 | ... | ... | ... |
 
