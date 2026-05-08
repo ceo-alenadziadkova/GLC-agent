@@ -8,6 +8,10 @@ import {
   ORCHESTRATION_PANEL_DOM_ID,
   ORCHESTRATION_UI_LIMITS,
 } from '../config/orchestration-ui-limits';
+import {
+  getNearestVerticalScrollAncestor,
+  scrollElementStartIntoNearestVerticalScrollContainer,
+} from '../lib/scroll-element-start-into-vertical-scroll-container';
 
 type SearchParamsLike = { get: (k: string) => string | null };
 
@@ -44,11 +48,8 @@ export function useOrchestrationFocusScroll(args: {
     let observer: IntersectionObserver | undefined;
     let detachTimer: ReturnType<typeof window.setTimeout> | undefined;
 
-    const scrollPanelIntoView = () => {
-      document.getElementById(ORCHESTRATION_PANEL_DOM_ID)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
+    const scrollPanelIntoView = (panelEl: HTMLElement) => {
+      scrollElementStartIntoNearestVerticalScrollContainer(panelEl, { behavior: 'smooth' });
     };
 
     window.requestAnimationFrame(() => {
@@ -68,16 +69,17 @@ export function useOrchestrationFocusScroll(args: {
             }
             return;
           }
-          scrollPanelIntoView();
+          scrollPanelIntoView(el);
           if (typeof IntersectionObserver === 'undefined') return;
+          const intersectionRoot = getNearestVerticalScrollAncestor(el);
           observer = new IntersectionObserver(
             entries => {
               if (cancelled || !entries[0]) return;
               if (!entries[0].isIntersecting) {
-                scrollPanelIntoView();
+                scrollPanelIntoView(el);
               }
             },
-            { root: null, threshold: 0.01 },
+            { root: intersectionRoot, threshold: 0.01 },
           );
           observer.observe(el);
           detachTimer = window.setTimeout(() => {

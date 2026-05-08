@@ -6,6 +6,7 @@ import {
   apiAuditsClientProjectContext,
   apiAuditsIntakeFollowupSuggestions,
   apiPlatformAuditPipelineResumeCancelled,
+  apiPlatformAuditStrategyRepairedJsonApply,
 } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
@@ -380,6 +381,22 @@ export const briefProfilePlatformApi = {
       auto_next_error_code?: string;
       auto_next_error_details?: unknown;
     }>(apiPlatformAuditPipelineResumeCancelled(auditId), { method: 'POST' });
+  },
+
+  /** Platform admin: apply repaired Strategy tool JSON without a new model call (`POST …/strategy/repaired-json-apply`). */
+  async postPlatformStrategyRepairedJsonApply(
+    auditId: string,
+    body: { strategy_tool_input: unknown; force_replace_completed_audit?: boolean },
+  ) {
+    return apiFetch<{
+      ok: true;
+      audit_id: string;
+      overall_score: number;
+      normalization_mutation_codes: string[];
+    }>(apiPlatformAuditStrategyRepairedJsonApply(auditId), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
 
   async getPlatformSelfServeOwner() {

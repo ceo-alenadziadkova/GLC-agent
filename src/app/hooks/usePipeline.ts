@@ -182,6 +182,21 @@ export function usePipeline(
   useEffect(() => {
     if (!auditId) return;
 
+    /**
+     * While the first `load()` is in flight, `state` is null but the pipeline may already emit
+     * rows. Previously we dropped those Realtime payloads (`if (!prev) return prev`), so the UI
+     * stayed stale until a full page refresh. Coalesce refetches so a burst of events triggers
+     * at most one overlapping GET.
+     */
+    let catchupReloadInFlight = false;
+    const scheduleCatchupReloadWhileSnapshotEmpty = () => {
+      if (catchupReloadInFlight) return;
+      catchupReloadInFlight = true;
+      void loadRef.current().finally(() => {
+        catchupReloadInFlight = false;
+      });
+    };
+
     const channel = supabase
       .channel(`pipeline-${auditId}`)
       .on(
@@ -191,7 +206,10 @@ export function usePipeline(
           const newEvent = parsePipelineEventInsertPayload(payload.new);
           if (!newEvent) return;
           setState(prev => {
-            if (!prev) return prev;
+            if (!prev) {
+              scheduleCatchupReloadWhileSnapshotEmpty();
+              return prev;
+            }
             const cap = maxEventsInMemoryRef.current;
             return {
               ...prev,
@@ -209,7 +227,10 @@ export function usePipeline(
           const updated = parseAuditsRealtimePatch(payload.new);
           if (!updated) return;
           setState(prev => {
-            if (!prev) return prev;
+            if (!prev) {
+              scheduleCatchupReloadWhileSnapshotEmpty();
+              return prev;
+            }
             return {
               ...prev,
               ...(updated.status !== undefined ? { status: updated.status } : {}),

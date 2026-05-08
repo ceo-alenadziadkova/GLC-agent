@@ -332,6 +332,11 @@ export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string
   return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;
 }
 
+/** Platform admin: finalize phase 7 from a repaired Claude tool-shaped JSON payload (no LLM). */
+export function apiPlatformAuditStrategyRepairedJsonApply(auditId: string): string {
+  return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/strategy/repaired-json-apply`;
+}
+
 export function apiAuditsBriefHelpRequest(auditId: string): string {
   return `${apiAuditsPath(auditId)}/brief/help-request`;
 }

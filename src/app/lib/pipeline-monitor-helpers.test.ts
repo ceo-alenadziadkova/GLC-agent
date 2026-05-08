@@ -33,11 +33,17 @@ describe('getPhaseStatus', () => {
     ).toBe('completed');
   });
 
-  it('still shows running for active phase work (audit in recon, no approved gate yet)', () => {
+  it('shows running for active phase work even when review rows are pre-seeded pending', () => {
     expect(
       getPhaseStatus(0, 0, 'recon', [{ after_phase: 0, status: 'pending' }], false, null),
-    ).toBe('review');
+    ).toBe('running');
     expect(getPhaseStatus(0, 0, 'recon', [], false, null)).toBe('running');
+  });
+
+  it('shows running for strategy while orchestrator executes even if Gate 3 review row is pending', () => {
+    expect(
+      getPhaseStatus(7, 7, 'strategy', [{ after_phase: 7, status: 'pending' }], false, null),
+    ).toBe('running');
   });
 
   it('cancelled audit does not show fake running on the current phase card', () => {
@@ -55,6 +61,15 @@ describe('getPhaseStatus', () => {
   it('after resume from cancelled to review (mid-phase, no gate row), current phase is review so Continue is available', () => {
     expect(getPhaseStatus(3, 3, 'review', [], false, null)).toBe('review');
     expect(getPhaseStatus(1, 1, 'review', [], false, null)).toBe('review');
+  });
+
+  it('shows running when domain row is still failed but audit is already active on that phase (retry claimed)', () => {
+    expect(getPhaseStatus(3, 3, 'auto', [], false, 'failed')).toBe('running');
+  });
+
+  it('still shows failed when audit is not active even if domain is failed', () => {
+    expect(getPhaseStatus(3, 3, 'failed', [], false, 'failed')).toBe('failed');
+    expect(getPhaseStatus(3, 3, 'review', [], false, 'failed')).toBe('failed');
   });
 });
 

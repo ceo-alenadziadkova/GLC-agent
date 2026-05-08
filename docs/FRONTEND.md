@@ -152,7 +152,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 
 **`mobile:` variant:** `width < 40rem` (same breakpoint notion as Tailwind `sm`). Define base layout for `sm+`, narrow overrides with `mobile:` — see `src/styles/tailwind.css`.
 
-**App shell (desktop vs narrow viewports):** `AppShell` (`AppShell`) uses a **fixed ink sidebar** from `sm` (`40rem`) upward. Below that breakpoint it switches to a **compact top bar** (logo, page title + subtitle, notifications, theme, menu), **scrollable main** with bottom padding for the tab bar, a **bottom tab row** (up to four primary routes derived from the same nav model as the sidebar), and a **slide-in menu** for the full route list, quick actions (new audit), Settings, and Sign out. Consultant primary tabs are the first four linked destinations (Dashboard + admin queues); clients get portal routes plus **New audit** when it is not already in the first four slots. **Route lists and mobile tab selection** are implemented in `app_shell_nav` (unit tests in `app_shell_nav.test`) so sidebar and mobile chrome stay in sync.
+**App shell (desktop vs narrow viewports):** `AppShell` (`AppShell`) uses a **fixed ink sidebar** from `sm` (`40rem`) upward. Below that breakpoint it switches to a **compact top bar** (logo, page title + subtitle, notifications, theme, menu), **scrollable main** (`flex flex-col` → inner `overflow-y-auto` strip with mobile nav padding) so a child can use **`flex-1 min-h-0`** to fill remaining height (Strategy Lab plan rail), a **bottom tab row** (up to four primary routes derived from the same nav model as the sidebar), and a **slide-in menu** for the full route list, quick actions (new audit), Settings, and Sign out. Consultant primary tabs are the first four linked destinations (Dashboard + admin queues); clients get portal routes plus **New audit** when it is not already in the first four slots. **Route lists and mobile tab selection** are implemented in `app_shell_nav` (unit tests in `app_shell_nav.test`) so sidebar and mobile chrome stay in sync.
 
 **Manual mobile QA (recommended):** spot-check `/portal` and `/dashboard` at **320 / 375 / 390** px width for horizontal overflow, tap targets (44px utilities in `theme.css`), and that the bottom tab bar does not cover the last lines of scrollable content.
 
@@ -164,7 +164,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 | `.glc-safe-pad-x` / `.glc-safe-pad-t` / `.glc-safe-pad-b` | Combine spacing tokens with `env(safe-area-inset-*)` |
 | `.glc-touch-target` | Minimum 44×44px hit area for icon buttons |
 | `.glc-page-content` | Standard page padding (tighter horizontal padding under `40rem` + safe area) |
-| `.glc-main-mobile-nav-pad` | Extra bottom padding for main content when the mobile tab bar is visible |
+| `.glc-main-mobile-nav-pad` / `.ds-main-mobile-nav-pad` | Extra bottom padding for main content when the mobile tab bar is visible (mirror classes in `utilities.css`) |
 
 **Viewport:** `index.html` uses `viewport-fit=cover` so safe-area insets apply on notched devices.
 

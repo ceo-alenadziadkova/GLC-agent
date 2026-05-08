@@ -57,6 +57,25 @@ Full accessibility (alt 100%, ARIA, valid heading hierarchy), multiple conversio
 - When discussing conversion impact, prefer **ranges + assumptions** (and mark `data_source: inferred`) rather than fake precision.
 - Do not request or assume private financial metrics. If revenue/CAC/LTV are unknown, keep economics qualitative.
 
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Field-level array requirements:
+
+- `strengths`: `string[]`
+- `weaknesses`: `string[]`
+- `issues`: `Issue[]`
+- `quick_wins`: `QuickWin[]`
+- `recommendations`: `Recommendation[]`
+- `unknown_items`: `string[]`
+
+List-field rules:
+
+- Never return a single string for list fields.
+- Never encode multiple list items in one string with separators.
+- Use one array item per idea/finding.
+
 ## Finding Provenance (required on every issue)
 
 Use the shared issue provenance contract appended at runtime (`confidence`, `evidence_refs`, `data_source`).

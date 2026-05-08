@@ -1,4 +1,4 @@
-import { ArrowsClockwise, X } from '@phosphor-icons/react';
+import { ArrowsClockwise, FileCode, X } from '@phosphor-icons/react';
 import { Callout } from '../../../../../design-system/ui';
 import { Button } from '../../../../components/ui/button';
 import { PIPELINE_RETRY_COMMENT_MAX_LENGTH } from '../../../../config/api-paths';
@@ -21,6 +21,8 @@ type Props = {
   onOpenStopDialog: () => void;
   onRetryPhase: (phase: number, opts?: { retry_comment?: string }) => void | Promise<void>;
   detailCopy: PhaseDetailCopy;
+  strategyRepairedJsonCta: { label: string; hint: string } | null;
+  onOpenStrategyRepairedJsonApply: () => void;
 };
 
 export function PhaseDetailStalledCallout(props: Props) {
@@ -37,6 +39,8 @@ export function PhaseDetailStalledCallout(props: Props) {
     onOpenStopDialog,
     onRetryPhase,
     detailCopy,
+    strategyRepairedJsonCta,
+    onOpenStrategyRepairedJsonApply,
   } = props;
 
   if (!(selectedPhaseStalled || selectedPhaseTimedOutWithoutActivity) || isClient) return null;
@@ -102,6 +106,11 @@ export function PhaseDetailStalledCallout(props: Props) {
           >
             <ArrowsClockwise className="w-4 h-4" /> {detailCopy.retryFailedPhase}
           </Button>
+          {strategyRepairedJsonCta && (
+            <Button type="button" variant="outline" size="sm" title={strategyRepairedJsonCta.hint} onClick={onOpenStrategyRepairedJsonApply}>
+              <FileCode className="w-4 h-4" /> {strategyRepairedJsonCta.label}
+            </Button>
+          )}
         </div>
       </>
     </Callout>

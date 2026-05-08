@@ -100,7 +100,7 @@ export function StrategyPlanningChrome({
   };
 
   return (
-    <div className="bg-card border-border divide-border sticky top-0 z-[15] divide-y border-b">
+    <div className="bg-card border-border divide-border shrink-0 sticky top-0 z-[15] divide-y border-b">
       {variant.kind === 'strategy-lab' && orchestrationUiEnabled ? (
         <div className="px-4 py-2">
           <p className="text-muted-foreground max-w-prose text-xs leading-relaxed md:max-w-3xl">

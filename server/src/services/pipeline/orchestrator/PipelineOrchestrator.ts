@@ -29,6 +29,7 @@ import { runParallelBlockForAudit } from './parallel-block.js';
 import { runCoalitionShadowBlock } from './coalition-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
 import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
+import { runStrategyRepairedJsonApplyOrchestrated } from '../../strategy/strategy-repaired-json-apply.service.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
@@ -210,6 +211,25 @@ export class PipelineOrchestrator {
       throw new Error(`retryDomainPhase expects integer phase 1–6, got ${phase}`);
     }
     await this.startPhaseIsolated(phase, { consultantRetryBypassAlreadyCompletedIsolation: true });
+  }
+
+  /**
+   * Platform-only: finalize phase 7 without calling Claude — operators POST a repaired `tool_use`-shaped payload.
+   * Mirrors governance + DB finalize ordering used after a successful {@link StrategyAgent} run.
+   */
+  async applyRepairedStrategyToolJson(
+    rawToolInput: unknown,
+    opts: { forceReplaceCompletedAudit: boolean },
+  ): Promise<StrategyRepairedApplyWorkflowResult> {
+    return runStrategyRepairedJsonApplyOrchestrated({
+      auditId: this.auditId,
+      rawToolInput,
+      forceReplaceCompletedAudit: opts.forceReplaceCompletedAudit,
+      deps: {
+        publishControlObjectGovernance: (phaseNum, controlObject, evaluationCapture) =>
+          this.publishControlObjectGovernance(phaseNum, controlObject, evaluationCapture),
+      },
+    });
   }
 
   /**

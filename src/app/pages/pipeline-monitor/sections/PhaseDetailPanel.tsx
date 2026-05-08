@@ -31,6 +31,7 @@ import {
   PhaseResultEditor,
   usePhaseResultEditor,
 } from './phase-detail';
+import { StrategyRepairedJsonApplyDialog } from './phase-detail/StrategyRepairedJsonApplyDialog';
 
 export function PhaseDetailPanel(props: {
   selectedPhase: PhaseView;
@@ -111,6 +112,7 @@ export function PhaseDetailPanel(props: {
   } = props;
 
   const [rerunCommentDraft, setRerunCommentDraft] = useState('');
+  const [strategyRepairedDialogOpen, setStrategyRepairedDialogOpen] = useState(false);
   const [phaseStallTickMs, setPhaseStallTickMs] = useState(() => Date.now());
 
   const detailCopy = useMemo(
@@ -129,6 +131,14 @@ export function PhaseDetailPanel(props: {
   });
 
   const currentPhase = pipelineState?.current_phase ?? -1;
+
+  const strategyRepairedJsonCta = useMemo(() => {
+    if (!auditId || isClient || !canManagePlatformSettings || selectedPhase.id !== STRATEGY_PHASE_ID) {
+      return null;
+    }
+    const sr = PM.detail.strategyRepairedJsonApply;
+    return { label: sr.button, hint: sr.buttonHint };
+  }, [auditId, canManagePlatformSettings, isClient, selectedPhase.id]);
 
   const blockingPendingReview = useMemo(() => {
     const revs = pipelineState?.reviews;
@@ -349,6 +359,8 @@ export function PhaseDetailPanel(props: {
               onOpenStopDialog={onOpenStopDialog}
               onRetryPhase={onRetryPhase}
               detailCopy={detailCopy}
+              strategyRepairedJsonCta={strategyRepairedJsonCta}
+              onOpenStrategyRepairedJsonApply={() => setStrategyRepairedDialogOpen(true)}
             />
 
             <PhaseDetailGovernancePanel
@@ -379,7 +391,19 @@ export function PhaseDetailPanel(props: {
               onRunNextPhase={onRunNextPhase}
               editorOpenCta={phaseResultEditorCopy.openCta}
               detailCopy={detailCopy}
+              strategyRepairedJsonCta={strategyRepairedJsonCta}
+              onOpenStrategyRepairedJsonApply={() => setStrategyRepairedDialogOpen(true)}
             />
+
+            {auditId && strategyRepairedJsonCta ? (
+              <StrategyRepairedJsonApplyDialog
+                open={strategyRepairedDialogOpen}
+                onOpenChange={setStrategyRepairedDialogOpen}
+                auditId={auditId}
+                strategyRepairedApplyCopy={PM.detail.strategyRepairedJsonApply}
+                onApplied={onRefreshAfterPhaseEdit}
+              />
+            ) : null}
 
             <PhaseResultEditor
               isOpen={phaseEditor.isOpen}

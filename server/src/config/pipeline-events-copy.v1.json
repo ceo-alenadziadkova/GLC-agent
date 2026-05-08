@@ -29,7 +29,8 @@
       "assemblingContext": "Gathering all domain results...",
       "analyzing": "Synthesizing strategic roadmap...",
       "tokenBudgetWarning": "Token budget at {{pct}}% — {{remaining}} tokens remaining",
-      "completed": "Strategic roadmap complete"
+      "completed": "Strategic roadmap complete",
+      "platformRepairedJsonApplyLog": "Strategy phase finalized from repaired tool JSON (platform, no LLM)"
     }
   }
 }

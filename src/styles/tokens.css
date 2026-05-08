@@ -378,6 +378,16 @@
   --strategy-lab-drawer-textarea-min-height: 7.5rem;
   --strategy-lab-views-help-max-width: min(22rem, calc(100vw - 2rem));
   --strategy-lab-mode-glyph-font-size: var(--text-xs);
+  /**
+   * scrollIntoView(block:start) headroom below sticky StrategyPlanningChrome
+   * (strategy-lab IA strip + journey row) inside the shell main scrollport.
+   */
+  --strategy-lab-orchestration-scroll-margin-top: 7rem;
+  /**
+   * Embedded `/lab/:id` studio: main scroll also contains PortalPlanChrome (sticky).
+   * Anchors used by {@link useStrategyLabEmbeddedScroll} must reserve both bands.
+   */
+  --strategy-lab-studio-embed-scroll-margin-top: min(58vh, 22rem);
 
   /* Consultant orchestration table */
   --consultant-orchestration-initiatives-table-min-width: 32rem;

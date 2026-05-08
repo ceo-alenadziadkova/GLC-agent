@@ -9,6 +9,8 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
  * causes cleanup → `setContent(null)` → new value → effect re-run → infinite updates.
  * Depend on `setContent`, `setPreviewLine`, and `setOpen` only (stable `useState` setters)
  * plus any `ReactNode` / string you register.
+ * **Cleanup:** unregister with synchronous `setContent(null)` in `useLayoutEffect` cleanup;
+ * deferring (e.g. `queueMicrotask`) runs after the replacement effect and leaves the Sheet empty.
  */
 export type PlanAdvancedDrawerContextValue = {
   open: boolean;

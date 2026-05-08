@@ -117,8 +117,13 @@ export function getPhaseStatus(
 
   if (domainStatus) {
     if (domainStatus === 'completed') return 'completed';
-    if (domainStatus === 'failed') return 'failed';
     if (domainStatus === 'collecting' || domainStatus === 'analyzing') return 'running';
+    if (domainStatus === 'failed') {
+      // Consultant retry: `claimPipelineRetry` sets `audits.status` active before `audit_domains`
+      // flips off `failed` — without this, the card stays "failed" until a full page refresh.
+      if (isPipelineAuditActiveStatus(auditStatus) && phaseId === currentPhase) return 'running';
+      return 'failed';
+    }
   }
 
   if (auditStatus === 'completed') return 'completed';
@@ -136,6 +141,12 @@ export function getPhaseStatus(
 
   if (phaseId < currentPhase) return 'completed';
   if (phaseId === currentPhase) {
+    // `review_points` rows are inserted at audit creation with `pending` long before this phase runs.
+    // Phases without `audit.domains` rows (recon, strategy) have `domainStatus === null`, so without
+    // this branch the card incorrectly shows "Needs Review" while the orchestrator is executing.
+    if (isPipelineAuditActiveStatus(auditStatus)) {
+      return 'running';
+    }
     const review = reviews.find(r => r.after_phase === phaseId);
     if (review?.status === 'pending') return 'review';
     // Approve clears the gate but does not advance `current_phase` until POST pipeline/next.

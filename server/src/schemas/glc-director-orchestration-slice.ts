@@ -63,6 +63,35 @@ export const GlcDirectorOrchestrationSliceSchema = z.object({
 export type GlcDirectorOrchestrationSlice = z.infer<typeof GlcDirectorOrchestrationSliceSchema>;
 
 /**
+ * Claude `tool_use` occasionally returns nested objects as serialized JSON strings. Parse before structural validation.
+ * Empty / whitespace-only string is treated as omitted (`undefined`).
+ */
+export function coerceDirectorSliceJsonBlob(raw: unknown): unknown {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (t === '') return undefined;
+    try {
+      const parsed: unknown = JSON.parse(t);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return raw;
+      }
+      return parsed;
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
+/** Optional director slice: normal object **or** JSON object string from the model. */
+export const GlcDirectorOrchestrationSliceFromToolInputSchema = z.preprocess(
+  coerceDirectorSliceJsonBlob,
+  GlcDirectorOrchestrationSliceSchema.optional(),
+);
+
+/**
  * Strict-domain quality gate: a slice is "strict-ready" only when baseline exists with at least one action.
  */
 export function isStrictReadyDirectorSlice(slice: GlcDirectorOrchestrationSlice | null | undefined): boolean {

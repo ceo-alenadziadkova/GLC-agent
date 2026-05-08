@@ -176,6 +176,28 @@ describe('DomainOutputSchema JSON Schema', () => {
     };
     expect(schema.properties.issues).toMatchObject({ minItems: 1, maxItems: 10 });
   });
+
+  it('issues items remain full objects after superRefine-wrapped schemas (tool_use regress guard)', () => {
+    const schema = zodToJsonSchema(DomainOutputSchema) as {
+      properties: Record<
+        string,
+        { type?: string; items?: { type?: string; properties?: Record<string, unknown>; required?: string[] } }
+      >;
+    };
+    expect(schema.properties.issues.items?.type).toBe('object');
+    expect(schema.properties.issues.items?.properties?.evidence_refs).toBeDefined();
+    expect(schema.properties.issues.items?.required).toContain('id');
+    expect(schema.properties.issues.items?.required).toContain('evidence_refs');
+  });
+
+  it('recommendations items remain full objects after superRefine-wrapped schemas', () => {
+    const schema = zodToJsonSchema(DomainOutputSchema) as {
+      properties: Record<string, { items?: { type?: string; properties?: Record<string, unknown> } }>;
+    };
+    expect(schema.properties.recommendations.items?.type).toBe('object');
+    expect(schema.properties.recommendations.items?.properties?.title).toMatchObject({ type: 'string' });
+    expect(schema.properties.recommendations.items?.properties?.impact).toMatchObject({ type: 'string' });
+  });
 });
 
 describe('StrategyOutputSchema JSON Schema', () => {

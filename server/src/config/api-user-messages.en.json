@@ -284,5 +284,10 @@
   "BENCHMARK_SNAPSHOT_NOT_FOUND": "No benchmark snapshot matches the query.",
   "BENCHMARK_PERIOD_INVALID": "Invalid benchmark period.",
   "BENCHMARK_RECOMPUTE_UNAUTHORIZED": "Invalid benchmark recompute credential.",
-  "BENCHMARK_RECOMPUTE_NOT_CONFIGURED": "Benchmark recompute is not configured on this server."
+  "BENCHMARK_RECOMPUTE_NOT_CONFIGURED": "Benchmark recompute is not configured on this server.",
+  "PLATFORM_STRATEGY_REPAIRED_JSON_BODY_INVALID": "Request body must be a JSON object with strategy_tool_input.",
+  "PLATFORM_STRATEGY_REPAIRED_JSON_SCHEMA_INVALID": "strategy_tool_input does not match StrategyOutput schema after deterministic repairs.",
+  "PLATFORM_STRATEGY_REPAIRED_JSON_ALREADY_COMPLETED": "Audit is already marked completed; set force_replace_completed_audit to overwrite strategy and scores.",
+  "PLATFORM_STRATEGY_REPAIRED_JSON_STRATEGY_ROW_MISSING": "No audit_strategy row exists for this audit (phase 7 context was never initialized).",
+  "PLATFORM_STRATEGY_REPAIRED_JSON_APPLY_FAILED": "Could not persist repaired strategy output"
 }

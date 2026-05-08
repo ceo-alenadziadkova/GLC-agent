@@ -67,4 +67,25 @@ describe('patchPipelinePhaseResultController', () => {
 
     expect(sendApiErrorMock).toHaveBeenCalledWith(expect.anything(), 403, expect.any(String), expect.any(String));
   });
+
+  it('persists strategy executive_summary for phase 7 (not swallowed by domain-schema union strip)', async () => {
+    const updateMock = vi.fn(() => ({
+      eq: vi.fn(() => ({ error: null })),
+    }));
+    supabaseFromMock.mockImplementation(() => ({
+      update: updateMock,
+    }));
+    const execSummary = 'Updated executive summary text for GLC Palma consulting narrative.';
+    const req = createReq({
+      params: { id: 'audit-1', phase: '7' },
+      body: { result: { executive_summary: execSummary } },
+    });
+    const res = createRes();
+
+    await patchPipelinePhaseResultController(req, res);
+
+    expect(sendApiErrorMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith({ executive_summary: execSummary });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, phase_number: 7, updated: true });
+  });
 });

@@ -21,7 +21,7 @@ Each initiative is a **mini-project** with strict boundaries and evidence:
 - **id**: Short stable identifier (letters, digits, hyphens), e.g. `MKT-LEAD-01`.
 - **title** / **description**: Clear, business-outcome oriented.
 - **domain**: One of the allowed domain labels in the tool schema (use `cross_domain` when multiple domains are equally central; use `research` when the initiative is primarily discovery, validation experiments, or evidence-building before a larger build or spend).
-- **stage**: `idea` | `mvp` | `growth` | `scale` | `stabilization` — align with the company's maturity signals from intake when visible; otherwise choose the closest fit.
+- **stage**: exactly one of `idea` | `mvp` | `growth` | `scale` | `stabilization` (required by the tool schema). Do **not** use synonyms like `launching` — for early go-to-market or launch-heavy initiatives prefer **`mvp`**.
 - **priority**: `low` | `medium` | `high` | `critical` (independent from impact; may reflect urgency or governance).
 - **impact** / **effort**: Keep the coarse enums as given in the schema.
 - **confidence**: 0-1 number reflecting how well audit evidence supports the initiative.
@@ -40,3 +40,30 @@ Each initiative is a **mini-project** with strict boundaries and evidence:
 
 - If you cannot match an initiative to a specific `issue_id`, omit `issue_id` and use `signal` with a cautious, audit-grounded statement.
 - Do not invent benchmarks, legal claims, or vendor pricing.
+
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Top-level array requirements:
+
+- `quick_wins`: `StrategyInitiative[]`
+- `medium_term`: `StrategyInitiative[]`
+- `strategic`: `StrategyInitiative[]` (never a prose paragraph or a stringified summary — always a JSON **array of initiative objects**)
+- `scorecard`: `ScorecardItem[]`
+
+Per-initiative list fields (must stay arrays):
+
+- `context.signals`: `string[]`
+- `scope.includes`: `string[]`
+- `scope.excludes`: `string[]`
+- `execution_paths`: `ExecutionPath[]`
+- `decision.why_this`: `string[]`
+- `evidence.sources`: `EvidenceSource[]`
+- `evidence.cross_domain_dependencies`: `CrossDomainDependency[]`
+
+List-field rules:
+
+- Never return a single string for list fields.
+- Never encode multiple list items in one string with separators.
+- Use one array item per idea, dependency, source, or path.

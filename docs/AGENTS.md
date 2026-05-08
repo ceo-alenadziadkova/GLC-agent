@@ -224,4 +224,4 @@ const DomainOutputSchema = z.object({
 });
 ```
 
-If validation fails: retry with a corrective prompt appended ("Your previous response did not match the required schema. Please fix: ..."). Max 2 validation retries per phase.
+If validation fails: the phase errors out after **one** Claude response (no extra LLM round-trips for Zod). The server records `pipeline_events` `llm_tool_validation_failed` with **capped** `raw_tool_input_json` plus a Zod summary for analysis. Transient **HTTP** errors (e.g. 429) still use the existing multi-attempt retry loop.

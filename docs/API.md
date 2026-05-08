@@ -287,6 +287,30 @@ When resume succeeds but the best-effort owner **`pipeline/next`** is rejected, 
 - **`auto_next_error_code`**: mirrors the **`code`** field from that **`next`** error (for example **`PIPELINE_INTAKE_READINESS_BLOCKED`** or **`PIPELINE_REVIEW_PENDING`**)
 - **`auto_next_error_details`**: mirrors **`details`** from that **`next`** error when present (intake readiness includes **`readiness`** and **`triage_blocking_trace_codes`**)
 
+### `POST /api/platform/audits/:id/strategy/repaired-json-apply`
+
+**Auth:** consultant JWT and platform admin (`can_manage` — same rules as `PATCH /api/platform/self-serve-owner`).
+
+**Purpose:** deterministic phase-7 recovery when Claude already produced a valid strategy **`tool_use` payload** but schema validation blocked persistence (operators fix enums/arrays locally). Applies the same deterministic repairs used on live tool output (`FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE` path — array wrapping, **`stage`** synonyms), parses **`StrategyOutput`**, runs initiative post-processing + narrow **CONTROL_OBJECT** governance (same **`publishControlObjectGovernance`** path as normal phase 7), then writes **`audit_strategy`** + **`audits`** completion fields **without a new LLM call**.
+
+**Body (strict JSON):**
+
+```json
+{
+  "strategy_tool_input": {},
+  "force_replace_completed_audit": false
+}
+```
+
+- **`strategy_tool_input`** — object shaped like the Claude **`submit_domain_analysis`** payload for phase 7 (must satisfy **`StrategyOutputSchema`** after repairs).
+- **`force_replace_completed_audit`** — optional, default **`false`**. When **`audits.status === "completed"`**, the apply is rejected with **`409`** **`PLATFORM_STRATEGY_REPAIRED_JSON_PRECONDITION`** unless **`true`** (overwrites strategy row and scores).
+
+**Response `200`:** `{ "ok": true, "audit_id": "<uuid>", "overall_score": <number>, "normalization_mutation_codes": [<string>] }`.
+
+**Errors:** `400` **`PLATFORM_PAYLOAD_INVALID`** (malformed envelope), **`400`** **`PLATFORM_STRATEGY_REPAIRED_JSON_SCHEMA_INVALID`** (details include **`zod_message`** and **`normalization_mutation_codes`**), **`400`** **`PIPELINE_ALREADY_CANCELLED`**, **`403`** **`PLATFORM_ADMIN_ONLY`**, **`404`** **`PIPELINE_AUDIT_NOT_FOUND`**, **`404`** **`PLATFORM_STRATEGY_REPAIRED_JSON_STRATEGY_ROW_MISSING`** (no **`audit_strategy`** row), **`409`** **`PLATFORM_STRATEGY_REPAIRED_JSON_PRECONDITION`** when audit already completed without force, **`500`** **`PLATFORM_STRATEGY_REPAIRED_JSON_APPLY_FAILED`** (governance persist / unexpected).
+
+**Operational note:** do not invoke while phase 7 is actively running elsewhere; clears audit to **`completed`** as in a successful Strategy agent run.
+
 ---
 
 ## Domain benchmarks
@@ -360,6 +384,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only: owner or platform operator (see retry section) |
 | `PATCH /api/audits/:id/token-budget` | platform admin only | no | Increases `audits.token_budget` atomically and logs the grant in `audit_token_budget_grants`. Body: `{ delta_tokens: integer 1_000–500_000, reason?: string ≤ 500 chars }`. **403** `PLATFORM_ADMIN_ONLY` for non-admin actors; **400** `AUDITS_TOKEN_BUDGET_TOPUP_INVALID` for invalid deltas; **500** `AUDITS_TOKEN_BUDGET_TOPUP_FAILED` when the RPC fails. Emits a `token_budget_topup` `pipeline_events` row with `{ delta_tokens, previous_budget, new_budget, granted_by, reason? }`. UI surface: `AdminTokenBudgetTopupBanner` in Pipeline Monitor when remaining ≤ 15% or `PIPELINE_TOKEN_BUDGET_EXCEEDED`. |
 | `POST /api/platform/audits/:id/pipeline/resume-cancelled` | platform admin only | no | Clears **`cancelled`**, then best-effort owner **`pipeline/next`** (see Platform section) |
+| `POST /api/platform/audits/:id/strategy/repaired-json-apply` | platform admin only | no | Phase 7 **`StrategyOutput`** from repaired tool JSON, no LLM (see Platform section) |
 | `POST /api/audits/:id/reviews/:phase` | yes | no | Consultant-only |
 | `POST /api/audits/:id/brief/help-request` | no | yes | Client-only: optional brief help ping (`brief_help_*` on `audits` + consultant notification). Only while `status === 'created'`. |
 | `DELETE /api/audits/:id` | yes (owner) | no | Destructive |

@@ -6,6 +6,8 @@ export const PIPELINE_EVENT_TYPES = {
   llmCallStarted: 'llm_call_started',
   llmCallCompleted: 'llm_call_completed',
   llmCallFailed: 'llm_call_failed',
+  /** tool_use returned but Zod validation failed; `data` includes capped raw JSON + zod summary. */
+  llmToolValidationFailed: 'llm_tool_validation_failed',
   orchestrationStarted: 'orchestration_started',
   orchestrationCompleted: 'orchestration_completed',
   orchestrationError: 'orchestration_error',
@@ -48,6 +50,10 @@ export const PIPELINE_EVENT_TYPES = {
   coalitionUnresolvedEscalation: 'coalition_unresolved_escalation',
   /** Coalition auto-loop reran Context Director after unresolved escalation. */
   coalitionAutoLoopContextDirectorRerun: 'coalition_auto_loop_context_director_rerun',
+  /** Recon list-field coercion was applied (string -> string[]). */
+  coercionApplied: 'coercion_applied',
+  /** Recon list-field coercion and strict parse still failed. */
+  coercionFailed: 'coercion_failed',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

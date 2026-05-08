@@ -55,6 +55,12 @@ export const StrategyPhaseResultPatchSchema = z.object({
   strategic: z.array(strategyInitiativePatchSchema).max(20).optional(),
 });
 
+/**
+ * Top-level PATCH body `{ result }` validator.
+ * Do **not** use a Zod `.union()` of domain vs strategy: both branches have only optional keys, so payloads like
+ * `{ result: { executive_summary: '...' } }` would match the domain schema first (unknown keys stripped) — producing
+ * `{}` — and phase 7 would incorrectly return `updated: false`. Prefer phase-aware parsing in the route controller.
+ */
 export const PipelinePhaseResultPatchSchema = z.object({
   result: z.union([DomainPhaseResultPatchSchema, StrategyPhaseResultPatchSchema]),
 });

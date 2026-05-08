@@ -42,7 +42,7 @@ function PortalPlanStudioBody({ auditId, mode }: { auditId: string; mode: 'defin
   const { audit } = usePortalPlanOrchestration();
   return (
     <PlanAdvancedDrawerProvider>
-      <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.subtitle}>
+      <AppShell title={STRATEGY_LAB_COPY.appShell.title}>
         <PortalPlanLayout auditId={auditId} isClient={isClient} audit={audit} activePlanView="board" hideExecuteViewTabs>
           {mode === 'define' ? <PlanDefineSurface /> : <PlanShapeSurface />}
         </PortalPlanLayout>

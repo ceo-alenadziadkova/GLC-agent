@@ -48,6 +48,31 @@ export const STRATEGY_COMPANY_STAGES = [
 
 export type StrategyCompanyStage = (typeof STRATEGY_COMPANY_STAGES)[number];
 
+const STRATEGY_COMPANY_STAGE_ACCEPT_SET = new Set<string>(STRATEGY_COMPANY_STAGES);
+
+/**
+ * Map tool outputs that use near-synonyms outside the JSON schema enum to a canonical stage.
+ * Extend only for high-frequency, low-ambiguity slips (token-safe repair before Zod).
+ */
+export const STRATEGY_COMPANY_STAGE_TOOL_COERCIONS: Readonly<
+  Record<string, StrategyCompanyStage>
+> = {
+  launching: 'mvp',
+  launch: 'mvp',
+};
+
+/**
+ * Normalize `StrategyInitiative.stage` before `StrategyOutputSchema.safeParse`.
+ */
+export function coerceStrategyCompanyStageForTool(raw: unknown): unknown {
+  if (typeof raw !== 'string') return raw;
+  const key = raw.trim().toLowerCase().replace(/-/g, '_').replace(/\s+/g, '_');
+  if (!key.length) return raw;
+  if (STRATEGY_COMPANY_STAGE_ACCEPT_SET.has(key)) return key;
+  const mapped = STRATEGY_COMPANY_STAGE_TOOL_COERCIONS[key];
+  return mapped ?? raw;
+}
+
 export const STRATEGY_INITIATIVE_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
 
 export const STRATEGY_EXECUTION_PATH_TYPES = ['fast', 'balanced', 'scalable'] as const;

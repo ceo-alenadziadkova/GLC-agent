@@ -262,40 +262,42 @@ export function StrategyLab(props: StrategyLabProps = {}) {
   );
 
   const workspace = (
-    <>
-      <StrategyLabClientOrchestrationNotice
-        planExecutionHref={planExecutionHref}
-        readOnlyStrip={Boolean(
-          orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled,
-        )}
-        hiddenForClient={Boolean(
-          orchestrationUiEnabled &&
-            isClient &&
-            !(glcPackView && clientOrchestrationLabReadOnlyEnabled),
-        )}
-      />
-
-      {journeyStripVisible && id ? (
-        <StrategyPlanningChrome
-          auditId={id}
-          isClient={isClient}
-          audit={audit}
-          variant={{ kind: 'strategy-lab' }}
-          steps={journeySteps}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-col">
+        <StrategyLabClientOrchestrationNotice
+          planExecutionHref={planExecutionHref}
+          readOnlyStrip={Boolean(
+            orchestrationUiEnabled && isClient && glcPackView && clientOrchestrationLabReadOnlyEnabled,
+          )}
+          hiddenForClient={Boolean(
+            orchestrationUiEnabled &&
+              isClient &&
+              !(glcPackView && clientOrchestrationLabReadOnlyEnabled),
+          )}
         />
-      ) : null}
 
-      {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
-        <div id={STRATEGY_LAB_PAGE_ANCHORS.planSetup} className="scroll-mt-20">
-          <StrategyLabOrchestrationPanel
-            auditId={audit.meta.id}
-            executionPlan={executionPlanForRoadmap}
-            strategy={audit.strategy}
-            onReload={reload}
-            mergeStrategyLabContextInAuditCache={mergeStrategyLabContextInAuditCache}
+        {journeyStripVisible && id && !embedded ? (
+          <StrategyPlanningChrome
+            auditId={id}
+            isClient={isClient}
+            audit={audit}
+            variant={{ kind: 'strategy-lab' }}
+            steps={journeySteps}
           />
-        </div>
-      ) : null}
+        ) : null}
+
+        {orchestrationUiEnabled && !isClient && audit.strategy && executionPlanForRoadmap ? (
+          <div id={STRATEGY_LAB_PAGE_ANCHORS.planSetup} className="ds-strategy-lab-orchestration-scroll-anchor">
+            <StrategyLabOrchestrationPanel
+              auditId={audit.meta.id}
+              executionPlan={executionPlanForRoadmap}
+              strategy={audit.strategy}
+              onReload={reload}
+              mergeStrategyLabContextInAuditCache={mergeStrategyLabContextInAuditCache}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <PlanSummaryRail
         presentation={planSummaryPresentation}
@@ -307,7 +309,7 @@ export function StrategyLab(props: StrategyLabProps = {}) {
         onSummarySheetOpenChange={setIsSummarySheetOpen}
         selectedPackNodeId={selectedPackNodeId}
       />
-    </>
+    </div>
   );
 
   if (embedded) {

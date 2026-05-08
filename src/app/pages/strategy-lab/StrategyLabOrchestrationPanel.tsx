@@ -383,15 +383,19 @@ export function StrategyLabOrchestrationPanel({
     setAdvancedDrawerContent(orchestrationAdvancedBody);
     setAdvancedDrawerPreviewLine(advancedPreviewLine);
     return () => {
-      queueMicrotask(() => {
-        setAdvancedDrawerContent(null);
-        setAdvancedDrawerPreviewLine(null);
-      });
+      // Synchronous clear: deferred cleanup would run after this effect's successor in the same
+      // navigation pass (microtasks flush after layout effects), leaving the Sheet body empty while
+      // the panel stays mounted — see drawer registration contract in PlanAdvancedDrawerContext.
+      setAdvancedDrawerContent(null);
+      setAdvancedDrawerPreviewLine(null);
     };
   }, [setAdvancedDrawerContent, setAdvancedDrawerPreviewLine, orchestrationAdvancedBody, advancedPreviewLine]);
 
   return (
-    <div id={ORCHESTRATION_PANEL_DOM_ID} className="bg-card space-y-5 border-b p-4">
+    <div
+      id={ORCHESTRATION_PANEL_DOM_ID}
+      className="ds-strategy-lab-orchestration-scroll-anchor bg-card space-y-5 border-b p-4"
+    >
       {/* Section header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">

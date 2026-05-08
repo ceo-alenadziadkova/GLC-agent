@@ -92,7 +92,7 @@ export function PlanSummaryRail(props: PlanSummaryRailProps) {
 
   if (presentation === 'main-only') {
     return (
-      <div className="bg-background @container strategy-lab-workspace-main ds-audit-workspace-main-h flex flex-col">
+      <div className="bg-background @container strategy-lab-workspace-main flex min-h-0 flex-1 flex-col">
         {mainScroll}
       </div>
     );
@@ -100,7 +100,7 @@ export function PlanSummaryRail(props: PlanSummaryRailProps) {
 
   if (presentation === 'consultant-sheet') {
     return (
-      <div className="bg-background @container strategy-lab-workspace-main ds-audit-workspace-main-h flex min-h-0 flex-1 flex-col">
+      <div className="bg-background @container strategy-lab-workspace-main flex min-h-0 flex-1 flex-col">
         {mainScroll}
         {sheetChrome}
       </div>
@@ -108,11 +108,11 @@ export function PlanSummaryRail(props: PlanSummaryRailProps) {
   }
 
   return (
-    <div className="@container strategy-lab-workspace-main">
+    <div className="@container strategy-lab-workspace-main flex min-h-0 flex-1 flex-col">
       <ResizablePanelGroup
         key="strategy-lab-layout-desktop"
         direction="horizontal"
-        className="ds-audit-workspace-main-h"
+        className="min-h-0 flex-1"
         autoSaveId={`${STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}:lg`}
       >
         <ResizablePanel
@@ -120,13 +120,15 @@ export function PlanSummaryRail(props: PlanSummaryRailProps) {
           order={1}
           defaultSize={100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
           minSize={STRATEGY_LAB_LAYOUT_POLICY.mainPanelMinSizePct}
-          className="min-w-0"
+          className="min-h-0 min-w-0"
         >
-          <div
-            id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
-            className="bg-background h-full min-h-0 flex-1 scroll-mt-20 overflow-y-auto"
-          >
-            {inspectPackScrollInner}
+          <div className="flex h-full min-h-0 flex-col">
+            <div
+              id={STRATEGY_LAB_PAGE_ANCHORS.inspectPack}
+              className="bg-background min-h-0 flex-1 scroll-mt-20 overflow-y-auto"
+            >
+              {inspectPackScrollInner}
+            </div>
           </div>
         </ResizablePanel>
 
@@ -142,9 +144,11 @@ export function PlanSummaryRail(props: PlanSummaryRailProps) {
           defaultSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
           minSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMinSizePct}
           maxSize={STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMaxSizePct}
-          className="min-w-0"
+          className="min-h-0 min-w-0"
         >
-          <div className="bg-card flex h-full min-h-0 w-full flex-col overflow-y-auto">{planSummaryDesktopChrome}</div>
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="bg-card flex h-full min-h-0 w-full flex-col overflow-y-auto">{planSummaryDesktopChrome}</div>
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

@@ -42,6 +42,15 @@ export const SYSTEM_DEFAULTS_CLAUDE_HTTP = {
   retryableAnthropicStatuses: [429, 500, 529] as const,
   /** Subset of retryable statuses that increment the distributed circuit-breaker counter. */
   circuitBreakerAnthropicStatuses: [500, 529] as const,
+  /**
+   * Persisted on `llm_tool_validation_failed` — cap JSON length (UTF-16 code units) for
+   * `data.raw_tool_input_json` to avoid oversized `pipeline_events` rows.
+   */
+  llmToolValidationFailedRawJsonMaxChars: 524_288,
+  /**
+   * Cap for `data.zod_summary` on the same event (full Zod flatten can be huge).
+   */
+  llmToolValidationFailedZodSummaryMaxChars: 12_000,
 } as const;
 
 /** Agent persistence policies (`BaseAgent` save paths, conflict retries). */

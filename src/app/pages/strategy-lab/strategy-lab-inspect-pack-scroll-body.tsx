@@ -126,7 +126,7 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
         <section
           id={STRATEGY_LAB_PAGE_ANCHORS.definePhase}
           aria-labelledby={definePhaseHeadingId}
-          className="scroll-mt-20"
+          className="ds-strategy-lab-studio-embed-scroll-anchor"
         >
           <h2 id={definePhaseHeadingId} className="sr-only">
             {STRATEGY_LAB_COPY.strategyLabSectionAnchors.definePhaseHeading}
@@ -276,7 +276,12 @@ export function StrategyLabInspectPackScrollBody(props: StrategyLabInspectPackSc
 
       <div className="p-4">
         {!isClient ? (
-          <div id={STRATEGY_LAB_PAGE_ANCHORS.shapePack} tabIndex={-1} className="scroll-mt-20 outline-none" aria-hidden>
+          <div
+            id={STRATEGY_LAB_PAGE_ANCHORS.shapePack}
+            tabIndex={-1}
+            className="ds-strategy-lab-studio-embed-scroll-anchor outline-none"
+            aria-hidden
+          >
             <span className="sr-only">{STRATEGY_LAB_COPY.strategyLabSectionAnchors.shapePackHeading}</span>
           </div>
         ) : null}

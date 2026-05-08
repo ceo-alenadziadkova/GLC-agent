@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { DOMAIN_KEYS } from '../data/auditTypes';
 import type { GlcOrchestrationPackView } from '../data/audit/contracts/report/orchestration-pack.types';
 import { STRATEGY_LAB_PAGE_ANCHORS } from '../config/strategy-lab';
+import { scrollElementStartIntoNearestVerticalScrollContainer } from '../lib/scroll-element-start-into-vertical-scroll-container';
 import type { StrategyLabPlanStudioScrollTarget } from '../pages/strategy-lab/StrategyLabPage';
 import { resolvePlanFocusToPackGraphNodeId } from '../lib/plan-cross-nav';
 
@@ -32,7 +33,7 @@ export function useStrategyLabEmbeddedScroll(args: UseStrategyLabEmbeddedScrollA
     const el = typeof document !== 'undefined' ? document.getElementById(anchorId) : null;
     if (!el) return;
     const frame = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollElementStartIntoNearestVerticalScrollContainer(el, { behavior: 'smooth' });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [embedded, planStudioScrollTarget, strategyPresent]);
@@ -54,7 +55,7 @@ export function useStrategyLabEmbeddedScroll(args: UseStrategyLabEmbeddedScrollA
     const el = typeof document !== 'undefined' ? document.getElementById(targetAnchorId) : null;
     if (!el) return;
     const frame = window.requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollElementStartIntoNearestVerticalScrollContainer(el, { behavior: 'smooth' });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [embedded, focusToken, onSelectPackNode, packView, planStudioScrollTarget, strategyPresent]);

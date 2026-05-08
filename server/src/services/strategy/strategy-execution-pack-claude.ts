@@ -28,6 +28,7 @@ import { logger } from '../logger.js';
 import { TokenTracker } from '../token-tracker.js';
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import { insertPipelineEventRow } from '../pipeline/events/insert-pipeline-event.js';
+import { buildLlmToolValidationFailedEventData } from '../../lib/claude-tool-use-validation-capture.js';
 
 import {
   getConsecutiveClaudeFailures,
@@ -167,15 +168,25 @@ export async function invokeStrategyExecutionPackClaude(args: {
 
       const parsed = schema.safeParse(toolBlock.input);
       if (!parsed.success) {
-        logger.warn('strategy_execution_pack.validation_retry', {
+        logger.warn('strategy_execution_pack.validation_failed', {
           audit_id: args.auditId,
           attempt,
           message: parsed.error.message,
         });
-        if (attempt === CLAUDE_MAX_RETRIES) {
-          throw new Error(`Execution pack validation failed after ${CLAUDE_MAX_RETRIES} attempts: ${parsed.error.message}`);
-        }
-        continue;
+        await insertPipelineEventRow({
+          auditId: args.auditId,
+          phase: phaseNumber,
+          eventType: PIPELINE_EVENT_TYPES.llmToolValidationFailed,
+          message: 'LLM tool output failed schema validation',
+          data: buildLlmToolValidationFailedEventData({
+            callType: 'strategy_execution_pack',
+            toolName,
+            toolUseId: toolBlock.id,
+            zodMessage: parsed.error.message,
+            toolInput: toolBlock.input,
+          }),
+        });
+        throw new Error(`Execution pack validation failed: ${parsed.error.message}`);
       }
 
       return parsed.data;

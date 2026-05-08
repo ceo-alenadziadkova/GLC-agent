@@ -55,6 +55,12 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   directorOrchestrationAgentOutputEnabled: true,
   /**
+   * Deterministic coercion of Coalition domain Claude `tool_use` before Zod (`cross_domain_refs`, severity/status,
+   * recommendation impact benchmark hint, stripping inconsistent optional status fields).
+   * Env: FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE=false to disable.
+   */
+  domainOutputCoalitionNormalizeEnabled: true,
+  /**
    * When true, timeline-first UX rollout hooks may emit extra structured logs / gates.
    * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
    */

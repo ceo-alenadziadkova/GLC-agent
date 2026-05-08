@@ -38,6 +38,25 @@ All headers present and well-configured. Strict CSP, HSTS with preload, all cook
 - Count headers where present=false — more missing critical headers = lower score.
 - Do NOT guess about headers not present in the payload.
 
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Field-level array requirements:
+
+- `strengths`: `string[]`
+- `weaknesses`: `string[]`
+- `issues`: `Issue[]`
+- `quick_wins`: `QuickWin[]`
+- `recommendations`: `Recommendation[]`
+- `unknown_items`: `string[]`
+
+List-field rules:
+
+- Never return a single string for list fields.
+- Never encode multiple list items in one string with separators.
+- Use one array item per idea/finding.
+
 ## Fallback (no consultant/interview notes)
 
 When consultant/interview notes are absent:

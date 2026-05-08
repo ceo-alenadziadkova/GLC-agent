@@ -197,6 +197,14 @@
   width: 280px;
 }
 
+.ds-strategy-lab-orchestration-scroll-anchor {
+  scroll-margin-top: var(--strategy-lab-orchestration-scroll-margin-top);
+}
+
+.ds-strategy-lab-studio-embed-scroll-anchor {
+  scroll-margin-top: var(--strategy-lab-studio-embed-scroll-margin-top);
+}
+
 .ds-new-audit-wizard-shell--wide {
   max-width: 100%;
 }

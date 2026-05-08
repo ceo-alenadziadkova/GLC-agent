@@ -30,10 +30,8 @@ function StableRegistrationConsumer(props: { renderCounter: { count: number } })
     setContent(body);
     setPreviewLine('preview line');
     return () => {
-      queueMicrotask(() => {
-        setContent(null);
-        setPreviewLine(null);
-      });
+      setContent(null);
+      setPreviewLine(null);
     };
   }, [setContent, setPreviewLine, body]);
 

@@ -16,3 +16,17 @@ Based on the crawled website data provided, analyze and determine:
 Recon outputs are observation-only context for downstream phases — they are not subject to the issue/initiative provenance contract used by domain and strategy phases. Stay conservative: when crawl signals conflict with intake, record the uncertainty in `initial_observations` rather than committing to the stronger claim.
 
 Be factual — only state what can be inferred from the crawled data. If uncertain, say so.
+
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Field-level type requirements:
+- `key_services_products`: `string[]`
+- `initial_observations`: `string[]`
+- `suggested_interview_questions`: `string[]`
+
+List-field rules:
+- Never return a single string for list fields.
+- Never encode multiple list items in one string with separators.
+- Use one array item per idea/observation/question.

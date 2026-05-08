@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ArrowsClockwise, CaretRight, CircleNotch, Play } from '@phosphor-icons/react';
+import { ArrowsClockwise, CaretRight, CircleNotch, FileCode, Play } from '@phosphor-icons/react';
 import { motion } from 'motion/react';
 import { Button } from '../../../../components/ui/button';
 import { PIPELINE_RETRY_COMMENT_MAX_LENGTH } from '../../../../config/api-paths';
@@ -30,6 +30,8 @@ type Props = {
   onRunNextPhase: () => void;
   editorOpenCta: string;
   detailCopy: PhaseDetailCopy;
+  strategyRepairedJsonCta: { label: string; hint: string } | null;
+  onOpenStrategyRepairedJsonApply: () => void;
 };
 
 export function PhaseDetailActions(props: Props) {
@@ -52,6 +54,8 @@ export function PhaseDetailActions(props: Props) {
     onRunNextPhase,
     editorOpenCta,
     detailCopy,
+    strategyRepairedJsonCta,
+    onOpenStrategyRepairedJsonApply,
   } = props;
 
   const rerunCommentLength = rerunCommentDraft.length;
@@ -136,6 +140,19 @@ export function PhaseDetailActions(props: Props) {
           >
             <ArrowsClockwise className="mr-2 h-4 w-4" aria-hidden />
             {detailCopy.rerunPhaseManual}
+          </Button>
+        )}
+        {strategyRepairedJsonCta && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title={strategyRepairedJsonCta.hint}
+            disabled={resumeCancelledBusy || runNextPhaseBusy}
+            onClick={onOpenStrategyRepairedJsonApply}
+          >
+            <FileCode className="mr-2 h-4 w-4" aria-hidden />
+            {strategyRepairedJsonCta.label}
           </Button>
         )}
         {showContinuePipeline && (

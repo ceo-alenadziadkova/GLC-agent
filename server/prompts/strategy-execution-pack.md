@@ -8,3 +8,18 @@ Rules:
 - If `selected_path_type` is `fast`, bias toward no-code / low-change sequencing. If `scalable`, allow more engineering depth. If `balanced`, mix both.
 - Prefer realistic sequencing (dependencies first). Keep language professional and concise.
 - For each pack, set `outcome_measurement` when you can: `success_metric` (one measurable signal), `baseline` (current or unknown), and `review_cadence` (e.g. weekly / end of sprint / 30d review). If evidence is too thin, omit individual fields or the whole object—do not fabricate numbers.
+
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Top-level shape:
+- `packs`: array of pack objects
+
+Per-pack list fields:
+- `tasks`: `string[]`
+- `artifacts`: `string[]` (optional)
+- `templates`: `string[]` (optional)
+- `prompts`: `string[]` (optional)
+
+Never return these list fields as a single string.

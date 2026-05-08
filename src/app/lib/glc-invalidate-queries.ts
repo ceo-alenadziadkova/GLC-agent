@@ -4,6 +4,7 @@ import { invalidatePlanWorkspaceQueries } from './plan-workspace-queries';
 
 export function invalidateAuditRelatedQueries(qc: QueryClient, auditId: string): void {
   void invalidatePlanWorkspaceQueries(qc, auditId);
+  void qc.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
   void qc.invalidateQueries({ queryKey: glcKeys.brief.detail(auditId) });
 }
 

@@ -10,7 +10,6 @@ import {
 import type { AuthRequest } from '../../../middleware/auth.js';
 import {
   DomainPhaseResultPatchSchema,
-  PipelinePhaseResultPatchSchema,
   StrategyPhaseResultPatchSchema,
 } from '../../../schemas/pipeline-phase-result-edit.js';
 import { logger } from '../../../services/logger.js';
@@ -47,8 +46,13 @@ export async function patchPipelinePhaseResultController(req: AuthRequest, res: 
       return;
     }
 
-    const parsed = PipelinePhaseResultPatchSchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
+    const bodyUnknown = req.body as unknown;
+    if (bodyUnknown == null || typeof bodyUnknown !== 'object' || Array.isArray(bodyUnknown)) {
+      sendApiError(res, 400, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID, 'invalid_body');
+      return;
+    }
+    const rawResult = (bodyUnknown as Record<string, unknown>).result;
+    if (rawResult == null || typeof rawResult !== 'object' || Array.isArray(rawResult)) {
       sendApiError(res, 400, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID, 'invalid_body');
       return;
     }
@@ -69,7 +73,7 @@ export async function patchPipelinePhaseResultController(req: AuthRequest, res: 
     }
 
     if (phase === 7) {
-      const strategyPatchParsed = StrategyPhaseResultPatchSchema.safeParse(parsed.data.result);
+      const strategyPatchParsed = StrategyPhaseResultPatchSchema.safeParse(rawResult);
       if (!strategyPatchParsed.success) {
         sendApiError(res, 400, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID, 'invalid_strategy_body');
         return;
@@ -120,7 +124,7 @@ export async function patchPipelinePhaseResultController(req: AuthRequest, res: 
       return;
     }
 
-    const domainPatchParsed = DomainPhaseResultPatchSchema.safeParse(parsed.data.result);
+    const domainPatchParsed = DomainPhaseResultPatchSchema.safeParse(rawResult);
     if (!domainPatchParsed.success) {
       sendApiError(res, 400, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_PAYLOAD_INVALID, 'invalid_domain_body');
       return;

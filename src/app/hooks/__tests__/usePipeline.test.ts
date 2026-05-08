@@ -6,11 +6,16 @@ const {
   mockRunNextPhase,
   invalidateAuditRelatedQueriesMock,
   invalidateAuditsListsAndDashboardMock,
+  realtimeHandlers,
 } = vi.hoisted(() => ({
   mockGetPipelineStatus: vi.fn(),
   mockRunNextPhase: vi.fn(),
   invalidateAuditRelatedQueriesMock: vi.fn(),
   invalidateAuditsListsAndDashboardMock: vi.fn(),
+  realtimeHandlers: {
+    pipelineEventsInsert: null as null | ((payload: { new: unknown }) => void),
+    auditsUpdate: null as null | ((payload: { new: unknown }) => void),
+  },
 }));
 
 vi.mock('../../data/apiService', async (importOriginal) => {
@@ -34,18 +39,28 @@ vi.mock('../../lib/glc-invalidate-queries', () => ({
   invalidateAuditsListsAndDashboard: invalidateAuditsListsAndDashboardMock,
 }));
 
-vi.mock('../../lib/supabase', () => {
-  const channelApi = {
-    on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn().mockReturnThis(),
-    unsubscribe: vi.fn(),
-  };
-  return {
-    supabase: {
-      channel: vi.fn(() => channelApi),
-    },
-  };
-});
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    channel: vi.fn(() => {
+      const api = {
+        on: vi.fn(
+          (
+            _event: string,
+            config: { table?: string },
+            handler: (payload: { new: unknown }) => void,
+          ) => {
+            if (config.table === 'pipeline_events') realtimeHandlers.pipelineEventsInsert = handler;
+            if (config.table === 'audits') realtimeHandlers.auditsUpdate = handler;
+            return api;
+          },
+        ),
+        subscribe: vi.fn().mockReturnThis(),
+        unsubscribe: vi.fn(),
+      };
+      return api;
+    }),
+  },
+}));
 
 import { usePipeline } from '../usePipeline';
 
@@ -61,6 +76,8 @@ const PIPELINE_STATUS_FIXTURE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  realtimeHandlers.pipelineEventsInsert = null;
+  realtimeHandlers.auditsUpdate = null;
   mockGetPipelineStatus.mockResolvedValue(PIPELINE_STATUS_FIXTURE);
   mockRunNextPhase.mockResolvedValue({ status: 'running', phase: 5 });
 });
@@ -152,5 +169,48 @@ describe('usePipeline', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.state?.current_phase).toBe(7);
+  });
+
+  it('refetches pipeline status when Realtime fires before the initial load snapshot exists', async () => {
+    const settles: Array<{ resolve: (v: typeof PIPELINE_STATUS_FIXTURE) => void }> = [];
+
+    mockGetPipelineStatus.mockImplementation(
+      async () =>
+        new Promise(resolve => {
+          settles.push({
+            resolve: resolve as (v: typeof PIPELINE_STATUS_FIXTURE) => void,
+          });
+        }),
+    );
+
+    const { result } = renderHook(() => usePipeline('audit-rt'));
+
+    await waitFor(() => expect(settles.length).toBe(1));
+    await waitFor(() => expect(realtimeHandlers.pipelineEventsInsert).not.toBeNull());
+
+    const row = {
+      id: 'evt-1',
+      audit_id: 'audit-rt',
+      phase: 2,
+      event_type: 'log',
+      message: 'hello',
+      data: {},
+      created_at: new Date().toISOString(),
+    };
+
+    await act(async () => {
+      realtimeHandlers.pipelineEventsInsert?.({ new: row });
+    });
+
+    await waitFor(() => expect(settles.length).toBe(2));
+    expect(mockGetPipelineStatus).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      settles[0].resolve(PIPELINE_STATUS_FIXTURE);
+      settles[1].resolve(PIPELINE_STATUS_FIXTURE);
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.state).not.toBeNull();
   });
 });

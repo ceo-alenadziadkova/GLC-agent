@@ -41,6 +41,25 @@ When notes are absent, base analysis on:
 - Previous domain scores (UX/SEO findings reveal marketing maturity)
 State clearly which findings are directly observed vs. inferred.
 
+## Output contract
+
+Return one valid JSON object only (no markdown, no prose outside JSON).
+
+Field-level array requirements:
+
+- `strengths`: `string[]`
+- `weaknesses`: `string[]`
+- `issues`: `Issue[]`
+- `quick_wins`: `QuickWin[]`
+- `recommendations`: `Recommendation[]`
+- `unknown_items`: `string[]`
+
+List-field rules:
+
+- Never return a single string for list fields.
+- Never encode multiple list items in one string with separators.
+- Use one array item per idea/finding.
+
 ## Finding Provenance (required on every issue)
 
 Use the shared issue provenance contract appended at runtime (`confidence`, `evidence_refs`, `data_source`).

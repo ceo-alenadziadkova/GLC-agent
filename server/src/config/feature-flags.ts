@@ -209,6 +209,14 @@ export function isDirectorOrchestrationAgentOutputEnabled(): boolean {
   );
 }
 
+/** Deterministic domain-agent tool payload repairs before DomainOutputSchema. Env: FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE */
+export function isDomainOutputCoalitionNormalizeEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_DOMAIN_OUTPUT_COALITION_NORMALIZE,
+    FF.domainOutputCoalitionNormalizeEnabled,
+  );
+}
+
 /**
  * Timeline-first orchestration UX segment (KPI logs / rollout hooks).
  * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX=false to disable structured timeline metrics logs.

@@ -11,7 +11,7 @@ import {
 } from '../config/strategy-initiative-policy.js';
 import { CANONICAL_NODE_BOARD_IDENTITY_KEY_MAX_CHARS, DOMAIN_KEYS } from '@glc/intake-core';
 
-import { GlcDirectorOrchestrationSliceSchema } from './glc-director-orchestration-slice.js';
+import { GlcDirectorOrchestrationSliceFromToolInputSchema } from './glc-director-orchestration-slice.js';
 
 const L = STRATEGY_INITIATIVE_LIMITS;
 const EP = STRATEGY_EXECUTION_PACK_LIMITS;
@@ -200,7 +200,7 @@ export const DomainOutputSchema = z.object({
    * (`director-orchestration-policy.ts`, optionally narrowed by `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT`)
    * require a parseable slice before the row is accepted.
    */
-  glc_director_execution: GlcDirectorOrchestrationSliceSchema.optional(),
+  glc_director_execution: GlcDirectorOrchestrationSliceFromToolInputSchema,
 });
 
 export type DomainOutput = z.infer<typeof DomainOutputSchema>;
@@ -433,6 +433,11 @@ function zodToJson(schema: z.ZodTypeAny): Record<string, unknown> {
   if (schema instanceof z.ZodNullable) return { ...zodToJson(schema.unwrap()), nullable: true };
   if (schema instanceof z.ZodOptional) return zodToJson(schema.unwrap());
   if (schema instanceof z.ZodDefault) return zodToJson(schema._def.innerType);
+  // `.superRefine` / transforms wrap inner schema — JSON Schema mirrors the structural shape only.
+  if (schema instanceof z.ZodEffects) {
+    const inner = (schema._def as { schema: z.ZodTypeAny }).schema;
+    return zodToJson(inner);
+  }
 
   // Fallback
   return { type: 'string' };

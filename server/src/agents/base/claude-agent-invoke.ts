@@ -1,5 +1,6 @@
 /**
- * Single Claude completion with tool output, validation, retries, and circuit breaker.
+ * Single Claude completion with tool output, Zod validation, HTTP retries, and circuit breaker.
+ * Schema validation does not trigger additional LLM calls (fail fast; capture raw tool JSON to `pipeline_events`).
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -23,10 +24,23 @@ import {
   interpolatePipelineEventMessage,
   pipelineBaseEventCopy,
 } from '../../config/pipeline-events-copy.js';
+import {
+  isDomainOutputCoalitionNormalizeEnabled,
+  isLlmPromptCacheEnabled,
+} from '../../config/feature-flags.js';
+import {
+  ORCHESTRATION_TELEMETRY_METRICS,
+} from '../../config/orchestration-telemetry-policy.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
+import { buildLlmToolValidationFailedEventData } from '../../lib/claude-tool-use-validation-capture.js';
 import { zodToJsonSchema } from '../../schemas/domain-output.js';
 import type { ContextBuilder, AgentContext } from '../../services/context-builder.js';
+import {
+  isDomainAgentOutputKey,
+  normalizeDomainAgentToolInputForSchema,
+} from '../../services/domain-output/domain-output-coalition-normalize.js';
 import { logger } from '../../services/logger.js';
+import { normalizeStrategyToolInputForSchema } from '../../services/strategy/strategy-output-tool-normalize.js';
 import type { TokenTracker } from '../../services/token-tracker.js';
 import type { DomainKey, DomainResult } from '../../types/audit.js';
 
@@ -35,8 +49,6 @@ import {
   recordClaudeFailure,
   resetClaudeFailures,
 } from './claude-circuit-breaker.js';
-import { isLlmPromptCacheEnabled } from '../../config/feature-flags.js';
-import { ORCHESTRATION_TELEMETRY_METRICS } from '../../config/orchestration-telemetry-policy.js';
 
 const CLAUDE_RETRYABLE_HTTP_STATUSES = new Set<number>(SYSTEM_DEFAULTS.claudeHttp.retryableAnthropicStatuses);
 const CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES = new Set<number>(
@@ -80,6 +92,9 @@ export async function callClaudeWithRetry<TOutput = DomainResult>(
     );
   }
   const jsonSchema = zodToJsonSchema(schema);
+  const anthropicMessages: Anthropic.Messages.MessageCreateParamsNonStreaming['messages'] = [
+    { role: 'user', content: prompt },
+  ];
   for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
     const callStartedAt = Date.now();
     await emit(PIPELINE_EVENT_TYPES.llmCallStarted, 'LLM call started', {
@@ -129,7 +144,7 @@ export async function callClaudeWithRetry<TOutput = DomainResult>(
             model: CLAUDE_MODEL,
             max_tokens: maxTokens,
             system: systemParam,
-            messages: [{ role: 'user', content: prompt }],
+            messages: anthropicMessages,
             tools: [toolBlockDef as Anthropic.Tool],
             tool_choice: { type: 'tool', name: toolName },
           },
@@ -185,7 +200,30 @@ export async function callClaudeWithRetry<TOutput = DomainResult>(
         latency_ms: Date.now() - callStartedAt,
       });
 
-      const parsed = schema.safeParse(toolBlock.input);
+      let parsedInput: unknown = toolBlock.input;
+      if (isDomainAgentOutputKey(domainKey) && isDomainOutputCoalitionNormalizeEnabled()) {
+        const normalized = normalizeDomainAgentToolInputForSchema(toolBlock.input);
+        parsedInput = normalized.value;
+        if (normalized.mutated) {
+          logger.info('domain_agent.tool_output_coalition_normalized', {
+            audit_id: auditId,
+            domain_key: domainKey,
+            mutation_codes: [...normalized.mutationCodes],
+          });
+        }
+      } else if (domainKey === 'strategy' && isDomainOutputCoalitionNormalizeEnabled()) {
+        const normalized = normalizeStrategyToolInputForSchema(toolBlock.input);
+        parsedInput = normalized.value;
+        if (normalized.mutated) {
+          logger.info('domain_agent.tool_output_strategy_normalized', {
+            audit_id: auditId,
+            domain_key: domainKey,
+            mutation_codes: [...normalized.mutationCodes],
+          });
+        }
+      }
+
+      const parsed = schema.safeParse(parsedInput);
       if (!parsed.success) {
         await emit(
           PIPELINE_EVENT_TYPES.log,
@@ -194,12 +232,18 @@ export async function callClaudeWithRetry<TOutput = DomainResult>(
             message: parsed.error.message,
           }),
         );
-        if (attempt === CLAUDE_MAX_RETRIES) {
-          throw new Error(
-            `Response validation failed after ${CLAUDE_MAX_RETRIES} attempts: ${parsed.error.message}`,
-          );
-        }
-        continue;
+        await emit(
+          PIPELINE_EVENT_TYPES.llmToolValidationFailed,
+          'LLM tool output failed schema validation',
+          buildLlmToolValidationFailedEventData({
+            callType: 'domain_agent',
+            toolName,
+            toolUseId: toolBlock.id,
+            zodMessage: parsed.error.message,
+            toolInput: toolBlock.input,
+          }),
+        );
+        throw new Error(`Response validation failed: ${parsed.error.message}`);
       }
 
       return parsed.data as TOutput;

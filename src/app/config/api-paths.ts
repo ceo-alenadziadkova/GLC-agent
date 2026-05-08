@@ -53,6 +53,7 @@ export {
   apiAuditsDirectorDeepDiveStatus,
   apiAuditsDirectorDeepDiveQuota,
   apiPlatformAuditPipelineResumeCancelled,
+  apiPlatformAuditStrategyRepairedJsonApply,
   apiAuditsQualityGate,
   apiAuditsReportQuery,
   apiAuditsReview,

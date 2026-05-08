@@ -11,6 +11,7 @@ import {
   interpolatePipelineEventMessage,
   pipelineReconEventCopy,
 } from '../config/pipeline-events-copy.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import type { DomainResult } from '../types/audit.js';
@@ -20,6 +21,8 @@ import {
   buildReconContextSummary,
   extractReconCrawlSignalsForSummary,
 } from '../services/recon/recon-context-summary.service.js';
+import { normalizeReconRuntimeOutput } from '../services/recon/recon-output-normalizer.js';
+import { z } from 'zod';
 
 /**
  * Phase 0: Recon Agent
@@ -88,7 +91,35 @@ export class ReconAgent extends BaseAgent {
       );
     }
 
-    const reconResult = await this.callClaudeWithRetry(context, ReconOutputSchema, MODEL_MAX_TOKENS.recon) as unknown as import('zod').infer<typeof ReconOutputSchema>;
+    const reconRuntimeSchema = ReconOutputSchema.extend({
+      key_services_products: z.union([z.array(z.string()), z.string()]),
+      initial_observations: z.union([z.array(z.string()), z.string()]),
+      suggested_interview_questions: z.union([z.array(z.string()), z.string()]),
+    });
+    const reconRaw = await this.callClaudeWithRetry(
+      context,
+      reconRuntimeSchema,
+      MODEL_MAX_TOKENS.recon,
+    ) as unknown;
+    const normalizedRecon = normalizeReconRuntimeOutput(reconRaw);
+    if (normalizedRecon.appliedFields.length > 0) {
+      await this.emit(PIPELINE_EVENT_TYPES.coercionApplied, 'Recon list-field coercion applied', {
+        detail_level: 'debug',
+        fields: normalizedRecon.appliedFields,
+        raw_types_before: normalizedRecon.rawTypesBefore,
+      });
+    }
+    const reconParsed = ReconOutputSchema.safeParse(normalizedRecon.normalized);
+    if (!reconParsed.success) {
+      await this.emit(PIPELINE_EVENT_TYPES.coercionFailed, 'Recon coercion failed strict schema validation', {
+        detail_level: 'debug',
+        fields: normalizedRecon.appliedFields,
+        validation_path: reconParsed.error.issues[0]?.path ?? [],
+        validation_message: reconParsed.error.issues[0]?.message ?? reconParsed.error.message,
+      });
+      throw new Error(`Recon output validation failed after normalization: ${reconParsed.error.message}`);
+    }
+    const reconResult = reconParsed.data;
     const { data: briefRow } = await supabase
       .from('intake_brief')
       .select('responses')
