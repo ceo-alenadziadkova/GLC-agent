@@ -1,0 +1,157 @@
+/* Timeline panel — grid area, dividers, headers, today marker. */
+
+.roadmap-grid-area {
+  position: relative;
+}
+
+.roadmap-grid-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-2px);
+  transition:
+    opacity 140ms ease,
+    max-height 140ms ease,
+    transform 140ms ease;
+}
+
+.roadmap-grid-area:hover .roadmap-grid-hint,
+.roadmap-grid-area:focus-within .roadmap-grid-hint {
+  opacity: 0.9;
+  max-height: 32px;
+  transform: translateY(0);
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-day-divider {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 64%, transparent);
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-week-divider {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-month-divider {
+  border-left: 1px solid color-mix(in srgb, var(--text-secondary) 35%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-today-divider {
+  border-left: 1px solid color-mix(in srgb, var(--glc-blue) 62%, var(--border-default));
+}
+
+.roadmap-gantt-shell .rct-vl.roadmap-weekend-shade {
+  background-color: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-weekend-shade {
+  background-color: color-mix(in srgb, var(--surface-raised) 32%, transparent);
+}
+
+.roadmap-gantt-shell .rct-dateHeader {
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--roadmap-font-header);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.roadmap-gantt-shell .rct-dateHeader-primary {
+  height: 32px;
+  line-height: 32px;
+  font-size: var(--roadmap-font-header);
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-default);
+  padding-left: 10px;
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-day-header {
+  height: 30px;
+  line-height: 30px;
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+}
+
+.roadmap-gantt-shell .roadmap-month-header {
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-time-headers {
+  box-shadow: inset 0 -1px 0 var(--border-default);
+}
+
+.roadmap-gantt-shell .roadmap-sidebar-header {
+  height: 62px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: var(--roadmap-font-header);
+  font-weight: 600;
+  color: var(--text-primary) !important;
+  border-right: 1px solid var(--border-default);
+  background: var(--surface-base);
+}
+
+.roadmap-gantt-shell .roadmap-today-marker-line {
+  width: 2px;
+  height: 100%;
+  background: color-mix(in srgb, var(--glc-blue) 68%, var(--border-default));
+  position: relative;
+  z-index: 5;
+}
+
+.roadmap-gantt-shell .roadmap-today-marker-nub {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--glc-blue) 78%, white);
+  box-shadow: 0 0 0 2px var(--surface-base);
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-day-divider {
+  border-left-color: color-mix(in srgb, var(--border-default) 72%, rgb(53 63 82));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-week-divider {
+  border-left-color: color-mix(in srgb, var(--border-default) 82%, rgb(84 101 130));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-month-divider {
+  border-left-color: color-mix(in srgb, rgb(165 186 220) 40%, var(--border-default));
+}
+
+html.dark .roadmap-gantt-shell .rct-vl.roadmap-today-divider,
+html.dark .roadmap-gantt-shell .roadmap-today-marker-line {
+  background: color-mix(in srgb, var(--glc-blue) 66%, rgb(132 174 255));
+  border-left-color: color-mix(in srgb, var(--glc-blue) 66%, rgb(132 174 255));
+}
+
+html.dark .roadmap-gantt-shell .roadmap-today-marker-nub {
+  background: color-mix(in srgb, var(--glc-blue) 68%, rgb(187 214 255));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-base) 90%, rgb(12 16 24));
+}
+
+html.dark .roadmap-gantt-shell .rct-dateHeader-primary,
+html.dark .roadmap-gantt-shell .roadmap-month-header,
+html.dark .roadmap-gantt-shell .roadmap-sidebar-header {
+  background: color-mix(in srgb, var(--surface-base) 86%, rgb(14 18 26));
+}
+
+html.dark .roadmap-gantt-shell .roadmap-day-header {
+  background: color-mix(in srgb, var(--surface-raised) 76%, rgb(17 22 31));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roadmap-grid-hint {
+    transition: none;
+    transform: none;
+  }
+}
