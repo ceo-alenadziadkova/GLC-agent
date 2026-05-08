@@ -101,7 +101,42 @@
     "reconPreviewIntroTitle": "Findings from this phase",
     "reconPreviewIntroBody": "This is the saved crawl output used as context for later phases. You can review it here before opening Approve in the sidebar after phase 0.",
     "clientReviewGateTitle": "Waiting for your consultant",
-    "clientReviewGateBody": "The audit is paused at a review checkpoint. Your consultant must approve this stage before the next steps can run. You do not need to take action here unless they ask you for something. Keep this page open if you like — it will update when the run continues."
+    "clientReviewGateBody": "The audit is paused at a review checkpoint. Your consultant must approve this stage before the next steps can run. You do not need to take action here unless they ask you for something. Keep this page open if you like — it will update when the run continues.",
+    "phaseResultEditor": {
+      "openCta": "Edit phase result text",
+      "title": "Phase result editor",
+      "executiveSummaryLabel": "Executive summary",
+      "labelLabel": "Label",
+      "summaryLabel": "Summary",
+      "strengthsLabel": "Strengths (one per line)",
+      "weaknessesLabel": "Weaknesses (one per line)",
+      "issuesLabel": "Issues",
+      "addIssue": "Add issue",
+      "quickWinsLabel": "Quick wins",
+      "addQuickWin": "Add quick win",
+      "recommendationsLabel": "Recommendations",
+      "addRecommendation": "Add recommendation",
+      "removeRow": "Remove",
+      "save": "Save result",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "placeholders": {
+        "id": "id",
+        "title": "title",
+        "description": "description",
+        "impact": "impact",
+        "timeframe": "timeframe"
+      },
+      "validation": {
+        "executiveSummaryRequired": "Executive summary is required.",
+        "labelRequired": "Label is required.",
+        "summaryRequired": "Summary is required.",
+        "issueFields": "Each issue must have id, title, description, and impact.",
+        "quickWinFields": "Each quick win must have id, title, description, and timeframe.",
+        "recommendationFields": "Each recommendation must have id, title, description, and impact.",
+        "saveFailedFallback": "Failed to save phase result"
+      }
+    }
   },
   "reviewModal": {
     "defaultNote": "Add your observations before continuing",

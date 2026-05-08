@@ -176,7 +176,7 @@ The **phase activity log** in the pipeline monitor (`PipelineMonitorPage` → `P
 - **Consultants** see **raw** messages from `pipeline_events` in the log (plus token usage rows where applicable).
 - **Portal clients** keep the **same terminal chrome**; individual lines are rewritten to **plain-language** copy via `clientPortal.activityLog` in `src/app/data/pipeline-monitor-copy.en.json` and `mapPhaseEventsToClientPortalLogEntries`. Event types such as `token_usage` and `control_object` are omitted from the client-facing list.
 
-Code: `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`, mappers under `src/app/pages/pipeline-monitor/mappers/`.
+Code: `PhaseDetailPanel` (`src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx`) composes section components from `src/app/pages/pipeline-monitor/sections/phase-detail/` (header, banners, state cards, stalled callout, governance, terminal activity log, actions, phase result editor + `usePhaseResultEditor`). Mappers live under `src/app/pages/pipeline-monitor/mappers/`.
 
 - **Portal sidebar:** step groups can be collapsed even when they contain `current_phase`; when collapsed, copy from `clientPortal.sidebar.currentStepCollapsedHint` explains that the live step is inside (`PhaseSidebar` → `ClientPortalPhaseSection`).
 - **Portal completed:** a prominent **View report** (primary) and **Strategy roadmap** (secondary) block appears in the detail panel when `audits.status === completed` (`clientPortal.completed` in `pipeline-monitor-copy.en.json`).

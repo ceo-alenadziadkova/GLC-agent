@@ -54,6 +54,7 @@ export const PIPELINE_MONITOR_UI_POLICY = {
       PIPELINE_MONITOR_AUDIT_STATUS.failed,
       PIPELINE_MONITOR_AUDIT_STATUS.cancelled,
     ] as const,
+    completed: PIPELINE_MONITOR_AUDIT_STATUS.completed,
     created: PIPELINE_MONITOR_AUDIT_STATUS.created,
     /** Error / watchdog; same string as `PhaseView.status` when a phase card is failed. */
     failed: PIPELINE_MONITOR_AUDIT_STATUS.failed,
