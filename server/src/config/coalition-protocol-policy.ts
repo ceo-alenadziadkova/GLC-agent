@@ -457,3 +457,7 @@ export const COALITION_NON_DOMAIN_SECURITY_PROMPT_NAMES = [
   'context-director',
   'cross-domain-conflict-resolver',
 ] as const;
+
+/** Quality event copy for Strategy initiatives missing dependencies despite alignment `depends_on` signals. */
+export const COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING =
+  'Coalition alignments include depends_on reactions, but Strategy returned initiatives without cross_domain_dependencies.' as const;

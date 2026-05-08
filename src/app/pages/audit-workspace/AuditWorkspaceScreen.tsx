@@ -35,6 +35,7 @@ import { buildAppRoute } from '../../config/route-paths';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { CoalitionChainView } from '../../components/CoalitionChainView';
 import { ConflictMatrix } from '../../components/ConflictMatrix';
+import { ClientSituationCard } from '../../components/ClientSituationCard';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
@@ -179,6 +180,7 @@ export function AuditWorkspaceScreen() {
             <DomainHeaderCard activeDomain={state.activeDomain} domainData={domainData} />
             {APP_FEATURE_FLAGS.coalitionProtocolEnabled ? (
               <div className="grid gap-4 lg:grid-cols-2">
+                <ClientSituationCard snapshot={audit.coalition?.client_situation_snapshot} />
                 <CoalitionChainView coalition={audit.coalition} />
                 <ConflictMatrix resolution={audit.coalition?.conflict_resolution} />
               </div>

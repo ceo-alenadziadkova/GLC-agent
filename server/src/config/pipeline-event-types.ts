@@ -44,6 +44,8 @@ export const PIPELINE_EVENT_TYPES = {
   planBoardManualInProgressBlocked: 'plan_board_manual_in_progress_blocked',
   /** Coalition resolver found unresolved cross-domain conflicts that require consultant attention. */
   coalitionConflictEscalationRequired: 'coalition_conflict_escalation_required',
+  /** ADR rollout alias for unresolved conflict escalation; kept alongside runtime key for analytics compatibility. */
+  coalitionUnresolvedEscalation: 'coalition_unresolved_escalation',
   /** Coalition auto-loop reran Context Director after unresolved escalation. */
   coalitionAutoLoopContextDirectorRerun: 'coalition_auto_loop_context_director_rerun',
 } as const;

@@ -17,7 +17,7 @@ import { cn } from '../ui/utils';
 import { StatusPill } from './StatusPill';
 import { SectionLabel } from './SectionLabel';
 import { ReconReviewSummary } from './ReconReviewSummary';
-import { COALITION_PROTOCOL_COPY } from '../../config/coalition-protocol-copy.en';
+import { ApproveCoalitionGate } from '../ApproveCoalitionGate';
 
 interface ReviewPoint {
   id: number;
@@ -53,6 +53,7 @@ interface ReviewPointModalProps {
   reconReviewSummary?: ReconReviewSummaryPayload | null;
   /** Coalition Phase 0.5 snapshot shown in the renamed Approve client situation gate. */
   clientSituationSnapshot?: Record<string, unknown> | null;
+  showClientSituationGate?: boolean;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -79,9 +80,11 @@ export function ReviewPointModal({
   governanceRefineSectionIntro = '',
   reconReviewSummary = null,
   clientSituationSnapshot = null,
+  showClientSituationGate = false,
 }: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
+  const [verifiedOverrideNote, setVerifiedOverrideNote] = useState('');
 
   if (!reviewPoint) return null;
 
@@ -95,16 +98,20 @@ export function ReviewPointModal({
 
   function handleApprove() {
     if (notesRequired) return;
-    onApprove(reviewPoint.id, consultantNotes, interviewNotes);
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onApprove(reviewPoint.id, notes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
+    setVerifiedOverrideNote('');
   }
 
   function handleRequestMissingData() {
     if (!onRequestMissingData || !canRequestMissingData) return;
-    onRequestMissingData(reviewPoint.id, consultantNotes, interviewNotes);
+    const notes = [consultantNotes, verifiedOverrideNote].filter(Boolean).join('\n\n');
+    onRequestMissingData(reviewPoint.id, notes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
+    setVerifiedOverrideNote('');
   }
 
   return (
@@ -161,21 +168,11 @@ export function ReviewPointModal({
               </Callout>
             </>
           ) : null}
-          {reviewPoint.after === 0 ? (
-            <div className="rounded-lg border bg-card p-4">
-              <SectionLabel className="mb-2">
-                {COALITION_PROTOCOL_COPY.gate.snapshotHeading}
-              </SectionLabel>
-              {clientSituationSnapshot ? (
-                <pre className="bg-[var(--bg-inset)] text-muted-foreground max-h-64 overflow-auto rounded-md border border-[var(--border-subtle)] p-3 font-mono text-[length:var(--text-2xs)] leading-snug whitespace-pre-wrap">
-                  {JSON.stringify(clientSituationSnapshot, null, 2)}
-                </pre>
-              ) : (
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  {COALITION_PROTOCOL_COPY.gate.noSnapshot}
-                </p>
-              )}
-            </div>
+          {showClientSituationGate && reviewPoint.after === 0 ? (
+            <ApproveCoalitionGate
+              snapshot={clientSituationSnapshot}
+              onVerifiedOverrideChange={setVerifiedOverrideNote}
+            />
           ) : null}
           {isPipelineStrategyReviewGateAfterPhase(reviewPoint.after) ? (
             <Callout intent="info" className="p-3 text-xs leading-relaxed">

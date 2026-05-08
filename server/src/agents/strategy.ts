@@ -11,7 +11,10 @@ import {
   buildStrategyBriefConstraintSnapshot,
   mergeBriefSnapshotWithLabOverrides,
 } from '../services/strategy/strategy-brief-constraint-snapshot.js';
-import { postProcessStrategyInitiatives } from '../services/strategy/strategy-initiative-post-process.js';
+import {
+  collectMissingCrossDomainDependencyIds,
+  postProcessStrategyInitiatives,
+} from '../services/strategy/strategy-initiative-post-process.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
@@ -22,6 +25,8 @@ import {
   assertPhaseRunLeaseHeld,
   getPhaseRunLeaseContext,
 } from '../services/pipeline/phase-run-lease-context.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING } from '../config/coalition-protocol-policy.js';
 
 type StrategyPersistPayload = {
   strategyResult: StrategyOutput;
@@ -207,6 +212,18 @@ export class StrategyAgent extends BaseAgent {
       issueIndex,
       { requireCrossDomainDependencies },
     );
+
+    const missingCrossDomainDependencyIds = collectMissingCrossDomainDependencyIds(
+      [...quick_wins, ...medium_term, ...strategic],
+      requireCrossDomainDependencies,
+    );
+
+    if (missingCrossDomainDependencyIds.length > 0) {
+      await this.emit(PIPELINE_EVENT_TYPES.qualityGate, COALITION_STRATEGY_MISSING_DEPENDENCIES_WARNING, {
+        gate: 'coalition_strategy_cross_domain_dependencies',
+        initiative_ids: missingCrossDomainDependencyIds,
+      });
+    }
 
     this.lastRawDomainResult = { ...strategyResult } as unknown as Record<string, unknown>;
 

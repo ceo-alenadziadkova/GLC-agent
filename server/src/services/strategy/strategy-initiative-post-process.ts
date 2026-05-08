@@ -14,6 +14,16 @@ export type StrategyInitiativePostProcessed = StrategyInitiativeParsed & {
   evidence_verified: boolean;
 };
 
+export function collectMissingCrossDomainDependencyIds(
+  initiatives: readonly StrategyInitiativeParsed[],
+  requireCrossDomainDependencies: boolean,
+): string[] {
+  if (!requireCrossDomainDependencies) return [];
+  return initiatives
+    .filter(initiative => initiative.evidence.cross_domain_dependencies.length === 0)
+    .map(initiative => initiative.id);
+}
+
 function budgetBandRejectsScalable(band: StrategyConstraintBudgetBand): boolean {
   return (STRATEGY_PATH_INCOMPATIBILITY.budgetBandsThatRejectScalable as readonly string[]).includes(band);
 }

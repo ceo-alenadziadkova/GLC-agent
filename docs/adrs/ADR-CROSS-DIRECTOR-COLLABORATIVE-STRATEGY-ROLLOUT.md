@@ -56,6 +56,7 @@ Initial state (2026-05-08): no phases completed. Concept ADR `ADR-CROSS-DIRECTOR
 | 2026-05-08 | Rollout Phase 0 close — schemas + migrations + flags merged default-off | complete in code: schemas, policy, tool constants, prompt-loader scaffolding, feature flags, SPA mirrors, migrations `088..091`; targeted Vitest `48/48` passed on prompt/context/schema rigor |
 | 2026-05-08 | Rollout Phase 1–4 backend shadow runtime implementation | implemented behind `FEATURE_COALITION_PROTOCOL_ENABLED=false` default: Context Director persistence, hypothesis/alignment wings, bounded peer hypothesis formatting, `collaboration_degraded` alignment fallback, resolver persistence, unresolved-conflict escalation event, anti-drift tests |
 | 2026-05-08 | Rollout Phase 5+ follow-up boundary | kept as post-shadow release block: finalize prompt alias flip, UI matrix/snapshot editing, staged activation, and post-GA hardening remain guarded by KPI evidence from shadow audits |
+| 2026-05-08 | Rollout Phase 1–6 contract completion | completed in code: per-domain hypothesis/alignment wrappers, coalition phase events, ADR/runtime escalation alias, strategy dependency quality warning, `ClientSituationCard`, `ApproveCoalitionGate`, pipeline monitor snapshot/phase display, and targeted contract/component tests |
 | YYYY-MM-DD | Rollout Phase 1 close — Context Director shadow on staging | TBD |
 | ... | ... | ... |
 

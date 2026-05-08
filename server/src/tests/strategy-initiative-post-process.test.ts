@@ -4,6 +4,7 @@ import type { DomainKey } from '@glc/intake-core';
 import { StrategyInitiativeSchema } from '../schemas/domain-output.js';
 import { buildStrategyBriefConstraintSnapshot } from '../services/strategy/strategy-brief-constraint-snapshot.js';
 import {
+  collectMissingCrossDomainDependencyIds,
   postProcessStrategyInitiatives,
   verifyInitiativeEvidence,
 } from '../services/strategy/strategy-initiative-post-process.js';
@@ -75,5 +76,10 @@ describe('strategy-initiative-post-process', () => {
       },
     });
     expect(verifyInitiativeEvidence(withDependency, idx, { requireCrossDomainDependencies: true })).toBe(true);
+  });
+
+  it('collects initiatives missing cross-domain dependency evidence for strategy quality warnings', () => {
+    expect(collectMissingCrossDomainDependencyIds([baseInit], false)).toEqual([]);
+    expect(collectMissingCrossDomainDependencyIds([baseInit], true)).toEqual(['X-1']);
   });
 });

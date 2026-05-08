@@ -26,15 +26,30 @@ import { cn } from '../../components/ui/utils';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { COALITION_PROTOCOL_COPY } from '../../config/coalition-protocol-copy.en';
 import type { PipelineEvent } from '../../data/auditTypes';
+import { ClientSituationCard } from '../../components/ClientSituationCard';
 
 function CoalitionStatusStrip({ events }: { events: PipelineEvent[] }) {
   if (!APP_FEATURE_FLAGS.coalitionProtocolEnabled) return null;
   const copy = COALITION_PROTOCOL_COPY.monitor;
   const started = events.some(event => String(event.message ?? '').includes('Coalition protocol shadow block started'));
   const completed = events.some(event => String(event.message ?? '').includes('Coalition protocol shadow block completed'));
-  const escalation = events.some(event => event.event_type === 'coalition_conflict_escalation_required');
+  const escalation = events.some(event =>
+    event.event_type === 'coalition_conflict_escalation_required'
+    || event.event_type === 'coalition_unresolved_escalation'
+  );
   const status = completed ? copy.complete : started ? copy.active : copy.pending;
-  const items = [copy.contextDirector, copy.hypothesis, copy.alignment, copy.resolver];
+  const items = [
+    { label: copy.contextDirector, started: 'Coalition phase 0.5 Context Director started', completed: 'Coalition phase 0.5 Context Director completed' },
+    { label: copy.hypothesis, started: 'Coalition phase 1 Hypothesis Round started', completed: 'Coalition phase 1 Hypothesis Round completed' },
+    { label: copy.alignment, started: 'Coalition phase 2 Alignment Round started', completed: 'Coalition phase 2 Alignment Round completed' },
+    { label: copy.resolver, started: 'Coalition phase 3 Conflict Resolver started', completed: 'Coalition phase 3 Conflict Resolver completed' },
+  ];
+  const messageSet = new Set(events.map(event => String(event.message ?? '')));
+  const phaseStatus = (item: (typeof items)[number]) => {
+    if (messageSet.has(item.completed)) return copy.complete;
+    if (messageSet.has(item.started)) return copy.active;
+    return status;
+  };
 
   return (
     <section className="mb-4 rounded-xl border bg-card p-4">
@@ -45,10 +60,10 @@ function CoalitionStatusStrip({ events }: { events: PipelineEvent[] }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((label) => (
-          <div key={label} className="rounded-lg border bg-background px-3 py-2">
-            <p className="text-foreground text-xs font-semibold">{label}</p>
-            <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)]">{status}</p>
+        {items.map((item) => (
+          <div key={item.label} className="rounded-lg border bg-background px-3 py-2">
+            <p className="text-foreground text-xs font-semibold">{item.label}</p>
+            <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)]">{phaseStatus(item)}</p>
           </div>
         ))}
       </div>
@@ -387,6 +402,11 @@ export function PipelineMonitorPage() {
       )}
       <div className="mt-4">
         <CoalitionStatusStrip events={pipelineState?.events ?? []} />
+        {APP_FEATURE_FLAGS.coalitionProtocolEnabled ? (
+          <div className="mb-4">
+            <ClientSituationCard snapshot={audit?.coalition?.client_situation_snapshot} />
+          </div>
+        ) : null}
         <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.pipelineMonitor} />
       </div>
 
@@ -418,6 +438,7 @@ export function PipelineMonitorPage() {
             ? audit?.coalition?.client_situation_snapshot ?? null
             : null
         }
+        showClientSituationGate={coalitionGateActive}
       />
 
       <StopPipelineDialog
