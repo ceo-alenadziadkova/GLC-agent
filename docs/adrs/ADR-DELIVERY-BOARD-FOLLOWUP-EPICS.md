@@ -9,7 +9,7 @@
 
 ---
 
-### Scheduling contract
+## Scheduling contract
 
 Product **§2 decision matrix**, **risk register**, and **GLC-PB-xxx** phased ticket framing live in **[`ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md`](./ADR-DELIVERY-BOARD-REPLACES-NARRATIVE-TIMELINE-PROPOSED-V1.md)** (**Accepted**); engineering SSOT remains **[`ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md`](./ADR-DELIVERY-BOARD-OPERATIONAL-LAYER.md)** (**Accepted**).
 
@@ -35,6 +35,16 @@ When product schedules work, **open a new ADR (Accepted)** for that epic alone �
 | Order | Epic | Blocker notes |
 | --- | --- | --- |
 | 1 | **Epic 2 follow-ups** | Optional deeper Board↔manifest scope per product queue |
+
+---
+
+## Rebaseline priorities (2026-05-08)
+
+This backlog was re-triaged after Plan Workspace parity verification:
+
+- **GLC-PB-019 (narrative timeline retirement):** core delivery is shipped; only residual cleanup (`planNarrativeTimeline` flag/env retirement) should be scheduled after a clean monitoring window.
+- **GLC-PB-020 (board identity UX):** backend and main UI controls are shipped; additional UX polish is optional and should not block operational roadmap work.
+- **Epic 2 follow-ups:** remains the only active engineering promotion queue item from this stub.
 
 ---
 
@@ -64,6 +74,7 @@ Promote via **new Accepted ADR** before implementation funding.
 **Follow-through (Epic 1 ADR Legacy):** audit-wide **`preserve_board_identity_on_rename`** in Strategy Lab orchestration panel stays documented as **deprecated** until a later cleanup removes it — prefer per-initiative control in the drawer.
 
 **Current state (2026-05):**
+
 - Backend propagation for **`board_identity_key`** and canonical key derivation are shipped.
 - Strategy Lab exposes a **per-initiative** edit surface (**Radix Sheet**): title rename, description, and explicit **keep Board identity** checkbox with warning copy when identity preservation is off on a renamed title (**`StrategyLabPage`** wires **`StrategyLabInitiativeEditDrawer`**).
 - Manifest signature compatibility: **`packages/intake-core/src/tests/orchestration-roadmap-manifest-signature.test.ts`**.
@@ -99,10 +110,11 @@ Promote via **new Accepted ADR** before implementation funding.
 ## Optional decision notes (GLC-PB-024 / GLC-PB-025)
 
 ### GLC-PB-024 — Strict manual `in_progress`
+
 - **Resolved:** default **strict deny** (`SYSTEM_DEFAULTS.featureFlags.planBoardStrictManualInProgressBlocked`); env **`FEATURE_PLAN_BOARD_STRICT_MANUAL_IN_PROGRESS=false`** relaxes. Telemetry **`plan_board_manual_in_progress_blocked`** + user messages live in API copy.
 
 ### GLC-PB-025 — Richer reconciliation diff panel
+
 - **Resolved (bounded):** `POST …/plan/board/reconcile/preview` returns **counts + capped title samples** (`sample_new_backlog_cards`, `sample_orphan_node_removed`); SPA dialog lists samples when preview flag is on. Full diff grid remains backlog if product requests it later.
 
 ---
-

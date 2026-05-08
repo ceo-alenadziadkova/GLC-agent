@@ -229,7 +229,12 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `LegacyStrategyPathRedirect.tsx` | Legacy alias redirect to canonical **`/lab/:id?mode=shape`** (query/hash merged) |
-| `/lab/:id` | `PlanStudioWorkspacePage` (under `PlanWorkspaceLayout`) | Strategy Lab define/shape studio; `?mode=define|shape` |
+| `/lab/:id` | `PlanStudioWorkspacePage` (under `PlanWorkspaceLayout`) | Strategy Lab define/shape studio; `?mode=define\|shape` |
+
+Plan workspace navigation is two-level by design: `PlanModeBar` controls mode (`Define` / `Shape` / `Execute`) across `/lab/:id` and `/plan/:id/*`, while `PlanViewSegmentedNav` is the sub-navigation for Execute views (`Board` / `Roadmap` / `Table`) only.
+
+`?focus=` is the shared deep-link contract across Board, Table, Roadmap, and embedded studio (`/lab/:id`) surfaces; delivery routes resolve canonical focus tokens to pack graph node IDs when needed.
+
 | `/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Redirects to canonical **`/plan/:id/board`** (query merged; `view=` stripped); narrative page removed and timeline route stays permanently legacy-only |
 | `/portal/timeline/:id` | `LegacyPlanPathRedirect.tsx` | Same for **`/portal/plan/:id/board`**; timeline **read model** remains on **`GET /api/audits/:id/timeline`** for Roadmap/Board parity consumers |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
@@ -239,6 +244,21 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
 | `/admin/intake-wording` | `IntakeWordingWorkspace.tsx` | Consultant: draft wording (local + server sync), publish / rollback, publication log (`GET /api/intake-trace-tool/wording-publication-log`) |
 | `/admin/question-bank-studio` | `QuestionBankStudioPage.tsx` | Consultant: bank/policy studio workspace for intake configuration and diagnostics |
+
+Current implementation status for Plan workspace parity:
+
+- `PlanModeBar` is mounted in shared chrome (`StrategyPlanningChrome`) for studio and plan routes.
+- `?focus=` parity is covered in URL helpers and hooks (`plan-cross-nav`, `usePlanFocusKey`, `useStrategyLabEmbeddedScroll`) with targeted tests.
+- Compile uses a single backend flow (`POST /api/audits/:id/orchestration/compile`) and frontend mutation wrapper (`useCompilePlanMutation`).
+- Query invalidation is centralized via `invalidatePlanWorkspaceQueries` (audit + orchestration pack + timeline + board roots).
+- Board and Table both support batch actions (move lane/column and field patch via plan-board batch mutation).
+
+Smoke checklist for `?focus=` cross-mode parity (rebaseline 2026-05-08):
+
+- Open `/plan/:id/board?focus=<canonical_node_key>` and confirm the matching Board card receives focus highlight.
+- From that card open Roadmap (link or command palette) and confirm the same node opens as selected task in Roadmap.
+- Open `/lab/:id?mode=shape&focus=<canonical_node_key>` and confirm embedded studio scrolls to Shape and selects the mapped pack node.
+- Open `/lab/:id?mode=define&focus=<domain_key>` and confirm embedded studio scrolls to Define section (domain-style focus no-op for node selection is acceptable by design).
 
 ---
 

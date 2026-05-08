@@ -31,7 +31,7 @@ Related ADRs:
 ## Trade-offs
 
 | Decision | Plus | Minus | Mitigation |
-|----------|------|-------|------------|
+| --- | --- | --- | --- |
 | Unify routes under `/plan/:id` | One mental model | Bookmarks / old links | `Navigate replace` from `/strategy/:id`; alias in `@glc/intake-core` spa-routes for two releases |
 | Server compile endpoint | One transaction, clearer UX | New API surface | Keep `manifest-snapshots` + `orchestrator/run`; deprecate gradually |
 | Replace narrative Timeline with Table | Aligns with Delivery Board ADR | Presentation loss for some users | Print preset `view=table&print=true` (future) |
@@ -48,6 +48,21 @@ Related ADRs:
 
 - Documentation and MASTER index link to this ADR for “Plan workspace unification”.
 - Further UX (batch table edits, optional Advanced-only overflow without in-panel shortcut) is out of scope for this ADR revision.
+
+## Rebaseline snapshot (2026-05-08)
+
+The implementation has been re-checked against earlier gap lists; items below are confirmed as already shipped in code:
+
+- `PlanModeBar` is mounted through shared `StrategyPlanningChrome` on plan and studio chrome variants.
+- `?focus=` parity is active on Board, Table, Roadmap, and embedded studio (`define`/`shape`) via shared focus hooks.
+- Compile flow is consolidated on `POST /api/audits/:id/orchestration/compile` (frontend mutation + backend controller).
+- Workspace invalidation is centralized in `invalidatePlanWorkspaceQueries` across audit, orchestration pack, timeline, and board roots.
+- Inline edit primitives for text/lane/date/select/number are available in Plan surfaces; batch actions exist in both Board and Table.
+
+Remaining follow-up work is intentionally limited to:
+
+- docs/test hygiene and smoke checks for cross-mode focus navigation;
+- targeted roadmap cleanup epics (`GLC-PB-019` residual flag/env cleanup window, `GLC-PB-020` UX polish priority only if product requests further iteration).
 
 ## Footer
 
