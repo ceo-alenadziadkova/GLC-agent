@@ -2,41 +2,42 @@
  * Strategy Lab — unified roadmap / orchestration UI copy (English).
  */
 
-import type {
-  OrchestrationChangeScenario,
-  OrchestrationPreviewCompressionHint,
-  OrchestrationPreviewLaneDensityBand,
-  OrchestrationSeasonPreset,
-} from './orchestration-roadmap-manifest';
 import type { OrchestrationManifestState, OrchestrationTimelineStatus } from './orchestration-contract';
+import { ORCHESTRATION_BOARD_UI_COPY } from './orchestration-roadmap-ui-copy/board.en';
+import { ORCHESTRATION_ERRORS_UI_COPY } from './orchestration-roadmap-ui-copy/errors.en';
+import {
+  formatManifestStateForClient as formatManifestStateForClientBase,
+  formatRoadmapGanttUnlocksCopy as formatRoadmapGanttUnlocksCopyBase,
+  formatTimelineApiStatusSupportLine as formatTimelineApiStatusSupportLineBase,
+  formatTimelineCalendarPlanWindowLine,
+  formatTimelineCalendarPlanWindowLineClient,
+  TIMELINE_MANIFEST_STATE_CLIENT,
+} from './orchestration-roadmap-ui-copy/formatters';
+import { ORCHESTRATION_IA_COPY } from './orchestration-roadmap-ui-copy/ia-copy.en';
+import {
+  ORCHESTRATION_LANE_LABELS,
+  ORCHESTRATION_LANE_PROMISES,
+  ORCHESTRATION_PREVIEW_COMPRESSION_LABELS,
+  ORCHESTRATION_PREVIEW_DENSITY_LABELS,
+  ORCHESTRATION_PRIORITY_REASON_CODES,
+  ORCHESTRATION_SCENARIO_LABELS,
+  ORCHESTRATION_SEASON_BUCKET_LABELS_BY_PRESET,
+  ORCHESTRATION_SEASON_LABELS,
+  type OrchestrationLaneId,
+} from './orchestration-roadmap-ui-copy/labels.en';
+import { ORCHESTRATION_TABLE_UI_COPY } from './orchestration-roadmap-ui-copy/table.en';
+import { ORCHESTRATION_WIZARD_UI_COPY } from './orchestration-roadmap-ui-copy/wizard.en';
 
 export const ORCHESTRATION_UI_COPY = {
-  sectionTitle: 'Roadmap input',
-  sectionHint:
-    'Confirm how you want to execute changes and the planning window. Coverage must match this audit’s execution plan.',
-  coverageLabel: 'Coverage (from audit)',
-  scenarioLabel: 'Change scenario',
-  seasonLabel: 'Planning window',
-  planHorizonLabel: 'Plan dates (optional)',
-  planHorizonStartLabel: 'Start (YYYY-MM-DD)',
-  planHorizonEndLabel: 'End (YYYY-MM-DD)',
-  planHorizonHint:
-    'When both dates are valid, seasonal buckets map the critical path onto this calendar window using your planning preset. Leave blank to use the length-based split only.',
-  previewTitle: 'Preview',
-  previewDomains: 'Domains in scope',
-  previewScenario: 'Scenario',
-  previewSeason: 'Window',
-  previewLoading: 'Updating preview…',
-  previewFailed: 'Preview failed. Check manifest values and try again.',
-  previewLanesIncluded: 'Lanes in scope',
-  previewLanesCut: 'Lanes outside current coverage',
-  previewWaitingList: 'Waiting list (not in this audit)',
+  ...ORCHESTRATION_WIZARD_UI_COPY,
+  ...ORCHESTRATION_BOARD_UI_COPY,
+  ...ORCHESTRATION_TABLE_UI_COPY,
+  ...ORCHESTRATION_ERRORS_UI_COPY,
   /** Shown when cross-domain conflict synthesis may be evidence-limited. */
   conflictSynthesisNote:
     'When the roadmap lists “synthesis” trade-offs, some rows may be marked as pending: that means the system is holding a hypothesis until intake or domain evidence fills the gap. It is not a fact-checker claim for the whole plan.',
   previewCompression: 'Execution compression hint',
   previewDensity: 'Planning density',
-  roadmapVersionLabel: 'Roadmap version',
   revisionDiffTitle: 'Last plan change',
   revisionHistoryTitle: 'Version history',
   revisionHistoryRowAriaTemplate:
@@ -60,45 +61,13 @@ export const ORCHESTRATION_UI_COPY = {
   revisionEdgesRemoved: 'Dependencies removed',
   revisionConflictsResolvedCounts: 'Synthesis conflict count (before → after)',
   revisionDiffTruncated: 'Additional rows omitted for readability',
-  confirmSaveManifest: 'Save manifest snapshot',
-  /** Primary Strategy Lab CTA — snapshot + pack in one server call. */
-  compilePlan: 'Compile plan',
-  compilePlanStatusCompiling: 'Compiling roadmap…',
-  compilePlanStatusDone: 'Last compiled: pack v{version}',
-  compilePlanStatusIdleHint: 'Compile saves a new manifest snapshot and rebuilds the orchestration pack.',
-  saveManifestSnapshotOnly: 'Save manifest snapshot only',
-  buildPack: 'Build orchestration pack',
-  buildPackNeedsManifestSync: 'Save manifest changes before rebuilding roadmap',
-  manifestSaved: 'Manifest snapshot saved',
-  packBuilt: 'Orchestration pack saved',
-  manifestSaveFailed: 'Could not save manifest',
-  manifestDraftQueueBanner:
-    'Delivery Board lane or owner hints are queued for signing. Save the manifest snapshot below to merge them into the roadmap contract.',
-  manifestDraftLaneQueuedToast: 'Execution hint queued. Save manifest snapshot in Strategy Lab to sign it.',
-  /** Strategy Lab — POST orchestration pack failed */
-  packBuildFailed: 'Could not build orchestration pack',
   /** 409 from plan governance: title line (body lists blocking reason codes in toast description) */
   packBuildGovernanceBlockedTitle: 'Plan quality checks blocked saving the roadmap',
-  /** Timeline page — GET /timeline failed (network, 4xx, 5xx); not the same as a missing pack */
-  timelineLoadFailed: 'Could not load execution timeline',
   timelineTitle: 'Execution timeline',
   timelineHint: 'Critical path grouped into planning buckets; lanes show parallel tracks.',
-  /** Consultant / client Plan surface — roadmap (Gantt) AppShell chrome */
-  planRoadmapShellTitle: 'Plan · Roadmap',
-  planRoadmapShellSubtitle: 'Multi-lane schedule with dependencies and task detail.',
-  planRoadmapLoadingSubtitle: 'Loading plan data…',
-  /** Roadmap shell — audit row not ready yet */
-  planRoadmapLoadingAuditSubtitle: 'Loading audit…',
-  /** Roadmap shell — audit present, timeline API still in flight */
-  planRoadmapLoadingTimelineSubtitle: 'Loading schedule data…',
   /** Shared loading detail under icon — Roadmap + Timeline plan surfaces */
   planSurfaceLoadingDetail: 'Fetching execution timeline for this audit…',
   planSurfaceMissingAuditId: 'Missing audit id.',
-  planRoadmapErrorSubtitle: 'Plan data unavailable',
-  planRoadmapLoadErrorBody: 'Could not load timeline data for this audit. Check your connection or return to Strategy Lab.',
-  planRoadmapTimelineQueryFailedBody:
-    'The timeline request failed before we could render the schedule. Retry from Strategy Lab after checking your connection.',
-  planRoadmapBackToStrategyCta: 'Open Strategy Lab',
   /** Timeline / Plan chrome — audit refetch failed but cached audit row is still shown */
   planAuditStaleDataBanner:
     'Audit data could not be refreshed. You are seeing the last loaded information. Try again or reload the page.',
@@ -155,12 +124,6 @@ export const ORCHESTRATION_UI_COPY = {
   portalTimelineTabWorkstreams: 'Workstreams',
   portalTimelineTabDependencies: 'Dependencies',
   portalTimelineTabPlanMap: 'Plan map',
-  /** Portal timeline — Now / Next / Later board (v9). */
-  portalTimelineTabNowNextLater: 'Now · Next · Later',
-  nowNextLaterNow: 'Now',
-  nowNextLaterNext: 'Next',
-  nowNextLaterLater: 'Later',
-  nowNextLaterEmpty: 'No items in this bucket yet.',
   /** Overview tab — compact plan metadata when the hero is not shown (non-ready timelines). */
   portalTimelinePlanSnapshotTitle: 'Plan snapshot',
   /** Plan map tab — no pack on audit / strategy payload missing. */
@@ -174,11 +137,6 @@ export const ORCHESTRATION_UI_COPY = {
   timelineParallelTracksTitle: 'Parallel tracks',
   timelineSyncMarkersTitle: 'Sync markers',
   timelineSyncMarkerCrossLane: 'Cross-lane sync',
-  timelineManifestFlowTitle: 'Change roadmap coverage',
-  timelineManifestFlowHint:
-    'Preview manifest, save a snapshot, then build the next roadmap version (vN+1). Consultants complete this in Strategy Lab.',
-  timelineManifestFlowCta: 'Open manifest flow in Strategy Lab',
-  timelineManifestStaleCta: 'Manifest is stale — open Strategy Lab to confirm and rebuild',
   timelineNoDeps: 'No dependencies in current projection.',
   /** Portal timeline — pack-backed dependency map + DOT export (V5). */
   timelinePackGraphSectionTitle: 'Plan dependency map',
@@ -252,15 +210,6 @@ export const ORCHESTRATION_UI_COPY = {
   executionPackFromTimelineCtaBusy: 'Requesting…',
   executionPackFromTimelineCtaAriaLabel: 'Request execution detail pack for',
   executionPackFromTimelineSuccess: 'Detail pack saved. It appears in the list below.',
-  executionPackFromTimelineFailed: 'Could not generate detail pack',
-  executionPackFromTimelineErrorDisabled:
-    'Detail packs are turned off in this environment. Open your report or ask your consultant.',
-  executionPackFromTimelineErrorNotReady:
-    'Strategy is still finishing for this audit. Try again when the report is complete.',
-  executionPackFromTimelineErrorPayloadInvalid: 'This detail pack request could not be accepted.',
-  executionPackFromTimelineErrorNotFound: 'This audit was not found or you no longer have access.',
-  executionPackFromTimelineErrorFailedGeneric: 'Could not generate the detail pack.',
-  executionPackFromTimelineErrorRateLimited: 'Too many AI requests right now. Wait a moment and try again.',
   executionPackRepeatDialogTitle: 'Request another detail pack?',
   executionPackRepeatDialogBody:
     'A detail pack for this initiative may already exist. A new request runs another on-demand AI pass and adds another row in your list.',
@@ -277,7 +226,6 @@ export const ORCHESTRATION_UI_COPY = {
   /** Portal timeline — CSV download of plan rows (orchestration + latest execution pack). */
   sprintExportCsvCta: 'Download sprint plan (CSV)',
   sprintExportCsvBusy: 'Preparing file…',
-  sprintExportCsvError: 'Could not download the sprint plan.',
   bucketNear: 'Near term',
   bucketMid: 'Mid term',
   bucketFar: 'Later',
@@ -297,8 +245,6 @@ export const ORCHESTRATION_UI_COPY = {
   clientTimelineReadOnlyHint:
     'The full seasonal timeline and lanes live in the dedicated timeline view. Open it to review ordering and dependencies, then return here for node detail.',
   clientOpenFullTimeline: 'Open timeline',
-  /** Primary Plan entry (Board/Roadmap) when Timeline is no longer the default CTA. */
-  clientOpenPlanSurface: 'Open Plan',
   synthesisSectionTitle: 'Orchestrator synthesis',
   synthesisSectionHint:
     'Cross-domain trade-offs from the optional synthesis pass (when enabled on the server). Deterministic graph and lanes are unchanged.',
@@ -321,12 +267,6 @@ export const ORCHESTRATION_UI_COPY = {
     'Coverage update applied. Open Plan to review the delivery board, schedule, or seasonal view for the new roadmap version.',
   /** Legacy timeline CTA label — prefer `commercialAcceptedOpenPlanBoard` / `commercialAcceptedOpenPlanRoadmap` for primary Plan links. */
   commercialAcceptedOpenTimeline: 'Open execution timeline',
-  /** CTA when Delivery Board rollout is active (explicit links). */
-  commercialAcceptedOpenPlanBoard: 'Open delivery board',
-  /** CTA when Board is off — schedule is primary. */
-  commercialAcceptedOpenPlanRoadmap: 'Open roadmap',
-  /** Legacy seasonal lanes tab when still exposed. */
-  commercialAcceptedOpenPlanTimeline: 'Open execution timeline',
   commercialAcceptedCompareHint:
     'Use Plan quality and history (Advanced) to compare this pack to the previous version.',
   governanceTitle: 'Plan governance',
@@ -353,7 +293,6 @@ export const ORCHESTRATION_UI_COPY = {
   consultantCockpitAppShellTitle: 'Orchestration cockpit',
   consultantCockpitAppShellSubtitle: 'Read-only pack, governance, and critical path (same API as the client portal).',
   consultantCockpitLoadingLabel: 'Loading…',
-  consultantCockpitLoadError: 'Could not load orchestration data.',
   consultantCockpitNoPackBody: 'No pack persisted for this audit yet.',
   consultantCockpitCriticalPathHeading: 'Critical path',
   consultantCockpitInitiativesHeading: 'Initiatives',
@@ -361,9 +300,6 @@ export const ORCHESTRATION_UI_COPY = {
   /** Primary Plan entry from cockpit (Board/Roadmap via rollout). */
   consultantCockpitPlanLinkLabel: 'Plan',
   consultantCockpitManifestWizardLinkLabel: 'Manifest wizard',
-  consultantCockpitTableColTitle: 'Title',
-  consultantCockpitTableColLane: 'Lane',
-  consultantCockpitTableColDomain: 'Domain',
   consultantCockpitGovernanceStatusLabel: 'status',
   consultantCockpitGovernanceRefineBanner:
     'Plan gate suggests refinement — use Manifest wizard or Strategy Lab, then rebuild.',
@@ -696,13 +632,6 @@ export const ORCHESTRATION_UI_COPY = {
   roadmapGanttBlockedOnlyLabel: 'Blocked only',
   roadmapGanttPresetBlocked30Label: 'Preset: Blocked 30d',
   roadmapGanttPresetExecutionLabel: 'Preset: Execution',
-  roadmapGanttDepsTableHeading: 'Dependency table',
-  roadmapGanttDepsVirtualTableAria: 'Dependency pairs virtual list',
-  roadmapGanttDepsColFrom: 'From',
-  roadmapGanttDepsColTo: 'To',
-  roadmapGanttDepsColType: 'Type',
-  roadmapGanttDepsTableEmptyFilteredCta: 'No dependencies match current filters. Clear filters.',
-  roadmapGanttDepsTableEmptyPlain: 'No dependencies available yet.',
   roadmapGanttFilterToLaneCta: 'Focus this lane on the roadmap',
   roadmapGanttScaleAriaLabel: 'Timeline scale',
   roadmapGanttHorizonAriaLabel: 'Day horizon',
@@ -793,13 +722,6 @@ export const ORCHESTRATION_UI_COPY = {
     'The API returned lanes with work items but the Gantt mapped zero tasks—a version skew or malformed row. Compare the Timeline view and retry after refresh; if this persists, report it.',
   planRoadmapMapperEmptyTasksClientHint:
     'Work items appear on other plan views but the schedule view could not interpret them yet. Ask your consultant to refresh or regenerate the timeline.',
-  /** CTA when Roadmap has no tasks — links to default Plan workbench tab (Board when rollout is ga). */
-  planRoadmapOpenPrimaryPlanCta: 'Open Plan',
-  planTimelineEmptyLaneItemsTitle: 'This timeline has no work items yet',
-  planTimelineEmptyLaneItemsHint:
-    'Add initiatives and build the execution pack in Strategy Lab — lanes and seasons populate after the pack is saved.',
-  planTimelineEmptyLaneItemsClientHint:
-    'Your consultant builds the execution pack in Strategy Lab. This view updates when work items are published.',
   roadmapEmptyFilteredBodyPrefix: 'No tasks match current filters.',
   roadmapEmptyFilteredBodySuffix: 'Clear or relax filters to see work again.',
   roadmapDepsPanelIntro: 'Graph investigates flow; table audits exact pairs.',
@@ -822,147 +744,32 @@ export const ORCHESTRATION_UI_COPY = {
   roadmapGanttBaselineDeltaEndLabel: 'End delta vs baseline',
   roadmapGanttIcalExportCta: 'Download iCal (.ics)',
   roadmapGanttIcalExportBusy: 'Building calendar…',
-  roadmapGanttIcalExportError: 'Could not build calendar file.',
 } as const;
 
 /** Portal Gantt drawer — downstream task count (keep wording in copy keys above). */
 export function formatRoadmapGanttUnlocksCopy(count: number): string {
-  if (count <= 0) return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksNone;
-  if (count === 1) return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksOne;
-  return ORCHESTRATION_UI_COPY.roadmapGanttUnlocksMany.replace('{count}', String(count));
+  return formatRoadmapGanttUnlocksCopyBase(ORCHESTRATION_UI_COPY, count);
 }
 
-/** Client-facing manifest state line on the portal timeline (no internal enum names). */
-export const TIMELINE_MANIFEST_STATE_CLIENT: Record<OrchestrationManifestState, string> = {
-  draft: 'Roadmap draft — scope may still change.',
-  confirmed: 'Roadmap confirmed for this version.',
-  stale: 'A newer roadmap draft exists — your consultant should refresh the saved plan.',
-};
-
 export function formatManifestStateForClient(state: OrchestrationManifestState | string): string {
-  if (state in TIMELINE_MANIFEST_STATE_CLIENT) {
-    return TIMELINE_MANIFEST_STATE_CLIENT[state as OrchestrationManifestState];
-  }
-  return ORCHESTRATION_UI_COPY.timelineManifestStateUnknown;
+  return formatManifestStateForClientBase(ORCHESTRATION_UI_COPY, state);
 }
 
 /** Consultant-only: single line for support tickets. */
 export function formatTimelineApiStatusSupportLine(status: OrchestrationTimelineStatus): string {
-  return `${ORCHESTRATION_UI_COPY.timelineDiagnosticReasonLabel}: ${status}`;
+  return formatTimelineApiStatusSupportLineBase(ORCHESTRATION_UI_COPY, status);
 }
 
-/** Timeline banner when manifest carries `plan_horizon` (keep copy out of TSX). */
-export function formatTimelineCalendarPlanWindowLine(startIso: string, endIso: string): string {
-  return `Calendar plan window: ${startIso} through ${endIso}. Near, mid, and later buckets follow this horizon.`;
-}
-
-/** Portal client — plainer wording for plan dates (keep copy out of TSX). */
-export function formatTimelineCalendarPlanWindowLineClient(startIso: string, endIso: string): string {
-  return `Dates on this plan: ${startIso} through ${endIso}. Near, mid, and later groups follow this range.`;
-}
-
-/**
- * IA: timeline-first vs Strategy Lab (ADR Phase 4). Single narrative SSOT for portal, Lab, cockpit.
- */
-export const ORCHESTRATION_IA_COPY = {
-  /** One line under Strategy / Plan chrome — Strategy Lab defines contract; Plan runs delivery surfaces. */
-  strategyVsPlanMicroHint:
-    'Strategy Lab defines context, manifest, and pack rebuilds. Plan runs delivery — Board, Roadmap schedule, or Table.',
-  /** Long-form IA note (portal timeline, cockpit); Strategy Lab avoids repeating this on-page. */
-  timelineVsLabRole:
-    'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
-  /** AppShell subtitle on portal timeline when plan-workspace-primary UX is enabled. */
-  timelinePageSubtitleWhenPrimary:
-    'Sequencing and seasonal buckets live here. Strategy Lab in the toolbar covers manifest snapshots, new pack versions, and node detail.',
-  /** Footnote under primary CTAs on client cockpit. */
-  clientCockpitTimelineFootnote:
-    'Sequencing and seasonal buckets live on the execution timeline; Strategy Lab remains the place for manifest and pack tooling.',
-  /** Strategy Lab AppShell — single canonical line (duplicated Timeline vs Lab copy removed from the page body). */
-  strategyLabAppShellSubtitle:
-    'Define context, configure the manifest, and build the execution pack — then continue in Plan (Board, Roadmap, or Timeline).',
-  /** Secondary line on client navigation cards (timeline). */
-  clientNavTimelineCardSubtitle: 'Primary sequencing — seasonal buckets, lanes, and dependencies.',
-  /** Secondary line on client navigation cards (Lab). */
-  clientNavLabCardSubtitle: 'Manifest snapshots, pack tooling, and node-level detail.',
-} as const;
-
-export const ORCHESTRATION_LANE_LABELS = {
-  product_change: 'Product / change',
-  tech_delivery: 'Tech and delivery',
-  marketing_narrative: 'Marketing and narrative',
-  gtm_sales: 'GTM and revenue',
-  seo: 'SEO',
-  research: 'Research and validation',
-  processes_automation: 'Processes and automation',
-  risk_compliance: 'Risk and compliance',
-} as const;
-
-export const ORCHESTRATION_LANE_PROMISES: Record<OrchestrationLaneId, string> = {
-  product_change: 'Clarify what to ship and when value appears.',
-  tech_delivery: 'Reduce delivery risk with implementation sequencing.',
-  marketing_narrative: 'Align positioning and messaging with execution.',
-  gtm_sales:
-    'RevOps and GTM: sequence pipeline, offers, and sales enablement with clear dates. Assign owners in your tracker; sprint CSV includes a DRI column when the pack provides owner hints.',
-  seo: 'Build compounding organic acquisition foundations.',
-  research: 'Run discovery and evidence-building before you scale build or spend.',
-  processes_automation: 'Remove operational drag with repeatable systems.',
-  risk_compliance: 'Protect growth with explicit controls and safeguards.',
+export { formatTimelineCalendarPlanWindowLine, formatTimelineCalendarPlanWindowLineClient, TIMELINE_MANIFEST_STATE_CLIENT };
+export {
+  ORCHESTRATION_IA_COPY,
+  ORCHESTRATION_LANE_LABELS,
+  ORCHESTRATION_LANE_PROMISES,
+  ORCHESTRATION_PRIORITY_REASON_CODES,
+  ORCHESTRATION_SCENARIO_LABELS,
+  ORCHESTRATION_SEASON_LABELS,
+  ORCHESTRATION_SEASON_BUCKET_LABELS_BY_PRESET,
+  ORCHESTRATION_PREVIEW_COMPRESSION_LABELS,
+  ORCHESTRATION_PREVIEW_DENSITY_LABELS,
 };
-
-export const ORCHESTRATION_PRIORITY_REASON_CODES: Record<string, string> = {
-  near_term: 'Highest short-term leverage',
-  critical_path: 'Unblocks the critical path',
-  time_to_value: 'Fast path to measurable value',
-};
-
-export type OrchestrationLaneId = keyof typeof ORCHESTRATION_LANE_LABELS;
-
-export const ORCHESTRATION_SCENARIO_LABELS: Record<OrchestrationChangeScenario, string> = {
-  integrate_existing: 'Integrate existing stack',
-  build_new: 'Build new',
-  hybrid: 'Hybrid',
-};
-
-export const ORCHESTRATION_SEASON_LABELS: Record<OrchestrationSeasonPreset, string> = {
-  rolling_30d: 'Rolling 30 days',
-  rolling_90d: 'Rolling 90 days',
-  rolling_180d: 'Rolling 180 days',
-};
-
-/**
- * Seasonal bucket headings on the timeline, keyed by manifest `season_preset`.
- * When preset is unknown/null, UI falls back to generic `bucketNear` / `bucketMid` / `bucketFar`.
- */
-export const ORCHESTRATION_SEASON_BUCKET_LABELS_BY_PRESET: Record<
-  OrchestrationSeasonPreset,
-  { near: string; mid: string; far: string }
-> = {
-  rolling_30d: {
-    near: 'First ~half of the 30-day window',
-    mid: 'Second ~third',
-    far: 'Final stretch',
-  },
-  rolling_90d: {
-    near: 'Roughly first month',
-    mid: 'Second month',
-    far: 'Third month',
-  },
-  rolling_180d: {
-    near: 'First ~45 days',
-    mid: 'Mid horizon',
-    far: 'Later tranche (toward 180 days)',
-  },
-};
-
-export const ORCHESTRATION_PREVIEW_COMPRESSION_LABELS: Record<OrchestrationPreviewCompressionHint, string> = {
-  none: 'None',
-  mild: 'Mild',
-  moderate: 'Moderate',
-  strong: 'Strong',
-};
-
-export const ORCHESTRATION_PREVIEW_DENSITY_LABELS: Record<OrchestrationPreviewLaneDensityBand, string> = {
-  sparse: 'Sparse',
-  standard: 'Standard',
-  dense: 'Dense',
-};
+export type { OrchestrationLaneId };

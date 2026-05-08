@@ -117,18 +117,14 @@ const {
   const mockFrom = vi.fn((table: string) => {
     if (table === 'audits') return makeAuditsChain();
     if (table === 'pipeline_events') {
-      const eventsResult = vi.fn(async () => ({ data: events, error: null }));
-      const afterSecondOrder = { limit: eventsResult };
-      const afterFirstOrder = {
-        order: vi.fn(() => afterSecondOrder),
-        limit: eventsResult,
-        lt: vi.fn(() => afterFirstOrder),
-      };
+      const chain: Record<string, unknown> = {};
+      chain.eq = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.limit = vi.fn(async () => ({ data: events, error: null }));
       return {
         select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => afterFirstOrder),
-          })),
+          eq: vi.fn(() => chain),
         })),
       };
     }

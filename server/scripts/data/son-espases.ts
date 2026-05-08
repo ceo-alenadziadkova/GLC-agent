@@ -1,7 +1,7 @@
 /**
  * Demo seed data — Hospital Universitari Son Espases, Palma de Mallorca
  *
- * ⚠️  SIMULATED EVALUATION — This is demonstration data, not a live audit result.
+ * SIMULATED EVALUATION — This is demonstration data, not a live audit result.
  *     Issues marked [estimated] are based on patterns typical of public hospital sites,
  *     not a complete programmatic crawl.
  *
@@ -50,11 +50,29 @@ function buildAudit(auditId: string, userId: string) {
     id: auditId,
     user_id: userId,
     company_url: 'https://www.hospitalsonespases.es',
+    no_public_website: false,
     company_name: 'Hospital Universitari Son Espases',
     industry: 'healthcare',
     status: 'completed',
     current_phase: 7,
     overall_score: 2.2,
+    product_mode: 'full',
+    origin: 'consultant_direct',
+    execution_plan: {
+      selected_domains: [
+        'tech_infrastructure',
+        'security_compliance',
+        'seo_digital',
+        'ux_conversion',
+        'marketing_utp',
+        'automation_processes',
+      ],
+      depth: 'standard',
+      source: 'user_selected',
+      coverage_package: 'complete',
+      include_strategy: true,
+    },
+    snapshot_token: null,
     token_budget: 200000,
     tokens_used: 142800,
     created_at: t(0),
@@ -104,8 +122,17 @@ function buildRecon(auditId: string) {
         status: 200,
         meta_description: null,
         h1: ['Hospital Universitari Son Espases'],
+        h2: ['Atención al paciente', 'Servicios asistenciales', 'Docencia e investigación'],
         structured_data: [],
-        images: { total_images: 28, with_alt_text: 16, missing_alt: 12, lazy_loaded: 4 },
+        images: { total: 28, with_alt: 16, missing_alt: 12, lazy_loaded: 4 },
+        links: {
+          internal: [
+            'https://www.hospitalsonespases.es/cita-previa',
+            'https://www.hospitalsonespases.es/servicios',
+            'https://www.hospitalsonespases.es/contacto',
+          ],
+          external: ['https://www.ibsalut.es/'],
+        },
         content_length: 48200,
         load_time_ms: 3800,
       },
@@ -115,8 +142,13 @@ function buildRecon(auditId: string) {
         status: 200,
         meta_description: null,
         h1: ['Cita Previa'],
+        h2: ['Información general', 'Acceso al sistema IBSALUT'],
         structured_data: [],
-        images: { total_images: 5, with_alt_text: 2, missing_alt: 3, lazy_loaded: 0 },
+        images: { total: 5, with_alt: 2, missing_alt: 3, lazy_loaded: 0 },
+        links: {
+          internal: ['https://www.hospitalsonespases.es/'],
+          external: ['https://www.ibsalut.es/'],
+        },
         content_length: 12400,
         load_time_ms: 2200,
       },
@@ -126,8 +158,16 @@ function buildRecon(auditId: string) {
         status: 200,
         meta_description: null,
         h1: ['Nuestros Servicios'],
+        h2: ['Especialidades', 'Pruebas diagnósticas', 'Hospitalización'],
         structured_data: [],
-        images: { total_images: 12, with_alt_text: 5, missing_alt: 7, lazy_loaded: 2 },
+        images: { total: 12, with_alt: 5, missing_alt: 7, lazy_loaded: 2 },
+        links: {
+          internal: [
+            'https://www.hospitalsonespases.es/',
+            'https://www.hospitalsonespases.es/cita-previa',
+          ],
+          external: [],
+        },
         content_length: 34700,
         load_time_ms: 4100,
       },
@@ -135,6 +175,40 @@ function buildRecon(auditId: string) {
     brief:
       'Hospital Universitari Son Espases es el hospital de referencia de las Illes Balears, con más de mil camas, centro público de alta complejidad asistencial, docente e investigadora, y núcleo del Institut d\'Investigació Sanitària Illes Balears (IdISBa). Gestiona la atención especializada de alta complejidad para una población de más de 330.000 habitantes. El sitio web actúa principalmente como directorio informativo estático, con el sistema de cita previa externalizado al portal IBSALUT.',
     interview_answers: null,
+    recon_context_summary: {
+      mode: 'website_crawl',
+      source_labels: ['website_crawl', 'public_pages', 'manual_demo_inputs'],
+      known_facts: [
+        'Hospital Universitari Son Espases is a public tertiary hospital in Palma de Mallorca.',
+        'Primary appointment flow redirects to external IBSALUT platform.',
+        'Spanish and Catalan language signals are present.',
+      ],
+      inferred_insights: [
+        {
+          text: 'Digital maturity is below clinical reputation; website focuses on institutional information over patient journeys.',
+          confidence: 'medium',
+        },
+        {
+          text: 'High-friction conversion flow is likely concentrated in appointment and administrative processes.',
+          confidence: 'medium',
+        },
+      ],
+      missing_inputs: [
+        'Confirmed mobile Core Web Vitals from field data',
+        'Validated consent-management behavior per route',
+        'Internal KPI baseline for conversion and call-center load',
+      ],
+      recommended_next_steps: [
+        'Run targeted performance and accessibility crawl on top service pages.',
+        'Validate legal/privacy posture with compliance owner.',
+        'Prioritize low-effort changes on appointment CTA and security headers.',
+      ],
+      consultant_hints: [
+        'Capture real baseline metrics before presenting budget asks.',
+        'Frame improvements as patient-experience and compliance outcomes.',
+      ],
+      generated_at: t(8),
+    },
   };
 }
 
@@ -734,6 +808,17 @@ function buildStrategy(auditId: string) {
     id: DEMO_STRATEGY_ID,
     audit_id: auditId,
     status: 'completed',
+    schema_version: 1,
+    strategy_lab_context: {
+      company_stage: 'stabilize',
+      budget_band: 'medium',
+      team_scale: 'medium',
+      director_stage2_domains: ['security_compliance', 'ux_conversion', 'automation_processes'],
+      preserve_board_identity_on_rename: true,
+    },
+    orchestration_pack_version: 0,
+    glc_orchestration_pack: null,
+    glc_orchestration_last_revision_diff: null,
     executive_summary: `Hospital Universitari Son Espases es la institución sanitaria pública de mayor complejidad de las Illes Balears, con una reputación clínica sólida y una actividad investigadora relevante a través del IdISBa. Sin embargo, su presencia digital refleja la brecha habitual en hospitales públicos: una infraestructura técnica conservadora, visibilidad SEO infradesarrollada y una experiencia de usuario concebida como directorio informativo, no como plataforma de captación y fidelización del paciente.
 
 ⚠️ EVALUACIÓN SIMULADA: Este informe es una demostración basada en revisión superficial del sitio público. Los datos marcados como [estimated] son estimaciones típicas para hospitales públicos de la región, no resultado de un crawl exhaustivo.

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BriefSchemaSnapshot } from '../../data/api/brief-profile-platform';
-import type { FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
-import { api, ApiError } from '../../data/apiService';
-import { GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT, LEGAL_CONSENT_KEYS } from '../../config/legal-consent-client-policy';
+import { api } from '../../data/apiService';
 import { useIntakeBankMetrics } from '../../hooks/useIntakeWizard';
 import {
   areEarlyBriefCaptureSlotsSatisfied,
@@ -12,7 +10,7 @@ import {
   currentIntakeVersionTuple,
   type IntakeSurface,
 } from '@glc/intake-core';
-import { briefResponsesToIntakeMap, normalizeIntakeToResponses } from '../../data/intakeBriefMap';
+import { briefResponsesToIntakeMap } from '../../data/intakeBriefMap';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import {
@@ -29,11 +27,7 @@ import {
 } from '../../data/auditTypes';
 import type { BriefResponses } from '../../data/briefQuestions';
 import {
-  computeNewAuditWizardProgress,
   newAuditStep1CollectionMode,
-  effectiveBriefForNewAuditPipelineGates,
-  listAnsweredPipelineRequiredIds,
-  validateNewAuditStep0Input,
 } from './newAuditValidation';
 import type {
   AuditBriefIntelligenceSnapshotResponse,
@@ -48,33 +42,35 @@ const EMPTY_INTELLIGENCE_WORDING_UI: Pick<
   hint_overrides: {},
   option_display_overrides: {},
 };
-import { launchNewAudit, saveClientDraft, saveNewAuditBriefToServer } from './newAuditExecution';
 import { applyIntelligenceInferredSelections } from './apply-intelligence-inferred';
-import {
-  buildExecutionPlan,
-} from './wizard-services/execution-plan.builder';
 import { useCoverageSelectionState } from './wizard-state/useCoverageSelectionState';
 import { useBriefLayoutState } from './wizard-state/useBriefLayoutState';
 import { usePreBriefState } from './wizard-state/usePreBriefState';
-import { useDraftAutosaveEffect } from './wizard-effects/useDraftAutosaveEffect';
-import { useDraftIntakeVersionsEffect } from './wizard-effects/useDraftIntakeVersionsEffect';
-import { useWizardPrefillEffects } from './wizard-effects/useWizardPrefillEffects';
+import { useWizardDiscoveryPrefill } from './wizard-effects/useWizardDiscoveryPrefill';
 import { resolveResponseSource } from './wizard-services/response-source.resolver';
 import { createPreBriefToken, validatePreBriefInput } from './wizard-services/prebrief-token.service';
 import { BRIEF_EXECUTION_DIAGNOSTIC_DEBOUNCE_MS } from '../../config/client-analytics-batching';
 import {
-  BRIEF_LAYOUT_CLASSIC as BRIEF_LAYOUT_CLASSIC_CONST,
-  BRIEF_LAYOUT_UNSET as BRIEF_LAYOUT_UNSET_CONST,
   BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST,
-  NEW_AUDIT_WIZARD_STEPS,
 } from './wizard-config/wizard-constants';
 import type { NewAuditVariant, NewAuditWizardContract } from './wizard-contract/useNewAuditWizard.types';
 import {
-  APP_ROUTE_PATHS,
   NEW_AUDIT_RESUME_DRAFT_AUDIT_QUERY,
 } from '../../config/route-paths';
-import { resolveConsultantBriefLayout } from '../../lib/client-brief-layout-preference';
-import { bootstrapConsultantNewAuditWizardFromAuditState } from './wizard-services/consultant-resume-draft-audit.bootstrap';
+import { normalizeServerBriefResponsesForWizard } from '../../lib/new-audit-brief-state';
+import { useWizardStepState } from './wizard-state/useWizardStepState';
+import { useWizardValidationProgress } from './wizard-state/useWizardValidationProgress';
+import { useConsultantDpaConsent } from './wizard-services/useConsultantDpaConsent';
+import { useWizardDraftAndLaunchActions } from './wizard-services/useWizardDraftAndLaunchActions';
+import { useWizardSnapshotStateMachine } from './state-machine/useWizardSnapshotStateMachine';
+import { shouldOpenSnapshotGate } from './validators/newAuditWizardGuards';
+import { useWizardDraftPersistence } from './draft/useWizardDraftPersistence';
+import {
+  getSnapshotGenericError,
+  runBriefIntelligenceSnapshotAction,
+  runBriefIntelligenceWordingAction,
+  saveBriefBeforeIntelligence,
+} from './api-actions/newAuditApiActions';
 
 export type { NewAuditVariant } from './wizard-contract/useNewAuditWizard.types';
 
@@ -163,12 +159,22 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   });
 
   // UI state
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(() => {
-    const s = newAuditDraftSeed?.step ?? 0;
-    return s >= NEW_AUDIT_WIZARD_STEPS.min && s <= NEW_AUDIT_WIZARD_STEPS.max ? s : 0;
+  const {
+    step,
+    setStep,
+    basicsSubStep,
+    setBasicsSubStep,
+    useBasicsSiteScanSplit,
+    visualWizardIndex,
+    stepIndicatorVariant,
+    handleWizardStepIndicatorClick,
+    handleSiteCheckContinueToBrief,
+    handleSiteCheckBackToBasicsForm,
+  } = useWizardStepState({
+    seedStep: newAuditDraftSeed?.step,
+    noPublicWebsite,
+    url,
   });
-  const [basicsSubStep, setBasicsSubStep] = useState<0 | 1>(0);
-  const prevStepForSiteSplitRef = useRef<0 | 1 | 2 | 3>(step);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -193,10 +199,26 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     >
   >(() => ({ ...EMPTY_INTELLIGENCE_WORDING_UI }));
   const [intelligenceWordingLoading, setIntelligenceWordingLoading] = useState(false);
+  const snapshotMachine = useWizardSnapshotStateMachine({
+    setBriefIntelligenceSubStep,
+    setIntelligenceSnapshotResult,
+    setIntelligenceSnapshotError,
+    setIntelligenceSnapshotPhase,
+    setIntelligenceLlm1Done,
+  });
 
-  const [consultantDpaLoading, setConsultantDpaLoading] = useState(() => !isClientSelfServe);
-  const [consultantDpaOnFile, setConsultantDpaOnFile] = useState(false);
-  const [consultantDpaChecked, setConsultantDpaChecked] = useState(false);
+  const {
+    consultantDpaLoading,
+    consultantDpaOnFile,
+    consultantDpaChecked,
+    setConsultantDpaChecked,
+    ensureConsultantDpaAccepted,
+  } = useConsultantDpaConsent({
+    isClientSelfServe,
+    userId: user?.id,
+    setError,
+    setLoading,
+  });
 
   // Client draft
   const [draftAuditId, setDraftAuditId] = useState<string | null>(() => newAuditDraftSeed?.draftAuditId ?? null);
@@ -229,7 +251,6 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   const newAuditF1DebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const newAuditF1RequestSeqRef = useRef(0);
-  const consultantResumeHydrateSeqRef = useRef(0);
   /** Preserves early vs full snapshot choice when a POST fails before the confirm step. */
   const lastIntelligenceSnapshotRequestEarlyRef = useRef(false);
 
@@ -237,37 +258,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setClientProjectContextSyncTick(prev => prev + 1);
   }, []);
 
-  useEffect(() => {
-    if (isClientSelfServe) {
-      setConsultantDpaLoading(false);
-      setConsultantDpaOnFile(false);
-      return;
-    }
-    if (!user?.id) {
-      setConsultantDpaLoading(true);
-      return;
-    }
-    let cancelled = false;
-    setConsultantDpaLoading(true);
-    void api
-      .getLegalConsents()
-      .then(body => {
-        if (cancelled) return;
-        const row = body.effective.find(r => r.consent_key === LEGAL_CONSENT_KEYS.dpaAcceptance);
-        setConsultantDpaOnFile(row?.accepted === true);
-      })
-      .catch(() => {
-        if (!cancelled) setConsultantDpaOnFile(false);
-      })
-      .finally(() => {
-        if (!cancelled) setConsultantDpaLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isClientSelfServe, user?.id]);
-
-  useWizardPrefillEffects({
+  useWizardDiscoveryPrefill({
     intakeTokenFromUrl,
     fromDiscovery,
     isClientSelfServe,
@@ -280,89 +271,32 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setIndustrySpecify,
     setDiscoveryPrefilled,
   });
-
-  useEffect(() => {
-    if (isClientSelfServe || !resumeDraftAuditIdFromQuery) return;
-
-    consultantResumeHydrateSeqRef.current += 1;
-    const hydrateSeq = consultantResumeHydrateSeqRef.current;
-    let cancelled = false;
-
-    setLoading(true);
-    setError(null);
-
-    void (async () => {
-      try {
-        const audit = await api.getAudit(resumeDraftAuditIdFromQuery);
-        if (cancelled || hydrateSeq !== consultantResumeHydrateSeqRef.current) return;
-        if (audit.meta.status !== 'created') {
-          navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
-          return;
-        }
-
-        const layoutStored = resolveConsultantBriefLayout(audit.meta.id);
-        const resolvedBriefLayout =
-          layoutStored === BRIEF_LAYOUT_WIZARD_CONST
-            ? BRIEF_LAYOUT_WIZARD_CONST
-            : layoutStored === BRIEF_LAYOUT_CLASSIC_CONST
-              ? BRIEF_LAYOUT_CLASSIC_CONST
-              : BRIEF_LAYOUT_UNSET_CONST;
-
-        const boot = bootstrapConsultantNewAuditWizardFromAuditState({
-          audit,
-          resolvedBriefLayout,
-        });
-
-        setDraftAuditId(boot.draftAuditId);
-        setUrl(boot.url);
-        setNoPublicWebsite(boot.noPublicWebsite);
-        setName(boot.name);
-        setIndustry(boot.industry);
-        setIndustrySpecify(boot.industrySpecify);
-        setResponses(boot.responses);
-        setDraftIntakeVersions(boot.draftIntakeVersions);
-        setCoveragePackage(boot.coveragePackage);
-        setSelectedDomains(boot.selectedDomains);
-        setBriefTailoredPhaseUnlocked(boot.briefTailoredPhaseUnlocked);
-        setBriefLayoutChoice(boot.briefLayoutChoice);
-        setInterviewMode(boot.interviewMode);
-        setStep(boot.step);
-        setBasicsSubStep(boot.basicsSubStep);
-        setDraftRestoredVisible(true);
-        setResumeDraftQueryHydrateComplete(true);
-        navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
-      } catch (e) {
-        if (cancelled || hydrateSeq !== consultantResumeHydrateSeqRef.current) return;
-        setError(
-          e instanceof ApiError ? e.message : WORKSPACE_PAGE_COPY.newAudit.resumeDraftAuditLoadFailed,
-        );
-        navigate({ pathname: APP_ROUTE_PATHS.auditNew, search: '' }, { replace: true });
-      } finally {
-        if (!cancelled && hydrateSeq === consultantResumeHydrateSeqRef.current) {
-          setLoading(false);
-          setResumeDraftQueryHydrateComplete(true);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isClientSelfServe, resumeDraftAuditIdFromQuery, navigate]);
-
-  useDraftIntakeVersionsEffect({
+  useWizardDraftPersistence({
     isClientSelfServe,
+    resumeDraftAuditIdFromQuery,
+    resumeDraftQueryHydrateComplete,
+    setResumeDraftQueryHydrateComplete,
+    navigate,
+    setLoading,
+    setError,
     draftAuditId,
+    setDraftAuditId,
+    setUrl,
+    setNoPublicWebsite,
+    setName,
+    setIndustry,
+    setIndustrySpecify,
+    setResponses,
     setDraftIntakeVersions,
-  });
-
-  useDraftAutosaveEffect({
-    persistNewAuditDraft: isClientSelfServe
-      ? 'portal'
-      : resumeDraftAuditIdFromQuery && !resumeDraftQueryHydrateComplete
-        ? 'none'
-        : 'consultant',
-    step: step as 0 | 1 | 2 | 3,
+    setCoveragePackage,
+    setSelectedDomains,
+    setBriefTailoredPhaseUnlocked,
+    setBriefLayoutChoice,
+    setInterviewMode,
+    setStep,
+    setBasicsSubStep,
+    setDraftRestoredVisible,
+    step,
     url,
     noPublicWebsite,
     name,
@@ -371,31 +305,10 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     briefProductMode,
     responses,
     briefLayoutChoice,
-    draftAuditId: draftAuditId,
-    draftIntakeVersions: draftIntakeVersions,
+    draftIntakeVersions,
     coveragePackage,
     selectedDomains,
   });
-
-  // Validation + progress
-  const { step0Valid, coverageValid } = useMemo(
-    () =>
-      validateNewAuditStep0Input({
-        url,
-        noPublicWebsite,
-        name,
-        industry,
-        industrySpecify,
-        selectedDomains,
-        coveragePackage,
-      }),
-    [url, noPublicWebsite, name, industry, industrySpecify, selectedDomains, coveragePackage],
-  );
-
-  const useBasicsSiteScanSplit = useMemo(
-    () => !noPublicWebsite && url.trim().length > 0,
-    [noPublicWebsite, url],
-  );
 
   /**
    * Full bank / planner tail after wording. Do **not** use `!useBasicsSiteScanSplit` alone for consultants:
@@ -410,111 +323,32 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     [briefTailoredPhaseUnlocked, intakePrefillActive],
   );
 
-  const visualWizardIndex = useMemo(() => {
-    if (!useBasicsSiteScanSplit) {
-      return step;
-    }
-    if (step === 0) {
-      return basicsSubStep;
-    }
-    return step + 1;
-  }, [useBasicsSiteScanSplit, step, basicsSubStep]);
-
-  const stepIndicatorVariant = useBasicsSiteScanSplit ? 'five' : 'four';
-
-  useEffect(() => {
-    if (step === 0 && prevStepForSiteSplitRef.current > 0) {
-      setBasicsSubStep(0);
-    }
-    prevStepForSiteSplitRef.current = step;
-  }, [step]);
-
   const {
+    step0Valid,
+    coverageValid,
     answeredRequired,
     pipelineRequiredTotal,
     step2Complete,
     progressPct,
     readinessBadge,
     nextBestAction,
-  } = useMemo(
-    () =>
-      computeNewAuditWizardProgress({
-        responses,
-        noPublicWebsite,
-        briefProductMode,
-        step0Basics: {
-          url,
-          name,
-          industry,
-          industrySpecify,
-          answerSource: responseSource,
-        },
-        isClientSelfServe,
-        intakeVersionTuple: draftIntakeVersions,
-        tailoredPhaseUnlocked: briefTailoredFollowUpUnlocked,
-      }),
-    [
-      responses,
-      noPublicWebsite,
-      briefProductMode,
-      url,
-      name,
-      industry,
-      industrySpecify,
-      responseSource,
-      isClientSelfServe,
-      draftIntakeVersions,
-      briefTailoredFollowUpUnlocked,
-    ],
-  );
-
-  const answeredPipelineRequiredIds = useMemo(
-    () =>
-      listAnsweredPipelineRequiredIds({
-        responses,
-        noPublicWebsite,
-        briefProductMode,
-        step0Basics: {
-          url,
-          name,
-          industry,
-          industrySpecify,
-          answerSource: responseSource,
-        },
-        isClientSelfServe,
-        intakeVersionTuple: draftIntakeVersions,
-        tailoredPhaseUnlocked: briefTailoredFollowUpUnlocked,
-      }),
-    [
-      responses,
-      noPublicWebsite,
-      briefProductMode,
-      url,
-      name,
-      industry,
-      industrySpecify,
-      responseSource,
-      isClientSelfServe,
-      draftIntakeVersions,
-      briefTailoredFollowUpUnlocked,
-    ],
-  );
-
-  const pipelineGateBriefResponses = useMemo(
-    () =>
-      effectiveBriefForNewAuditPipelineGates({
-        responses,
-        noPublicWebsite,
-        step0Basics: {
-          url,
-          name,
-          industry,
-          industrySpecify,
-          answerSource: responseSource,
-        },
-      }),
-    [responses, noPublicWebsite, url, name, industry, industrySpecify, responseSource],
-  );
+    answeredPipelineRequiredIds,
+    pipelineGateBriefResponses,
+  } = useWizardValidationProgress({
+    url,
+    noPublicWebsite,
+    name,
+    industry,
+    industrySpecify,
+    selectedDomains,
+    coveragePackage,
+    responses,
+    briefProductMode,
+    responseSource,
+    isClientSelfServe,
+    draftIntakeVersions,
+    briefTailoredFollowUpUnlocked,
+  });
 
   const intakeMapForSnapshots = useMemo(
     () => briefResponsesToIntakeMap(pipelineGateBriefResponses) as Record<string, unknown>,
@@ -577,18 +411,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     if (newAuditF1DebounceRef.current) clearTimeout(newAuditF1DebounceRef.current);
     newAuditF1DebounceRef.current = setTimeout(() => {
       void (async () => {
-        const merged = effectiveBriefForNewAuditPipelineGates({
-          responses,
-          noPublicWebsite,
-          step0Basics: {
-            url,
-            name,
-            industry,
-            industrySpecify,
-            answerSource: responseSource,
-          },
-        });
-        const asMap = briefResponsesToIntakeMap(merged) as Record<string, unknown>;
+        const asMap = briefResponsesToIntakeMap(pipelineGateBriefResponses) as Record<string, unknown>;
         const collectionF1 = isClientSelfServe ? 'self_serve' : 'interview';
         const surfaceF1: IntakeSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
         try {
@@ -613,12 +436,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     noPublicWebsite,
     briefLayoutChoice,
     f1IntakeToken,
-    responses,
-    url,
-    name,
-    industry,
-    industrySpecify,
-    responseSource,
+    pipelineGateBriefResponses,
     isClientSelfServe,
     briefProductMode,
     draftIntakeVersions,
@@ -713,8 +531,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setIntelligenceSnapshotError(null);
     lastIntelligenceSnapshotRequestEarlyRef.current = Boolean(opts?.earlyCapture);
     try {
-      const nextVersions = await saveNewAuditBriefToServer({
-        auditId: draftAuditId,
+      const nextVersions = await saveBriefBeforeIntelligence({
+        draftAuditId,
         isClientSelfServe,
         url,
         noPublicWebsite,
@@ -731,18 +549,14 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
         setDraftIntakeVersions(nextVersions);
       }
       bumpClientProjectContextSyncTick();
-      const snap = await api.postAuditsBriefIntelligenceSnapshot(draftAuditId, {
-        ...(opts?.earlyCapture ? { early_capture: true } : {}),
+      const snap = await runBriefIntelligenceSnapshotAction({
+        draftAuditId,
+        earlyCapture: opts?.earlyCapture,
       });
-      setIntelligenceSnapshotResult(snap);
-      setIntelligenceSnapshotPhase(opts?.earlyCapture ? 'early' : 'standard');
-      setIntelligenceLlm1Done(true);
-      setBriefIntelligenceSubStep('snapshot_confirm');
+      snapshotMachine.moveToSnapshotConfirm(snap, opts?.earlyCapture ? 'early' : 'standard');
     } catch (e) {
       setIntelligenceSnapshotPhase('standard');
-      setIntelligenceSnapshotError(
-        e instanceof ApiError ? e.message : WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.genericError,
-      );
+      setIntelligenceSnapshotError(getSnapshotGenericError(e));
     } finally {
       setIntelligenceSnapshotLoading(false);
     }
@@ -759,6 +573,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     noPublicWebsite,
     preBriefState.preBriefToken,
     responses,
+    snapshotMachine,
     url,
   ]);
 
@@ -772,15 +587,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   const applyMergedBriefServerRowIntoState = useCallback(
     (briefRow: unknown) => {
-      if (!briefRow || typeof briefRow !== 'object') return;
-      const raw = (briefRow as { responses?: unknown }).responses;
-      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
-      const normalized = normalizeIntakeToResponses(raw as Record<string, unknown>);
-      const out: BriefResponses = {};
-      for (const [k, cell] of Object.entries(normalized)) {
-        out[k] = { value: cell.value, source: responseSource };
-      }
-      setResponses(out);
+      const next = normalizeServerBriefResponsesForWizard(briefRow, responseSource);
+      if (Object.keys(next).length === 0) return;
+      setResponses(next);
     },
     [responseSource],
   );
@@ -797,11 +606,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   const handleStep1ContinueToReview = useCallback(async () => {
     if (!step2Complete) return;
-    /** Always run snapshot after short brief unless the flow was explicitly prefilled. */
-    const useSnapshotGate = shouldRunNewAuditSnapshotGate({
-      snapshotStepEnabled: APP_FEATURE_FLAGS.newAuditIntelligenceSnapshotStepEnabled,
+    const useSnapshotGate = shouldOpenSnapshotGate({
       isClientSelfServe,
-      hasDraftAuditId: Boolean(draftAuditId),
+      draftAuditId,
       briefIntelligenceSubStep,
       intakePrefillActive,
     });
@@ -825,10 +632,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   ]);
 
   const handleIntelligenceSnapshotSkipToReview = useCallback(() => {
-    setIntelligenceSnapshotError(null);
-    setIntelligenceLlm1Done(true);
-    setStep(2);
-  }, []);
+    snapshotMachine.skipSnapshotAndGoReview(setStep);
+  }, [snapshotMachine, setStep]);
 
   const handleIntelligenceSnapshotSaveApplyAndWording = useCallback(
     async (selectedInferredIds: Set<string>) => {
@@ -847,8 +652,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
             responseSource,
           );
           setResponses(nextResponses);
-          const nextVersions = await saveNewAuditBriefToServer({
-            auditId: draftAuditId,
+          const nextVersions = await saveBriefBeforeIntelligence({
+            draftAuditId,
             isClientSelfServe,
             url,
             noPublicWebsite,
@@ -865,14 +670,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
             setDraftIntakeVersions(nextVersions);
           }
           bumpClientProjectContextSyncTick();
-          setBriefIntelligenceSubStep('short_brief');
-          setIntelligenceSnapshotResult(null);
-          setIntelligenceSnapshotPhase('standard');
-          setIntelligenceLlm1Done(false);
+          snapshotMachine.resetToShortBrief();
         } catch (e) {
-          setIntelligenceSnapshotError(
-            e instanceof ApiError ? e.message : WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.genericError,
-          );
+          setIntelligenceSnapshotError(getSnapshotGenericError(e));
         } finally {
           setIntelEarlyMergePending(false);
         }
@@ -888,8 +688,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
           responseSource,
         );
         setResponses(nextResponses);
-        const nextVersions = await saveNewAuditBriefToServer({
-          auditId: draftAuditId,
+        const nextVersions = await saveBriefBeforeIntelligence({
+          draftAuditId,
           isClientSelfServe,
           url,
           noPublicWebsite,
@@ -906,20 +706,16 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
           setDraftIntakeVersions(nextVersions);
         }
         bumpClientProjectContextSyncTick();
-        const wording = await api.postAuditsBriefIntelligenceWording(draftAuditId);
+        const wording = await runBriefIntelligenceWordingAction(draftAuditId);
         setIntelligenceWordingUi({
           label_overrides: wording.label_overrides ?? {},
           hint_overrides: wording.hint_overrides ?? {},
           option_display_overrides: wording.option_display_overrides ?? {},
         });
         setBriefTailoredPhaseUnlocked(true);
-        setBriefIntelligenceSubStep('short_brief');
-        setIntelligenceSnapshotResult(null);
-        setIntelligenceSnapshotError(null);
+        snapshotMachine.resetToShortBrief();
       } catch (e) {
-        setIntelligenceSnapshotError(
-          e instanceof ApiError ? e.message : WORKSPACE_PAGE_COPY.newAudit.step1.intelligenceSnapshot.genericError,
-        );
+        setIntelligenceSnapshotError(getSnapshotGenericError(e));
       } finally {
         setIntelligenceWordingLoading(false);
       }
@@ -940,44 +736,30 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       preBriefState.preBriefToken,
       responses,
       responseSource,
+      snapshotMachine,
       url,
     ],
   );
 
   const handleIntelligenceSnapshotBackToBriefForm = useCallback(() => {
-    setBriefIntelligenceSubStep('short_brief');
-    setIntelligenceSnapshotResult(null);
-    setIntelligenceSnapshotError(null);
-    setIntelligenceSnapshotPhase('standard');
-    setIntelligenceLlm1Done(false);
-  }, []);
+    snapshotMachine.resetToShortBrief();
+  }, [snapshotMachine]);
 
   const handleBackFromStep2ToStep1 = useCallback(() => {
     setBriefTailoredPhaseUnlocked(true);
-    setBriefIntelligenceSubStep('short_brief');
-    setIntelligenceSnapshotResult(null);
-    setIntelligenceSnapshotError(null);
+    snapshotMachine.resetToShortBrief();
     setStep(1);
-  }, []);
+  }, [snapshotMachine]);
 
   const handleBackFromStep1ToStep0 = useCallback(() => {
-    setBriefIntelligenceSubStep('short_brief');
-    setIntelligenceSnapshotResult(null);
-    setIntelligenceSnapshotError(null);
-    setIntelligenceSnapshotPhase('standard');
-    setIntelligenceLlm1Done(false);
+    snapshotMachine.resetToShortBrief();
     setIntelligenceWordingUi({ ...EMPTY_INTELLIGENCE_WORDING_UI });
     setStep(0);
     setBasicsSubStep(0);
-  }, []);
+  }, [snapshotMachine]);
 
-  async function handleSaveClientDraft() {
-    const executionPlan = buildExecutionPlan({
-      coveragePackage,
-      selectedDomains,
-      recommendedDomains,
-    });
-    await saveClientDraft({
+  const { handleSaveClientDraft, handleLaunch, handleStep0ContinueFromBasics } =
+    useWizardDraftAndLaunchActions({
       isClientSelfServe,
       step0Valid,
       step: step as 0 | 1 | 2 | 3,
@@ -986,12 +768,12 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       name,
       industry,
       industrySpecify,
-      productMode: briefProductMode,
+      briefProductMode,
       responses,
       briefLayoutChoice,
       coveragePackage,
       selectedDomains,
-      executionPlan,
+      recommendedDomains,
       draftAuditId,
       draftIntakeVersions,
       setDraftAuditId,
@@ -999,198 +781,22 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       setDraftNotice,
       setDraftError,
       setDraftSaving,
-    });
-  }
-
-  const handleLaunch = useCallback(
-    async (e: FormEvent) => {
-      e.preventDefault();
-      if (coveragePackage == null) return;
-      if (!isClientSelfServe) {
-        if (consultantDpaLoading) return;
-        if (!consultantDpaOnFile) {
-          if (!consultantDpaChecked) {
-            setError(WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantRequired);
-            return;
-          }
-          setLoading(true);
-          setError(null);
-          try {
-            await api.postLegalConsents({
-              source: 'audit_create',
-              events: [{ consent_key: LEGAL_CONSENT_KEYS.dpaAcceptance, accepted: true }],
-            });
-            window.dispatchEvent(new Event(GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT));
-            setConsultantDpaOnFile(true);
-            setConsultantDpaChecked(false);
-          } catch (err) {
-            setLoading(false);
-            setError(
-              err instanceof ApiError ? err.message : WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantSaveFailed,
-            );
-            return;
-          }
-          setLoading(false);
-        }
-      }
-
-      const executionPlan = buildExecutionPlan({
-        coveragePackage,
-        selectedDomains,
-        recommendedDomains,
-      });
-      return launchNewAudit(e, {
-        isClientSelfServe,
-        url,
-        noPublicWebsite,
-        name,
-        industry,
-        industrySpecify,
-        productMode: briefProductMode,
-        responses,
-        briefLayoutChoice,
-        executionPlan,
-        draftAuditId,
-        preBriefToken: preBriefState.preBriefToken,
-        intakeTokenFromUrl,
-        setError,
-        setLoading,
-        navigate,
-        setPreBriefToken: preBriefState.setPreBriefToken,
-        setDraftIntakeVersions,
-      });
-    },
-    [
-      briefLayoutChoice,
-      briefProductMode,
-      consultantDpaChecked,
-      consultantDpaLoading,
-      consultantDpaOnFile,
-      coveragePackage,
-      draftAuditId,
-      industry,
-      industrySpecify,
+      setError,
+      setLoading,
       intakeTokenFromUrl,
-      isClientSelfServe,
-      name,
+      preBriefToken: preBriefState.preBriefToken,
+      setPreBriefToken: preBriefState.setPreBriefToken,
       navigate,
-      noPublicWebsite,
-      preBriefState.preBriefToken,
-      preBriefState.setPreBriefToken,
-      recommendedDomains,
-      responses,
-      selectedDomains,
-      url,
-    ],
-  );
-
-  const handleWizardStepIndicatorClick = useCallback(
-    (visual: number) => {
-      setBriefIntelligenceSubStep('short_brief');
-      setIntelligenceSnapshotResult(null);
-      setIntelligenceSnapshotError(null);
-      setIntelligenceSnapshotPhase('standard');
-      setIntelligenceLlm1Done(false);
-      if (!useBasicsSiteScanSplit) {
-        setStep(visual as 0 | 1 | 2 | 3);
-        return;
-      }
-      if (visual <= 1) {
-        setStep(0);
-        setBasicsSubStep(visual as 0 | 1);
-      } else {
-        setStep((visual - 1) as 0 | 1 | 2 | 3);
-      }
-    },
-    [useBasicsSiteScanSplit],
-  );
-
-  const handleStep0ContinueFromBasics = useCallback(async () => {
-    if (!step0Valid || !coverageValid) return;
-    if (coveragePackage == null) return;
-    if (!isClientSelfServe) {
-      if (consultantDpaLoading) return;
-      if (!consultantDpaOnFile) {
-        if (!consultantDpaChecked) {
-          setError(WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantRequired);
-          return;
-        }
-        setLoading(true);
-        setError(null);
-        try {
-          await api.postLegalConsents({
-            source: 'audit_create',
-            events: [{ consent_key: LEGAL_CONSENT_KEYS.dpaAcceptance, accepted: true }],
-          });
-          window.dispatchEvent(new Event(GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT));
-          setConsultantDpaOnFile(true);
-          setConsultantDpaChecked(false);
-        } catch (err) {
-          setLoading(false);
-          setError(
-            err instanceof ApiError ? err.message : WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantSaveFailed,
-          );
-          return;
-        }
-        setLoading(false);
-      }
-    }
-
-    const executionPlan = buildExecutionPlan({
-      coveragePackage,
-      selectedDomains,
-      recommendedDomains,
+      useBasicsSiteScanSplit,
+      setStep,
+      setBasicsSubStep,
+      ensureConsultantDpaAccepted,
     });
 
-    try {
-      setLoading(true);
-      setError(null);
-      if (!draftAuditId) {
-        const audit = await api.createAudit(
-          url,
-          name || undefined,
-          industry || undefined,
-          briefProductMode,
-          { noPublicWebsite, executionPlan },
-        );
-        setDraftAuditId(audit.id);
-      }
-      if (useBasicsSiteScanSplit) {
-        setBasicsSubStep(1);
-      } else {
-        setStep(1);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    briefProductMode,
-    consultantDpaChecked,
-    consultantDpaLoading,
-    consultantDpaOnFile,
-    coveragePackage,
-    coverageValid,
-    draftAuditId,
-    industry,
-    isClientSelfServe,
-    name,
-    noPublicWebsite,
-    recommendedDomains,
-    selectedDomains,
-    step0Valid,
-    url,
-    useBasicsSiteScanSplit,
-  ]);
-
-  const handleSiteCheckContinueToBrief = useCallback(() => {
-    setStep(1);
-  }, []);
-
-  const handleSiteCheckBackToBasicsForm = useCallback(() => {
-    setBasicsSubStep(0);
-  }, []);
+  const handleWizardStepIndicatorClickWithReset = useCallback((visual: number) => {
+    snapshotMachine.resetToShortBrief();
+    handleWizardStepIndicatorClick(visual);
+  }, [handleWizardStepIndicatorClick, snapshotMachine]);
 
   async function handlePreBriefCreate() {
     preBriefState.setPreBriefErr(null);
@@ -1254,7 +860,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     useBasicsSiteScanSplit,
     visualWizardIndex,
     stepIndicatorVariant,
-    handleWizardStepIndicatorClick,
+    handleWizardStepIndicatorClick: handleWizardStepIndicatorClickWithReset,
     handleStep0ContinueFromBasics,
     handleSiteCheckContinueToBrief,
     handleSiteCheckBackToBasicsForm,

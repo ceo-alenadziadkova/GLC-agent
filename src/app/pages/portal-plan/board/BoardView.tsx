@@ -1,27 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import {
-  DndContext,
-  DragOverlay,
-  type DragEndEvent,
-  type DragStartEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCorners,
-} from '@dnd-kit/core';
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../../components/ui/alert-dialog';
+import { type DragEndEvent, type DragStartEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Button } from '../../../components/ui/button';
 import type { AuditTimelineDto, PlanBoardGetBody } from '../../../data/api/audits-orchestration';
 import { auditsOrchestrationApi } from '../../../data/api/audits-orchestration';
@@ -36,7 +15,6 @@ import {
 import { PLAN_BOARD_COLUMN_HEADINGS_EN, PLAN_BOARD_UI_COLUMNS } from '../../../config/plan-board-ui-columns';
 import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 import { PLAN_BOARD_COPY } from '../../../config/plan-board-copy.en';
-import { resolvePlanBoardWipLimit } from '../../../config/plan-board-workflow-policy';
 import { PLAN_WORKSPACE_UI_COPY } from '../../../config/plan-workspace-ui-copy.en';
 import { buildAppRoute } from '../../../config/route-paths';
 import { ORCHESTRATION_SEASON_PRESETS } from '../../../config/orchestration-roadmap-manifest';
@@ -73,20 +51,9 @@ import { PortalPlanLayout } from '../PortalPlanLayout';
 import { PortalPlanEmptyCallout, PortalPlanLoadingState } from '../PortalPlanPageStates';
 import { usePortalPlanOrchestration } from '../PortalPlanOrchestrationProvider';
 import { PortalPlanSurfaceChrome } from '../PortalPlanUnifiedShell';
-import { PlanManualCardCreateForm } from '../PlanManualCardCreateForm';
-import { PlanBoardUnifiedPlanStatusBanner } from './plan-board-unified-plan-status-banner';
-import { PlanBoardColumnPolicySheet } from './plan-board-column-policy-sheet';
-import { PlanBoardOperationalCard } from './PlanBoardOperationalCard';
 import { BoardShell } from './plan-board-board-shell';
-import { PlanBoardBacklogPanel } from './plan-board-backlog-panel';
-import { PlanTicketDetailsPanel, type PlanTicketDetailsDraft } from '../PlanTicketDetailsPanel';
-import {
-  buildPlanBoardCardMetrics,
-  formatLaneDensityLine,
-  isBacklogOperationalColumn,
-  matchesPlanCardMetricFilters,
-} from './plan-board-card-helpers';
-import { BoardColumnShell } from './plan-board-column-shell';
+import type { PlanTicketDetailsDraft } from '../PlanTicketDetailsPanel';
+import { buildPlanBoardCardMetrics } from './plan-board-card-helpers';
 import {
   applyBucketDrag,
   cloneBuckets,
@@ -95,6 +62,13 @@ import {
   moveCardIntoColumn,
 } from './plan-board-dnd-helpers';
 import { BoardHorizonBucketsSection } from './plan-board-horizon-section';
+import { PlanBoardOperationalHeader } from './plan-board-operational-header';
+import { PlanBoardLaneFilterBar } from './plan-board-lane-filter-bar';
+import { PlanBoardMetricFiltersBar } from './plan-board-metric-filters-bar';
+import { PlanBoardBulkActionsBar } from './plan-board-bulk-actions-bar';
+import { PlanBoardOperationalStatusBlock } from './plan-board-operational-status-block';
+import { PlanBoardOperationalDndGrid } from './plan-board-operational-dnd-grid';
+import { PlanBoardDialogs } from './plan-board-dialogs';
 import { toast } from 'sonner';
 
 export { PlanBoardOperationalCard } from './PlanBoardOperationalCard';
@@ -245,7 +219,7 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
   );
 
   const commitCardLaneInline = useCallback(
-    async (cardId: string, lane: string, ownerHint?: string) => {
+    async (cardId: string, lane: OrchestrationLaneId, ownerHint?: string) => {
       const card = cardsById.get(cardId);
       try {
         if (APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools) {
@@ -608,13 +582,23 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     timelineParity?.top_7d ?? (timelineDto?.status === 'ready' ? timelineDto.top_7d : []) ?? [];
   const top30List =
     timelineParity?.top_30d ?? (timelineDto?.status === 'ready' ? timelineDto.top_30d : []) ?? [];
-  const prioritySets = { top7: new Set(top7List), top30: new Set(top30List) };
+  const prioritySets = useMemo(
+    () => ({ top7: new Set(top7List), top30: new Set(top30List) }),
+    [top30List, top7List],
+  );
 
   const reasonRows =
     timelineParity?.top_priorities ?? (timelineDto?.status === 'ready' ? timelineDto.top_priorities : undefined) ?? [];
-  const reasonByPackNodeId = new Map(reasonRows.map((p) => [p.action_id, p.reason_code] as const));
-  const priorityReasonLabelByPackNodeId = new Map(
-    reasonRows.map((p) => [p.action_id, ORCHESTRATION_PRIORITY_REASON_CODES[p.reason_code] ?? p.reason_code] as const),
+  const reasonByPackNodeId = useMemo(
+    () => new Map(reasonRows.map((p) => [p.action_id, p.reason_code] as const)),
+    [reasonRows],
+  );
+  const priorityReasonLabelByPackNodeId = useMemo(
+    () =>
+      new Map(
+        reasonRows.map((p) => [p.action_id, ORCHESTRATION_PRIORITY_REASON_CODES[p.reason_code] ?? p.reason_code] as const),
+      ),
+    [reasonRows],
   );
 
   const cardMetricsById = useMemo(() => {
@@ -629,7 +613,19 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
       out.set(card.id, buildPlanBoardCardMetrics({ card, priorityWindow, priorityReasonLabel }));
     }
     return out;
-  }, [boardQuery.data?.cards, priorityReasonLabelByPackNodeId, prioritySets.top30, prioritySets.top7]);
+  }, [boardQuery.data?.cards, priorityReasonLabelByPackNodeId, prioritySets]);
+
+  const byBucket = useMemo(() => {
+    const buckets: Record<OrchestrationTimelineTimeBucket, typeof projections> = {
+      now: [],
+      next: [],
+      later: [],
+    };
+    for (const row of projections) {
+      buckets[row.time_bucket].push(row);
+    }
+    return buckets;
+  }, [projections]);
 
   const availableDomainFilters = useMemo(() => {
     const m = new Map<string, number>();
@@ -683,15 +679,6 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
     );
   }
 
-  const byBucket: Record<OrchestrationTimelineTimeBucket, typeof projections> = {
-    now: [],
-    next: [],
-    later: [],
-  };
-  for (const row of projections) {
-    byBucket[row.time_bucket].push(row);
-  }
-
   return (
     <PortalPlanSurfaceChrome branch="board" tabActive={unifiedShellTabActive} title={PLAN_BOARD_COPY.shellTitle} subtitle={subtitle}>
       <BoardShell>
@@ -701,498 +688,184 @@ export function PortalDeliveryBoardSurface(props?: PortalDeliveryBoardSurfacePro
           <BoardHorizonBucketsSection byBucket={byBucket} titles={titles} nodeById={nodeById} />
 
           <section aria-labelledby="plan-board-operational-heading" className="space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 id="plan-board-operational-heading" className="text-foreground text-lg font-semibold tracking-tight">
-                  {PLAN_BOARD_COPY.operationalSectionTitle}
-                </h2>
-                <p className="text-muted-foreground text-sm">{PLAN_BOARD_COPY.operationalSectionSubtitle}</p>
-              </div>
-              {APP_FEATURE_FLAGS.planBoardCustomColumnsEnabled &&
-              showConsultantPlanTools &&
-              boardQuery.data?.column_policy_editable ?
-                <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setBoardSettingsOpen(true)}>
-                  {PLAN_BOARD_COPY.boardSettingsTrigger}
-                </Button>
-              : null}
-            </div>
+            <PlanBoardOperationalHeader
+              showConsultantPlanTools={showConsultantPlanTools}
+              columnPolicyEditable={Boolean(boardQuery.data?.column_policy_editable)}
+              onOpenBoardSettings={() => setBoardSettingsOpen(true)}
+            />
 
             {draggingCardId ? (
               <span className="sr-only" aria-live="polite">{`${PLAN_BOARD_COPY.draggingLiveMessage}: ${draggingCardId}`}</span>
             ) : null}
 
-            {boardOperationalVisible && showConsultantPlanTools && laneFilterKeys.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2" role="status" aria-live="polite">
-                <span className="text-muted-foreground text-xs">
-                  {PLAN_WORKSPACE_UI_COPY.laneFilterChipPrefix}{' '}
-                  {laneFilterKeys
-                    .map((k) => ORCHESTRATION_LANE_LABELS[k as OrchestrationLaneId] ?? k)
-                    .join(', ')}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() =>
-                    navigate(
-                      mergeClearLaneFilterIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                      }),
-                    )
-                  }
-                >
-                  {PLAN_WORKSPACE_UI_COPY.laneFilterChipClear}
-                </Button>
-              </div>
-            ) : null}
             {boardOperationalVisible && showConsultantPlanTools ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label="Filter cards by domain"
-                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
-                  value={metricFilters.domain}
-                  onChange={(e) =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { domain: e.target.value || 'all' },
-                      }),
-                    )
-                  }
-                >
-                  <option value="all">All domains</option>
-                  {availableDomainFilters.map(([key, count]) => (
-                    <option key={key} value={key}>
-                      {`${key.replaceAll('_', ' ')} (${count})`}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Filter cards by assignee"
-                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
-                  value={metricFilters.assignee}
-                  onChange={(e) =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { assignee: e.target.value || 'all' },
-                      }),
-                    )
-                  }
-                >
-                  <option value="all">All assignees</option>
-                  {availableAssignees.map((assignee) => (
-                    <option key={assignee} value={assignee}>
-                      {assignee}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  type="button"
-                  variant={metricFilters.criticalOnly ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { criticalOnly: !metricFilters.criticalOnly },
-                      }),
-                    )
-                  }
-                >
-                  Critical only
-                </Button>
-                <Button
-                  type="button"
-                  variant={metricFilters.quickOnly ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { quickOnly: !metricFilters.quickOnly },
-                      }),
-                    )
-                  }
-                >
-                  Quick wins
-                </Button>
-                <select
-                  aria-label="Filter cards by priority window"
-                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
-                  value={metricFilters.priority}
-                  onChange={(e) =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { priority: e.target.value as 'all' | '7d' | '30d' },
-                      }),
-                    )
-                  }
-                >
-                  <option value="all">All priorities</option>
-                  <option value="7d">Top 7d</option>
-                  <option value="30d">Top 30d</option>
-                </select>
-                <select
-                  aria-label="Filter cards by due state"
-                  className="border-border bg-background h-8 rounded-md border px-2 text-xs"
-                  value={metricFilters.dueState}
-                  onChange={(e) =>
-                    navigate(
-                      mergePlanCardMetricFiltersIntoLocationSearch({
-                        pathname: location.pathname,
-                        currentSearch: location.search,
-                        patch: { dueState: e.target.value as 'all' | 'overdue' | 'due_soon' | 'no_due' },
-                      }),
-                    )
-                  }
-                >
-                  <option value="all">All due states</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="due_soon">Due soon (7d)</option>
-                  <option value="no_due">No due date</option>
-                </select>
-              </div>
-            ) : null}
-            {boardOperationalVisible && showConsultantPlanTools && selectedCardIds.size > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-2">
-                <span className="text-xs text-muted-foreground">{`${selectedCardIds.size} selected`}</span>
-                {operationalColumnDescriptors.map((col) => (
-                  <Button
-                    key={col.id}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => void bulkMoveSelected(col.id)}
-                    disabled={dragLocked || batchPatchMutation.isPending}
-                  >
-                    {`Move to ${col.title}`}
-                  </Button>
-                ))}
-                <select
-                  aria-label="Bulk set priority"
-                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
-                  value={bulkPriority}
-                  onChange={(e) => setBulkPriority(e.target.value as 'low' | 'medium' | 'high' | 'urgent')}
-                >
-                  <option value="low">Priority low</option>
-                  <option value="medium">Priority medium</option>
-                  <option value="high">Priority high</option>
-                  <option value="urgent">Priority urgent</option>
-                </select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => void bulkPatchSelected({ priority: bulkPriority })}
-                  disabled={batchPatchMutation.isPending}
-                >
-                  Apply priority
-                </Button>
-                <input
-                  aria-label="Bulk assignee"
-                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
-                  value={bulkAssignee}
-                  onChange={(e) => setBulkAssignee(e.target.value)}
-                  placeholder="Assignee"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => void bulkPatchSelected({ assignee: bulkAssignee.trim() })}
-                  disabled={batchPatchMutation.isPending || bulkAssignee.trim() === ''}
-                >
-                  Apply assignee
-                </Button>
-                <input
-                  aria-label="Bulk due date"
-                  type="date"
-                  className="border-border bg-background h-7 rounded-md border px-2 text-xs"
-                  value={bulkDueDate}
-                  onChange={(e) => setBulkDueDate(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => void bulkPatchSelected({ due_date: bulkDueDate })}
-                  disabled={batchPatchMutation.isPending || bulkDueDate === ''}
-                >
-                  Apply due
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setSelectedCardIds(new Set())}
-                >
-                  Clear
-                </Button>
-              </div>
-            ) : null}
-
-            {boardOperationalVisible ?
-              <PlanBoardUnifiedPlanStatusBanner
-                strategyHref={strategyStudioHref}
-                governanceReadOnly={governanceReadOnly}
-                showOrphanReconcile={showConsultantPlanTools && orphanCount > 0}
-                reconcileProps={
-                  showConsultantPlanTools ?
-                    {
-                      auditId,
-                      orchestrationPackVersion,
-                      reconcilePreviewEnabled: APP_FEATURE_FLAGS.planBoardReconcileDiffPreviewEnabled,
-                    }
-                  : null
-                }
-                manifestDraftPendingCount={
-                  boardQuery.data?.manifest_draft_revision_pending_canonical_keys?.length ?? 0
-                }
-                showManifestDraftQueueCopy={
-                  APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard && showConsultantPlanTools
+              <PlanBoardLaneFilterBar
+                laneFilterKeys={laneFilterKeys}
+                onClear={() =>
+                  navigate(
+                    mergeClearLaneFilterIntoLocationSearch({
+                      pathname: location.pathname,
+                      currentSearch: location.search,
+                    }),
+                  )
                 }
               />
-            : null}
-
-            {boardQuery.data?.issues?.some((i) => i.code === 'no_pack') ? (
-              <PortalPlanEmptyCallout title={PLAN_BOARD_COPY.emptyNoPackTitle} body={PLAN_BOARD_COPY.emptyNoPackBody}>
-                <Button asChild variant="outline" size="sm" className="no-underline">
-                  <Link to={strategyStudioHref}>{PLAN_BOARD_COPY.openStrategyLabCta}</Link>
-                </Button>
-              </PortalPlanEmptyCallout>
+            ) : null}
+            {boardOperationalVisible && showConsultantPlanTools ? (
+              <PlanBoardMetricFiltersBar
+                metricFilters={metricFilters}
+                availableDomainFilters={availableDomainFilters}
+                availableAssignees={availableAssignees}
+                onPatchFilters={(patch) =>
+                  navigate(
+                    mergePlanCardMetricFiltersIntoLocationSearch({
+                      pathname: location.pathname,
+                      currentSearch: location.search,
+                      patch,
+                    }),
+                  )
+                }
+              />
+            ) : null}
+            {boardOperationalVisible && showConsultantPlanTools ? (
+              <PlanBoardBulkActionsBar
+                selectedCount={selectedCardIds.size}
+                columns={operationalColumnDescriptors}
+                dragLocked={dragLocked}
+                busy={batchPatchMutation.isPending}
+                bulkPriority={bulkPriority}
+                bulkAssignee={bulkAssignee}
+                bulkDueDate={bulkDueDate}
+                onSetBulkPriority={setBulkPriority}
+                onSetBulkAssignee={setBulkAssignee}
+                onSetBulkDueDate={setBulkDueDate}
+                onMoveAll={(columnId) => void bulkMoveSelected(columnId)}
+                onApplyPriority={() => void bulkPatchSelected({ priority: bulkPriority })}
+                onApplyAssignee={() => void bulkPatchSelected({ assignee: bulkAssignee.trim() })}
+                onApplyDueDate={() => void bulkPatchSelected({ due_date: bulkDueDate })}
+                onClear={() => setSelectedCardIds(new Set())}
+              />
             ) : null}
 
-            {boardQuery.isError ? (
-              <div className="text-muted-foreground text-sm">Unable to load delivery board operational state.</div>
-            ) : null}
-
-            {boardOperationalVisible && boardQuery.isPending ? (
-              <div className="text-muted-foreground text-sm">Loading persisted delivery cards...</div>
-            ) : null}
+            <PlanBoardOperationalStatusBlock
+              boardOperationalVisible={boardOperationalVisible}
+              strategyStudioHref={strategyStudioHref}
+              governanceReadOnly={governanceReadOnly}
+              showConsultantPlanTools={showConsultantPlanTools}
+              orphanCount={orphanCount}
+              auditId={auditId}
+              orchestrationPackVersion={orchestrationPackVersion}
+              boardIssueNoPack={Boolean(boardQuery.data?.issues?.some((i) => i.code === 'no_pack'))}
+              boardPending={boardQuery.isPending}
+              boardError={boardQuery.isError}
+              manifestDraftPendingCount={boardQuery.data?.manifest_draft_revision_pending_canonical_keys?.length ?? 0}
+            />
 
             {boardOperationalVisible && !boardQuery.isPending ? (
-              <div className="overflow-x-auto pb-1">
-                <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                  <div className="flex min-w-min flex-nowrap gap-3">
-                    {operationalColumnDescriptors.map((col) => {
-                      const colId = col.id;
-                      const heading = col.title;
-                      const idsRaw = columnBuckets[colId] ?? [];
-                      const ids = idsRaw.filter((cid) => {
-                        const dto = cardsById.get(cid);
-                        if (!dto) return false;
-                        if (laneFilterKeys.length > 0) {
-                          const lk = dto.lane?.trim() ?? '';
-                          if (!laneFilterKeys.includes(lk)) return false;
-                        }
-                        const metrics = cardMetricsById.get(cid);
-                        if (!metrics) return true;
-                        return matchesPlanCardMetricFilters(metrics, metricFilters);
-                      });
-                      const laneMixCaption = formatLaneDensityLine(ids, cardsById);
-                      const backlog = isBacklogOperationalColumn(boardQuery.data?.columns, colId);
-
-                      const columnInner = (
-                        <BoardColumnShell
-                          columnId={colId}
-                          heading={heading}
-                          laneMixCaption={laneMixCaption}
-                          workflowHint={
-                            (() => {
-                              const limit = resolvePlanBoardWipLimit(colId);
-                              if (limit == null) return null;
-                              if (ids.length <= limit) return `WIP limit ${limit}`;
-                              return `WIP ${ids.length}/${limit} (over limit)`;
-                            })()
-                          }
-                        >
-                          {backlog && showConsultantPlanTools ?
-                            <li className="border-border list-none rounded-md border border-dashed px-3 py-2">
-                              <PlanManualCardCreateForm
-                                auditId={auditId}
-                                orchestrationPackVersion={orchestrationPackVersion}
-                                disabled={governanceReadOnly}
-                              />
-                            </li>
-                          : null}
-                          {ids.length === 0 && !(backlog && showConsultantPlanTools) ?
-                            <li className="text-muted-foreground text-xs">{PLAN_BOARD_COPY.operationalEmptyPlaceholder}</li>
-                          : null}
-                          {ids.length > 0 ?
-                            ids.map((id) => {
-                              const dto = cardsById.get(id);
-                              if (!dto) {
-                                return (
-                                  <li key={id} className="text-muted-foreground text-xs">
-                                    Missing card view
-                                  </li>
-                                );
-                              }
-                              const packNodeId = dto.pack_graph_node_id;
-                              const priorityWindow =
-                                packNodeId && prioritySets.top7.has(packNodeId) ? ('7d' as const)
-                                : packNodeId && prioritySets.top30.has(packNodeId) ? ('30d' as const)
-                                : null;
-                              const packNode = packNodeId ? nodeById.get(packNodeId) : undefined;
-                              const analysisDepth =
-                                packNode?.analysis_depth === 'baseline' || packNode?.analysis_depth === 'deep'
-                                  ? packNode.analysis_depth
-                                  : null;
-                              const priorityReasonCode = packNodeId ? reasonByPackNodeId.get(packNodeId) : undefined;
-                              const priorityReasonLabel =
-                                priorityReasonCode != null ?
-                                  ORCHESTRATION_PRIORITY_REASON_CODES[priorityReasonCode] ?? priorityReasonCode
-                                : null;
-                              const metrics = cardMetricsById.get(dto.id);
-                              const focusForRoadmap = dto.canonical_node_key ?? dto.pack_graph_node_id ?? null;
-                              const openOnRoadmapHref =
-                                focusForRoadmap != null ?
-                                  buildPlanSurfaceHrefWithFocus({
-                                    auditId,
-                                    isClient,
-                                    view: 'roadmap',
-                                    focusCanonicalKey: focusForRoadmap,
-                                  })
-                                : null;
-
-                              return (
-                                <PlanBoardOperationalCard
-                                  key={id}
-                                  card={dto}
-                                  columnId={colId}
-                                  dragLocked={dragLocked}
-                                  expectedPackVersion={orchestrationPackVersion}
-                                  moveMenuColumns={operationalColumnDescriptors}
-                                  boardColumns={boardQuery.data?.columns}
-                                  openOnRoadmapHref={openOnRoadmapHref}
-                                  onMoveViaMenu={(target) => moveCardViaMenu(target, dto.id)}
-                                  priorityWindow={priorityWindow}
-                                  priorityReasonLabel={priorityReasonLabel}
-                                  analysisDepth={analysisDepth}
-                                  domainLabel={dto.delivery_area ? dto.delivery_area.replaceAll('_', ' ') : null}
-                                  quickWin={metrics?.quickWin ?? false}
-                                  critical={metrics?.critical ?? false}
-                                  assignee={metrics?.assignee ?? null}
-                                  dueDate={metrics?.dueDate ?? null}
-                                  dueState={metrics?.dueState ?? 'no_due'}
-                                  priorityLevel={metrics?.priorityLevel ?? null}
-                                  selected={selectedCardIds.has(dto.id)}
-                                  onToggleSelect={() =>
-                                    setSelectedCardIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(dto.id)) next.delete(dto.id);
-                                      else next.add(dto.id);
-                                      return next;
-                                    })
-                                  }
-                                  canMutateCard={canEditCardFields}
-                                  onCommitTitleInline={t => commitCardTitleInline(dto.id, t)}
-                                  onCommitLaneInline={
-                                    showConsultantPlanTools && !governanceReadOnly
-                                      ? (lane, hint) => commitCardLaneInline(dto.id, lane, hint)
-                                      : undefined
-                                  }
-                                  laneSelectOptions={laneSelectOptions}
-                                  manifestDraftLaneHintsEnabled={manifestDraftLaneHintsEnabled}
-                                  onDeleteCard={() => setDeleteCardId(dto.id)}
-                                  onOpenTicketDetails={() => setTicketDetailsCardId(dto.id)}
-                                  onCommitPriorityInline={(priority) => commitCardPriorityInline(dto.id, priority)}
-                                  onCommitDueDateInline={(dueDateIso) => commitCardDueDateInline(dto.id, dueDateIso)}
-                                  onQuickPromoteToNextUp={() => moveCardViaMenu('next_up', dto.id)}
-                                  isFocusTarget={
-                                    focusToken != null &&
-                                    (dto.canonical_node_key === focusToken ||
-                                      dto.id === focusToken ||
-                                      (dto.pack_graph_node_id != null && dto.pack_graph_node_id === focusToken))
-                                  }
-                                  manifestDraftRevisionPending={
-                                    APP_FEATURE_FLAGS.manifestDraftRevisionsFromBoard &&
-                                    showConsultantPlanTools &&
-                                    dto.canonical_node_key != null &&
-                                    pendingManifestDraftCanonicalSet.has(dto.canonical_node_key)
-                                  }
-                                />
-                              );
-                            })
-                          : null}
-                        </BoardColumnShell>
-                      );
-
-                      return (
-                        <PlanBoardBacklogPanel key={colId} isBacklog={backlog}>
-                          {columnInner}
-                        </PlanBoardBacklogPanel>
-                      );
-                    })}
-                  </div>
-                  <DragOverlay>
-                    {draggingCardId ? (
-                      <div className="bg-card border-border rounded-md border px-4 py-2 shadow-md">
-                        {cardsById.get(draggingCardId)?.title ?? draggingCardId}
-                      </div>
-                    ) : null}
-                  </DragOverlay>
-                </DndContext>
-              </div>
+              <PlanBoardOperationalDndGrid
+                sensors={sensors}
+                draggingCardId={draggingCardId}
+                cardsById={cardsById}
+                operationalColumnDescriptors={operationalColumnDescriptors}
+                columnBuckets={columnBuckets}
+                laneFilterKeys={laneFilterKeys}
+                metricFilters={metricFilters}
+                cardMetricsById={cardMetricsById}
+                boardColumns={boardQuery.data?.columns}
+                showConsultantPlanTools={showConsultantPlanTools}
+                dragLocked={dragLocked}
+                auditId={auditId}
+                governanceReadOnly={governanceReadOnly}
+                orchestrationPackVersion={orchestrationPackVersion}
+                canEditCardFields={canEditCardFields}
+                laneSelectOptions={laneSelectOptions}
+                manifestDraftLaneHintsEnabled={manifestDraftLaneHintsEnabled}
+                selectedCardIds={selectedCardIds}
+                focusToken={focusToken}
+                pendingManifestDraftCanonicalSet={pendingManifestDraftCanonicalSet}
+                buildCardPresentation={(dto) => {
+                  const packNodeId = dto.pack_graph_node_id;
+                  const priorityWindow =
+                    packNodeId && prioritySets.top7.has(packNodeId)
+                      ? ('7d' as const)
+                      : packNodeId && prioritySets.top30.has(packNodeId)
+                        ? ('30d' as const)
+                        : null;
+                  const packNode = packNodeId ? nodeById.get(packNodeId) : undefined;
+                  const analysisDepth =
+                    packNode?.analysis_depth === 'baseline' || packNode?.analysis_depth === 'deep'
+                      ? packNode.analysis_depth
+                      : null;
+                  const priorityReasonCode = packNodeId ? reasonByPackNodeId.get(packNodeId) : undefined;
+                  const priorityReasonLabel =
+                    priorityReasonCode != null ? ORCHESTRATION_PRIORITY_REASON_CODES[priorityReasonCode] ?? priorityReasonCode : null;
+                  const metrics = cardMetricsById.get(dto.id);
+                  const focusForRoadmap = dto.canonical_node_key ?? dto.pack_graph_node_id ?? null;
+                  return {
+                    openOnRoadmapHref:
+                      focusForRoadmap != null
+                        ? buildPlanSurfaceHrefWithFocus({
+                            auditId,
+                            isClient,
+                            view: 'roadmap',
+                            focusCanonicalKey: focusForRoadmap,
+                          })
+                        : null,
+                    priorityWindow,
+                    priorityReasonLabel,
+                    analysisDepth,
+                    domainLabel: dto.delivery_area ? dto.delivery_area.replaceAll('_', ' ') : null,
+                    quickWin: metrics?.quickWin ?? false,
+                    critical: metrics?.critical ?? false,
+                    assignee: metrics?.assignee ?? null,
+                    dueDate: metrics?.dueDate ?? null,
+                    dueState: metrics?.dueState ?? 'no_due',
+                    priorityLevel: metrics?.priorityLevel ?? null,
+                  };
+                }}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onMoveViaMenu={moveCardViaMenu}
+                onToggleSelect={(cardId) =>
+                  setSelectedCardIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cardId)) next.delete(cardId);
+                    else next.add(cardId);
+                    return next;
+                  })
+                }
+                onDeleteCard={async (cardId) => {
+                  setDeleteCardId(cardId);
+                }}
+                onOpenTicketDetails={setTicketDetailsCardId}
+                onCommitTitle={commitCardTitleInline}
+                onCommitLane={commitCardLaneInline}
+                onCommitPriority={commitCardPriorityInline}
+                onCommitDueDate={commitCardDueDateInline}
+                onQuickPromoteToNextUp={(cardId) => moveCardViaMenu('next_up', cardId)}
+              />
             ) : null}
 
             <p className="text-muted-foreground text-xs">{PLAN_BOARD_COPY.parityNote}</p>
           </section>
         </PortalPlanLayout>
 
-        <AlertDialog open={deleteCardId != null} onOpenChange={(open) => !open && setDeleteCardId(null)}>
-          <AlertDialogContent className="border-border">
-            <AlertDialogHeader>
-              <AlertDialogTitle>{PLAN_BOARD_COPY.cardDeleteDialogTitle}</AlertDialogTitle>
-              <AlertDialogDescription>{PLAN_BOARD_COPY.cardDeleteDialogDescription}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{PLAN_BOARD_COPY.cardDeleteConfirmCancel}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  void confirmDeleteCard();
-                }}
-              >
-                {PLAN_BOARD_COPY.cardDeleteConfirmCta}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <PlanBoardColumnPolicySheet
-          auditId={auditId}
-          open={boardSettingsOpen}
-          onOpenChange={setBoardSettingsOpen}
-          columns={boardQuery.data?.columns}
-        />
-        <PlanTicketDetailsPanel
-          auditId={auditId}
-          open={ticketDetailsCardId != null}
-          onOpenChange={(open) => {
+        <PlanBoardDialogs
+          deleteDialogOpen={deleteCardId != null}
+          onDeleteDialogOpenChange={(open) => !open && setDeleteCardId(null)}
+          onConfirmDelete={() => void confirmDeleteCard()}
+          boardSettingsOpen={boardSettingsOpen}
+          onBoardSettingsOpenChange={setBoardSettingsOpen}
+          ticketDetailsOpen={ticketDetailsCardId != null}
+          onTicketDetailsOpenChange={(open) => {
             if (!open) setTicketDetailsCardId(null);
           }}
-          card={selectedTicketCard}
-          canMutateCard={canEditCardFields}
-          columnOptions={operationalColumnDescriptors}
-          busy={patchMutation.isPending}
-          onSave={saveTicketDetails}
+          auditId={auditId}
+          columns={boardQuery.data?.columns}
+          selectedTicketCard={selectedTicketCard}
+          canEditCardFields={canEditCardFields}
+          patchPending={patchMutation.isPending}
+          onSaveTicketDetails={saveTicketDetails}
         />
       </BoardShell>
     </PortalPlanSurfaceChrome>
