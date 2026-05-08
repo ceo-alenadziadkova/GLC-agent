@@ -42,6 +42,8 @@ export const PIPELINE_EVENT_TYPES = {
   planBoardConflict409: 'plan_board_conflict_409',
   /** Strict manual→in_progress policy blocked a move or POST manual-card into in_progress. */
   planBoardManualInProgressBlocked: 'plan_board_manual_in_progress_blocked',
+  /** Coalition resolver found unresolved cross-domain conflicts that require consultant attention. */
+  coalitionConflictEscalationRequired: 'coalition_conflict_escalation_required',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

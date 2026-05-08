@@ -26,6 +26,7 @@ import { getPhaseAgentClass } from './phase-agent-registry.js';
 import { loadNormalizedExecutionPlanForAudit } from './execution-plan-loader.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import { runParallelBlockForAudit } from './parallel-block.js';
+import { runCoalitionShadowBlock } from './coalition-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
 import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
 
@@ -282,6 +283,10 @@ export class PipelineOrchestrator {
       loadExecutionPlan: () => this.getExecutionPlan(),
       updateAuditIfNotCancelled: (p) => this.updateAuditIfNotCancelled(p),
       runParallelBlock: (phases) => this.runParallelBlock(phases),
+      runCoalitionBlock: () => runCoalitionShadowBlock({
+        auditId: this.auditId,
+        emitEvent: this.emitEvent.bind(this),
+      }),
       startPhaseSequential: (p, opts) => this.startPhase(p, opts),
       emitEvent: this.emitEvent.bind(this),
       cancelledErrorFactory: () => new PipelineCancelledError(),

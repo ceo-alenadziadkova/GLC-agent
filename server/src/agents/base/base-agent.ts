@@ -33,6 +33,7 @@ import { TokenTracker } from '../../services/token-tracker.js';
 import type { BriefSnapshot } from '../../services/feasibility-layer.js';
 import type { DomainKey, DomainResult } from '../../types/audit.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../../config/model.js';
+import { CLAUDE_DOMAIN_SUBMIT_TOOL_NAME } from '../../config/agent-claude-contract.js';
 
 import { insertAgentPipelineEvent } from './agent-pipeline-emit.js';
 import { saveCompletedDomainRow } from './audit-domain-persistence.js';
@@ -250,12 +251,13 @@ export abstract class BaseAgent {
     return result;
   }
 
-  protected async callClaudeWithRetry(
+  protected async callClaudeWithRetry<TOutput = DomainResult>(
     context: AgentContext,
     schema: z.ZodSchema = this.outputSchema,
     maxTokens: number = MODEL_MAX_TOKENS.domain,
-  ): Promise<DomainResult> {
-    return invokeClaudeWithRetry(
+    toolName: string = CLAUDE_DOMAIN_SUBMIT_TOOL_NAME,
+  ): Promise<TOutput> {
+    return invokeClaudeWithRetry<TOutput>(
       {
         anthropic: this.anthropic,
         auditId: this.auditId,
@@ -265,7 +267,7 @@ export abstract class BaseAgent {
         tokenTracker: this.tokenTracker,
         emit: this.emit.bind(this),
       },
-      { context, schema, maxTokens },
+      { context, schema, maxTokens, toolName },
     );
   }
 

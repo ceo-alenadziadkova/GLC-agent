@@ -4,10 +4,12 @@ import {
 } from '../../config/context-builder-limits.js';
 import { CONTEXT_BUILDER_PROMPT } from '../../config/context-builder-prompt.js';
 import { formatClientBriefSection } from './format-client-brief.js';
+import { formatPeerHypothesesForPrompt } from './format-peer-hypotheses.js';
 import { escapePromptContent } from './lib/escape-prompt.js';
 import { formatCompanyUrlForPrompt } from './lib/format-company-url-for-prompt.js';
 import { trimJsonByTopLevelKeys } from './lib/trim-json-by-keys.js';
 import type { AgentContext } from './agent-context.types.js';
+import type { DomainKey } from '../../types/audit.js';
 
 /**
  * Formats context into two parts:
@@ -71,14 +73,29 @@ ${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.client_situation_snapshot, n
     );
   }
 
-  if ((ctx.coalition_hypothesis_drafts?.length ?? 0) > 0) {
+  const hypothesisRows =
+    ctx.coalition_context_stage === 'alignment'
+      ? formatPeerHypothesesForPrompt(ctx.coalition_hypothesis_drafts, ctx.slice_domain as DomainKey)
+      : (ctx.coalition_hypothesis_drafts ?? []);
+  if (
+    hypothesisRows.length > 0
+    && ctx.coalition_context_stage !== 'hypothesis'
+    && ctx.coalition_context_stage !== 'context_director'
+  ) {
     sections.push(
       `${P.peerHypothesesHeading}
-${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_hypothesis_drafts, null, 2)}${P.collectedDataJsonFenceClose}`,
+${P.collectedDataJsonFenceOpen}${JSON.stringify(hypothesisRows, null, 2)}${P.collectedDataJsonFenceClose}`,
     );
   }
 
-  if ((ctx.coalition_alignment_responses?.length ?? 0) > 0) {
+  if (
+    (ctx.coalition_alignment_responses?.length ?? 0) > 0
+    && (
+      ctx.coalition_context_stage === undefined
+      || ctx.coalition_context_stage === 'conflict_resolver'
+      || ctx.coalition_context_stage === 'finalize'
+    )
+  ) {
     sections.push(
       `${P.peerAlignmentsHeading}
 ${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.coalition_alignment_responses, null, 2)}${P.collectedDataJsonFenceClose}`,
