@@ -142,3 +142,12 @@
   border-top: var(--border-width-default) solid var(--border-subtle);
 }
 
+/* Pipeline monitor — Strategy repaired JSON apply (token-backed sizing). */
+.ds-pattern-pipeline-monitor-strategy-repaired-dialog-content {
+  max-height: var(--pipeline-monitor-strategy-repaired-dialog-content-max-height);
+}
+
+.ds-pattern-pipeline-monitor-strategy-repaired-json-textarea {
+  min-height: var(--pipeline-monitor-strategy-repaired-json-textarea-min-height);
+}
+

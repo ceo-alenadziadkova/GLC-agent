@@ -117,12 +117,14 @@ function mutateRootGlcDirectorExecution(root: Record<string, unknown>, mutationC
 
   if (typeof rawField === 'string' && typeof coercedOnce === 'object' && coercedOnce !== null && !Array.isArray(coercedOnce)) {
     mutationCodes.push('glc_director_execution_blob_structured');
-    sliceToWalk = cloneJson(coercedOnce);
+    sliceToWalk = cloneJson(coercedOnce as Record<string, unknown>);
   }
   else if (coercedOnce && typeof coercedOnce === 'object' && !Array.isArray(coercedOnce)) {
     sliceToWalk = cloneJson(coercedOnce as Record<string, unknown>);
   }
   else return;
+
+  if (sliceToWalk === undefined) return;
 
   let refsChanged = false;
   for (const wave of ['baseline', 'deep'] as const) {

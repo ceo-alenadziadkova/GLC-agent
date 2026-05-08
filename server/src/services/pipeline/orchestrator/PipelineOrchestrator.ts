@@ -29,7 +29,10 @@ import { runParallelBlockForAudit } from './parallel-block.js';
 import { runCoalitionShadowBlock } from './coalition-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
 import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
-import { runStrategyRepairedJsonApplyOrchestrated } from '../../strategy/strategy-repaired-json-apply.service.js';
+import {
+  runStrategyRepairedJsonApplyOrchestrated,
+  type StrategyRepairedApplyWorkflowResult,
+} from '../../strategy/strategy-repaired-json-apply.service.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;

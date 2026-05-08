@@ -404,6 +404,8 @@
   --pipeline-monitor-result-editor-min-height-sm: 5rem;
   --pipeline-monitor-result-editor-min-height-md: 8rem;
   --pipeline-monitor-result-editor-min-height-lg: 10rem;
+  --pipeline-monitor-strategy-repaired-dialog-content-max-height: min(720px, calc(100vh - 4rem));
+  --pipeline-monitor-strategy-repaired-json-textarea-min-height: 220px;
 
   /* Settings token usage table */
   --settings-token-usage-audit-name-max-width: 200px;

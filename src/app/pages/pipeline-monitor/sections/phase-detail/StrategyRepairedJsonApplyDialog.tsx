@@ -110,7 +110,7 @@ export function StrategyRepairedJsonApplyDialog(props: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[min(720px,calc(100vh-4rem))] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="ds-pattern-pipeline-monitor-strategy-repaired-dialog-content overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{copy.dialogTitle}</DialogTitle>
           <DialogDescription className="text-left">{copy.dialogIntro}</DialogDescription>
@@ -122,7 +122,7 @@ export function StrategyRepairedJsonApplyDialog(props: Props) {
             </Label>
             <textarea
               id="strategy-repaired-json-textarea"
-              className="w-full min-h-[220px] rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 font-mono text-xs"
+              className="ds-pattern-pipeline-monitor-strategy-repaired-json-textarea w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 font-mono text-xs"
               spellCheck={false}
               placeholder={copy.jsonPlaceholder}
               value={jsonText}
