@@ -44,6 +44,8 @@ export const PIPELINE_EVENT_TYPES = {
   planBoardManualInProgressBlocked: 'plan_board_manual_in_progress_blocked',
   /** Coalition resolver found unresolved cross-domain conflicts that require consultant attention. */
   coalitionConflictEscalationRequired: 'coalition_conflict_escalation_required',
+  /** Coalition auto-loop reran Context Director after unresolved escalation. */
+  coalitionAutoLoopContextDirectorRerun: 'coalition_auto_loop_context_director_rerun',
 } as const;
 
 export const PIPELINE_LOG_DETAIL_LEVELS = {

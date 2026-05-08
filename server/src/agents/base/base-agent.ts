@@ -9,7 +9,7 @@ import type { z } from 'zod';
 
 import { createAnthropicClient } from '../../config/claude-client.js';
 import type { AgentVariant } from '../../config/agent-variants.js';
-import { isCausalDagEnabled } from '../../config/feature-flags.js';
+import { isCausalDagEnabled, isCoalitionProtocolFinalizingEnabled } from '../../config/feature-flags.js';
 import { getExtendedPhaseProfile } from '../../config/phase-profiles.js';
 import { PIPELINE_EVENT_TYPES } from '../../config/pipeline-event-types.js';
 import {
@@ -138,6 +138,9 @@ export abstract class BaseAgent {
       collectedData,
       this.getEffectiveInstructions(),
     );
+    if (this.domainKey !== 'recon' && this.domainKey !== 'strategy' && isCoalitionProtocolFinalizingEnabled()) {
+      context.coalition_context_stage = 'finalize';
+    }
 
     const reviewPhasesInContext = context.review_notes
       .filter(n => Boolean(n.consultant_notes || n.interview_notes))

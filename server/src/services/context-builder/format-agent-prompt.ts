@@ -4,7 +4,10 @@ import {
 } from '../../config/context-builder-limits.js';
 import { CONTEXT_BUILDER_PROMPT } from '../../config/context-builder-prompt.js';
 import { formatClientBriefSection } from './format-client-brief.js';
-import { formatPeerHypothesesForPrompt } from './format-peer-hypotheses.js';
+import {
+  formatAlignmentCorrectedPeerDraftsForPrompt,
+  formatPeerHypothesesForPrompt,
+} from './format-peer-hypotheses.js';
 import { escapePromptContent } from './lib/escape-prompt.js';
 import { formatCompanyUrlForPrompt } from './lib/format-company-url-for-prompt.js';
 import { trimJsonByTopLevelKeys } from './lib/trim-json-by-keys.js';
@@ -76,6 +79,11 @@ ${P.collectedDataJsonFenceOpen}${JSON.stringify(ctx.client_situation_snapshot, n
   const hypothesisRows =
     ctx.coalition_context_stage === 'alignment'
       ? formatPeerHypothesesForPrompt(ctx.coalition_hypothesis_drafts, ctx.slice_domain as DomainKey)
+      : ctx.coalition_context_stage === 'finalize'
+        ? formatAlignmentCorrectedPeerDraftsForPrompt(
+          ctx.coalition_hypothesis_drafts,
+          ctx.coalition_alignment_responses,
+        )
       : (ctx.coalition_hypothesis_drafts ?? []);
   if (
     hypothesisRows.length > 0

@@ -160,6 +160,7 @@ describe('prompt-loader', () => {
       'cross-domain-conflict-resolver',
       ...DOMAIN_KEYS.map((d) => `${d}-hypothesis`),
       ...DOMAIN_KEYS.map((d) => `${d}-alignment`),
+      ...DOMAIN_KEYS.map((d) => `${d}-finalize`),
     ];
     for (const promptName of promptNames) {
       const promptBody = loadPrompt(promptName);
@@ -194,6 +195,21 @@ describe('prompt-loader', () => {
 
     expect(tech).toContain('For **strict phases** (Tech, Security, UX, Marketing, Automation), do **not omit** this key');
     expect(seo).toContain('For **best-effort SEO**, omission is allowed by policy');
+  });
+
+  it('aliases legacy domain prompts to finalize prompts only when coalition finalizing is active', () => {
+    const previousEnabled = process.env.FEATURE_COALITION_PROTOCOL_ENABLED;
+    const previousMode = process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE;
+    try {
+      process.env.FEATURE_COALITION_PROTOCOL_ENABLED = 'true';
+      process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE = 'internal';
+      expect(loadPrompt('tech_infrastructure')).toContain('CTO Director finalizing the Tech Infrastructure domain');
+    } finally {
+      if (previousEnabled === undefined) delete process.env.FEATURE_COALITION_PROTOCOL_ENABLED;
+      else process.env.FEATURE_COALITION_PROTOCOL_ENABLED = previousEnabled;
+      if (previousMode === undefined) delete process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE;
+      else process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE = previousMode;
+    }
   });
 
   it('keeps recon and strategy safety-redaction baseline explicit', () => {
@@ -248,6 +264,7 @@ describe('prompt-loader tool name centralization', () => {
     for (const domainKey of DOMAIN_KEYS) {
       expectToolGate(loadPrompt(`${domainKey}-hypothesis`), CLAUDE_COALITION_HYPOTHESIS_TOOL_NAME);
       expectToolGate(loadPrompt(`${domainKey}-alignment`), CLAUDE_COALITION_ALIGNMENT_TOOL_NAME);
+      expectToolGate(loadPrompt(`${domainKey}-finalize`), CLAUDE_DOMAIN_SUBMIT_TOOL_NAME);
     }
   });
 

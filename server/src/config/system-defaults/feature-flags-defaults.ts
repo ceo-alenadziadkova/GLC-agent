@@ -250,6 +250,13 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   coalitionProtocolRolloutMode: 'shadow',
   /**
+   * Internal/pilot staged rollout allowlists for coalition protocol.
+   * Env: `FEATURE_COALITION_PROTOCOL_ALLOWLIST_USER_IDS`,
+   * `FEATURE_COALITION_PROTOCOL_ALLOWLIST_CLIENT_IDS`
+   */
+  coalitionProtocolAllowlistUserIds: [] as string[],
+  coalitionProtocolAllowlistClientIds: [] as string[],
+  /**
    * V2+ only: enables iterative multi-turn between directors during Phase 3.
    * V1 stays single-call. Env: `FEATURE_COALITION_PHASE3_ITERATIVE`
    */

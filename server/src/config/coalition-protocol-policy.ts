@@ -154,6 +154,45 @@ export const COALITION_GA_GATES = {
 export const COALITION_GA_PROMOTION_WINDOW_COUNT = 2 as const;
 export const COALITION_GA_PROMOTION_WINDOW_DAYS = 7 as const;
 
+export type CoalitionGaGateMetrics = {
+  crossDomainDensityMedian: number;
+  unresolvedConflictRate: number;
+  modeAlignment: number;
+  assumptionCoverage: number;
+  consultantAgreement: number;
+  runtimeOverheadP95Sec: number;
+  tokenOverheadP95: number;
+};
+
+export function evaluateCoalitionGaGateMetrics(metrics: CoalitionGaGateMetrics): {
+  passed: boolean;
+  failed: Array<keyof CoalitionGaGateMetrics>;
+} {
+  const failed: Array<keyof CoalitionGaGateMetrics> = [];
+  if (metrics.crossDomainDensityMedian < COALITION_GA_GATES.crossDomainDensityMedianMin) {
+    failed.push('crossDomainDensityMedian');
+  }
+  if (metrics.unresolvedConflictRate > COALITION_GA_GATES.unresolvedConflictRateMax) {
+    failed.push('unresolvedConflictRate');
+  }
+  if (metrics.modeAlignment < COALITION_GA_GATES.modeAlignmentMin) {
+    failed.push('modeAlignment');
+  }
+  if (metrics.assumptionCoverage < COALITION_GA_GATES.assumptionCoverageMin) {
+    failed.push('assumptionCoverage');
+  }
+  if (metrics.consultantAgreement < COALITION_GA_GATES.consultantAgreementMin) {
+    failed.push('consultantAgreement');
+  }
+  if (metrics.runtimeOverheadP95Sec > COALITION_GA_GATES.runtimeOverheadP95SecMax) {
+    failed.push('runtimeOverheadP95Sec');
+  }
+  if (metrics.tokenOverheadP95 > COALITION_GA_GATES.tokenOverheadP95Max) {
+    failed.push('tokenOverheadP95');
+  }
+  return { passed: failed.length === 0, failed };
+}
+
 /** Maximum auto-loop runs of Phase 0.5 (Context Director) per audit. V1 only. */
 export const COALITION_AUTO_LOOP_MAX_RUNS = 2 as const;
 
@@ -200,6 +239,23 @@ export const COALITION_MATURITY_TIERS = [
   'optimization',
 ] as const;
 export type CoalitionMaturityTier = (typeof COALITION_MATURITY_TIERS)[number];
+
+export const COALITION_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
+export type CoalitionConfidenceLevel = (typeof COALITION_CONFIDENCE_LEVELS)[number];
+
+export const COALITION_CONFIDENCE_RANK: Readonly<Record<CoalitionConfidenceLevel, number>> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+} as const;
+
+export const COALITION_DOMAIN_WEIGHT_MIN_CONFIDENCE = 'medium' as const satisfies CoalitionConfidenceLevel;
+
+export function coalitionSnapshotAllowsDomainWeightOverride(confidence: unknown): boolean {
+  if (!COALITION_CONFIDENCE_LEVELS.includes(confidence as CoalitionConfidenceLevel)) return false;
+  return COALITION_CONFIDENCE_RANK[confidence as CoalitionConfidenceLevel]
+    >= COALITION_CONFIDENCE_RANK[COALITION_DOMAIN_WEIGHT_MIN_CONFIDENCE];
+}
 
 export const COALITION_HYPOTHESIS_TYPES = [
   'risk',

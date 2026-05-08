@@ -243,3 +243,12 @@ Validate these invariants whenever coalition prompts, schemas, or loader files c
 - Concept ADR `ADR-CROSS-DIRECTOR-COLLABORATIVE-STRATEGY-V1.md` must reach Status=Accepted before Rollout Phase 5 starts (Phase 0–4 may proceed in shadow with Concept = Proposed).
 - `docs/instructions/CONTEXT-DIRECTOR-INSTRUCTIONS.md` and `CONFLICT-RESOLVER-INSTRUCTIONS.md` must be merged before their respective rollout phases (own-doc anti-drift tests fail otherwise).
 - `_append-glc-director-execution.md` v2 must be released alongside Rollout Phase 5; cannot ship earlier (changes the action contract).
+
+---
+
+## Verification log append — 2026-05-08
+
+- Phase 5 backend integration implemented with feature-gated finalize aliases, `*-finalize` prompts, alignment-corrected finalize context, snapshot-weight precedence, strategy `evidence.cross_domain_dependencies`, and director `actions[*].cross_domain_refs`.
+- Phase 6 frontend scaffolding implemented with coalition monitor status strip, internal+ Approve client situation gate copy/snapshot display, `ConflictMatrix`, `CoalitionChainView`, and EN copy SSOT.
+- Phase 7 activation logic implemented with master switch + `shadow/internal/pilot/ga` rollout semantics, user/client allowlists, and pure KPI gate evaluation for GA promotion.
+- Phase 8 hardening started with iterative resolver guard event, capped auto-loop Context Director rerun bridge, and additive causal DAG snapshot persistence.

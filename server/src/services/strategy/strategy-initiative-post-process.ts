@@ -55,7 +55,11 @@ export function applyExecutionPathConstraints(
 export function verifyInitiativeEvidence(
   initiative: StrategyInitiativeParsed,
   issueIdsByDomain: Map<DomainKey, Set<string>>,
+  options: { requireCrossDomainDependencies?: boolean } = {},
 ): boolean {
+  if (options.requireCrossDomainDependencies && initiative.evidence.cross_domain_dependencies.length === 0) {
+    return false;
+  }
   for (const src of initiative.evidence.sources) {
     if (!src.issue_id?.trim()) continue;
     const set = issueIdsByDomain.get(src.domain_key as DomainKey);
@@ -68,10 +72,11 @@ export function postProcessStrategyInitiatives(
   initiatives: StrategyInitiativeParsed[],
   brief: StrategyBriefConstraintSnapshot,
   issueIdsByDomain: Map<DomainKey, Set<string>>,
+  options: { requireCrossDomainDependencies?: boolean } = {},
 ): StrategyInitiativePostProcessed[] {
   return initiatives.map((init) => ({
     ...init,
     execution_paths: applyExecutionPathConstraints(init, brief),
-    evidence_verified: verifyInitiativeEvidence(init, issueIdsByDomain),
+    evidence_verified: verifyInitiativeEvidence(init, issueIdsByDomain, options),
   }));
 }

@@ -1,5 +1,6 @@
 import type { IntakeSliceDomain } from '@glc/intake-core';
 import type { DomainKey, ReconConflict, ReconData } from '../../types/audit.js';
+import { coalitionSnapshotAllowsDomainWeightOverride } from '../../config/coalition-protocol-policy.js';
 import { getDomainWeight } from '../../config/industry-weights.js';
 import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import {
@@ -18,6 +19,34 @@ import type { AgentContext } from './agent-context.types.js';
  * This is Step 2 of the Data-First pipeline: COLLECT → **ASSEMBLE** → CALL → VERIFY.
  */
 export class ContextBuilder {
+  private resolveDomainWeight(args: {
+    domainKey: DomainKey | 'recon' | 'strategy';
+    industry: string | null;
+    clientSituation: Record<string, unknown> | null;
+  }): number {
+    const { domainKey, industry, clientSituation } = args;
+    if (domainKey === 'recon' || domainKey === 'strategy') return 1;
+
+    const resourceEnvelope = clientSituation?.resource_envelope;
+    const confidence =
+      resourceEnvelope && typeof resourceEnvelope === 'object'
+        ? (resourceEnvelope as { confidence?: unknown }).confidence
+        : undefined;
+    const domainWeights = clientSituation?.domain_weights;
+    if (
+      coalitionSnapshotAllowsDomainWeightOverride(confidence)
+      && domainWeights
+      && typeof domainWeights === 'object'
+    ) {
+      const snapshotWeight = (domainWeights as Partial<Record<DomainKey, unknown>>)[domainKey];
+      if (typeof snapshotWeight === 'number') {
+        return snapshotWeight;
+      }
+    }
+
+    return getDomainWeight(industry, domainKey);
+  }
+
   async build(
     auditId: string,
     phaseNumber: number,
@@ -86,10 +115,7 @@ export class ContextBuilder {
           if (otherPhasesCount >= CONTEXT_BUILDER_RETRY_NOTES_OTHER_PHASES_MAX) return acc;
           return [...acc, note];
         }, []),
-      domain_weight:
-        typeof domainKey === 'string' && domainKey !== 'recon' && domainKey !== 'strategy'
-          ? getDomainWeight(industry, domainKey)
-          : 1,
+      domain_weight: this.resolveDomainWeight({ domainKey, industry, clientSituation }),
       brief_responses: briefResponses,
       brief_response_sources: briefResponseSources,
       intake_data_quality_score: Number(brief?.data_quality_score ?? 0),

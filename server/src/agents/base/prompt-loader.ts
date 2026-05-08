@@ -20,6 +20,7 @@ import {
   COALITION_PIPELINE_TRUST_BOUNDARY_PROMPT_NAMES,
   COALITION_PROMPT_NAMES,
 } from '../../config/coalition-protocol-policy.js';
+import { isCoalitionProtocolFinalizingEnabled } from '../../config/feature-flags.js';
 import { ORCHESTRATION_SYNTHESIS_CLAUDE_TOOL_NAME } from '../../config/orchestration-synthesis-policy.js';
 import { renderPromptIndustryHeuristics } from '../../config/prompt-industry-heuristics.js';
 import { STRATEGY_EXECUTION_PACK_CLAUDE_TOOL_NAME } from '../../config/strategy-initiative-policy.js';
@@ -185,10 +186,12 @@ const DOMAIN_ALIGNMENT_PROMPT_SET = new Set<string>(DOMAIN_KEYS.map((d) => `${d}
  * Phase 5 wires `<domain>` to read the finalize file while keeping legacy
  * audits using the unaliased file in flight.
  */
-const PROMPT_NAME_ALIAS_MAP = new Map<string, string>(
-  // Empty until Rollout Phase 5 flips the alias on. Populating this map is a
-  // single-line change at that milestone — the loader already honors it.
-);
+function resolvePromptFileName(name: string): string {
+  if (DOMAIN_PROMPT_SET.has(name) && isCoalitionProtocolFinalizingEnabled()) {
+    return `${name}-finalize`;
+  }
+  return name;
+}
 
 /**
  * Canonical Claude tool name per prompt. Sourced from the same constants the
@@ -231,12 +234,12 @@ const PROMPT_TOOL_NAME_MAP: ReadonlyMap<string, string> = new Map<string, string
  */
 export function loadPrompt(name: string): string {
   try {
-    const fileName = PROMPT_NAME_ALIAS_MAP.get(name) ?? name;
+    const fileName = resolvePromptFileName(name);
     const raw = readFileSync(join(PROMPTS_DIR, `${fileName}.md`), 'utf-8');
     let body = stripVersionHeader(raw);
 
     const isLegacyDomainPrompt = DOMAIN_PROMPT_SET.has(name);
-    const isDomainFinalizePrompt = DOMAIN_FINALIZE_PROMPT_SET.has(name);
+    const isDomainFinalizePrompt = DOMAIN_FINALIZE_PROMPT_SET.has(name) || DOMAIN_FINALIZE_PROMPT_SET.has(fileName);
     const isDomainHypothesisPrompt = DOMAIN_HYPOTHESIS_PROMPT_SET.has(name);
     const isDomainAlignmentPrompt = DOMAIN_ALIGNMENT_PROMPT_SET.has(name);
     const isDomainStackPrompt =
@@ -270,7 +273,10 @@ export function loadPrompt(name: string): string {
     if (industryHeuristicsAppend) {
       body = `${body}\n\n${industryHeuristicsAppend}`;
     }
-    if (COALITION_PROTOCOL_PROMPT_SET.has(name) && COALITION_PROTOCOL_APPEND) {
+    if (
+      (COALITION_PROTOCOL_PROMPT_SET.has(name) || COALITION_PROTOCOL_PROMPT_SET.has(fileName))
+      && COALITION_PROTOCOL_APPEND
+    ) {
       body = `${body}\n\n${COALITION_PROTOCOL_APPEND}`;
     }
     const toolName = PROMPT_TOOL_NAME_MAP.get(name);
@@ -293,7 +299,7 @@ export function loadPrompt(name: string): string {
  */
 export function promptVersion(name: string): string {
   try {
-    const fileName = PROMPT_NAME_ALIAS_MAP.get(name) ?? name;
+    const fileName = resolvePromptFileName(name);
     const raw = readFileSync(join(PROMPTS_DIR, `${fileName}.md`), 'utf-8');
     const match = raw.match(/<!--\s*version:\s*([\d.]+)/);
     return match?.[1] ?? 'unknown';

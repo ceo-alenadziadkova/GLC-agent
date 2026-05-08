@@ -23,6 +23,38 @@ import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
 import { useIsMobile } from '../../components/ui/use-mobile';
 import { cn } from '../../components/ui/utils';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
+import { COALITION_PROTOCOL_COPY } from '../../config/coalition-protocol-copy.en';
+import type { PipelineEvent } from '../../data/auditTypes';
+
+function CoalitionStatusStrip({ events }: { events: PipelineEvent[] }) {
+  if (!APP_FEATURE_FLAGS.coalitionProtocolEnabled) return null;
+  const copy = COALITION_PROTOCOL_COPY.monitor;
+  const started = events.some(event => String(event.message ?? '').includes('Coalition protocol shadow block started'));
+  const completed = events.some(event => String(event.message ?? '').includes('Coalition protocol shadow block completed'));
+  const escalation = events.some(event => event.event_type === 'coalition_conflict_escalation_required');
+  const status = completed ? copy.complete : started ? copy.active : copy.pending;
+  const items = [copy.contextDirector, copy.hypothesis, copy.alignment, copy.resolver];
+
+  return (
+    <section className="mb-4 rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-foreground text-sm font-semibold">{copy.sectionTitle}</h3>
+        <span className="rounded-md border px-2 py-1 text-[length:var(--text-2xs)] font-medium text-muted-foreground">
+          {escalation ? copy.conflictEscalation : status}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((label) => (
+          <div key={label} className="rounded-lg border bg-background px-3 py-2">
+            <p className="text-foreground text-xs font-semibold">{label}</p>
+            <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)]">{status}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function PipelineMonitorPage() {
   const { id } = useParams<{ id: string }>();
@@ -82,6 +114,15 @@ export function PipelineMonitorPage() {
       : null;
 
   const autoWingReviewAfterPhase = deriveAutoWingReviewAfterPhase(reviews);
+  const coalitionGateActive =
+    APP_FEATURE_FLAGS.coalitionProtocolEnabled &&
+    APP_FEATURE_FLAGS.coalitionProtocolRolloutMode !== 'shadow';
+  const openReviewModal = (afterPhase: number, label: string) => setModalReview({
+    afterPhase,
+    label: coalitionGateActive && afterPhase === 0
+      ? COALITION_PROTOCOL_COPY.gate.approveCoalitionTitle
+      : label,
+  });
 
   const plannedExecutionPhaseIds = useMemo(
     () => (audit?.meta ? plannedExecutionPhaseIdSet(audit.meta) : null),
@@ -207,7 +248,7 @@ export function PipelineMonitorPage() {
                 autoWingReviewAfterPhase={autoWingReviewAfterPhase}
                 reviewWarningsByPhase={reviewWarningsByPhase}
                 onSelectPhase={setSelectedPhaseId}
-                onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+                onOpenReviewModal={openReviewModal}
               />
             </>
           ) : (
@@ -222,7 +263,7 @@ export function PipelineMonitorPage() {
                 autoWingReviewAfterPhase={autoWingReviewAfterPhase}
                 reviewWarningsByPhase={reviewWarningsByPhase}
                 onSelectPhase={setSelectedPhaseId}
-                onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+                onOpenReviewModal={openReviewModal}
               />
               <PhaseDetailPanel
                 selectedPhase={selectedPhase}
@@ -289,7 +330,7 @@ export function PipelineMonitorPage() {
               autoWingReviewAfterPhase={autoWingReviewAfterPhase}
               reviewWarningsByPhase={reviewWarningsByPhase}
               onSelectPhase={setSelectedPhaseId}
-              onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
+              onOpenReviewModal={openReviewModal}
             />
           </ResizablePanel>
           <ResizableHandle
@@ -345,6 +386,7 @@ export function PipelineMonitorPage() {
         </ResizablePanelGroup>
       )}
       <div className="mt-4">
+        <CoalitionStatusStrip events={pipelineState?.events ?? []} />
         <ExecutionLogPanel auditId={id} title={PIPELINE_UI_COPY.executionLogTitles.pipelineMonitor} />
       </div>
 
@@ -369,6 +411,11 @@ export function PipelineMonitorPage() {
                 copy: PM.reviewModal.recon,
                 showCrawlerTruncationWarning: pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? []),
               }
+            : null
+        }
+        clientSituationSnapshot={
+          coalitionGateActive && modalReview?.afterPhase === 0
+            ? audit?.coalition?.client_situation_snapshot ?? null
             : null
         }
       />

@@ -174,6 +174,12 @@ function readFeatureRolloutMode(env: string | undefined, defaultValue: FeatureRo
   return readEnumFeatureFlag(env, ROLLOUT_MODES, defaultValue);
 }
 
+function readCsvEnv(env: string | undefined, defaultValue: readonly string[]): readonly string[] {
+  const raw = env?.trim();
+  if (!raw) return defaultValue;
+  return raw.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
 /**
  * Plan-level governance rollout mode for orchestration persistence gate.
  * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
@@ -584,6 +590,20 @@ export function getCoalitionProtocolRolloutMode(): FeatureRolloutMode {
   return readFeatureRolloutMode(
     process.env.FEATURE_COALITION_PROTOCOL_ROLLOUT_MODE,
     FF.coalitionProtocolRolloutMode as FeatureRolloutMode,
+  );
+}
+
+export function getCoalitionProtocolAllowlistUserIds(): readonly string[] {
+  return readCsvEnv(
+    process.env.FEATURE_COALITION_PROTOCOL_ALLOWLIST_USER_IDS,
+    FF.coalitionProtocolAllowlistUserIds,
+  );
+}
+
+export function getCoalitionProtocolAllowlistClientIds(): readonly string[] {
+  return readCsvEnv(
+    process.env.FEATURE_COALITION_PROTOCOL_ALLOWLIST_CLIENT_IDS,
+    FF.coalitionProtocolAllowlistClientIds,
   );
 }
 

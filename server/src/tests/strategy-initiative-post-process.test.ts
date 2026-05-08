@@ -56,8 +56,24 @@ describe('strategy-initiative-post-process', () => {
   });
 
   it('fails verification when issue id is unknown', () => {
-    const bad = { ...baseInit, evidence: { sources: [{ domain_key: 'marketing_utp', issue_id: 'nope' }] } };
+    const bad = {
+      ...baseInit,
+      evidence: { sources: [{ domain_key: 'marketing_utp', issue_id: 'nope' }], cross_domain_dependencies: [] },
+    };
     const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
     expect(verifyInitiativeEvidence(bad, idx)).toBe(false);
+  });
+
+  it('requires cross-domain dependencies when coalition alignments indicate dependency reactions', () => {
+    const idx = new Map<DomainKey, Set<string>>([['marketing_utp', new Set(['i1'])]]);
+    expect(verifyInitiativeEvidence(baseInit, idx, { requireCrossDomainDependencies: true })).toBe(false);
+    const withDependency = StrategyInitiativeSchema.parse({
+      ...baseInit,
+      evidence: {
+        ...baseInit.evidence,
+        cross_domain_dependencies: [{ domain_key: 'tech_infrastructure', hypothesis_id: 'tech_infrastructure:H1' }],
+      },
+    });
+    expect(verifyInitiativeEvidence(withDependency, idx, { requireCrossDomainDependencies: true })).toBe(true);
   });
 });

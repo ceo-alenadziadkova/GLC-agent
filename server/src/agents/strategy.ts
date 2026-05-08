@@ -31,6 +31,20 @@ type StrategyPersistPayload = {
   strategic: StrategyOutput['strategic'];
 };
 
+function coalitionAlignmentsIndicateDependencies(rows: Array<Record<string, unknown>> | undefined): boolean {
+  return (rows ?? []).some((row) => {
+    const alignment = row.alignment;
+    if (!alignment || typeof alignment !== 'object') return false;
+    const reactions = (alignment as { cross_domain_reactions?: unknown }).cross_domain_reactions;
+    return Array.isArray(reactions)
+      && reactions.some((reaction) => (
+        Boolean(reaction)
+        && typeof reaction === 'object'
+        && (reaction as { relation?: unknown }).relation === 'depends_on'
+      ));
+  });
+}
+
 /**
  * Phase 7: Strategy & Roadmap Synthesis
  * Reads ALL previous domain results + recon + review notes.
@@ -171,10 +185,28 @@ export class StrategyAgent extends BaseAgent {
       labRow?.strategy_lab_context,
     );
     const issueIndex = buildDomainIssueIdIndex(domainIssueRows ?? []);
+    const requireCrossDomainDependencies = coalitionAlignmentsIndicateDependencies(
+      context.coalition_alignment_responses,
+    );
 
-    const quick_wins = postProcessStrategyInitiatives(strategyResult.quick_wins, briefSnapshot, issueIndex);
-    const medium_term = postProcessStrategyInitiatives(strategyResult.medium_term, briefSnapshot, issueIndex);
-    const strategic = postProcessStrategyInitiatives(strategyResult.strategic, briefSnapshot, issueIndex);
+    const quick_wins = postProcessStrategyInitiatives(
+      strategyResult.quick_wins,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
+    const medium_term = postProcessStrategyInitiatives(
+      strategyResult.medium_term,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
+    const strategic = postProcessStrategyInitiatives(
+      strategyResult.strategic,
+      briefSnapshot,
+      issueIndex,
+      { requireCrossDomainDependencies },
+    );
 
     this.lastRawDomainResult = { ...strategyResult } as unknown as Record<string, unknown>;
 

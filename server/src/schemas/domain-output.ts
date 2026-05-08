@@ -214,6 +214,17 @@ export const StrategyInitiativeEvidenceSourceSchema = z.object({
   signal: z.string().max(L.bulletMaxLength).optional(),
 });
 
+export const StrategyInitiativeCrossDomainDependencySchema = z.object({
+  domain_key: z.enum(evidenceDomainEnum),
+  hypothesis_id: z
+    .string()
+    .regex(
+      /^(tech_infrastructure|security_compliance|seo_digital|ux_conversion|marketing_utp|automation_processes):H[1-9]\d*$/,
+    )
+    .optional(),
+  conflict_id: z.string().regex(/^CONF-[1-9]\d*$/).optional(),
+});
+
 export const StrategyInitiativeExecutionPathSchema = z.object({
   type: z.enum(pathTypeEnum),
   description: z.string().min(1).max(L.pathDescriptionMaxLength),
@@ -293,6 +304,10 @@ export const StrategyInitiativeSchema = z.object({
       .array(StrategyInitiativeEvidenceSourceSchema)
       .min(1)
       .max(L.evidenceSourcesMax),
+    cross_domain_dependencies: z
+      .array(StrategyInitiativeCrossDomainDependencySchema)
+      .max(L.crossDomainDependenciesMax)
+      .default([]),
   }),
   /** Set server-side after evidence link validation. */
   evidence_verified: z.boolean().optional(),

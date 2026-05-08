@@ -80,6 +80,7 @@ export const STRATEGY_INITIATIVE_LIMITS = {
   scopeExcludesMax: 14,
   dependenciesMax: 12,
   evidenceSourcesMax: 10,
+  crossDomainDependenciesMax: 12,
   executionPathsMin: 1,
   executionPathsMax: 3,
   pathDescriptionMaxLength: 900,
